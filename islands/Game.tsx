@@ -15,7 +15,7 @@ export default function Game({ seed }: { seed: number }) {
       activeGame = startGame({
         canvas: canvasRef.current,
         ctx: ctx,
-        host: globalThis,
+        window: globalThis.window,
         seed,
       });
     }

@@ -1,17 +1,12 @@
-# Fresh project
+# Spear of Destiny Jam
 
-Your new Fresh project is ready to go. You can follow the Fresh "Getting
-Started" guide here: https://fresh.deno.dev/docs/getting-started
+## Acknowledgements
 
-### Usage
+**Code Inspiration:**
 
-Make sure to install Deno:
-https://docs.deno.com/runtime/getting_started/installation
+- [MethMethMethod's Super Mario](https://github.com/meth-meth-method/super-mario/)
+- [id Software's browser port of Wolfenstein 3D](https://github.com/id-Software/wolf3d-browser)
 
-Then start the project in development mode:
+**Art Assets:**
 
-```
-deno task dev
-```
-
-This will watch the project directory and restart as necessary.
+- [Aquilarius' Retro Textures (CC0)](https://aquilarius.itch.io/aquilariusrt)

@@ -1,13 +1,19 @@
-import { configureCanvasDpi } from "@/src/canvas.ts";
-import type { GameCanvasSize } from "@/src/canvas.ts";
-import { GAME_HEIGHT, GAME_WIDTH } from "@/src/constants.ts";
+import { createGameSession } from "@/src/ecs/session.ts";
+import type { GameSession } from "@/src/ecs/session.ts";
+import { isPlayerCommand } from "@/src/game/commands.ts";
+import type { GameCommand } from "@/src/game/commands.ts";
+import type { PlayerCommand } from "@/src/game/commands.ts";
 import { setupKeyboard } from "@/src/input/input.ts";
+import { MAP_1 } from "@/src/map/map_1.ts";
+import { configureCanvasDpi, DEFAULT_GAME_CANVAS_SIZE } from "@/src/render/canvas.ts";
+import type { GameCanvasSize } from "@/src/render/canvas.ts";
+import { renderGameFrame } from "@/src/render/game.ts";
 
 export interface GameSpec {
   ctx: CanvasRenderingContext2D;
   canvas: HTMLCanvasElement;
   seed: number;
-  host: typeof globalThis;
+  window: Window;
 }
 
 export function startGame(spec: GameSpec): Disposable {
@@ -18,21 +24,20 @@ export function startGame(spec: GameSpec): Disposable {
 }
 
 class Game implements Disposable {
-  private spec: GameSpec;
-  private controller: AbortController;
+  private readonly spec: GameSpec;
+  private readonly controller: AbortController;
   private canvasController: Disposable;
-  private canvasSize: GameCanvasSize = { width: GAME_WIDTH, height: GAME_HEIGHT };
-  private inputController: Disposable;
+  private canvasSize: GameCanvasSize = DEFAULT_GAME_CANVAS_SIZE;
+  private inputController?: Disposable;
+  private session?: GameSession;
+  private menuOpen = false;
+  private paused = false;
   private started = false;
 
   constructor(spec: GameSpec, controller: AbortController) {
     this.spec = spec;
     this.controller = controller;
-    this.canvasController = configureCanvasDpi(spec.host, spec.canvas, spec.ctx, (size) => this.resize(size));
-    this.inputController = setupKeyboard(spec.host);
-
-    // TODO: Add player entity to input controller
-    // this.inputController.addReceiver( PLAYER_ENTITY );
+    this.canvasController = configureCanvasDpi(spec.window, spec.canvas, spec.ctx, (size) => this.resize(size));
   }
 
   setCanvasController(canvasController: Disposable): void {
@@ -42,6 +47,7 @@ class Game implements Disposable {
   start(): void {
     this.started = true;
     this.render();
+    void this.load();
   }
 
   resize(size: GameCanvasSize): void {
@@ -52,12 +58,62 @@ class Game implements Disposable {
   }
 
   private render(): void {
-    this.spec.ctx.fillStyle = "red";
-    this.spec.ctx.fillRect(0, 0, this.canvasSize.width, this.canvasSize.height);
+    renderGameFrame(this.spec.ctx, this.canvasSize, this.session);
+  }
+
+  private async load(): Promise<void> {
+    const session = await createGameSession(MAP_1);
+    if (this.controller.signal.aborted) {
+      session[Symbol.dispose]();
+      return;
+    }
+
+    this.session = session;
+    this.inputController = setupKeyboard(this.spec.window, (command) => this.handleGameCommands([command]));
+    this.render();
+  }
+
+  private handleGameCommands(commands: readonly GameCommand[]): void {
+    for (const command of commands) {
+      this.handleGameCommand(command);
+    }
+  }
+
+  private handleGameCommand(command: GameCommand): void {
+    if (isPlayerCommand(command)) {
+      if (this.paused || this.menuOpen) return;
+      this.handlePlayerCommands([command]);
+      return;
+    }
+
+    switch (command.type) {
+      case "menu":
+        this.menuOpen = !this.menuOpen;
+        return;
+      case "pause":
+        this.paused = !this.paused;
+        return;
+    }
+  }
+
+  private handlePlayerCommands(commands: readonly PlayerCommand[]): void {
+    if (!this.session) return;
+
+    let shouldRender = false;
+    for (const command of commands) {
+      const result = this.session.handlePlayerCommand(command);
+      shouldRender ||= result.changedWorld;
+    }
+
+    if (shouldRender) {
+      this.render();
+    }
   }
 
   [Symbol.dispose](): void {
     this.controller.abort();
+    this.inputController?.[Symbol.dispose]();
+    this.session?.[Symbol.dispose]();
     this.canvasController?.[Symbol.dispose]();
   }
 }

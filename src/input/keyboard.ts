@@ -1,49 +1,42 @@
-const PRESSED = 1;
-const RELEASED = 0;
+const KEY_EVENTS = ["keydown", "keyup"] as const;
 
 export default class KeyboardState implements Disposable {
-  private host: typeof globalThis;
-  private keyStates: Map<string, number>;
-  private keyMap: Map<string, (keyState: number) => void>;
-  private listeners: Set<(event: KeyboardEvent) => void>;
+  private readonly window: Window;
+  private readonly keyStates = new Map<string, boolean>();
+  private readonly keyMap = new Map<string, (keyState: boolean) => void>();
+  private readonly handleKeyboardEvent = (event: KeyboardEvent): void => {
+    this.handleEvent(event);
+  };
 
-  private listenTo() {
-    ["keydown", "keyup"].forEach((eventName) => {
-      const handler = (event: KeyboardEvent) => this.handleEvent(event as KeyboardEvent);
-      this.host.addEventListener(eventName as keyof WindowEventMap, handler as EventListener);
-      this.listeners.add(handler);
-    });
+  private listenTo(): void {
+    for (const eventName of KEY_EVENTS) {
+      this.window.addEventListener(eventName, this.handleKeyboardEvent);
+    }
   }
 
-  constructor(host: typeof globalThis) {
-    this.keyStates = new Map();
-    this.keyMap = new Map();
-    this.listeners = new Set();
-    this.host = host;
+  constructor(window: Window) {
+    this.window = window;
     this.listenTo();
   }
 
-  addMapping(code: string, callback: (keyState: number) => void) {
+  addMapping(code: string, callback: (keyState: boolean) => void): void {
     this.keyMap.set(code, callback);
   }
 
-  handleEvent(event: KeyboardEvent) {
+  handleEvent(event: KeyboardEvent): void {
     const { code } = event;
     if (!this.keyMap.has(code)) return;
     event.preventDefault();
-    const keyState = event.type === "keydown" ? PRESSED : RELEASED;
+    const keyState = event.type === "keydown";
     if (this.keyStates.get(code) === keyState) return;
     this.keyStates.set(code, keyState);
     this.keyMap.get(code)?.(keyState);
   }
 
   [Symbol.dispose](): void {
-    ["keydown", "keyup"].forEach((eventName) => {
-      for (const listener of this.listeners) {
-        this.host.removeEventListener(eventName as keyof WindowEventMap, listener as EventListener);
-      }
-    });
-    this.listeners.clear();
+    for (const eventName of KEY_EVENTS) {
+      this.window.removeEventListener(eventName, this.handleKeyboardEvent);
+    }
     this.keyStates.clear();
     this.keyMap.clear();
   }
