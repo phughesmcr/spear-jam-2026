@@ -1,6 +1,7 @@
 import { configureCanvasDpi } from "@/src/canvas.ts";
 import type { GameCanvasSize } from "@/src/canvas.ts";
 import { GAME_HEIGHT, GAME_WIDTH } from "@/src/constants.ts";
+import { setupKeyboard } from "@/src/input/input.ts";
 
 export interface GameSpec {
   ctx: CanvasRenderingContext2D;
@@ -19,14 +20,19 @@ export function startGame(spec: GameSpec): Disposable {
 class Game implements Disposable {
   private spec: GameSpec;
   private controller: AbortController;
-  private canvasController?: Disposable;
+  private canvasController: Disposable;
   private canvasSize: GameCanvasSize = { width: GAME_WIDTH, height: GAME_HEIGHT };
+  private inputController: Disposable;
   private started = false;
 
   constructor(spec: GameSpec, controller: AbortController) {
     this.spec = spec;
     this.controller = controller;
     this.canvasController = configureCanvasDpi(spec.host, spec.canvas, spec.ctx, (size) => this.resize(size));
+    this.inputController = setupKeyboard(spec.host);
+
+    // TODO: Add player entity to input controller
+    // this.inputController.addReceiver( PLAYER_ENTITY );
   }
 
   setCanvasController(canvasController: Disposable): void {
