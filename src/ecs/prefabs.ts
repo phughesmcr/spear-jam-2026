@@ -1,7 +1,19 @@
 import type { Entity, World } from "@phughesmcr/miski";
-import { Blocking, Facing, GridPos, Interactable, Npc, Player, TurnTaker } from "@/src/ecs/components.ts";
+import {
+  Blocking,
+  Door,
+  Facing,
+  GridPos,
+  Interactable,
+  Key,
+  Locked,
+  Npc,
+  Player,
+  TurnTaker,
+} from "@/src/ecs/components.ts";
 import { normalizeDirection } from "@/src/map/direction.ts";
 import type { EntityDef } from "@/src/map/map_1.ts";
+import type { LockId } from "@/src/map/map_1.ts";
 import type { DisplayName } from "@/src/strings.ts";
 
 export type PlayerPrefab = {
@@ -40,11 +52,53 @@ export function createNpc(world: World, prefab: NpcPrefab): Entity {
   return entity;
 }
 
+export type DoorPrefab = {
+  x: number;
+  y: number;
+  locked?: boolean;
+  lockId?: LockId;
+};
+
+export function createDoor(world: World, prefab: DoorPrefab): Entity {
+  const entity = world.entities.create();
+  if (entity === undefined) throw new Error("Failed to create door entity");
+  if (prefab.locked === true && prefab.lockId === undefined) {
+    throw new Error("Locked door prefab is missing a lock id");
+  }
+
+  world.components.addToEntity(GridPos, entity, { x: prefab.x, y: prefab.y });
+  world.components.addToEntity(Door, entity, { open: 0 });
+  world.components.addToEntity(Interactable, entity);
+  world.components.addToEntity(Blocking, entity);
+  if (prefab.locked === true && prefab.lockId !== undefined) {
+    world.components.addToEntity(Locked, entity, { lockId: prefab.lockId });
+  }
+  return entity;
+}
+
+export type KeyPrefab = {
+  x: number;
+  y: number;
+  lockId: LockId;
+};
+
+export function createKey(world: World, prefab: KeyPrefab): Entity {
+  const entity = world.entities.create();
+  if (entity === undefined) throw new Error("Failed to create key entity");
+  world.components.addToEntity(GridPos, entity, { x: prefab.x, y: prefab.y });
+  world.components.addToEntity(Key, entity, { lockId: prefab.lockId });
+  return entity;
+}
+
 export function createMapEntity(world: World, prefab: EntityDef): Entity {
   switch (prefab.prefab) {
     case "player":
       return createPlayer(world, prefab);
     case "npc":
       return createNpc(world, prefab);
+    case "door":
+      return createDoor(world, prefab);
+    case "key":
+      return createKey(world, prefab);
   }
 }

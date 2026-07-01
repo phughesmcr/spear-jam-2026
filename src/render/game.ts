@@ -1,6 +1,6 @@
 import { directionDelta } from "@/src/map/direction.ts";
-import { Facing, GridPos } from "@/src/ecs/components.ts";
-import { npcRenderQuery } from "@/src/ecs/queries.ts";
+import { Door, Facing, GridPos, Locked } from "@/src/ecs/components.ts";
+import { doorRenderQuery, keyQuery, npcRenderQuery } from "@/src/ecs/queries.ts";
 import type { GameSession } from "@/src/ecs/session.ts";
 import { mapDimensions, terrainAt } from "@/src/map/map_1.ts";
 import type { GameMap } from "@/src/map/map_1.ts";
@@ -24,6 +24,9 @@ const WALL_COLOR = "#5a5f68";
 const GRID_LINE_COLOR = "#151922";
 const PLAYER_COLOR = "#f0c84b";
 const NPC_COLOR = "#59d39b";
+const DOOR_COLOR = "#9a6a3a";
+const LOCKED_DOOR_COLOR = "#b14b4b";
+const KEY_COLOR = "#f4d35e";
 const PLAYER_RADIUS_RATIO = 0.34;
 const PLAYER_BASE_WIDTH_RATIO = 0.75;
 const NPC_RADIUS_RATIO = 0.28;
@@ -38,6 +41,8 @@ export function renderGameFrame(
   if (!session) return;
   const { map, player } = session;
   const metrics = renderMap(ctx, canvasSize, map);
+  renderKeys(ctx, session, metrics);
+  renderDoors(ctx, session, metrics);
   renderNpcs(ctx, session, metrics);
   const position = player.getPosition();
   const facing = player.getFacing();
@@ -84,6 +89,59 @@ function renderTile(
   ctx.fillRect(tileX, tileY, tileSize, tileSize);
   ctx.strokeStyle = GRID_LINE_COLOR;
   ctx.strokeRect(tileX + 0.5, tileY + 0.5, tileSize - 1, tileSize - 1);
+}
+
+function renderKeys(ctx: CanvasRenderingContext2D, session: GameSession, metrics: MapRenderMetrics): void {
+  for (const entity of session.world.entities.query(keyQuery)) {
+    const position = session.world.components.getEntityData(GridPos, entity);
+    renderKey(ctx, position.x, position.y, metrics);
+  }
+}
+
+function renderKey(ctx: CanvasRenderingContext2D, x: number, y: number, metrics: MapRenderMetrics): void {
+  const { offsetX, offsetY, tileSize } = metrics;
+  const centerX = offsetX + x * tileSize + tileSize / 2;
+  const centerY = offsetY + y * tileSize + tileSize / 2;
+  const radius = tileSize * 0.18;
+
+  ctx.fillStyle = KEY_COLOR;
+  ctx.beginPath();
+  ctx.moveTo(centerX, centerY - radius);
+  ctx.lineTo(centerX + radius, centerY);
+  ctx.lineTo(centerX, centerY + radius);
+  ctx.lineTo(centerX - radius, centerY);
+  ctx.closePath();
+  ctx.fill();
+}
+
+function renderDoors(ctx: CanvasRenderingContext2D, session: GameSession, metrics: MapRenderMetrics): void {
+  for (const entity of session.world.entities.query(doorRenderQuery)) {
+    const position = session.world.components.getEntityData(GridPos, entity);
+    const door = session.world.components.getEntityData(Door, entity);
+    const locked = session.world.components.entityHas(Locked, entity);
+    renderDoor(ctx, position.x, position.y, door.open === 1, locked, metrics);
+  }
+}
+
+function renderDoor(
+  ctx: CanvasRenderingContext2D,
+  x: number,
+  y: number,
+  open: boolean,
+  locked: boolean,
+  metrics: MapRenderMetrics,
+): void {
+  if (open) return;
+
+  const { offsetX, offsetY, tileSize } = metrics;
+  const tileX = offsetX + x * tileSize;
+  const tileY = offsetY + y * tileSize;
+  const inset = Math.max(2, tileSize * 0.18);
+  const width = tileSize - inset * 2;
+  const height = tileSize - inset * 2;
+
+  ctx.fillStyle = locked ? LOCKED_DOOR_COLOR : DOOR_COLOR;
+  ctx.fillRect(tileX + inset, tileY + inset, width, height);
 }
 
 function renderNpcs(ctx: CanvasRenderingContext2D, session: GameSession, metrics: MapRenderMetrics): void {

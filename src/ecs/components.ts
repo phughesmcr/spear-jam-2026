@@ -29,6 +29,24 @@ export const Blocking: Component<null> = new Component<null>({ name: "blocking" 
 
 export const Interactable: Component<null> = new Component<null>({ name: "interactable" });
 
+export type DoorSchema = { open: number };
+export const Door = new Component<DoorSchema>({
+  name: "door",
+  schema: { open: Uint8Array },
+});
+
+export type LockedSchema = { lockId: number };
+export const Locked = new Component<LockedSchema>({
+  name: "locked",
+  schema: { lockId: Uint8Array },
+});
+
+export type KeySchema = { lockId: number };
+export const Key = new Component<KeySchema>({
+  name: "key",
+  schema: { lockId: Uint8Array },
+});
+
 export const TurnTaker: Component<null> = new Component<null>({ name: "turnTaker" });
 
 export const Combatant: Component<null> = new Component<null>({ name: "combatant" });
@@ -40,6 +58,9 @@ export const ALL_COMPONENTS: DynamicComponent[] = [
   Player,
   Blocking,
   Interactable,
+  Door,
+  Locked,
+  Key,
   TurnTaker,
   Combatant,
 ];

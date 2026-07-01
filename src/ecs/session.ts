@@ -1,9 +1,9 @@
 import type { Entity, World } from "@phughesmcr/miski";
-import { Combatant, GridPos, Interactable, Npc } from "@/src/ecs/components.ts";
+import { Blocking, Combatant, Door, GridPos, Interactable, Key, Locked, Npc } from "@/src/ecs/components.ts";
 import { directionDelta } from "@/src/map/direction.ts";
 import type { GridDelta } from "@/src/map/direction.ts";
 import { Player } from "@/src/ecs/player.ts";
-import { blockingQuery, nonPlayerTurnTakerQuery, positionedQuery } from "@/src/ecs/queries.ts";
+import { blockingQuery, keyQuery, nonPlayerTurnTakerQuery, positionedQuery } from "@/src/ecs/queries.ts";
 import { relativeMoveDirectionOffset, turnDirectionDelta } from "@/src/game/commands.ts";
 import type { PlayerCommand, PlayerCommandResult } from "@/src/game/commands.ts";
 import { terrainAt } from "@/src/map/map_1.ts";
@@ -21,6 +21,7 @@ export class GameSession implements Disposable {
   readonly world: World;
   readonly player: Player;
   readonly map: GameMap;
+  private readonly heldKeys = new Set<number>();
   private disposed = false;
 
   constructor(world: World, player: Player, map: GameMap) {
@@ -60,6 +61,7 @@ export class GameSession implements Disposable {
     if (this.positionBlocks(next.x, next.y)) return false;
 
     this.player.setPosition(next);
+    this.collectKeyAt(next.x, next.y);
     return true;
   }
 
@@ -78,11 +80,32 @@ export class GameSession implements Disposable {
       return UNCHANGED_PLAYER_COMMAND;
     }
 
-    if (this.world.components.entityHas(Npc, target)) {
+    if (this.world.components.entityHas(Door, target)) {
+      return this.handleDoorInteractCommand(target);
+    } else if (this.world.components.entityHas(Npc, target)) {
       const npc = this.world.components.getEntityData(Npc, target);
       console.log(`Interacted with ${displayNameText(npc.displayName)}.`);
     }
 
+    return this.consumePlayerTurn();
+  }
+
+  private handleDoorInteractCommand(door: Entity): PlayerCommandResult {
+    const state = this.world.components.getEntityData(Door, door);
+    if (state.open === 1) return UNCHANGED_PLAYER_COMMAND;
+
+    if (this.world.components.entityHas(Locked, door)) {
+      const lock = this.world.components.getEntityData(Locked, door);
+      if (!this.heldKeys.has(lock.lockId)) {
+        console.log("The door is locked.");
+        return UNCHANGED_PLAYER_COMMAND;
+      }
+      this.world.components.removeFromEntity(Locked, door);
+    }
+
+    this.world.components.setEntityData(Door, door, { open: 1 });
+    this.world.components.removeFromEntity(Blocking, door);
+    console.log("Opened the door.");
     return this.consumePlayerTurn();
   }
 
@@ -122,6 +145,24 @@ export class GameSession implements Disposable {
 
   private positionBlocks(x: number, y: number): boolean {
     return this.tileBlocks(x, y) || this.blockingEntityAt(x, y) !== undefined;
+  }
+
+  private collectKeyAt(x: number, y: number): void {
+    const key = this.keyAt(x, y);
+    if (key === undefined) return;
+
+    const { lockId } = this.world.components.getEntityData(Key, key);
+    this.heldKeys.add(lockId);
+    this.world.entities.destroy(key);
+    console.log("Picked up a key.");
+  }
+
+  private keyAt(x: number, y: number): Entity | undefined {
+    for (const entity of this.world.entities.query(keyQuery)) {
+      const position = this.world.components.getEntityData(GridPos, entity);
+      if (position.x === x && position.y === y) return entity;
+    }
+    return undefined;
   }
 
   private facedEntity(): Entity | undefined {

@@ -17,6 +17,12 @@ export type FloorTile = {
 
 export type TerrainTile = WallTile | FloorTile;
 
+export const LockId = {
+  Door1: 1,
+} as const;
+
+export type LockId = number;
+
 export type PlayerDef = {
   prefab: "player";
   x: number;
@@ -32,7 +38,22 @@ export type NpcDef = {
   displayName: DisplayName;
 };
 
-export type EntityDef = PlayerDef | NpcDef;
+export type DoorDef = {
+  prefab: "door";
+  x: number;
+  y: number;
+  locked?: boolean;
+  lockId?: LockId;
+};
+
+export type KeyDef = {
+  prefab: "key";
+  x: number;
+  y: number;
+  lockId: LockId;
+};
+
+export type EntityDef = PlayerDef | NpcDef | DoorDef | KeyDef;
 
 export type GameMap = {
   name: string;
@@ -70,9 +91,9 @@ export const MAP_1: GameMap = {
     ],
     tiles: [
       [1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
-      [1, 0, 0, 0, 0, 0, 0, 0, 0, 1],
-      [1, 0, 0, 0, 0, 0, 0, 0, 0, 1],
-      [1, 0, 0, 0, 0, 0, 0, 0, 0, 1],
+      [1, 0, 0, 0, 0, 0, 1, 0, 0, 1],
+      [1, 0, 0, 0, 0, 0, 1, 0, 0, 1],
+      [1, 0, 0, 0, 0, 0, 1, 0, 1, 1],
       [1, 0, 0, 0, 0, 0, 0, 0, 0, 1],
       [1, 0, 0, 0, 0, 0, 0, 0, 0, 1],
       [1, 0, 0, 0, 0, 0, 0, 0, 0, 1],
@@ -86,5 +107,7 @@ export const MAP_1: GameMap = {
   entities: [
     { prefab: "player", x: 5, y: 5, dir: 1 },
     { prefab: "npc", x: 6, y: 5, dir: 3, displayName: DisplayName.John },
+    { prefab: "door", x: 7, y: 3, locked: true, lockId: LockId.Door1 },
+    { prefab: "key", x: 8, y: 9, lockId: LockId.Door1 },
   ],
 };
