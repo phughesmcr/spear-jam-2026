@@ -1,6 +1,8 @@
 import type { Entity, World } from "@phughesmcr/miski";
-import { Blocking, Facing, GridPos, Player } from "@/src/ecs/components.ts";
+import { Blocking, Facing, GridPos, Interactable, Npc, Player, TurnTaker } from "@/src/ecs/components.ts";
 import { normalizeDirection } from "@/src/map/direction.ts";
+import type { EntityDef } from "@/src/map/map_1.ts";
+import type { DisplayName } from "@/src/strings.ts";
 
 export type PlayerPrefab = {
   x: number;
@@ -15,5 +17,34 @@ export function createPlayer(world: World, prefab: PlayerPrefab): Entity {
   world.components.addToEntity(Facing, entity, { dir: normalizeDirection(prefab.dir) });
   world.components.addToEntity(Player, entity);
   world.components.addToEntity(Blocking, entity);
+  world.components.addToEntity(TurnTaker, entity);
   return entity;
+}
+
+export type NpcPrefab = {
+  x: number;
+  y: number;
+  dir: number;
+  displayName: DisplayName;
+};
+
+export function createNpc(world: World, prefab: NpcPrefab): Entity {
+  const entity = world.entities.create();
+  if (entity === undefined) throw new Error("Failed to create npc entity");
+  world.components.addToEntity(GridPos, entity, { x: prefab.x, y: prefab.y });
+  world.components.addToEntity(Facing, entity, { dir: normalizeDirection(prefab.dir) });
+  world.components.addToEntity(Npc, entity, { displayName: prefab.displayName });
+  world.components.addToEntity(Blocking, entity);
+  world.components.addToEntity(Interactable, entity);
+  world.components.addToEntity(TurnTaker, entity);
+  return entity;
+}
+
+export function createMapEntity(world: World, prefab: EntityDef): Entity {
+  switch (prefab.prefab) {
+    case "player":
+      return createPlayer(world, prefab);
+    case "npc":
+      return createNpc(world, prefab);
+  }
 }

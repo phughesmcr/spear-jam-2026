@@ -1,4 +1,6 @@
 import { directionDelta } from "@/src/map/direction.ts";
+import { Facing, GridPos } from "@/src/ecs/components.ts";
+import { npcRenderQuery } from "@/src/ecs/queries.ts";
 import type { GameSession } from "@/src/ecs/session.ts";
 import { mapDimensions, terrainAt } from "@/src/map/map_1.ts";
 import type { GameMap } from "@/src/map/map_1.ts";
@@ -21,8 +23,10 @@ const FLOOR_COLOR = "#232832";
 const WALL_COLOR = "#5a5f68";
 const GRID_LINE_COLOR = "#151922";
 const PLAYER_COLOR = "#f0c84b";
+const NPC_COLOR = "#59d39b";
 const PLAYER_RADIUS_RATIO = 0.34;
 const PLAYER_BASE_WIDTH_RATIO = 0.75;
+const NPC_RADIUS_RATIO = 0.28;
 
 export function renderGameFrame(
   ctx: CanvasRenderingContext2D,
@@ -34,6 +38,7 @@ export function renderGameFrame(
   if (!session) return;
   const { map, player } = session;
   const metrics = renderMap(ctx, canvasSize, map);
+  renderNpcs(ctx, session, metrics);
   const position = player.getPosition();
   const facing = player.getFacing();
   renderPlayer(ctx, position.x, position.y, facing.dir, metrics);
@@ -79,6 +84,39 @@ function renderTile(
   ctx.fillRect(tileX, tileY, tileSize, tileSize);
   ctx.strokeStyle = GRID_LINE_COLOR;
   ctx.strokeRect(tileX + 0.5, tileY + 0.5, tileSize - 1, tileSize - 1);
+}
+
+function renderNpcs(ctx: CanvasRenderingContext2D, session: GameSession, metrics: MapRenderMetrics): void {
+  for (const entity of session.world.entities.query(npcRenderQuery)) {
+    const position = session.world.components.getEntityData(GridPos, entity);
+    const facing = session.world.components.getEntityData(Facing, entity);
+    renderNpc(ctx, position.x, position.y, facing.dir, metrics);
+  }
+}
+
+function renderNpc(
+  ctx: CanvasRenderingContext2D,
+  x: number,
+  y: number,
+  dir: number,
+  metrics: MapRenderMetrics,
+): void {
+  const { offsetX, offsetY, tileSize } = metrics;
+  const centerX = offsetX + x * tileSize + tileSize / 2;
+  const centerY = offsetY + y * tileSize + tileSize / 2;
+  const radius = tileSize * NPC_RADIUS_RATIO;
+  const forward = directionDelta(dir);
+
+  ctx.fillStyle = NPC_COLOR;
+  ctx.beginPath();
+  ctx.arc(centerX, centerY, radius, 0, Math.PI * 2);
+  ctx.fill();
+
+  ctx.strokeStyle = EMPTY_COLOR;
+  ctx.beginPath();
+  ctx.moveTo(centerX, centerY);
+  ctx.lineTo(centerX + forward.dx * radius, centerY + forward.dy * radius);
+  ctx.stroke();
 }
 
 function renderPlayer(

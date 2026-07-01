@@ -1,5 +1,6 @@
 import { Component, type DynamicComponent } from "@phughesmcr/miski";
 import type { CardinalDirection } from "@/src/map/direction.ts";
+import { DisplayName } from "@/src/strings.ts";
 
 export type GridPosSchema = { x: number; y: number };
 
@@ -16,8 +17,29 @@ export const Facing: Component<FacingSchema> = new Component<FacingSchema>({
   schema: { dir: Uint8Array },
 });
 
+export type NpcSchema = { displayName: DisplayName };
+export const Npc = new Component<NpcSchema>({
+  name: "npc",
+  schema: { displayName: Uint8Array },
+});
+
 export const Player: Component<null> = new Component<null>({ name: "player", maxEntities: 1 });
 
 export const Blocking: Component<null> = new Component<null>({ name: "blocking" });
 
-export const ALL_COMPONENTS: DynamicComponent[] = [GridPos, Facing, Player, Blocking];
+export const Interactable: Component<null> = new Component<null>({ name: "interactable" });
+
+export const TurnTaker: Component<null> = new Component<null>({ name: "turnTaker" });
+
+export const Combatant: Component<null> = new Component<null>({ name: "combatant" });
+
+export const ALL_COMPONENTS: DynamicComponent[] = [
+  GridPos,
+  Facing,
+  Npc,
+  Player,
+  Blocking,
+  Interactable,
+  TurnTaker,
+  Combatant,
+];

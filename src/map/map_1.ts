@@ -1,3 +1,5 @@
+import { DisplayName } from "@/src/strings.ts";
+
 export type WallTile = {
   id: number;
   color: string;
@@ -15,12 +17,22 @@ export type FloorTile = {
 
 export type TerrainTile = WallTile | FloorTile;
 
-export type EntityTile = {
+export type PlayerDef = {
   prefab: "player";
   x: number;
   y: number;
   dir: number;
 };
+
+export type NpcDef = {
+  prefab: "npc";
+  x: number;
+  y: number;
+  dir: number;
+  displayName: DisplayName;
+};
+
+export type EntityDef = PlayerDef | NpcDef;
 
 export type GameMap = {
   name: string;
@@ -28,7 +40,7 @@ export type GameMap = {
     palette: TerrainTile[];
     tiles: number[][];
   };
-  entities: EntityTile[];
+  entities: EntityDef[];
 };
 
 export type MapDimensions = {
@@ -73,5 +85,6 @@ export const MAP_1: GameMap = {
   },
   entities: [
     { prefab: "player", x: 5, y: 5, dir: 1 },
+    { prefab: "npc", x: 6, y: 5, dir: 3, displayName: DisplayName.John },
   ],
 };
