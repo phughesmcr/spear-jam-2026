@@ -28,8 +28,8 @@ Deno.test("neutral NPCs and enemies share display names without sharing NPC iden
   assertEquals(world.components.getEntityData(DisplayNameComponent, enemy), { displayName: DisplayName.Imp });
 });
 
-Deno.test("a locked door without a lock id is rejected", async () => {
+Deno.test("a locked door without a key color is rejected", async () => {
   const world = await createWorld();
 
-  assertThrows(() => createDoor(world, { x: 1, y: 1, locked: true }), Error, "lock id");
+  assertThrows(() => createDoor(world, { x: 1, y: 1, locked: true }), Error, "key color");
 });

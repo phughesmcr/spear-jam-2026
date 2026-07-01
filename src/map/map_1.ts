@@ -1,6 +1,6 @@
 import { DialogueTreeId } from "@/src/dialogue/dialogue.ts";
 import { DisplayName } from "@/src/game/names.ts";
-import { createGameMap, LockId } from "@/src/map/map.ts";
+import { createGameMap, KeyColor } from "@/src/map/map.ts";
 import type { GameMap } from "@/src/map/map.ts";
 
 export const MAP_1: GameMap = createGameMap(
@@ -23,8 +23,8 @@ export const MAP_1: GameMap = createGameMap(
     { prefab: "player", x: 5, y: 5, dir: 1 },
     { prefab: "npc", x: 4, y: 5, dir: 1, displayName: DisplayName.John, dialogueTreeId: DialogueTreeId.JohnIntro },
     { prefab: "enemy", x: 2, y: 5, dir: 3, displayName: DisplayName.Imp },
-    { prefab: "door", x: 7, y: 3, locked: true, lockId: LockId.Door1 },
-    { prefab: "key", x: 8, y: 9, lockId: LockId.Door1 },
+    { prefab: "door", x: 7, y: 3, locked: true, color: KeyColor.Red },
+    { prefab: "key", x: 8, y: 9, color: KeyColor.Red },
     { prefab: "exit", x: 8, y: 1, goto: "Map 2" },
   ],
 );

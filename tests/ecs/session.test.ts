@@ -1,11 +1,18 @@
 import { assertEquals, assertRejects } from "@std/assert";
 import { DialogueTreeId } from "@/src/dialogue/dialogue.ts";
-import { AttackFacingRequirement, AttackPattern, AttackTargetMode, Blocking, Health, Locked } from "@/src/ecs/components.ts";
+import {
+  AttackFacingRequirement,
+  AttackPattern,
+  AttackTargetMode,
+  Blocking,
+  Health,
+  Locked,
+} from "@/src/ecs/components.ts";
 import { GridPos } from "@/src/ecs/components.ts";
 import { DisplayName } from "@/src/game/names.ts";
 import { createGameSession } from "@/src/ecs/session.ts";
 import { createWorld } from "@/src/ecs/world.ts";
-import { LockId, scopedLockId, VICTORY_GOTO } from "@/src/map/map.ts";
+import { KeyColor, VICTORY_GOTO } from "@/src/map/map.ts";
 import {
   createTestDoor,
   createTestEnemy,
@@ -61,10 +68,10 @@ Deno.test("interacting with an NPC without dialogue data falls back to silence",
   });
 });
 
-Deno.test("moving onto a key emits a pickup event and stores a map-scoped key", async () => {
+Deno.test("moving onto a key emits a pickup event and stores that key color", async () => {
   const world = await createWorld();
   const playerEntity = createTestPlayer(world);
-  const key = createTestKey(world, { x: 2, y: 1, lockId: LockId.Door1 });
+  const key = createTestKey(world, { x: 2, y: 1, color: KeyColor.Red });
 
   const session = createTestSession(world, playerEntity);
   const result = session.handlePlayerCommand({ type: "move", direction: "forward" });
@@ -76,7 +83,7 @@ Deno.test("moving onto a key emits a pickup event and stores a map-scoped key", 
     },
   ]);
   assertEquals(world.entities.isActive(key), false);
-  assertEquals(session.getPlayerState().heldKeys, [scopedLockId(TEST_MAP.name, LockId.Door1)]);
+  assertEquals(session.getPlayerState().heldKeys, [KeyColor.Red]);
 });
 
 Deno.test("interacting with a locked door emits an event without consuming a turn", async () => {
@@ -85,7 +92,7 @@ Deno.test("interacting with a locked door emits an event without consuming a tur
   const door = createTestDoor(world, {
     x: 2,
     y: 1,
-    lockId: LockId.Door1,
+    color: KeyColor.Red,
     blocking: true,
     interactable: true,
   });
@@ -104,19 +111,19 @@ Deno.test("interacting with a locked door emits an event without consuming a tur
   assertEquals(world.components.entityHas(Blocking, door), true);
 });
 
-Deno.test("a key from another map does not open this map's lock", async () => {
+Deno.test("a differently colored key does not open a locked door", async () => {
   const world = await createWorld();
   const playerEntity = createTestPlayer(world);
   const door = createTestDoor(world, {
     x: 2,
     y: 1,
-    lockId: LockId.Door1,
+    color: KeyColor.Blue,
     blocking: true,
     interactable: true,
   });
 
   const session = createTestSession(world, playerEntity, TEST_MAP, {
-    playerState: { heldKeys: [scopedLockId("Another Map", LockId.Door1)], selectedWeapon: 1 },
+    playerState: { heldKeys: [KeyColor.Red], selectedWeapon: 1 },
   });
 
   const result = session.handlePlayerCommand({ type: "interact" });
@@ -124,19 +131,19 @@ Deno.test("a key from another map does not open this map's lock", async () => {
   assertEquals(world.components.entityHas(Locked, door), true);
 });
 
-Deno.test("opening a locked door consumes the key and unblocks movement", async () => {
+Deno.test("opening a locked door keeps the key color until level exit", async () => {
   const world = await createWorld();
   const playerEntity = createTestPlayer(world);
   const door = createTestDoor(world, {
     x: 2,
     y: 1,
-    lockId: LockId.Door1,
+    color: KeyColor.Red,
     blocking: true,
     interactable: true,
   });
 
   const session = createTestSession(world, playerEntity, TEST_MAP, {
-    playerState: { heldKeys: [scopedLockId(TEST_MAP.name, LockId.Door1)], selectedWeapon: 1 },
+    playerState: { heldKeys: [KeyColor.Red], selectedWeapon: 1 },
   });
 
   const openResult = session.handlePlayerCommand({ type: "interact" });
@@ -147,11 +154,25 @@ Deno.test("opening a locked door consumes the key and unblocks movement", async 
     },
   ]);
   assertEquals(world.components.entityHas(Blocking, door), false);
-  assertEquals(session.getPlayerState().heldKeys, []);
+  assertEquals(session.getPlayerState().heldKeys, [KeyColor.Red]);
 
   const moveResult = session.handlePlayerCommand({ type: "move", direction: "forward" });
   assertEquals(moveResult.events, []);
   assertEquals(world.components.getEntityData(GridPos, playerEntity), { x: 2, y: 1 });
+});
+
+Deno.test("moving onto a level exit clears held keys before state carries forward", async () => {
+  const world = await createWorld();
+  const playerEntity = createTestPlayer(world);
+  const map = flatTestMap(3, 2, [{ prefab: "exit", x: 2, y: 1, goto: "Next Map" }]);
+  const session = createTestSession(world, playerEntity, map, {
+    playerState: { heldKeys: [KeyColor.Red, KeyColor.Blue], selectedWeapon: 1 },
+  });
+
+  const result = session.handlePlayerCommand({ type: "move", direction: "forward" });
+
+  assertEquals(result, { events: [], mapChange: { goto: "Next Map" } });
+  assertEquals(session.getPlayerState().heldKeys, []);
 });
 
 Deno.test("selecting a weapon emits a player-facing event without consuming a turn", async () => {

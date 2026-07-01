@@ -16,7 +16,7 @@ import type { GameEvent } from "@/src/game/events.ts";
 import type { RandomSource } from "@/src/game/rng.ts";
 import type { CommandSlot, PlayerState } from "@/src/game/state.ts";
 import { VICTORY_GOTO } from "@/src/map/map.ts";
-import type { ExitDef, GameMap } from "@/src/map/map.ts";
+import type { ExitDef, GameMap, KeyColor } from "@/src/map/map.ts";
 
 const UNCHANGED_PLAYER_COMMAND: PlayerCommandResult = Object.freeze({
   events: [],
@@ -65,7 +65,7 @@ export class GameSession implements Disposable {
   readonly world: World;
   readonly player: Player;
   readonly map: GameMap;
-  private readonly heldKeys: Set<string>;
+  private readonly heldKeys: Set<KeyColor>;
   private readonly random: RandomSource;
   private readonly enemyTurnSystem: EnemyTurnSystem;
   private readonly spatial: SpatialIndex;
@@ -121,6 +121,7 @@ export class GameSession implements Disposable {
     const move = this.tryMovePlayerRelative(directionOffset);
     if (!move.moved) return UNCHANGED_PLAYER_COMMAND;
     if (move.exit) {
+      this.heldKeys.clear();
       this.world.refresh();
       if (move.exit.goto === VICTORY_GOTO) {
         return { events: move.events, outcome: "victory" };
@@ -140,7 +141,7 @@ export class GameSession implements Disposable {
     if (this.spatial.positionBlocks(next.x, next.y)) return { moved: false };
 
     this.spatial.moveEntity(this.player.getEntity(), next);
-    const events = collectKeyAt(this.world, this.spatial, this.heldKeys, this.map.name, next.x, next.y);
+    const events = collectKeyAt(this.world, this.spatial, this.heldKeys, next.x, next.y);
     return {
       moved: true,
       events,
@@ -163,7 +164,6 @@ export class GameSession implements Disposable {
       this.spatial,
       this.spatial.facedEntity(this.player),
       this.heldKeys,
-      this.map.name,
     );
     switch (interaction.type) {
       case "unchanged":

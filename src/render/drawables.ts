@@ -2,6 +2,8 @@ import type { World } from "@phughesmcr/miski";
 import { DrawableKind, forEachDrawableEntity } from "@/src/ecs/drawables.ts";
 import type { DrawableEntity } from "@/src/ecs/drawables.ts";
 import { directionDelta } from "@/src/grid/direction.ts";
+import { KeyColor } from "@/src/map/map.ts";
+import type { KeyColor as KeyColorType } from "@/src/map/map.ts";
 import type { MapRenderMetrics } from "@/src/render/map.ts";
 
 type Point = { readonly x: number; readonly y: number };
@@ -13,7 +15,11 @@ const NPC_COLOR = "#59d39b";
 const ENEMY_COLOR = "#df4f45";
 const DOOR_COLOR = "#9a6a3a";
 const LOCKED_DOOR_COLOR = "#b14b4b";
-const KEY_COLOR = "#f4d35e";
+const KEY_COLORS: Record<KeyColorType, string> = {
+  [KeyColor.Red]: "#df4f45",
+  [KeyColor.Blue]: "#4f8df7",
+  [KeyColor.Yellow]: "#f4d35e",
+};
 const PLAYER_RADIUS_RATIO = 0.34;
 const PLAYER_BASE_WIDTH_RATIO = 0.75;
 const NPC_RADIUS_RATIO = 0.28;
@@ -40,20 +46,26 @@ function renderDrawableEntity(
       renderActor(ctx, drawable.x, drawable.y, drawable.dir, ENEMY_COLOR, metrics);
       return;
     case DrawableKind.Door:
-      renderDoor(ctx, drawable.x, drawable.y, drawable.open, drawable.locked, metrics);
+      renderDoor(ctx, drawable.x, drawable.y, drawable.open, drawable.locked, drawable.color, metrics);
       return;
     case DrawableKind.Key:
-      renderKey(ctx, drawable.x, drawable.y, metrics);
+      renderKey(ctx, drawable.x, drawable.y, drawable.color, metrics);
       return;
   }
 }
 
-function renderKey(ctx: CanvasRenderingContext2D, x: number, y: number, metrics: MapRenderMetrics): void {
+function renderKey(
+  ctx: CanvasRenderingContext2D,
+  x: number,
+  y: number,
+  color: KeyColorType,
+  metrics: MapRenderMetrics,
+): void {
   const { offsetX, offsetY, tileSize } = metrics;
   const centerX = offsetX + x * tileSize + tileSize / 2;
   const centerY = offsetY + y * tileSize + tileSize / 2;
   const radius = tileSize * 0.18;
-  ctx.fillStyle = KEY_COLOR;
+  ctx.fillStyle = KEY_COLORS[color];
   ctx.beginPath();
   ctx.moveTo(centerX, centerY - radius);
   ctx.lineTo(centerX + radius, centerY);
@@ -69,6 +81,7 @@ function renderDoor(
   y: number,
   open: boolean,
   locked: boolean,
+  color: KeyColorType | undefined,
   metrics: MapRenderMetrics,
 ): void {
   if (open) return;
@@ -78,7 +91,9 @@ function renderDoor(
   const inset = Math.max(2, tileSize * 0.18);
   const width = tileSize - inset * 2;
   const height = tileSize - inset * 2;
-  ctx.fillStyle = locked ? LOCKED_DOOR_COLOR : DOOR_COLOR;
+  let fillColor = DOOR_COLOR;
+  if (locked) fillColor = color === undefined ? LOCKED_DOOR_COLOR : KEY_COLORS[color];
+  ctx.fillStyle = fillColor;
   ctx.fillRect(tileX + inset, tileY + inset, width, height);
 }
 

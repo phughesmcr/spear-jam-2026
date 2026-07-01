@@ -24,19 +24,32 @@ export const DEFAULT_TERRAIN_PALETTE: readonly TerrainTile[] = [
   { id: 1, color: "#FFFFFF", wall_texture: "wall", blocking: true },
 ];
 
-export const LockId = {
-  Door1: 1,
+export const KeyColor = {
+  Red: "red",
+  Blue: "blue",
+  Yellow: "yellow",
 } as const;
 
-export type LockId = (typeof LockId)[keyof typeof LockId];
+export type KeyColor = (typeof KeyColor)[keyof typeof KeyColor];
 
-/**
- * Lock ids are small integers scoped to a single map. Held keys are stored
- * under a map-qualified id so a key from one map cannot open another map's
- * locks even when both maps reuse the same numeric lock id.
- */
-export function scopedLockId(mapName: string, lockId: number): string {
-  return `${mapName}#${lockId}`;
+const KEY_COLOR_CODES: Record<KeyColor, number> = {
+  [KeyColor.Red]: 1,
+  [KeyColor.Blue]: 2,
+  [KeyColor.Yellow]: 3,
+};
+
+const KEY_COLORS_BY_CODE = new Map<number, KeyColor>(
+  Object.entries(KEY_COLOR_CODES).map(([color, code]) => [code, color as KeyColor]),
+);
+
+export function keyColorCode(color: KeyColor): number {
+  return KEY_COLOR_CODES[color];
+}
+
+export function keyColorForCode(code: number): KeyColor {
+  const color = KEY_COLORS_BY_CODE.get(code);
+  if (color === undefined) throw new Error(`Unknown key color code: ${code}`);
+  return color;
 }
 
 /** Sentinel `goto` for exits that end the game in victory instead of loading a map. */
@@ -74,14 +87,14 @@ export type DoorDef = {
   x: number;
   y: number;
   locked?: boolean;
-  lockId?: LockId;
+  color?: KeyColor;
 };
 
 export type KeyDef = {
   prefab: "key";
   x: number;
   y: number;
-  lockId: LockId;
+  color: KeyColor;
 };
 
 export type ExitDef = {

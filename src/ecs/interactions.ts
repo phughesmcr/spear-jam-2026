@@ -5,7 +5,8 @@ import { displayNameText } from "@/src/game/names.ts";
 import type { SpatialIndex } from "@/src/ecs/spatial.ts";
 import type { GameEvent } from "@/src/game/events.ts";
 import type { DialogueState } from "@/src/game/state.ts";
-import { scopedLockId } from "@/src/map/map.ts";
+import { keyColorForCode } from "@/src/map/map.ts";
+import type { KeyColor } from "@/src/map/map.ts";
 
 export type PlayerInteractionResult =
   | { readonly type: "unchanged"; readonly events: readonly GameEvent[] }
@@ -17,16 +18,15 @@ const UNCHANGED_INTERACTION: PlayerInteractionResult = Object.freeze({ type: "un
 export function collectKeyAt(
   world: World,
   spatial: SpatialIndex,
-  heldKeys: Set<string>,
-  mapName: string,
+  heldKeys: Set<KeyColor>,
   x: number,
   y: number,
 ): readonly GameEvent[] {
   const key = spatial.keyAt(x, y);
   if (key === undefined) return [];
 
-  const { lockId } = world.components.getEntityData(Key, key);
-  heldKeys.add(scopedLockId(mapName, lockId));
+  const { color } = world.components.getEntityData(Key, key);
+  heldKeys.add(keyColorForCode(color));
   spatial.removeEntity(key);
   return [{
     type: "keyPickedUp",
@@ -38,15 +38,14 @@ export function interactWithEntity(
   world: World,
   spatial: SpatialIndex,
   target: Entity | undefined,
-  heldKeys: Set<string>,
-  mapName: string,
+  heldKeys: Set<KeyColor>,
 ): PlayerInteractionResult {
   if (target === undefined || !world.components.entityHas(Interactable, target)) {
     return UNCHANGED_INTERACTION;
   }
 
   if (world.components.entityHas(Door, target)) {
-    return interactWithDoor(world, spatial, target, heldKeys, mapName);
+    return interactWithDoor(world, spatial, target, heldKeys);
   }
 
   if (world.components.entityHas(Npc, target)) {
@@ -60,16 +59,15 @@ function interactWithDoor(
   world: World,
   spatial: SpatialIndex,
   door: Entity,
-  heldKeys: Set<string>,
-  mapName: string,
+  heldKeys: Set<KeyColor>,
 ): PlayerInteractionResult {
   const state = world.components.getEntityData(Door, door);
   if (state.open === 1) return UNCHANGED_INTERACTION;
 
   if (world.components.entityHas(Locked, door)) {
     const lock = world.components.getEntityData(Locked, door);
-    const keyId = scopedLockId(mapName, lock.lockId);
-    if (!heldKeys.has(keyId)) {
+    const color = keyColorForCode(lock.color);
+    if (!heldKeys.has(color)) {
       return {
         type: "unchanged",
         events: [{
@@ -78,8 +76,6 @@ function interactWithDoor(
         }],
       };
     }
-    // Keys are single-use: unlocking consumes the key.
-    heldKeys.delete(keyId);
     world.components.removeFromEntity(Locked, door);
   }
 

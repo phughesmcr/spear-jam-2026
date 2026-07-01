@@ -3,7 +3,7 @@ import { Blocking, Door, Facing, GridPos, Interactable, Key } from "@/src/ecs/co
 import { Player } from "@/src/ecs/player.ts";
 import { SpatialIndex } from "@/src/ecs/spatial.ts";
 import { createWorld } from "@/src/ecs/world.ts";
-import { LockId } from "@/src/map/map.ts";
+import { KeyColor, keyColorCode } from "@/src/map/map.ts";
 import { createEntity, flatTestMap } from "@/tests/ecs/helpers.ts";
 
 Deno.test("SpatialIndex indexes blocking entities, keys, faced entities, and exits", async () => {
@@ -21,7 +21,7 @@ Deno.test("SpatialIndex indexes blocking entities, keys, faced entities, and exi
   world.components.addToEntity(Blocking, door);
 
   world.components.addToEntity(GridPos, key, { x: 3, y: 1 });
-  world.components.addToEntity(Key, key, { lockId: LockId.Door1 });
+  world.components.addToEntity(Key, key, { color: keyColorCode(KeyColor.Red) });
   world.refresh();
 
   const spatial = new SpatialIndex(world, TEST_MAP);
@@ -41,7 +41,7 @@ Deno.test("SpatialIndex keeps its index current when entities move or are remove
   world.components.addToEntity(GridPos, actor, { x: 1, y: 1 });
   world.components.addToEntity(Blocking, actor);
   world.components.addToEntity(GridPos, key, { x: 2, y: 1 });
-  world.components.addToEntity(Key, key, { lockId: LockId.Door1 });
+  world.components.addToEntity(Key, key, { color: keyColorCode(KeyColor.Red) });
   world.refresh();
 
   const spatial = new SpatialIndex(world, TEST_MAP);

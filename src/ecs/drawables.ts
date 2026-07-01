@@ -1,7 +1,9 @@
 import { type Entity, System, type World } from "@phughesmcr/miski";
-import { Door, DrawableKind, Facing, Locked } from "@/src/ecs/components.ts";
+import { Door, DrawableKind, Facing, Key, Locked } from "@/src/ecs/components.ts";
 import type { DrawablePartitions, GridPosPartitions } from "@/src/ecs/components.ts";
 import { drawableRenderQuery } from "@/src/ecs/queries.ts";
+import { keyColorForCode } from "@/src/map/map.ts";
+import type { KeyColor } from "@/src/map/map.ts";
 
 export { DrawableKind };
 
@@ -24,10 +26,12 @@ export type DoorDrawableEntity = DrawableBase & {
   readonly kind: typeof DrawableKind.Door;
   readonly open: boolean;
   readonly locked: boolean;
+  readonly color?: KeyColor;
 };
 
 export type KeyDrawableEntity = DrawableBase & {
   readonly kind: typeof DrawableKind.Key;
+  readonly color: KeyColor;
 };
 
 export type DrawableEntity = ActorDrawableEntity | DoorDrawableEntity | KeyDrawableEntity;
@@ -99,10 +103,7 @@ function drawableEntityFor(
     case DrawableKind.Door:
       return doorDrawableEntityFor(world, entity, position);
     case DrawableKind.Key:
-      return {
-        ...position,
-        kind: DrawableKind.Key,
-      };
+      return keyDrawableEntityFor(world, entity, position);
     default:
       return undefined;
   }
@@ -132,10 +133,27 @@ function doorDrawableEntityFor(
   if (!world.components.entityHas(Door, entity)) return undefined;
 
   const door = world.components.getEntityData(Door, entity);
+  const locked = world.components.entityHas(Locked, entity);
   return {
     ...position,
     kind: DrawableKind.Door,
     open: door.open === 1,
-    locked: world.components.entityHas(Locked, entity),
+    locked,
+    color: locked ? keyColorForCode(world.components.getEntityData(Locked, entity).color) : undefined,
+  };
+}
+
+function keyDrawableEntityFor(
+  world: World,
+  entity: Entity,
+  position: DrawableBase,
+): KeyDrawableEntity | undefined {
+  if (!world.components.entityHas(Key, entity)) return undefined;
+
+  const key = world.components.getEntityData(Key, entity);
+  return {
+    ...position,
+    kind: DrawableKind.Key,
+    color: keyColorForCode(key.color),
   };
 }

@@ -89,16 +89,16 @@ export const Door: Component<DoorSchema> = new Component<DoorSchema>({
   schema: { open: Uint8Array },
 });
 
-export type LockedSchema = { lockId: number };
+export type LockedSchema = { color: number };
 export const Locked: Component<LockedSchema> = new Component<LockedSchema>({
   name: "locked",
-  schema: { lockId: Uint8Array },
+  schema: { color: Uint8Array },
 });
 
-export type KeySchema = { lockId: number };
+export type KeySchema = { color: number };
 export const Key: Component<KeySchema> = new Component<KeySchema>({
   name: "key",
-  schema: { lockId: Uint8Array },
+  schema: { color: Uint8Array },
 });
 
 export const TurnTaker: Component<null> = new Component<null>({ name: "turnTaker" });

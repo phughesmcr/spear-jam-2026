@@ -1,11 +1,12 @@
 import type { Entity, World } from "@phughesmcr/miski";
-import type { EntityDef, GameMap, LockId } from "@/src/map/map.ts";
+import { keyColorCode } from "@/src/map/map.ts";
+import type { EntityDef, GameMap, KeyColor } from "@/src/map/map.ts";
 import {
   Attack,
   type AttackSchema,
   Blocking,
-  DisplayNameComponent,
   Dialogue,
+  DisplayNameComponent,
   Door,
   Enemy,
   Facing,
@@ -100,7 +101,7 @@ export type TestDoorOptions = {
   x: number;
   y: number;
   open?: number;
-  lockId?: LockId;
+  color?: KeyColor;
   blocking?: boolean;
   interactable?: boolean;
 };
@@ -109,8 +110,8 @@ export function createTestDoor(world: World, opts: TestDoorOptions): Entity {
   const entity = createEntity(world);
   world.components.addToEntity(GridPos, entity, { x: opts.x, y: opts.y });
   world.components.addToEntity(Door, entity, { open: opts.open ?? 0 });
-  if (opts.lockId !== undefined) {
-    world.components.addToEntity(Locked, entity, { lockId: opts.lockId });
+  if (opts.color !== undefined) {
+    world.components.addToEntity(Locked, entity, { color: keyColorCode(opts.color) });
   }
   if (opts.blocking) world.components.addToEntity(Blocking, entity);
   if (opts.interactable) world.components.addToEntity(Interactable, entity);
@@ -120,13 +121,13 @@ export function createTestDoor(world: World, opts: TestDoorOptions): Entity {
 export type TestKeyOptions = {
   x: number;
   y: number;
-  lockId: LockId;
+  color: KeyColor;
 };
 
 export function createTestKey(world: World, opts: TestKeyOptions): Entity {
   const entity = createEntity(world);
   world.components.addToEntity(GridPos, entity, { x: opts.x, y: opts.y });
-  world.components.addToEntity(Key, entity, { lockId: opts.lockId });
+  world.components.addToEntity(Key, entity, { color: keyColorCode(opts.color) });
   return entity;
 }
 

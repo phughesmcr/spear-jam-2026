@@ -25,6 +25,7 @@ import {
 } from "@/src/ecs/components.ts";
 import type { AttackSchema } from "@/src/ecs/components.ts";
 import { normalizeDirection } from "@/src/grid/direction.ts";
+import { keyColorCode } from "@/src/map/map.ts";
 import type { DoorDef, EnemyDef, KeyDef, MapEntityDef, NpcDef, PlayerDef } from "@/src/map/map.ts";
 import type { DisplayName } from "@/src/game/names.ts";
 
@@ -105,8 +106,8 @@ function createAttackSpec(prefab: EnemyPrefab): AttackSchema {
 export type DoorPrefab = Omit<DoorDef, "prefab">;
 
 export function createDoor(world: World, prefab: DoorPrefab): Entity {
-  if (prefab.locked === true && prefab.lockId === undefined) {
-    throw new Error("Locked door prefab is missing a lock id");
+  if (prefab.locked === true && prefab.color === undefined) {
+    throw new Error("Locked door prefab is missing a key color");
   }
 
   const entity = createEntity(world, "door");
@@ -115,8 +116,8 @@ export function createDoor(world: World, prefab: DoorPrefab): Entity {
   world.components.addToEntity(Door, entity, { open: 0 });
   world.components.addToEntity(Interactable, entity);
   world.components.addToEntity(Blocking, entity);
-  if (prefab.locked === true && prefab.lockId !== undefined) {
-    world.components.addToEntity(Locked, entity, { lockId: prefab.lockId });
+  if (prefab.locked === true && prefab.color !== undefined) {
+    world.components.addToEntity(Locked, entity, { color: keyColorCode(prefab.color) });
   }
   return entity;
 }
@@ -127,7 +128,7 @@ export function createKey(world: World, prefab: KeyPrefab): Entity {
   const entity = createEntity(world, "key");
   addPosition(world, entity, prefab);
   addDrawable(world, entity, DrawableKind.Key, DrawableLayer.Item);
-  world.components.addToEntity(Key, entity, { lockId: prefab.lockId });
+  world.components.addToEntity(Key, entity, { color: keyColorCode(prefab.color) });
   return entity;
 }
 

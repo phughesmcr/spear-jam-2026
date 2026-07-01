@@ -1,3 +1,5 @@
+import type { KeyColor } from "@/src/map/map.ts";
+
 export type CommandSlot = 1 | 2 | 3;
 
 export type PlayerHealthState = {
@@ -7,7 +9,7 @@ export type PlayerHealthState = {
 
 /** Player progress that survives map transitions. */
 export type PlayerState = {
-  readonly heldKeys: readonly string[];
+  readonly heldKeys: readonly KeyColor[];
   readonly selectedWeapon: CommandSlot;
   readonly health?: PlayerHealthState;
 };
