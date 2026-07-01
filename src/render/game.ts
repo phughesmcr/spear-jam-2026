@@ -50,7 +50,7 @@ export function renderGameFrame(
       renderOverlay(ctx, canvasSize, "VICTORY", "Space to play again");
       return;
     case "defeat":
-      renderOverlay(ctx, canvasSize, "DEFEAT", "Space to try again");
+      renderOverlay(ctx, canvasSize, "DEFEAT", "Space to retry level");
       return;
     case "error":
       renderOverlay(ctx, canvasSize, "LOAD FAILED", mode.message);

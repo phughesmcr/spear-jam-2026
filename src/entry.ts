@@ -38,6 +38,8 @@ class Game implements Disposable {
   private canvasSize: GameCanvasSize = DEFAULT_GAME_CANVAS_SIZE;
   private inputController?: Disposable;
   private session?: GameSession;
+  private currentMapName = START_MAP_NAME;
+  private currentLevelEntryState?: PlayerState;
   private recentMessages: string[] = [];
   private combatFeedback: readonly CombatFeedback[] = [];
   private mode: GameMode = { type: "loading" };
@@ -87,6 +89,8 @@ class Game implements Disposable {
     const previousSession = this.session;
     this.session = session;
     previousSession?.[Symbol.dispose]();
+    this.currentMapName = mapName;
+    this.currentLevelEntryState = clonePlayerState(playerState);
     this.mode = { type: "playing" };
     this.inputController ??= setupKeyboard(this.spec.window, (command) => this.handleGameCommands([command]));
     this.render();
@@ -120,7 +124,7 @@ class Game implements Disposable {
     }
 
     if (this.mode.type === "victory" || this.mode.type === "defeat") {
-      if (command.type === "wait") this.restart();
+      if (command.type === "wait") this.restartFromOutcome(this.mode.type);
       return;
     }
 
@@ -156,9 +160,16 @@ class Game implements Disposable {
     this.render();
   }
 
-  private restart(): void {
+  private restartFromOutcome(outcome: "victory" | "defeat"): void {
     this.recentMessages = [];
     this.combatFeedback = [];
+    if (outcome === "defeat") {
+      void this.loadMap(this.currentMapName, clonePlayerState(this.currentLevelEntryState)).catch((error: unknown) =>
+        this.handleLoadError(error)
+      );
+      return;
+    }
+
     void this.loadMap(START_MAP_NAME).catch((error: unknown) => this.handleLoadError(error));
   }
 
@@ -246,4 +257,16 @@ class Game implements Disposable {
     this.session?.[Symbol.dispose]();
     this.canvasController?.[Symbol.dispose]();
   }
+}
+
+function clonePlayerState(playerState: PlayerState | undefined): PlayerState | undefined {
+  if (playerState === undefined) return undefined;
+  return {
+    heldKeys: [...playerState.heldKeys],
+    selectedWeapon: playerState.selectedWeapon,
+    unlockedWeapons: playerState.unlockedWeapons === undefined ? undefined : [...playerState.unlockedWeapons],
+    ammo: playerState.ammo === undefined ? undefined : { ...playerState.ammo },
+    health: playerState.health === undefined ? undefined : { ...playerState.health },
+    hasUplinkCode: playerState.hasUplinkCode,
+  };
 }
