@@ -1,4 +1,5 @@
 import type { DisplayName } from "@/src/ecs/names.ts";
+import type { AttackSchema } from "@/src/ecs/components.ts";
 
 export type WallTile = {
   id: number;
@@ -46,6 +47,7 @@ export type EnemyDef = {
   displayName: DisplayName;
   health?: number;
   damage?: number;
+  attack?: Partial<AttackSchema>;
 };
 
 export type DoorDef = {

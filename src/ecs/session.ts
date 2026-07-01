@@ -22,12 +22,14 @@ const UNCHANGED_PLAYER_COMMAND: PlayerCommandResult = {
 type MoveResult =
   | { readonly moved: false }
   | { readonly moved: true; readonly exit?: ExitDef };
+type RandomSource = () => number;
 
 export class GameSession implements Disposable {
   readonly world: World;
   readonly player: Player;
   readonly map: GameMap;
   private readonly heldKeys: Set<number>;
+  private readonly random: RandomSource;
   private selectedWeapon: CommandSlot;
   private disposed = false;
 
@@ -35,13 +37,15 @@ export class GameSession implements Disposable {
     world: World,
     player: Player,
     map: GameMap,
-    playerState: PlayerState = { heldKeys: [], selectedWeapon: DEFAULT_SELECTED_WEAPON },
+    random: RandomSource,
+    playerState?: PlayerState,
   ) {
     this.world = world;
     this.player = player;
     this.map = map;
-    this.heldKeys = new Set(playerState.heldKeys);
-    this.selectedWeapon = playerState.selectedWeapon;
+    this.heldKeys = new Set(playerState?.heldKeys ?? []);
+    this.random = random;
+    this.selectedWeapon = playerState?.selectedWeapon ?? DEFAULT_SELECTED_WEAPON;
   }
 
   getPlayerState(): PlayerState {
@@ -149,6 +153,7 @@ export class GameSession implements Disposable {
       this.selectedWeapon,
       (x, y) => this.tileBlocks(x, y),
       (x, y) => this.blockingEntityAt(x, y),
+      this.random,
     );
     return this.consumePlayerTurn();
   }
@@ -160,7 +165,13 @@ export class GameSession implements Disposable {
   }
 
   private consumePlayerTurn(): PlayerCommandResult {
-    advanceEnemyTurns(this.world, this.player, (x, y) => this.positionBlocks(x, y));
+    advanceEnemyTurns(
+      this.world,
+      this.player,
+      (x, y) => this.tileBlocks(x, y),
+      (x, y) => this.blockingEntityAt(x, y),
+      this.random,
+    );
     this.world.refresh();
     return {
       changedWorld: true,
@@ -224,7 +235,11 @@ export class GameSession implements Disposable {
   }
 }
 
-export async function createGameSession(map: GameMap, playerState?: PlayerState): Promise<GameSession> {
+export async function createGameSession(
+  map: GameMap,
+  random: RandomSource,
+  playerState?: PlayerState,
+): Promise<GameSession> {
   const world = await createWorld();
 
   try {
@@ -244,7 +259,7 @@ export async function createGameSession(map: GameMap, playerState?: PlayerState)
     const player = new Player(world, playerEntity);
     world.refresh();
 
-    return new GameSession(world, player, map, playerState);
+    return new GameSession(world, player, map, random, playerState);
   } catch (error) {
     await world.destroy();
     throw error;

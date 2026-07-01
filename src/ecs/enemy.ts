@@ -1,35 +1,66 @@
 import type { Entity, World } from "@phughesmcr/miski";
 import { Enemy, Facing, GridPos } from "@/src/ecs/components.ts";
-import { attackDamage, attackEntity } from "@/src/ecs/combat.ts";
+import { attackEntity, attackTargets, entityAttack } from "@/src/ecs/combat.ts";
 import type { Player } from "@/src/ecs/player.ts";
 import { nonPlayerTurnTakerQuery } from "@/src/ecs/queries.ts";
 import type { CardinalDirection, GridDelta } from "@/src/grid/direction.ts";
 
+type TileBlocks = (x: number, y: number) => boolean;
+type BlockingEntityAt = (x: number, y: number) => Entity | undefined;
 type PositionBlocks = (x: number, y: number) => boolean;
+type RandomSource = () => number;
 
-export function advanceEnemyTurns(world: World, player: Player, positionBlocks: PositionBlocks): void {
+export function advanceEnemyTurns(
+  world: World,
+  player: Player,
+  tileBlocks: TileBlocks,
+  blockingEntityAt: BlockingEntityAt,
+  random: RandomSource,
+): void {
   for (const entity of world.entities.query(nonPlayerTurnTakerQuery)) {
-    advanceEnemyTurn(world, player, entity, positionBlocks);
+    advanceEnemyTurn(world, player, entity, tileBlocks, blockingEntityAt, random);
   }
 }
 
-function advanceEnemyTurn(world: World, player: Player, entity: Entity, positionBlocks: PositionBlocks): void {
+function advanceEnemyTurn(
+  world: World,
+  player: Player,
+  entity: Entity,
+  tileBlocks: TileBlocks,
+  blockingEntityAt: BlockingEntityAt,
+  random: RandomSource,
+): void {
   if (!world.entities.isActive(entity)) return;
   if (!world.components.entityHas(Enemy, entity)) return;
 
-  if (isAdjacentToPlayer(world, player, entity)) {
-    faceEntityToward(world, entity, player.getPosition());
-    attackEntity(world, player.getEntity(), entity, player.getEntity(), attackDamage(world, entity));
-    return;
+  const attack = entityAttack(world, entity);
+  if (attack !== undefined) {
+    if (attack.requiresFacing === 1) {
+      faceEntityToward(world, entity, player.getPosition());
+    }
+
+    const targets = attackTargets(
+      world,
+      entity,
+      attack,
+      tileBlocks,
+      blockingEntityAt,
+      (candidate) => candidate === player.getEntity(),
+    );
+    if (targets.length > 0) {
+      for (const target of targets) {
+        attackEntity(world, player.getEntity(), entity, target, attack, random);
+      }
+      return;
+    }
   }
 
-  tryMoveEnemyTowardPlayer(world, player, entity, positionBlocks);
-}
-
-function isAdjacentToPlayer(world: World, player: Player, entity: Entity): boolean {
-  const position = world.components.getEntityData(GridPos, entity);
-  const playerPosition = player.getPosition();
-  return Math.abs(position.x - playerPosition.x) + Math.abs(position.y - playerPosition.y) === 1;
+  tryMoveEnemyTowardPlayer(
+    world,
+    player,
+    entity,
+    (x, y) => tileBlocks(x, y) || blockingEntityAt(x, y) !== undefined,
+  );
 }
 
 function tryMoveEnemyTowardPlayer(world: World, player: Player, entity: Entity, positionBlocks: PositionBlocks): void {

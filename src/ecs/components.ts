@@ -57,10 +57,42 @@ export const Health = new Component<HealthSchema>({
   schema: { current: Uint8Array, max: Uint8Array },
 });
 
-export type AttackSchema = { damage: number };
+export const AttackPattern = {
+  Line: 1,
+  Adjacent: 2,
+} as const;
+export type AttackPattern = (typeof AttackPattern)[keyof typeof AttackPattern];
+
+export const AttackTargetMode = {
+  First: 1,
+  All: 2,
+} as const;
+export type AttackTargetMode = (typeof AttackTargetMode)[keyof typeof AttackTargetMode];
+
+export type AttackSchema = {
+  minDamage: number;
+  maxDamage: number;
+  range: number;
+  requiresFacing: number;
+  attackBonus: number;
+  critThreshold: number;
+  critMultiplier: number;
+  pattern: AttackPattern;
+  targets: AttackTargetMode;
+};
 export const Attack = new Component<AttackSchema>({
   name: "attack",
-  schema: { damage: Uint8Array },
+  schema: {
+    minDamage: Uint8Array,
+    maxDamage: Uint8Array,
+    range: Uint8Array,
+    requiresFacing: Uint8Array,
+    attackBonus: Uint8Array,
+    critThreshold: Uint8Array,
+    critMultiplier: Uint8Array,
+    pattern: Uint8Array,
+    targets: Uint8Array,
+  },
 });
 
 export const ALL_COMPONENTS: DynamicComponent[] = [

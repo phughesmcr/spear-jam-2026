@@ -1,6 +1,8 @@
 import type { Entity, World } from "@phughesmcr/miski";
 import {
   Attack,
+  AttackPattern,
+  AttackTargetMode,
   Blocking,
   Door,
   Enemy,
@@ -14,14 +16,25 @@ import {
   Player,
   TurnTaker,
 } from "@/src/ecs/components.ts";
+import type { AttackSchema } from "@/src/ecs/components.ts";
 import { normalizeDirection } from "@/src/grid/direction.ts";
 import type { LockId, MapEntityDef } from "@/src/map/map.ts";
 import type { DisplayName } from "@/src/ecs/names.ts";
 
 const DEFAULT_PLAYER_HEALTH = 10;
-const DEFAULT_PLAYER_DAMAGE = 1;
 const DEFAULT_ENEMY_HEALTH = 3;
 const DEFAULT_ENEMY_DAMAGE = 1;
+const DEFAULT_ATTACK: AttackSchema = {
+  minDamage: DEFAULT_ENEMY_DAMAGE,
+  maxDamage: DEFAULT_ENEMY_DAMAGE,
+  range: 1,
+  requiresFacing: 1,
+  attackBonus: 2,
+  critThreshold: 20,
+  critMultiplier: 2,
+  pattern: AttackPattern.Line,
+  targets: AttackTargetMode.First,
+};
 
 export type PlayerPrefab = {
   x: number;
@@ -38,7 +51,12 @@ export function createPlayer(world: World, prefab: PlayerPrefab): Entity {
   world.components.addToEntity(Blocking, entity);
   world.components.addToEntity(TurnTaker, entity);
   world.components.addToEntity(Health, entity, { current: DEFAULT_PLAYER_HEALTH, max: DEFAULT_PLAYER_HEALTH });
-  world.components.addToEntity(Attack, entity, { damage: DEFAULT_PLAYER_DAMAGE });
+  world.components.addToEntity(Attack, entity, {
+    ...DEFAULT_ATTACK,
+    minDamage: 1,
+    maxDamage: 2,
+    attackBonus: 4,
+  });
   return entity;
 }
 
@@ -68,6 +86,7 @@ export type EnemyPrefab = {
   displayName: DisplayName;
   health?: number;
   damage?: number;
+  attack?: Partial<AttackSchema>;
 };
 
 export function createEnemy(world: World, prefab: EnemyPrefab): Entity {
@@ -82,8 +101,18 @@ export function createEnemy(world: World, prefab: EnemyPrefab): Entity {
   world.components.addToEntity(Blocking, entity);
   world.components.addToEntity(TurnTaker, entity);
   world.components.addToEntity(Health, entity, { current: health, max: health });
-  world.components.addToEntity(Attack, entity, { damage: prefab.damage ?? DEFAULT_ENEMY_DAMAGE });
+  world.components.addToEntity(Attack, entity, createAttackSpec(prefab));
   return entity;
+}
+
+function createAttackSpec(prefab: EnemyPrefab): AttackSchema {
+  const fixedDamage = prefab.damage ?? DEFAULT_ENEMY_DAMAGE;
+  return {
+    ...DEFAULT_ATTACK,
+    minDamage: fixedDamage,
+    maxDamage: fixedDamage,
+    ...prefab.attack,
+  };
 }
 
 export type DoorPrefab = {

@@ -4,6 +4,7 @@ import { isPlayerCommand } from "@/src/game/commands.ts";
 import type { GameCommand } from "@/src/game/commands.ts";
 import type { PlayerCommand } from "@/src/game/commands.ts";
 import type { GameMode, PlayerState } from "@/src/game/state.ts";
+import { SplitMix32 } from "@/src/game/rng.ts";
 import { setupKeyboard } from "@/src/input/input.ts";
 import { getMap, START_MAP_NAME } from "@/src/map/maps.ts";
 import { configureCanvasDpi, DEFAULT_GAME_CANVAS_SIZE } from "@/src/render/canvas.ts";
@@ -27,6 +28,7 @@ export function startGame(spec: GameSpec): Disposable {
 class Game implements Disposable {
   private readonly spec: GameSpec;
   private readonly controller: AbortController;
+  private readonly rng: SplitMix32;
   private canvasController: Disposable;
   private canvasSize: GameCanvasSize = DEFAULT_GAME_CANVAS_SIZE;
   private inputController?: Disposable;
@@ -37,6 +39,7 @@ class Game implements Disposable {
   constructor(spec: GameSpec, controller: AbortController) {
     this.spec = spec;
     this.controller = controller;
+    this.rng = new SplitMix32(spec.seed);
     this.canvasController = configureCanvasDpi(spec.window, spec.canvas, spec.ctx, (size) => this.resize(size));
   }
 
@@ -61,7 +64,7 @@ class Game implements Disposable {
     this.mode = { type: "loading" };
     this.render();
 
-    const session = await createGameSession(getMap(mapName), playerState);
+    const session = await createGameSession(getMap(mapName), () => this.rng.nextFloat(), playerState);
     if (this.controller.signal.aborted) {
       session[Symbol.dispose]();
       return;
