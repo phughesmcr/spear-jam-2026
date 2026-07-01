@@ -67,6 +67,14 @@ Deno.test("messageForEvent covers interaction events", () => {
     messageForEvent(PLAYER, { type: "weaponPickedUp", entity: DOOR, slot: 2, label: "Pistol" }),
     "Picked up weapon 2: Pistol.",
   );
+  assertEquals(
+    messageForEvent(PLAYER, { type: "healthPickedUp", entity: DOOR, amount: 4, healed: 3 }),
+    "Restored 3 HP.",
+  );
+  assertEquals(
+    messageForEvent(PLAYER, { type: "ammoPickedUp", entity: DOOR, ammo: "pistol", amount: 5 }),
+    "Picked up 5 pistol ammo.",
+  );
   assertEquals(messageForEvent(PLAYER, { type: "doorLocked", entity: DOOR }), "The door is locked.");
   assertEquals(messageForEvent(PLAYER, { type: "doorOpened", entity: DOOR }), "Opened the door.");
   assertEquals(messageForEvent(PLAYER, { type: "uplinkTerminalLocked", entity: DOOR }), "The uplink needs a code.");
@@ -76,7 +84,9 @@ Deno.test("messageForEvent covers interaction events", () => {
     "Selected weapon 2: Pistol.",
   );
   assertEquals(
-    messageForEvent(PLAYER, { type: "weaponUnavailable", slot: 3, label: "Long-range" }),
+    messageForEvent(PLAYER, { type: "weaponUnavailable", slot: 3, label: "Current Cannon" }),
     "Weapon 3 is not unlocked.",
   );
+  assertEquals(messageForEvent(PLAYER, { type: "ammoSpent", ammo: "pistol", amount: 1 }), "Spent 1 pistol ammo.");
+  assertEquals(messageForEvent(PLAYER, { type: "noAmmo", ammo: "cannon" }), "No cannon ammo.");
 });

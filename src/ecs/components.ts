@@ -61,6 +61,7 @@ export const DrawableKind = {
   UplinkCode: 6,
   UplinkTerminal: 7,
   WeaponPickup: 8,
+  Item: 9,
 } as const;
 export type DrawableKind = (typeof DrawableKind)[keyof typeof DrawableKind];
 
@@ -114,9 +115,34 @@ export const WeaponPickup: Component<WeaponPickupSchema> = new Component<WeaponP
   schema: { slot: Uint8Array },
 });
 
+export const ItemKind = {
+  HealthPatch: 1,
+  PistolAmmo: 2,
+  CannonAmmo: 3,
+} as const;
+export type ItemKind = (typeof ItemKind)[keyof typeof ItemKind];
+
+export type ItemSchema = { kind: number; amount: number };
+export const Item: Component<ItemSchema> = new Component<ItemSchema>({
+  name: "item",
+  schema: { kind: Uint8Array, amount: Uint8Array },
+});
+
 export const TurnTaker: Component<null> = new Component<null>({ name: "turnTaker" });
 
 export const Enemy: Component<null> = new Component<null>({ name: "enemy" });
+
+export const EnemyArchetype = {
+  MeleeDog: 1,
+  Gunslinger: 2,
+} as const;
+export type EnemyArchetype = (typeof EnemyArchetype)[keyof typeof EnemyArchetype];
+
+export type EnemyArchetypeSchema = { archetype: number };
+export const EnemyArchetypeComponent: Component<EnemyArchetypeSchema> = new Component<EnemyArchetypeSchema>({
+  name: "enemyArchetype",
+  schema: { archetype: Uint8Array },
+});
 
 export type HealthSchema = { current: number; max: number };
 export const Health: Component<HealthSchema> = new Component<HealthSchema>({
@@ -156,8 +182,10 @@ export const ALL_COMPONENTS: DynamicComponent[] = [
   UplinkCode,
   UplinkTerminal,
   WeaponPickup,
+  Item,
   TurnTaker,
   Enemy,
+  EnemyArchetypeComponent,
   Health,
   Attack,
 ];

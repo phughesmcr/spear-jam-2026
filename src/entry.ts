@@ -2,6 +2,8 @@ import { createGameSession, type GameSession } from "@/src/ecs/session.ts";
 import { isPlayerCommand } from "@/src/game/commands.ts";
 import type { GameCommand } from "@/src/game/commands.ts";
 import type { PlayerCommand } from "@/src/game/commands.ts";
+import { combatFeedbackForEvents } from "@/src/game/combat_feedback.ts";
+import type { CombatFeedback } from "@/src/game/combat_feedback.ts";
 import type { GameEvent } from "@/src/game/events.ts";
 import type { DialogueState, GameMode, PlayerState } from "@/src/game/state.ts";
 import { messageForEvent } from "@/src/game/messages.ts";
@@ -37,6 +39,7 @@ class Game implements Disposable {
   private inputController?: Disposable;
   private session?: GameSession;
   private recentMessages: string[] = [];
+  private combatFeedback: readonly CombatFeedback[] = [];
   private mode: GameMode = { type: "loading" };
   private started = false;
 
@@ -61,7 +64,14 @@ class Game implements Disposable {
   }
 
   private render(): void {
-    renderGameFrame(this.spec.ctx, this.canvasSize, this.session, this.mode, this.recentMessages);
+    renderGameFrame(
+      this.spec.ctx,
+      this.canvasSize,
+      this.session,
+      this.mode,
+      this.recentMessages,
+      this.combatFeedback,
+    );
   }
 
   private async loadMap(mapName: string, playerState?: PlayerState): Promise<void> {
@@ -148,6 +158,7 @@ class Game implements Disposable {
 
   private restart(): void {
     this.recentMessages = [];
+    this.combatFeedback = [];
     void this.loadMap(START_MAP_NAME).catch((error: unknown) => this.handleLoadError(error));
   }
 
@@ -203,6 +214,7 @@ class Game implements Disposable {
     if (!this.session) return;
 
     const playerEntity = this.session.player.getEntity();
+    this.combatFeedback = combatFeedbackForEvents(playerEntity, events);
     for (const event of events) {
       this.recentMessages.push(messageForEvent(playerEntity, event));
     }

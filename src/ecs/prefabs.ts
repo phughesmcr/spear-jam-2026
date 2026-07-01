@@ -13,10 +13,14 @@ import {
   DrawableKind,
   DrawableLayer,
   Enemy,
+  EnemyArchetype,
+  EnemyArchetypeComponent,
   Facing,
   GridPos,
   Health,
   Interactable,
+  Item,
+  ItemKind,
   Key,
   Locked,
   Npc,
@@ -32,6 +36,7 @@ import { keyColorCode } from "@/src/map/map.ts";
 import type {
   DoorDef,
   EnemyDef,
+  ItemDef,
   KeyDef,
   MapEntityDef,
   NpcDef,
@@ -43,11 +48,9 @@ import type {
 import type { DisplayName } from "@/src/game/names.ts";
 
 const DEFAULT_PLAYER_HEALTH = 10;
-const DEFAULT_ENEMY_HEALTH = 3;
-const DEFAULT_ENEMY_DAMAGE = 1;
 const DEFAULT_ATTACK: AttackSchema = {
-  minDamage: DEFAULT_ENEMY_DAMAGE,
-  maxDamage: DEFAULT_ENEMY_DAMAGE,
+  minDamage: 1,
+  maxDamage: 1,
   range: 1,
   requiresFacing: AttackFacingRequirement.Required,
   attackBonus: 2,
@@ -55,6 +58,30 @@ const DEFAULT_ATTACK: AttackSchema = {
   critMultiplier: 2,
   pattern: AttackPattern.Line,
   targets: AttackTargetMode.First,
+};
+type EnemyArchetypeDefaults = {
+  readonly health: number;
+  readonly damage: number;
+  readonly attack: Partial<AttackSchema>;
+};
+
+const ENEMY_ARCHETYPE_DEFAULTS: Readonly<Record<EnemyArchetype, EnemyArchetypeDefaults>> = {
+  [EnemyArchetype.MeleeDog]: {
+    health: 2,
+    damage: 1,
+    attack: {
+      attackBonus: 4,
+      range: 1,
+    },
+  },
+  [EnemyArchetype.Gunslinger]: {
+    health: 2,
+    damage: 1,
+    attack: {
+      attackBonus: 3,
+      range: 4,
+    },
+  },
 };
 
 type PositionedPrefab = {
@@ -97,23 +124,36 @@ export type EnemyPrefab = Omit<EnemyDef, "prefab">;
 export function createEnemy(world: World, prefab: EnemyPrefab): Entity {
   const entity = createEntity(world, "enemy");
 
-  const health = prefab.health ?? DEFAULT_ENEMY_HEALTH;
+  const archetype = enemyArchetypeCode(prefab.archetype);
+  const defaults = ENEMY_ARCHETYPE_DEFAULTS[archetype];
+  const health = prefab.health ?? defaults.health;
   addGridActor(world, entity, prefab, DrawableKind.Enemy, DrawableLayer.Enemy);
   addDisplayName(world, entity, prefab.displayName);
   world.components.addToEntity(Enemy, entity);
+  world.components.addToEntity(EnemyArchetypeComponent, entity, { archetype });
   addHealth(world, entity, health);
-  world.components.addToEntity(Attack, entity, createAttackSpec(prefab));
+  world.components.addToEntity(Attack, entity, createAttackSpec(prefab, defaults));
   return entity;
 }
 
-function createAttackSpec(prefab: EnemyPrefab): AttackSchema {
-  const fixedDamage = prefab.damage ?? DEFAULT_ENEMY_DAMAGE;
+function createAttackSpec(prefab: EnemyPrefab, defaults: EnemyArchetypeDefaults): AttackSchema {
+  const fixedDamage = prefab.damage ?? defaults.damage;
   return {
     ...DEFAULT_ATTACK,
+    ...defaults.attack,
     minDamage: fixedDamage,
     maxDamage: fixedDamage,
     ...prefab.attack,
   };
+}
+
+function enemyArchetypeCode(archetype: EnemyPrefab["archetype"]): EnemyArchetype {
+  switch (archetype ?? "meleeDog") {
+    case "meleeDog":
+      return EnemyArchetype.MeleeDog;
+    case "gunslinger":
+      return EnemyArchetype.Gunslinger;
+  }
 }
 
 export type DoorPrefab = Omit<DoorDef, "prefab">;
@@ -177,6 +217,27 @@ export function createWeaponPickup(world: World, prefab: WeaponPickupPrefab): En
   return entity;
 }
 
+export type ItemPrefab = Omit<ItemDef, "prefab">;
+
+export function createItem(world: World, prefab: ItemPrefab): Entity {
+  const entity = createEntity(world, "item");
+  addPosition(world, entity, prefab);
+  addDrawable(world, entity, DrawableKind.Item, DrawableLayer.Item);
+  world.components.addToEntity(Item, entity, { kind: itemKindCode(prefab.item), amount: prefab.amount });
+  return entity;
+}
+
+function itemKindCode(item: ItemPrefab["item"]): number {
+  switch (item) {
+    case "healthPatch":
+      return ItemKind.HealthPatch;
+    case "pistolAmmo":
+      return ItemKind.PistolAmmo;
+    case "cannonAmmo":
+      return ItemKind.CannonAmmo;
+  }
+}
+
 function createEntity(world: World, prefabName: string): Entity {
   const entity = world.entities.create();
   if (entity === undefined) throw new Error(`Failed to create ${prefabName} entity`);
@@ -235,5 +296,7 @@ export function createMapEntity(world: World, prefab: MapEntityDef): Entity {
       return createUplinkTerminal(world, prefab);
     case "weaponPickup":
       return createWeaponPickup(world, prefab);
+    case "item":
+      return createItem(world, prefab);
   }
 }

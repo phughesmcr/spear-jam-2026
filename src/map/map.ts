@@ -77,6 +77,7 @@ export type EnemyDef = {
   y: number;
   dir: number;
   displayName: DisplayName;
+  archetype?: "meleeDog" | "gunslinger";
   health?: number;
   damage?: number;
   attack?: Partial<AttackDef>;
@@ -117,6 +118,14 @@ export type WeaponPickupDef = {
   slot: 2 | 3;
 };
 
+export type ItemDef = {
+  prefab: "item";
+  x: number;
+  y: number;
+  item: "healthPatch" | "pistolAmmo" | "cannonAmmo";
+  amount: number;
+};
+
 export type ExitDef = {
   prefab: "exit";
   x: number;
@@ -132,7 +141,8 @@ export type MapEntityDef =
   | KeyDef
   | UplinkCodeDef
   | UplinkTerminalDef
-  | WeaponPickupDef;
+  | WeaponPickupDef
+  | ItemDef;
 
 export type EntityDef = MapEntityDef | ExitDef;
 

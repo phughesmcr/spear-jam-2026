@@ -1,8 +1,8 @@
 import type { Entity, World } from "@phughesmcr/miski";
-import { GridPos, Health, UplinkTerminal } from "@/src/ecs/components.ts";
+import { GridPos, Health, Item, ItemKind, UplinkTerminal } from "@/src/ecs/components.ts";
 import { directionDelta } from "@/src/grid/direction.ts";
 import type { GridDelta } from "@/src/grid/direction.ts";
-import { attackWithSelectedWeapon, DEFAULT_SELECTED_WEAPON, weaponLabel } from "@/src/ecs/combat.ts";
+import { attackWithSelectedWeapon, DEFAULT_SELECTED_WEAPON, weaponAmmoKind, weaponLabel } from "@/src/ecs/combat.ts";
 import { enemyTurnSystem } from "@/src/ecs/enemy.ts";
 import type { EnemyTurnSystem } from "@/src/ecs/enemy.ts";
 import {
@@ -20,7 +20,7 @@ import { relativeMoveDirectionOffset, turnDirectionDelta } from "@/src/game/comm
 import type { PlayerCommand, PlayerCommandResult } from "@/src/game/commands.ts";
 import type { GameEvent } from "@/src/game/events.ts";
 import type { RandomSource } from "@/src/game/rng.ts";
-import type { CommandSlot, PlayerState } from "@/src/game/state.ts";
+import type { AmmoKind, CommandSlot, PlayerAmmoState, PlayerState } from "@/src/game/state.ts";
 import { VICTORY_GOTO } from "@/src/map/map.ts";
 import type { GameMap, KeyColor } from "@/src/map/map.ts";
 
@@ -28,6 +28,7 @@ const UNCHANGED_PLAYER_COMMAND: PlayerCommandResult = Object.freeze({
   events: [],
 });
 const DEFAULT_UNLOCKED_WEAPONS: readonly CommandSlot[] = Object.freeze([DEFAULT_SELECTED_WEAPON]);
+const DEFAULT_AMMO: PlayerAmmoState = Object.freeze({ pistol: 0, cannon: 0 });
 
 type MoveResult =
   | { readonly moved: false }
@@ -78,6 +79,7 @@ export class GameSession implements Disposable {
   private readonly spatial: SpatialIndex;
   private readonly terminalDestinations: ReadonlyMap<Entity, string>;
   private readonly unlockedWeapons: Set<CommandSlot>;
+  private readonly ammo: { pistol: number; cannon: number };
   private selectedWeapon: CommandSlot;
   private hasUplinkCode: boolean;
   private disposed = false;
@@ -98,6 +100,7 @@ export class GameSession implements Disposable {
     this.spatial = new SpatialIndex(world, map);
     this.terminalDestinations = terminalDestinationsFor(world, map);
     this.unlockedWeapons = unlockedWeaponsFor(playerState);
+    this.ammo = ammoFor(playerState);
     this.selectedWeapon = selectedWeaponFor(playerState?.selectedWeapon, this.unlockedWeapons);
     this.hasUplinkCode = playerState?.hasUplinkCode ?? false;
   }
@@ -107,6 +110,7 @@ export class GameSession implements Disposable {
       heldKeys: [...this.heldKeys],
       selectedWeapon: this.selectedWeapon,
       unlockedWeapons: sortedWeaponSlots(this.unlockedWeapons),
+      ammo: { ...this.ammo },
       health: this.getPlayerHealth(),
       hasUplinkCode: this.hasUplinkCode,
     };
@@ -148,11 +152,12 @@ export class GameSession implements Disposable {
     const keyEvents = collectKeyAt(this.world, this.spatial, this.heldKeys, next.x, next.y);
     const codePickup = collectUplinkCodeAt(this.spatial, next.x, next.y);
     const weaponPickup = collectWeaponPickupAt(this.world, this.spatial, next.x, next.y);
+    const itemEvents = this.collectItemAt(next.x, next.y);
     if (codePickup.collected) this.hasUplinkCode = true;
     if (weaponPickup.slot !== undefined) this.unlockedWeapons.add(weaponPickup.slot);
     return {
       moved: true,
-      events: [...keyEvents, ...codePickup.events, ...weaponPickup.events],
+      events: [...keyEvents, ...codePickup.events, ...weaponPickup.events, ...itemEvents],
     };
   }
 
@@ -206,6 +211,10 @@ export class GameSession implements Disposable {
   }
 
   private handlePlayerAttackCommand(): PlayerCommandResult {
+    const ammoKind = weaponAmmoKind(this.selectedWeapon);
+    const ammoEvents = this.spendAmmo(ammoKind);
+    if (ammoEvents.type === "blocked") return { events: ammoEvents.events };
+
     const events = attackWithSelectedWeapon(
       this.world,
       this.player,
@@ -213,7 +222,7 @@ export class GameSession implements Disposable {
       this.spatial,
       this.random,
     );
-    return this.consumePlayerTurn(events);
+    return this.consumePlayerTurn([...ammoEvents.events, ...events]);
   }
 
   private handlePlayerSelectWeaponCommand(slot: CommandSlot): PlayerCommandResult {
@@ -260,6 +269,70 @@ export class GameSession implements Disposable {
     return this.world.components.getEntityData(Health, entity);
   }
 
+  private collectItemAt(x: number, y: number): readonly GameEvent[] {
+    const item = this.spatial.itemAt(x, y);
+    if (item === undefined) return [];
+
+    const { kind, amount } = this.world.components.getEntityData(Item, item);
+    switch (kind) {
+      case ItemKind.HealthPatch:
+        return this.collectHealthPatch(item, amount);
+      case ItemKind.PistolAmmo:
+        return this.collectAmmo(item, "pistol", amount);
+      case ItemKind.CannonAmmo:
+        return this.collectAmmo(item, "cannon", amount);
+      default:
+        throw new Error(`Unknown item kind: ${kind}`);
+    }
+  }
+
+  private collectHealthPatch(item: Entity, amount: number): readonly GameEvent[] {
+    const health = this.getPlayerHealth();
+    const healed = health === undefined ? 0 : Math.min(amount, health.max - health.current);
+    if (health !== undefined && healed > 0) {
+      this.world.components.setEntityData(Health, this.player.getEntity(), {
+        current: health.current + healed,
+        max: health.max,
+      });
+    }
+    this.spatial.removeEntity(item);
+    return [{
+      type: "healthPickedUp",
+      entity: item,
+      amount,
+      healed,
+    }];
+  }
+
+  private collectAmmo(item: Entity, ammo: AmmoKind, amount: number): readonly GameEvent[] {
+    this.ammo[ammo] += amount;
+    this.spatial.removeEntity(item);
+    return [{
+      type: "ammoPickedUp",
+      entity: item,
+      ammo,
+      amount,
+    }];
+  }
+
+  private spendAmmo(ammo: AmmoKind | undefined):
+    | { readonly type: "spent"; readonly events: readonly GameEvent[] }
+    | { readonly type: "blocked"; readonly events: readonly GameEvent[] } {
+    if (ammo === undefined) return { type: "spent", events: [] };
+    if (this.ammo[ammo] <= 0) {
+      return {
+        type: "blocked",
+        events: [{ type: "noAmmo", ammo }],
+      };
+    }
+
+    this.ammo[ammo] -= 1;
+    return {
+      type: "spent",
+      events: [{ type: "ammoSpent", ammo, amount: 1 }],
+    };
+  }
+
   private clearTransientInventory(): void {
     this.heldKeys.clear();
     this.hasUplinkCode = false;
@@ -300,6 +373,13 @@ function unlockedWeaponsFor(playerState: PlayerState | undefined): Set<CommandSl
     slots.add(slot);
   }
   return slots;
+}
+
+function ammoFor(playerState: PlayerState | undefined): { pistol: number; cannon: number } {
+  return {
+    pistol: playerState?.ammo?.pistol ?? DEFAULT_AMMO.pistol,
+    cannon: playerState?.ammo?.cannon ?? DEFAULT_AMMO.cannon,
+  };
 }
 
 function selectedWeaponFor(

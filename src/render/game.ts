@@ -1,6 +1,8 @@
 import type { GameSession } from "@/src/ecs/session.ts";
+import type { CombatFeedback } from "@/src/game/combat_feedback.ts";
 import type { GameMode } from "@/src/game/state.ts";
 import type { GameCanvasSize } from "@/src/render/canvas.ts";
+import { renderCombatFeedback } from "@/src/render/combat_feedback.ts";
 import { renderDrawableEntities } from "@/src/render/drawables.ts";
 import { renderHud } from "@/src/render/hud.ts";
 import { renderExits, renderMap } from "@/src/render/map.ts";
@@ -15,6 +17,7 @@ export function renderGameFrame(
   session?: GameSession,
   mode: GameMode = { type: "loading" },
   messages: readonly string[] = [],
+  combatFeedback: readonly CombatFeedback[] = [],
 ): void {
   ctx.fillStyle = BACKGROUND_COLOR;
   ctx.fillRect(0, 0, canvasSize.width, canvasSize.height);
@@ -23,6 +26,7 @@ export function renderGameFrame(
     const metrics = renderMap(ctx, canvasSize, map);
     renderExits(ctx, map, metrics);
     renderDrawableEntities(ctx, session.world, metrics);
+    renderCombatFeedback(ctx, metrics, combatFeedback);
     renderHud(ctx, canvasSize, session);
   }
   renderMessageLog(ctx, canvasSize, messages);

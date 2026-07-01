@@ -22,8 +22,10 @@ export const MAP_1: GameMap = createGameMap(
   [
     { prefab: "player", x: 5, y: 5, dir: 1 },
     { prefab: "npc", x: 4, y: 5, dir: 1, displayName: DisplayName.John, dialogueTreeId: DialogueTreeId.JohnIntro },
-    { prefab: "enemy", x: 2, y: 5, dir: 3, displayName: DisplayName.Imp },
+    { prefab: "enemy", x: 2, y: 5, dir: 3, displayName: DisplayName.DigitalDog, archetype: "meleeDog" },
     { prefab: "weaponPickup", x: 6, y: 5, slot: 2 },
+    { prefab: "item", x: 6, y: 6, item: "pistolAmmo", amount: 6 },
+    { prefab: "item", x: 3, y: 6, item: "healthPatch", amount: 4 },
     { prefab: "door", x: 7, y: 3, locked: true, color: KeyColor.Red },
     { prefab: "key", x: 8, y: 9, color: KeyColor.Red },
     { prefab: "uplinkCode", x: 1, y: 9 },

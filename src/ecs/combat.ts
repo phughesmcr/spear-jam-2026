@@ -19,7 +19,7 @@ import type { CardinalDirection } from "@/src/grid/direction.ts";
 import type { GameEvent } from "@/src/game/events.ts";
 import type { RandomSource } from "@/src/game/rng.ts";
 import { displayNameText } from "@/src/game/names.ts";
-import type { CommandSlot } from "@/src/game/state.ts";
+import type { AmmoKind, CommandSlot } from "@/src/game/state.ts";
 
 type WeaponSpec = AttackSchema & {
   readonly label: string;
@@ -73,7 +73,7 @@ const PLAYER_WEAPONS: Readonly<Record<CommandSlot, WeaponSpec>> = {
     targets: AttackTargetMode.First,
   },
   3: {
-    label: "Long-range",
+    label: "Current Cannon",
     minDamage: 2,
     maxDamage: 4,
     range: 6,
@@ -88,6 +88,17 @@ const PLAYER_WEAPONS: Readonly<Record<CommandSlot, WeaponSpec>> = {
 
 export function weaponLabel(slot: CommandSlot): string {
   return PLAYER_WEAPONS[slot].label;
+}
+
+export function weaponAmmoKind(slot: CommandSlot): AmmoKind | undefined {
+  switch (slot) {
+    case 1:
+      return undefined;
+    case 2:
+      return "pistol";
+    case 3:
+      return "cannon";
+  }
 }
 
 export function attackWithSelectedWeapon(

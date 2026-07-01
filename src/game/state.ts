@@ -2,6 +2,13 @@ import type { KeyColor } from "@/src/map/map.ts";
 
 export type CommandSlot = 1 | 2 | 3;
 
+export type AmmoKind = "pistol" | "cannon";
+
+export type PlayerAmmoState = {
+  readonly pistol: number;
+  readonly cannon: number;
+};
+
 export type PlayerHealthState = {
   readonly current: number;
   readonly max: number;
@@ -12,6 +19,7 @@ export type PlayerState = {
   readonly heldKeys: readonly KeyColor[];
   readonly selectedWeapon: CommandSlot;
   readonly unlockedWeapons?: readonly CommandSlot[];
+  readonly ammo?: PlayerAmmoState;
   readonly health?: PlayerHealthState;
   readonly hasUplinkCode?: boolean;
 };

@@ -6,6 +6,7 @@ import {
   AttackTargetMode,
   Blocking,
   Health,
+  ItemKind,
   Locked,
 } from "@/src/ecs/components.ts";
 import { GridPos } from "@/src/ecs/components.ts";
@@ -16,6 +17,7 @@ import { KeyColor, VICTORY_GOTO } from "@/src/map/map.ts";
 import {
   createTestDoor,
   createTestEnemy,
+  createTestItem,
   createTestKey,
   createTestNpc,
   createTestPlayer,
@@ -125,6 +127,46 @@ Deno.test("moving onto a weapon pickup unlocks that weapon", async () => {
   ]);
   assertEquals(world.entities.isActive(weapon), false);
   assertEquals(session.getPlayerState().unlockedWeapons, [1, 2]);
+});
+
+Deno.test("moving onto a health patch restores health up to max", async () => {
+  const world = await createWorld();
+  const playerEntity = createTestPlayer(world, { health: { current: 4, max: 10 } });
+  const patch = createTestItem(world, { x: 2, y: 1, kind: ItemKind.HealthPatch, amount: 8 });
+
+  const session = createTestSession(world, playerEntity);
+  const result = session.handlePlayerCommand({ type: "move", direction: "forward" });
+
+  assertEquals(result.events, [
+    {
+      type: "healthPickedUp",
+      entity: patch,
+      amount: 8,
+      healed: 6,
+    },
+  ]);
+  assertEquals(world.entities.isActive(patch), false);
+  assertEquals(session.getPlayerState().health, { current: 10, max: 10 });
+});
+
+Deno.test("moving onto ammo stores it in player state", async () => {
+  const world = await createWorld();
+  const playerEntity = createTestPlayer(world);
+  const ammo = createTestItem(world, { x: 2, y: 1, kind: ItemKind.PistolAmmo, amount: 5 });
+
+  const session = createTestSession(world, playerEntity);
+  const result = session.handlePlayerCommand({ type: "move", direction: "forward" });
+
+  assertEquals(result.events, [
+    {
+      type: "ammoPickedUp",
+      entity: ammo,
+      ammo: "pistol",
+      amount: 5,
+    },
+  ]);
+  assertEquals(world.entities.isActive(ammo), false);
+  assertEquals(session.getPlayerState().ammo, { pistol: 5, cannon: 0 });
 });
 
 Deno.test("interacting with a locked door emits an event without consuming a turn", async () => {
@@ -276,6 +318,7 @@ Deno.test("interacting with an uplink terminal after collecting a code advances 
     heldKeys: [],
     selectedWeapon: 2,
     unlockedWeapons: [1, 2],
+    ammo: { pistol: 0, cannon: 0 },
     health: { current: 4, max: 10 },
     hasUplinkCode: false,
   });
@@ -342,6 +385,99 @@ Deno.test("selecting an unlocked weapon emits a player-facing event without cons
     ],
   });
   assertEquals(session.getPlayerState().selectedWeapon, 2);
+});
+
+Deno.test("attacking with an empty ranged weapon emits no ammo without consuming a turn", async () => {
+  const world = await createWorld();
+  const playerEntity = createTestPlayer(world, {
+    blocking: true,
+    health: { current: 2, max: 2 },
+  });
+  createTestEnemy(world, {
+    x: 2,
+    y: 1,
+    dir: 3,
+    displayName: DisplayName.Imp,
+    health: { current: 3, max: 3 },
+    attack: {
+      minDamage: 1,
+      maxDamage: 1,
+      range: 1,
+      requiresFacing: AttackFacingRequirement.Required,
+      attackBonus: 20,
+      critThreshold: 0,
+      critMultiplier: 1,
+      pattern: AttackPattern.Line,
+      targets: AttackTargetMode.First,
+    },
+  });
+  const session = createTestSession(world, playerEntity, TEST_MAP, {
+    playerState: {
+      heldKeys: [],
+      selectedWeapon: 2,
+      unlockedWeapons: [1, 2],
+      ammo: { pistol: 0, cannon: 0 },
+    },
+  });
+
+  const result = session.handlePlayerCommand({ type: "attack" });
+
+  assertEquals(result, { events: [{ type: "noAmmo", ammo: "pistol" }] });
+  assertEquals(session.getPlayerState().health, { current: 2, max: 2 });
+});
+
+Deno.test("attacking with a ranged weapon spends ammo before resolving combat", async () => {
+  const world = await createWorld();
+  const playerEntity = createTestPlayer(world, { blocking: true, tag: true });
+  const enemy = createTestEnemy(world, {
+    x: 2,
+    y: 1,
+    dir: 3,
+    displayName: DisplayName.Imp,
+    health: { current: 3, max: 3 },
+    attack: {
+      minDamage: 1,
+      maxDamage: 1,
+      range: 1,
+      requiresFacing: AttackFacingRequirement.Required,
+      attackBonus: 20,
+      critThreshold: 0,
+      critMultiplier: 1,
+      pattern: AttackPattern.Line,
+      targets: AttackTargetMode.First,
+    },
+  });
+  const session = createTestSession(world, playerEntity, TEST_MAP, {
+    random: () => 0.999,
+    playerState: {
+      heldKeys: [],
+      selectedWeapon: 2,
+      unlockedWeapons: [1, 2],
+      ammo: { pistol: 1, cannon: 0 },
+    },
+  });
+
+  const result = session.handlePlayerCommand({ type: "attack" });
+
+  assertEquals(result.events, [
+    { type: "ammoSpent", ammo: "pistol", amount: 1 },
+    {
+      type: "damageDealt",
+      actor: playerEntity,
+      actorName: "You",
+      target: enemy,
+      targetName: "Imp",
+      amount: 6,
+      critical: true,
+    },
+    {
+      type: "entityDefeated",
+      actor: playerEntity,
+      entity: enemy,
+      entityName: "Imp",
+    },
+  ]);
+  assertEquals(session.getPlayerState().ammo, { pistol: 0, cannon: 0 });
 });
 
 Deno.test("turning changes facing without consuming a turn", async () => {

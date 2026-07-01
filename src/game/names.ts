@@ -1,6 +1,8 @@
 export const DisplayName = {
   John: 0,
   Imp: 1,
+  DigitalDog: 2,
+  GigabitGunslinger: 3,
 } as const;
 
 export type DisplayName = (typeof DisplayName)[keyof typeof DisplayName];
@@ -8,6 +10,8 @@ export type DisplayName = (typeof DisplayName)[keyof typeof DisplayName];
 const DISPLAY_NAMES: Readonly<Record<DisplayName, string>> = {
   [DisplayName.John]: "John",
   [DisplayName.Imp]: "Imp",
+  [DisplayName.DigitalDog]: "Digital Dog",
+  [DisplayName.GigabitGunslinger]: "Gigabit Gunslinger",
 };
 
 export function displayNameText(displayName: number): string {

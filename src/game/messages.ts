@@ -16,6 +16,10 @@ export function messageForEvent(playerEntity: Entity, event: GameEvent): string 
       return "Picked up an uplink code.";
     case "weaponPickedUp":
       return `Picked up weapon ${event.slot}: ${event.label}.`;
+    case "healthPickedUp":
+      return event.healed === 0 ? "Picked up a health patch." : `Restored ${event.healed} HP.`;
+    case "ammoPickedUp":
+      return `Picked up ${event.amount} ${event.ammo} ammo.`;
     case "doorLocked":
       return "The door is locked.";
     case "doorOpened":
@@ -28,5 +32,9 @@ export function messageForEvent(playerEntity: Entity, event: GameEvent): string 
       return `Selected weapon ${event.slot}: ${event.label}.`;
     case "weaponUnavailable":
       return `Weapon ${event.slot} is not unlocked.`;
+    case "ammoSpent":
+      return `Spent ${event.amount} ${event.ammo} ammo.`;
+    case "noAmmo":
+      return `No ${event.ammo} ammo.`;
   }
 }

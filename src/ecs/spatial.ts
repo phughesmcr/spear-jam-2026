@@ -1,5 +1,5 @@
 import type { DynamicComponent, Entity, World } from "@phughesmcr/miski";
-import { Blocking, GridPos, Key, UplinkCode, WeaponPickup } from "@/src/ecs/components.ts";
+import { Blocking, GridPos, Item, Key, UplinkCode, WeaponPickup } from "@/src/ecs/components.ts";
 import { positionedQuery } from "@/src/ecs/queries.ts";
 import type { Player } from "@/src/ecs/player.ts";
 import { directionDelta } from "@/src/grid/direction.ts";
@@ -81,6 +81,10 @@ export class SpatialIndex implements SpatialLookup, SpatialMutations {
 
   weaponPickupAt(x: number, y: number): Entity | undefined {
     return this.occupantWith(WeaponPickup, x, y);
+  }
+
+  itemAt(x: number, y: number): Entity | undefined {
+    return this.occupantWith(Item, x, y);
   }
 
   exitAt(x: number, y: number): ExitDef | undefined {

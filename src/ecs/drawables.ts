@@ -2,7 +2,12 @@ import { type Entity, System, type World } from "@phughesmcr/miski";
 import {
   Door,
   DrawableKind,
+  EnemyArchetype,
+  EnemyArchetypeComponent,
   Facing,
+  Health,
+  Item,
+  ItemKind,
   Key,
   Locked,
   UplinkCode,
@@ -30,6 +35,11 @@ export type ActorDrawableKind =
 export type ActorDrawableEntity = DrawableBase & {
   readonly kind: ActorDrawableKind;
   readonly dir: number;
+  readonly enemyArchetype?: EnemyArchetype;
+  readonly health?: {
+    readonly current: number;
+    readonly max: number;
+  };
 };
 
 export type DoorDrawableEntity = DrawableBase & {
@@ -57,13 +67,20 @@ export type WeaponPickupDrawableEntity = DrawableBase & {
   readonly slot: CommandSlot;
 };
 
+export type ItemDrawableEntity = DrawableBase & {
+  readonly kind: typeof DrawableKind.Item;
+  readonly itemKind: ItemKind;
+  readonly amount: number;
+};
+
 export type DrawableEntity =
   | ActorDrawableEntity
   | DoorDrawableEntity
   | KeyDrawableEntity
   | UplinkCodeDrawableEntity
   | UplinkTerminalDrawableEntity
-  | WeaponPickupDrawableEntity;
+  | WeaponPickupDrawableEntity
+  | ItemDrawableEntity;
 
 export type DrawableEntityVisitor = (drawable: DrawableEntity) => void;
 
@@ -139,6 +156,8 @@ function drawableEntityFor(
       return uplinkTerminalDrawableEntityFor(world, entity, position);
     case DrawableKind.WeaponPickup:
       return weaponPickupDrawableEntityFor(world, entity, position);
+    case DrawableKind.Item:
+      return itemDrawableEntityFor(world, entity, position);
     default:
       return undefined;
   }
@@ -153,11 +172,41 @@ function actorDrawableEntityFor(
   if (!world.components.entityHas(Facing, entity)) return undefined;
 
   const { dir } = world.components.getEntityData(Facing, entity);
+  const enemyArchetype = kind === DrawableKind.Enemy ? enemyArchetypeFor(world, entity) : undefined;
+  const health = kind === DrawableKind.Enemy ? healthFor(world, entity) : undefined;
   return {
     ...position,
     kind,
     dir,
+    ...(enemyArchetype === undefined ? {} : { enemyArchetype }),
+    ...(health === undefined ? {} : { health }),
   };
+}
+
+function healthFor(
+  world: World,
+  entity: Entity,
+): { readonly current: number; readonly max: number } | undefined {
+  if (!world.components.entityHas(Health, entity)) return undefined;
+
+  const health = world.components.getEntityData(Health, entity);
+  return {
+    current: health.current,
+    max: health.max,
+  };
+}
+
+function enemyArchetypeFor(world: World, entity: Entity): EnemyArchetype | undefined {
+  if (!world.components.entityHas(EnemyArchetypeComponent, entity)) return undefined;
+
+  const archetype = world.components.getEntityData(EnemyArchetypeComponent, entity).archetype;
+  switch (archetype) {
+    case EnemyArchetype.MeleeDog:
+    case EnemyArchetype.Gunslinger:
+      return archetype;
+    default:
+      throw new Error(`Unknown enemy archetype: ${archetype}`);
+  }
 }
 
 function doorDrawableEntityFor(
@@ -230,6 +279,33 @@ function weaponPickupDrawableEntityFor(
     kind: DrawableKind.WeaponPickup,
     slot: commandSlotForCode(slot),
   };
+}
+
+function itemDrawableEntityFor(
+  world: World,
+  entity: Entity,
+  position: DrawableBase,
+): ItemDrawableEntity | undefined {
+  if (!world.components.entityHas(Item, entity)) return undefined;
+
+  const item = world.components.getEntityData(Item, entity);
+  return {
+    ...position,
+    kind: DrawableKind.Item,
+    itemKind: itemKindForCode(item.kind),
+    amount: item.amount,
+  };
+}
+
+function itemKindForCode(kind: number): ItemKind {
+  switch (kind) {
+    case ItemKind.HealthPatch:
+    case ItemKind.PistolAmmo:
+    case ItemKind.CannonAmmo:
+      return kind;
+    default:
+      throw new Error(`Unknown item kind: ${kind}`);
+  }
 }
 
 function commandSlotForCode(slot: number): CommandSlot {

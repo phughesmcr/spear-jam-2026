@@ -9,11 +9,15 @@ import {
   DisplayNameComponent,
   Door,
   Enemy,
+  type EnemyArchetype,
+  EnemyArchetypeComponent,
   Facing,
   GridPos,
   Health,
   type HealthSchema,
   Interactable,
+  Item,
+  ItemKind,
   Key,
   Locked,
   Npc,
@@ -176,12 +180,28 @@ export function createTestWeaponPickup(world: World, opts: TestWeaponPickupOptio
   return entity;
 }
 
+export type TestItemOptions = {
+  x: number;
+  y: number;
+  kind: ItemKind;
+  amount: number;
+};
+
+export function createTestItem(world: World, opts: TestItemOptions): Entity {
+  const entity = createEntity(world);
+  world.components.addToEntity(GridPos, entity, { x: opts.x, y: opts.y });
+  world.components.addToEntity(Item, entity, { kind: opts.kind, amount: opts.amount });
+  return entity;
+}
+
 export type TestEnemyOptions = {
   x: number;
   y: number;
   dir?: CardinalDirection;
   displayName: DisplayName;
   attack: AttackSchema;
+  health?: HealthSchema;
+  archetype?: EnemyArchetype;
 };
 
 export function createTestEnemy(world: World, opts: TestEnemyOptions): Entity {
@@ -193,6 +213,10 @@ export function createTestEnemy(world: World, opts: TestEnemyOptions): Entity {
   world.components.addToEntity(TurnTaker, entity);
   world.components.addToEntity(DisplayNameComponent, entity, { displayName: opts.displayName });
   world.components.addToEntity(Attack, entity, opts.attack);
+  if (opts.health !== undefined) world.components.addToEntity(Health, entity, opts.health);
+  if (opts.archetype !== undefined) {
+    world.components.addToEntity(EnemyArchetypeComponent, entity, { archetype: opts.archetype });
+  }
   return entity;
 }
 

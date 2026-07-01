@@ -1,5 +1,5 @@
 import type { Entity } from "@phughesmcr/miski";
-import type { CommandSlot } from "@/src/game/state.ts";
+import type { AmmoKind, CommandSlot } from "@/src/game/state.ts";
 
 /**
  * Structured facts about what happened during a turn.
@@ -48,6 +48,18 @@ export type GameEvent =
     readonly label: string;
   }
   | {
+    readonly type: "healthPickedUp";
+    readonly entity: Entity;
+    readonly amount: number;
+    readonly healed: number;
+  }
+  | {
+    readonly type: "ammoPickedUp";
+    readonly entity: Entity;
+    readonly ammo: AmmoKind;
+    readonly amount: number;
+  }
+  | {
     readonly type: "doorLocked";
     readonly entity: Entity;
   }
@@ -72,4 +84,13 @@ export type GameEvent =
     readonly type: "weaponUnavailable";
     readonly slot: CommandSlot;
     readonly label: string;
+  }
+  | {
+    readonly type: "ammoSpent";
+    readonly ammo: AmmoKind;
+    readonly amount: number;
+  }
+  | {
+    readonly type: "noAmmo";
+    readonly ammo: AmmoKind;
   };

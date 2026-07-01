@@ -1,4 +1,5 @@
 import type { World } from "@phughesmcr/miski";
+import { EnemyArchetype, ItemKind } from "@/src/ecs/components.ts";
 import { DrawableKind, forEachDrawableEntity } from "@/src/ecs/drawables.ts";
 import type { DrawableEntity } from "@/src/ecs/drawables.ts";
 import { directionDelta } from "@/src/grid/direction.ts";
@@ -13,6 +14,13 @@ const ACTOR_STROKE_COLOR = "#101217";
 const PLAYER_COLOR = "#f0c84b";
 const NPC_COLOR = "#59d39b";
 const ENEMY_COLOR = "#df4f45";
+const DOG_COLOR = "#ef4444";
+const GUNSLINGER_COLOR = "#38bdf8";
+const ENEMY_SYMBOL_COLOR = "#101217";
+const ENEMY_HP_BACK = "#111827";
+const ENEMY_HP_HEALTHY = "#22c55e";
+const ENEMY_HP_WARN = "#facc15";
+const ENEMY_HP_DANGER = "#ef4444";
 const DOOR_COLOR = "#9a6a3a";
 const LOCKED_DOOR_COLOR = "#b14b4b";
 const UPLINK_CODE_COLOR = "#7dd3fc";
@@ -20,6 +28,10 @@ const UPLINK_TERMINAL_COLOR = "#22c55e";
 const UPLINK_TERMINAL_SCREEN = "#0f172a";
 const WEAPON_PICKUP_COLOR = "#c084fc";
 const WEAPON_PICKUP_TEXT = "#101217";
+const HEALTH_PICKUP_COLOR = "#ef4444";
+const PISTOL_AMMO_COLOR = "#38bdf8";
+const CANNON_AMMO_COLOR = "#f97316";
+const ITEM_TEXT = "#101217";
 const KEY_COLORS: Record<KeyColorType, string> = {
   [KeyColor.Red]: "#df4f45",
   [KeyColor.Blue]: "#4f8df7",
@@ -48,7 +60,7 @@ function renderDrawableEntity(
       renderActor(ctx, drawable.x, drawable.y, drawable.dir, NPC_COLOR, metrics);
       return;
     case DrawableKind.Enemy:
-      renderActor(ctx, drawable.x, drawable.y, drawable.dir, ENEMY_COLOR, metrics);
+      renderEnemy(ctx, drawable.x, drawable.y, drawable.dir, drawable.enemyArchetype, drawable.health, metrics);
       return;
     case DrawableKind.Door:
       renderDoor(ctx, drawable.x, drawable.y, drawable.open, drawable.locked, drawable.color, metrics);
@@ -64,6 +76,9 @@ function renderDrawableEntity(
       return;
     case DrawableKind.WeaponPickup:
       renderWeaponPickup(ctx, drawable.x, drawable.y, drawable.slot, metrics);
+      return;
+    case DrawableKind.Item:
+      renderItem(ctx, drawable.x, drawable.y, drawable.itemKind, metrics);
       return;
   }
 }
@@ -188,12 +203,123 @@ function renderWeaponPickup(
   ctx.fillText(String(slot), centerX, centerY + 0.5);
 }
 
+function renderItem(
+  ctx: CanvasRenderingContext2D,
+  x: number,
+  y: number,
+  itemKind: ItemKind,
+  metrics: MapRenderMetrics,
+): void {
+  const { offsetX, offsetY, tileSize } = metrics;
+  const centerX = offsetX + x * tileSize + tileSize / 2;
+  const centerY = offsetY + y * tileSize + tileSize / 2;
+  const radius = tileSize * 0.2;
+
+  ctx.fillStyle = itemColor(itemKind);
+  ctx.fillRect(centerX - radius, centerY - radius, radius * 2, radius * 2);
+  ctx.fillStyle = ITEM_TEXT;
+  ctx.font = `700 ${Math.max(8, Math.floor(tileSize * 0.28))}px ui-monospace, SFMono-Regular, Menlo, monospace`;
+  ctx.textAlign = "center";
+  ctx.textBaseline = "middle";
+  ctx.fillText(itemLabel(itemKind), centerX, centerY + 0.5);
+}
+
+function itemColor(itemKind: ItemKind): string {
+  switch (itemKind) {
+    case ItemKind.HealthPatch:
+      return HEALTH_PICKUP_COLOR;
+    case ItemKind.PistolAmmo:
+      return PISTOL_AMMO_COLOR;
+    case ItemKind.CannonAmmo:
+      return CANNON_AMMO_COLOR;
+  }
+}
+
+function itemLabel(itemKind: ItemKind): string {
+  switch (itemKind) {
+    case ItemKind.HealthPatch:
+      return "+";
+    case ItemKind.PistolAmmo:
+      return "P";
+    case ItemKind.CannonAmmo:
+      return "C";
+  }
+}
+
+function renderEnemy(
+  ctx: CanvasRenderingContext2D,
+  x: number,
+  y: number,
+  dir: number,
+  archetype: EnemyArchetype | undefined,
+  health: { readonly current: number; readonly max: number } | undefined,
+  metrics: MapRenderMetrics,
+): void {
+  switch (archetype) {
+    case EnemyArchetype.MeleeDog:
+      renderActorSymbol(ctx, x, y, dir, DOG_COLOR, "D", metrics);
+      renderEnemyHealth(ctx, x, y, health, metrics);
+      return;
+    case EnemyArchetype.Gunslinger:
+      renderActorSymbol(ctx, x, y, dir, GUNSLINGER_COLOR, "G", metrics);
+      renderEnemyHealth(ctx, x, y, health, metrics);
+      return;
+    case undefined:
+      renderActor(ctx, x, y, dir, ENEMY_COLOR, metrics);
+      renderEnemyHealth(ctx, x, y, health, metrics);
+      return;
+  }
+}
+
+function renderEnemyHealth(
+  ctx: CanvasRenderingContext2D,
+  x: number,
+  y: number,
+  health: { readonly current: number; readonly max: number } | undefined,
+  metrics: MapRenderMetrics,
+): void {
+  if (health === undefined || health.max <= 0) return;
+
+  const { offsetX, offsetY, tileSize } = metrics;
+  const ratio = Math.max(0, Math.min(1, health.current / health.max));
+  const barWidth = tileSize * 0.52;
+  const barHeight = Math.max(3, Math.floor(tileSize * 0.08));
+  const centerX = offsetX + x * tileSize + tileSize / 2;
+  const topY = offsetY + y * tileSize + Math.max(2, tileSize * 0.08);
+  const leftX = centerX - barWidth / 2;
+
+  ctx.fillStyle = ENEMY_HP_BACK;
+  ctx.fillRect(leftX, topY, barWidth, barHeight);
+  if (ratio > 0) {
+    ctx.fillStyle = enemyHealthColor(ratio);
+    ctx.fillRect(leftX, topY, Math.max(1, barWidth * ratio), barHeight);
+  }
+}
+
+function enemyHealthColor(ratio: number): string {
+  if (ratio <= 0.34) return ENEMY_HP_DANGER;
+  if (ratio <= 0.67) return ENEMY_HP_WARN;
+  return ENEMY_HP_HEALTHY;
+}
+
 function renderActor(
   ctx: CanvasRenderingContext2D,
   x: number,
   y: number,
   dir: number,
   color: string,
+  metrics: MapRenderMetrics,
+): void {
+  renderActorSymbol(ctx, x, y, dir, color, undefined, metrics);
+}
+
+function renderActorSymbol(
+  ctx: CanvasRenderingContext2D,
+  x: number,
+  y: number,
+  dir: number,
+  color: string,
+  symbol: string | undefined,
   metrics: MapRenderMetrics,
 ): void {
   const { offsetX, offsetY, tileSize } = metrics;
@@ -210,6 +336,13 @@ function renderActor(
   ctx.moveTo(centerX, centerY);
   ctx.lineTo(centerX + forward.dx * radius, centerY + forward.dy * radius);
   ctx.stroke();
+  if (symbol === undefined) return;
+
+  ctx.fillStyle = ENEMY_SYMBOL_COLOR;
+  ctx.font = `700 ${Math.max(8, Math.floor(tileSize * 0.25))}px ui-monospace, SFMono-Regular, Menlo, monospace`;
+  ctx.textAlign = "center";
+  ctx.textBaseline = "middle";
+  ctx.fillText(symbol, centerX, centerY + 0.5);
 }
 
 function renderPlayer(

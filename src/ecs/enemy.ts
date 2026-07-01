@@ -1,5 +1,5 @@
 import { type Entity, System, type World } from "@phughesmcr/miski";
-import { AttackFacingRequirement } from "@/src/ecs/components.ts";
+import { AttackFacingRequirement, EnemyArchetype, EnemyArchetypeComponent } from "@/src/ecs/components.ts";
 import type { FacingPartitions, GridPosPartitions } from "@/src/ecs/components.ts";
 import { attackEntity, attackTargets, entityAttack } from "@/src/ecs/combat.ts";
 import type { Player } from "@/src/ecs/player.ts";
@@ -49,9 +49,101 @@ function advanceEnemyTurn(
   gridPos: GridPosPartitions,
   facing: FacingPartitions,
 ): readonly GameEvent[] {
-  const { world, player, spatial, random } = context;
+  const { world } = context;
   if (!world.entities.isActive(entity)) return [];
 
+  const archetype = enemyArchetype(world, entity);
+  switch (archetype) {
+    case EnemyArchetype.MeleeDog:
+      return advanceMeleeDogTurn(context, entity, gridPos, facing);
+    case EnemyArchetype.Gunslinger:
+      return advanceGunslingerTurn(context, entity, gridPos, facing);
+    case undefined:
+      return advanceGenericEnemyTurn(context, entity, gridPos, facing);
+  }
+}
+
+function advanceGenericEnemyTurn(
+  context: EnemyTurnContext,
+  entity: Entity,
+  gridPos: GridPosPartitions,
+  facing: FacingPartitions,
+): readonly GameEvent[] {
+  const attackEvents = attackPlayerIfPossible(context, entity, gridPos, facing);
+  if (attackEvents !== undefined) return attackEvents;
+
+  tryMoveEnemyTowardPlayer(
+    context.player,
+    entity,
+    gridPos,
+    facing,
+    context.spatial,
+  );
+  return [];
+}
+
+function advanceMeleeDogTurn(
+  context: EnemyTurnContext,
+  entity: Entity,
+  gridPos: GridPosPartitions,
+  facing: FacingPartitions,
+): readonly GameEvent[] {
+  const attackEvents = attackPlayerIfPossible(context, entity, gridPos, facing);
+  if (attackEvents !== undefined) return attackEvents;
+
+  for (let step = 0; step < 2; step++) {
+    if (
+      !tryMoveEnemyTowardPlayer(
+        context.player,
+        entity,
+        gridPos,
+        facing,
+        context.spatial,
+      )
+    ) {
+      break;
+    }
+
+    const biteEvents = attackPlayerIfPossible(context, entity, gridPos, facing);
+    if (biteEvents !== undefined) return biteEvents;
+  }
+
+  return [];
+}
+
+function advanceGunslingerTurn(
+  context: EnemyTurnContext,
+  entity: Entity,
+  gridPos: GridPosPartitions,
+  facing: FacingPartitions,
+): readonly GameEvent[] {
+  if (
+    distanceToPlayer(context.player, entity, gridPos) <= 1 &&
+    tryMoveEnemyAwayFromPlayer(context.player, entity, gridPos, facing, context.spatial)
+  ) {
+    return [];
+  }
+
+  const attackEvents = attackPlayerIfPossible(context, entity, gridPos, facing);
+  if (attackEvents !== undefined) return attackEvents;
+
+  tryMoveEnemyTowardPlayer(
+    context.player,
+    entity,
+    gridPos,
+    facing,
+    context.spatial,
+  );
+  return [];
+}
+
+function attackPlayerIfPossible(
+  context: EnemyTurnContext,
+  entity: Entity,
+  gridPos: GridPosPartitions,
+  facing: FacingPartitions,
+): readonly GameEvent[] | undefined {
+  const { world, player, spatial, random } = context;
   const attack = entityAttack(world, entity);
   if (attack !== undefined) {
     if (attack.requiresFacing === AttackFacingRequirement.Required) {
@@ -74,14 +166,7 @@ function advanceEnemyTurn(
     }
   }
 
-  tryMoveEnemyTowardPlayer(
-    player,
-    entity,
-    gridPos,
-    facing,
-    spatial,
-  );
-  return [];
+  return undefined;
 }
 
 function tryMoveEnemyTowardPlayer(
@@ -90,7 +175,7 @@ function tryMoveEnemyTowardPlayer(
   gridPos: GridPosPartitions,
   facing: FacingPartitions,
   spatial: SpatialLookup & Pick<SpatialMutations, "moveEntity">,
-): void {
+): boolean {
   const playerPosition = player.getPosition();
   const x = gridPos.x[entity]!;
   const y = gridPos.y[entity]!;
@@ -110,10 +195,56 @@ function tryMoveEnemyTowardPlayer(
 
     spatial.moveEntity(entity, { x: nextX, y: nextY });
     facing.dir[entity] = directionForStep(delta);
-    return;
+    return true;
   }
 
   faceEntityToward(entity, playerPosition, gridPos, facing);
+  return false;
+}
+
+function tryMoveEnemyAwayFromPlayer(
+  player: Player,
+  entity: Entity,
+  gridPos: GridPosPartitions,
+  facing: FacingPartitions,
+  spatial: SpatialLookup & Pick<SpatialMutations, "moveEntity">,
+): boolean {
+  const playerPosition = player.getPosition();
+  const current = entityPosition(entity, gridPos);
+  const currentDistance = manhattanDistance(current, playerPosition);
+  const awayX = Math.sign(current.x - playerPosition.x);
+  const awayY = Math.sign(current.y - playerPosition.y);
+  const candidates = [
+    ...enemyMoveCandidates(
+      { dx: awayX, dy: 0 },
+      { dx: 0, dy: awayY },
+      Math.abs(current.x - playerPosition.x),
+      Math.abs(current.y - playerPosition.y),
+    ),
+    { dx: 0, dy: -1 },
+    { dx: 1, dy: 0 },
+    { dx: 0, dy: 1 },
+    { dx: -1, dy: 0 },
+  ];
+  let best:
+    | { readonly delta: GridDelta; readonly x: number; readonly y: number; readonly distance: number }
+    | undefined;
+
+  for (const delta of candidates) {
+    if (delta.dx === 0 && delta.dy === 0) continue;
+    const x = current.x + delta.dx;
+    const y = current.y + delta.dy;
+    if (spatial.positionBlocks(x, y)) continue;
+
+    const distance = manhattanDistance({ x, y }, playerPosition);
+    if (distance <= currentDistance) continue;
+    if (best === undefined || distance > best.distance) best = { delta, x, y, distance };
+  }
+
+  if (best === undefined) return false;
+  spatial.moveEntity(entity, { x: best.x, y: best.y });
+  facing.dir[entity] = directionForStep(best.delta);
+  return true;
 }
 
 function enemyMoveCandidates(
@@ -156,4 +287,35 @@ function directionForStep(delta: GridDelta): CardinalDirection {
   if (delta.dx < 0) return Direction.West;
   if (delta.dy > 0) return Direction.South;
   return Direction.North;
+}
+
+function distanceToPlayer(player: Player, entity: Entity, gridPos: GridPosPartitions): number {
+  return manhattanDistance(entityPosition(entity, gridPos), player.getPosition());
+}
+
+function entityPosition(entity: Entity, gridPos: GridPosPartitions): { readonly x: number; readonly y: number } {
+  return {
+    x: gridPos.x[entity]!,
+    y: gridPos.y[entity]!,
+  };
+}
+
+function manhattanDistance(
+  a: { readonly x: number; readonly y: number },
+  b: { readonly x: number; readonly y: number },
+): number {
+  return Math.abs(a.x - b.x) + Math.abs(a.y - b.y);
+}
+
+function enemyArchetype(world: World, entity: Entity): EnemyArchetype | undefined {
+  if (!world.components.entityHas(EnemyArchetypeComponent, entity)) return undefined;
+
+  const archetype = world.components.getEntityData(EnemyArchetypeComponent, entity).archetype;
+  switch (archetype) {
+    case EnemyArchetype.MeleeDog:
+    case EnemyArchetype.Gunslinger:
+      return archetype;
+    default:
+      throw new Error(`Unknown enemy archetype: ${archetype}`);
+  }
 }

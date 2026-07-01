@@ -1,10 +1,23 @@
 import { assertEquals } from "@std/assert";
-import { Blocking, Enemy, Facing, GridPos, TurnTaker } from "@/src/ecs/components.ts";
+import {
+  AttackFacingRequirement,
+  AttackPattern,
+  AttackTargetMode,
+  Blocking,
+  Enemy,
+  EnemyArchetype,
+  Facing,
+  GridPos,
+  Health,
+  TurnTaker,
+} from "@/src/ecs/components.ts";
+import type { AttackSchema } from "@/src/ecs/components.ts";
 import { enemyTurnSystem } from "@/src/ecs/enemy.ts";
 import { Player } from "@/src/ecs/player.ts";
 import { SpatialIndex } from "@/src/ecs/spatial.ts";
 import { createWorld } from "@/src/ecs/world.ts";
-import { createEntity, flatTestMap } from "@/tests/ecs/helpers.ts";
+import { DisplayName } from "@/src/game/names.ts";
+import { createEntity, createTestEnemy, createTestPlayer, flatTestMap } from "@/tests/ecs/helpers.ts";
 
 Deno.test("enemyTurnSystem moves enemies without an attack component", async () => {
   const world = await createWorld();
@@ -36,4 +49,115 @@ Deno.test("enemyTurnSystem moves enemies without an attack component", async () 
   assertEquals(spatial.blockingEntityAt(2, 1), enemy);
 });
 
+Deno.test("melee dogs close two tiles and bite when they reach the player", async () => {
+  const world = await createWorld();
+  const playerEntity = createTestPlayer(world, {
+    x: 4,
+    y: 1,
+    dir: 3,
+    blocking: true,
+    tag: true,
+    health: { current: 5, max: 5 },
+  });
+  const dog = createTestEnemy(world, {
+    x: 1,
+    y: 1,
+    dir: 1,
+    displayName: DisplayName.DigitalDog,
+    attack: MELEE_ATTACK,
+    archetype: EnemyArchetype.MeleeDog,
+  });
+  world.refresh();
+
+  const events = world.systems.create(enemyTurnSystem)({
+    world,
+    player: new Player(world, playerEntity),
+    spatial: new SpatialIndex(world, flatTestMap(6, 3)),
+    random: () => 0,
+  });
+
+  assertEquals(world.components.getEntityData(GridPos, dog), { x: 3, y: 1 });
+  assertEquals(world.components.getEntityData(Facing, dog), { dir: 1 });
+  assertEquals(world.components.getEntityData(Health, playerEntity), { current: 4, max: 5 });
+  assertEquals(events.map((event) => event.type), ["damageDealt"]);
+});
+
+Deno.test("gunslingers shoot from range instead of closing", async () => {
+  const world = await createWorld();
+  const playerEntity = createTestPlayer(world, {
+    x: 4,
+    y: 1,
+    dir: 3,
+    blocking: true,
+    tag: true,
+    health: { current: 5, max: 5 },
+  });
+  const gunslinger = createTestEnemy(world, {
+    x: 1,
+    y: 1,
+    dir: 3,
+    displayName: DisplayName.GigabitGunslinger,
+    attack: { ...MELEE_ATTACK, range: 4 },
+    archetype: EnemyArchetype.Gunslinger,
+  });
+  world.refresh();
+
+  const events = world.systems.create(enemyTurnSystem)({
+    world,
+    player: new Player(world, playerEntity),
+    spatial: new SpatialIndex(world, flatTestMap(6, 3)),
+    random: () => 0,
+  });
+
+  assertEquals(world.components.getEntityData(GridPos, gunslinger), { x: 1, y: 1 });
+  assertEquals(world.components.getEntityData(Facing, gunslinger), { dir: 1 });
+  assertEquals(world.components.getEntityData(Health, playerEntity), { current: 4, max: 5 });
+  assertEquals(events.map((event) => event.type), ["damageDealt"]);
+});
+
+Deno.test("gunslingers back away when adjacent", async () => {
+  const world = await createWorld();
+  const playerEntity = createTestPlayer(world, {
+    x: 3,
+    y: 1,
+    dir: 3,
+    blocking: true,
+    tag: true,
+    health: { current: 5, max: 5 },
+  });
+  const gunslinger = createTestEnemy(world, {
+    x: 2,
+    y: 1,
+    dir: 1,
+    displayName: DisplayName.GigabitGunslinger,
+    attack: { ...MELEE_ATTACK, range: 4 },
+    archetype: EnemyArchetype.Gunslinger,
+  });
+  world.refresh();
+
+  const events = world.systems.create(enemyTurnSystem)({
+    world,
+    player: new Player(world, playerEntity),
+    spatial: new SpatialIndex(world, flatTestMap(6, 3)),
+    random: () => 0,
+  });
+
+  assertEquals(world.components.getEntityData(GridPos, gunslinger), { x: 1, y: 1 });
+  assertEquals(world.components.getEntityData(Facing, gunslinger), { dir: 3 });
+  assertEquals(world.components.getEntityData(Health, playerEntity), { current: 5, max: 5 });
+  assertEquals(events, []);
+});
+
 const TEST_MAP = flatTestMap(5, 2);
+
+const MELEE_ATTACK: AttackSchema = {
+  minDamage: 1,
+  maxDamage: 1,
+  range: 1,
+  requiresFacing: AttackFacingRequirement.Required,
+  attackBonus: 20,
+  critThreshold: 21,
+  critMultiplier: 2,
+  pattern: AttackPattern.Line,
+  targets: AttackTargetMode.First,
+};
