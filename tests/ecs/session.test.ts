@@ -11,7 +11,7 @@ import {
   Locked,
   Npc,
 } from "@/src/ecs/components.ts";
-import { DisplayName } from "@/src/ecs/names.ts";
+import { DisplayName } from "@/src/game/names.ts";
 import { Player } from "@/src/ecs/player.ts";
 import { GameSession } from "@/src/ecs/session.ts";
 import { createWorld } from "@/src/ecs/world.ts";

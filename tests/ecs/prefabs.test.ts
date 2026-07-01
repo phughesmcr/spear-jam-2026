@@ -1,6 +1,6 @@
 import { DialogueTreeId } from "@/src/dialogue/dialogue.ts";
 import { Dialogue, DisplayNameComponent, Enemy, Npc } from "@/src/ecs/components.ts";
-import { DisplayName } from "@/src/ecs/names.ts";
+import { DisplayName } from "@/src/game/names.ts";
 import { createEnemy, createNpc } from "@/src/ecs/prefabs.ts";
 import { createWorld } from "@/src/ecs/world.ts";
 import { assertEquals } from "@/tests/ecs/helpers.ts";

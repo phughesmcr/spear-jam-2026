@@ -11,7 +11,7 @@ import {
 } from "@/src/ecs/components.ts";
 import type { AttackSchema } from "@/src/ecs/components.ts";
 import { attackEntity, attackTargets, resolveAttack } from "@/src/ecs/combat.ts";
-import { DisplayName } from "@/src/ecs/names.ts";
+import { DisplayName } from "@/src/game/names.ts";
 import { SpatialIndex } from "@/src/ecs/spatial.ts";
 import type { SpatialLookup } from "@/src/ecs/spatial.ts";
 import { createWorld } from "@/src/ecs/world.ts";

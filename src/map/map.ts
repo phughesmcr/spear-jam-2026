@@ -1,5 +1,5 @@
-import type { DisplayName } from "@/src/ecs/names.ts";
-import type { AttackSchema } from "@/src/ecs/components.ts";
+import type { DisplayName } from "@/src/game/names.ts";
+import type { AttackDef } from "@/src/game/attack.ts";
 import type { DialogueTreeId } from "@/src/dialogue/dialogue.ts";
 
 export type WallTile = {
@@ -54,7 +54,7 @@ export type EnemyDef = {
   displayName: DisplayName;
   health?: number;
   damage?: number;
-  attack?: Partial<AttackSchema>;
+  attack?: Partial<AttackDef>;
 };
 
 export type DoorDef = {

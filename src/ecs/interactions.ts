@@ -1,7 +1,7 @@
 import type { Entity, World } from "@phughesmcr/miski";
 import { dialogueTreeText } from "@/src/dialogue/dialogue.ts";
 import { Dialogue, DisplayNameComponent, Door, Interactable, Key, Locked, Npc } from "@/src/ecs/components.ts";
-import { displayNameText } from "@/src/ecs/names.ts";
+import { displayNameText } from "@/src/game/names.ts";
 import type { SpatialIndex } from "@/src/ecs/spatial.ts";
 import type { GameEvent } from "@/src/game/events.ts";
 import type { DialogueState } from "@/src/game/state.ts";

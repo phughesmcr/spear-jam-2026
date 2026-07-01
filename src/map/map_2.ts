@@ -1,5 +1,5 @@
 import { DialogueTreeId } from "@/src/dialogue/dialogue.ts";
-import { DisplayName } from "@/src/ecs/names.ts";
+import { DisplayName } from "@/src/game/names.ts";
 import { createGameMap, LockId } from "@/src/map/map.ts";
 import type { GameMap } from "@/src/map/map.ts";
 

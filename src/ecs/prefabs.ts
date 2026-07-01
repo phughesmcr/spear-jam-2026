@@ -26,7 +26,7 @@ import {
 import type { AttackSchema } from "@/src/ecs/components.ts";
 import { normalizeDirection } from "@/src/grid/direction.ts";
 import type { LockId, MapEntityDef } from "@/src/map/map.ts";
-import type { DisplayName } from "@/src/ecs/names.ts";
+import type { DisplayName } from "@/src/game/names.ts";
 
 const DEFAULT_PLAYER_HEALTH = 10;
 const DEFAULT_ENEMY_HEALTH = 3;

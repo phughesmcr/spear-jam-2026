@@ -17,7 +17,7 @@ import { directionDelta } from "@/src/grid/direction.ts";
 import type { CardinalDirection } from "@/src/grid/direction.ts";
 import type { GameEvent } from "@/src/game/events.ts";
 import type { CommandSlot } from "@/src/game/state.ts";
-import { displayNameText } from "@/src/ecs/names.ts";
+import { displayNameText } from "@/src/game/names.ts";
 
 type WeaponSpec = AttackSchema & {
   readonly label: string;
