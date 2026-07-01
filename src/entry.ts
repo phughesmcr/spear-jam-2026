@@ -3,6 +3,7 @@ import type { GameSession } from "@/src/ecs/session.ts";
 import { isPlayerCommand } from "@/src/game/commands.ts";
 import type { GameCommand } from "@/src/game/commands.ts";
 import type { PlayerCommand } from "@/src/game/commands.ts";
+import type { GameMode } from "@/src/game/state.ts";
 import { setupKeyboard } from "@/src/input/input.ts";
 import { MAP_1 } from "@/src/map/map_1.ts";
 import { configureCanvasDpi, DEFAULT_GAME_CANVAS_SIZE } from "@/src/render/canvas.ts";
@@ -30,8 +31,7 @@ class Game implements Disposable {
   private canvasSize: GameCanvasSize = DEFAULT_GAME_CANVAS_SIZE;
   private inputController?: Disposable;
   private session?: GameSession;
-  private menuOpen = false;
-  private paused = false;
+  private mode: GameMode = { type: "loading" };
   private started = false;
 
   constructor(spec: GameSpec, controller: AbortController) {
@@ -47,7 +47,7 @@ class Game implements Disposable {
   start(): void {
     this.started = true;
     this.render();
-    void this.load();
+    void this.load().catch((error: unknown) => this.handleLoadError(error));
   }
 
   resize(size: GameCanvasSize): void {
@@ -58,7 +58,7 @@ class Game implements Disposable {
   }
 
   private render(): void {
-    renderGameFrame(this.spec.ctx, this.canvasSize, this.session);
+    renderGameFrame(this.spec.ctx, this.canvasSize, this.session, this.mode);
   }
 
   private async load(): Promise<void> {
@@ -69,7 +69,18 @@ class Game implements Disposable {
     }
 
     this.session = session;
+    this.mode = { type: "playing" };
     this.inputController = setupKeyboard(this.spec.window, (command) => this.handleGameCommands([command]));
+    this.render();
+  }
+
+  private handleLoadError(error: unknown): void {
+    if (this.controller.signal.aborted) return;
+    console.error("Failed to start game.", error);
+    this.mode = {
+      type: "error",
+      message: error instanceof Error ? error.message : "Unknown error",
+    };
     this.render();
   }
 
@@ -81,17 +92,41 @@ class Game implements Disposable {
 
   private handleGameCommand(command: GameCommand): void {
     if (isPlayerCommand(command)) {
-      if (this.paused || this.menuOpen) return;
+      if (this.mode.type !== "playing") return;
       this.handlePlayerCommands([command]);
       return;
     }
 
     switch (command.type) {
       case "menu":
-        this.menuOpen = !this.menuOpen;
+        this.toggleMenu();
+        this.render();
         return;
       case "pause":
-        this.paused = !this.paused;
+        this.togglePause();
+        this.render();
+        return;
+    }
+  }
+
+  private toggleMenu(): void {
+    switch (this.mode.type) {
+      case "playing":
+        this.mode = { type: "menu" };
+        return;
+      case "menu":
+        this.mode = { type: "playing" };
+        return;
+    }
+  }
+
+  private togglePause(): void {
+    switch (this.mode.type) {
+      case "playing":
+        this.mode = { type: "paused" };
+        return;
+      case "paused":
+        this.mode = { type: "playing" };
         return;
     }
   }

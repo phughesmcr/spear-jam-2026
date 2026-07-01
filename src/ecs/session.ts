@@ -197,19 +197,25 @@ export class GameSession implements Disposable {
 
 export async function createGameSession(map: GameMap): Promise<GameSession> {
   const world = await createWorld();
-  let playerEntity: Entity | undefined;
 
-  for (const entityDef of map.entities) {
-    const entity = createMapEntity(world, entityDef);
-    if (entityDef.prefab === "player") {
-      playerEntity = entity;
+  try {
+    let playerEntity: Entity | undefined;
+
+    for (const entityDef of map.entities) {
+      const entity = createMapEntity(world, entityDef);
+      if (entityDef.prefab === "player") {
+        playerEntity = entity;
+      }
     }
+
+    if (playerEntity === undefined) throw new Error("Map is missing a player spawn.");
+
+    const player = new Player(world, playerEntity);
+    world.refresh();
+
+    return new GameSession(world, player, map);
+  } catch (error) {
+    await world.destroy();
+    throw error;
   }
-
-  if (playerEntity === undefined) throw new Error("Map is missing a player spawn.");
-
-  const player = new Player(world, playerEntity);
-  world.refresh();
-
-  return new GameSession(world, player, map);
 }

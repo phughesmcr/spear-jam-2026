@@ -2,6 +2,7 @@ import { directionDelta } from "@/src/map/direction.ts";
 import { Door, Facing, GridPos, Locked } from "@/src/ecs/components.ts";
 import { doorRenderQuery, keyQuery, npcRenderQuery } from "@/src/ecs/queries.ts";
 import type { GameSession } from "@/src/ecs/session.ts";
+import type { GameMode } from "@/src/game/state.ts";
 import { mapDimensions, terrainAt } from "@/src/map/map_1.ts";
 import type { GameMap } from "@/src/map/map_1.ts";
 import type { GameCanvasSize } from "@/src/render/canvas.ts";
@@ -30,23 +31,76 @@ const KEY_COLOR = "#f4d35e";
 const PLAYER_RADIUS_RATIO = 0.34;
 const PLAYER_BASE_WIDTH_RATIO = 0.75;
 const NPC_RADIUS_RATIO = 0.28;
+const OVERLAY_COLOR = "rgba(0, 0, 0, 0.6)";
+const OVERLAY_TITLE_COLOR = "#f3f4f6";
+const OVERLAY_SUBTITLE_COLOR = "#c9d1d9";
 
 export function renderGameFrame(
   ctx: CanvasRenderingContext2D,
   canvasSize: GameCanvasSize,
   session?: GameSession,
+  mode: GameMode = { type: "loading" },
 ): void {
   ctx.fillStyle = EMPTY_COLOR;
   ctx.fillRect(0, 0, canvasSize.width, canvasSize.height);
-  if (!session) return;
-  const { map, player } = session;
-  const metrics = renderMap(ctx, canvasSize, map);
-  renderKeys(ctx, session, metrics);
-  renderDoors(ctx, session, metrics);
-  renderNpcs(ctx, session, metrics);
-  const position = player.getPosition();
-  const facing = player.getFacing();
-  renderPlayer(ctx, position.x, position.y, facing.dir, metrics);
+  if (session) {
+    const { map, player } = session;
+    const metrics = renderMap(ctx, canvasSize, map);
+    renderKeys(ctx, session, metrics);
+    renderDoors(ctx, session, metrics);
+    renderNpcs(ctx, session, metrics);
+    const position = player.getPosition();
+    const facing = player.getFacing();
+    renderPlayer(ctx, position.x, position.y, facing.dir, metrics);
+  }
+
+  switch (mode.type) {
+    case "loading":
+      renderOverlay(ctx, canvasSize, "LOADING");
+      return;
+    case "paused":
+      renderOverlay(ctx, canvasSize, "PAUSED", "P to resume");
+      return;
+    case "menu":
+      renderOverlay(ctx, canvasSize, "MENU", "Esc to resume");
+      return;
+    case "intermission":
+      renderOverlay(ctx, canvasSize, "INTERMISSION", mode.message);
+      return;
+    case "error":
+      renderOverlay(ctx, canvasSize, "LOAD FAILED", mode.message);
+      return;
+    case "playing":
+      return;
+  }
+}
+
+function renderOverlay(
+  ctx: CanvasRenderingContext2D,
+  canvasSize: GameCanvasSize,
+  title: string,
+  subtitle?: string,
+): void {
+  const centerX = canvasSize.width / 2;
+  const centerY = canvasSize.height / 2;
+  const titleSize = Math.min(42, Math.max(24, Math.floor(canvasSize.width * 0.08)));
+  const subtitleSize = Math.min(24, Math.max(14, Math.floor(canvasSize.width * 0.04)));
+
+  ctx.save();
+  ctx.fillStyle = OVERLAY_COLOR;
+  ctx.fillRect(0, 0, canvasSize.width, canvasSize.height);
+  ctx.textAlign = "center";
+  ctx.textBaseline = "middle";
+  ctx.font = `700 ${titleSize}px ui-monospace, SFMono-Regular, Menlo, monospace`;
+  ctx.fillStyle = OVERLAY_TITLE_COLOR;
+  ctx.fillText(title, centerX, centerY - subtitleSize);
+
+  if (subtitle) {
+    ctx.font = `400 ${subtitleSize}px ui-monospace, SFMono-Regular, Menlo, monospace`;
+    ctx.fillStyle = OVERLAY_SUBTITLE_COLOR;
+    ctx.fillText(subtitle, centerX, centerY + titleSize * 0.75);
+  }
+  ctx.restore();
 }
 
 function renderMap(ctx: CanvasRenderingContext2D, canvasSize: GameCanvasSize, map: GameMap): MapRenderMetrics {
