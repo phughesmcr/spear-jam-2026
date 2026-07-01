@@ -1,3 +1,6 @@
+/** A source of pseudo-random floats in [0, 1). */
+export type RandomSource = () => number;
+
 const UINT32_RANGE = 0x1_0000_0000;
 const SPLITMIX32_INCREMENT = 0x9e37_79b9;
 

@@ -9,22 +9,23 @@ import {
   Facing,
   GridPos,
   Health,
+  Player as PlayerTag,
 } from "@/src/ecs/components.ts";
 import type { AttackSchema } from "@/src/ecs/components.ts";
 import type { Player } from "@/src/ecs/player.ts";
 import type { SpatialAccess, SpatialLookup, SpatialMutations } from "@/src/ecs/spatial.ts";
-import { directionDelta } from "@/src/grid/direction.ts";
+import { Direction, directionDelta } from "@/src/grid/direction.ts";
 import type { CardinalDirection } from "@/src/grid/direction.ts";
 import type { GameEvent } from "@/src/game/events.ts";
-import type { CommandSlot } from "@/src/game/state.ts";
+import type { RandomSource } from "@/src/game/rng.ts";
 import { displayNameText } from "@/src/game/names.ts";
+import type { CommandSlot } from "@/src/game/state.ts";
 
 type WeaponSpec = AttackSchema & {
   readonly label: string;
 };
 
 type EntityPredicate = (entity: Entity) => boolean;
-type RandomSource = () => number;
 
 export type AttackOutcome =
   | { readonly type: "miss"; readonly roll: number; readonly total: number }
@@ -39,7 +40,12 @@ export type AttackOutcome =
 export const DEFAULT_SELECTED_WEAPON: CommandSlot = 1;
 
 const DEFAULT_DEFENSE = 10;
-const CARDINAL_DIRECTIONS = [0, 1, 2, 3] as const satisfies readonly CardinalDirection[];
+const CARDINAL_DIRECTIONS = [
+  Direction.North,
+  Direction.East,
+  Direction.South,
+  Direction.West,
+] as const satisfies readonly CardinalDirection[];
 
 const PLAYER_WEAPONS: Readonly<Record<CommandSlot, WeaponSpec>> = {
   1: {
@@ -104,20 +110,19 @@ export function attackWithSelectedWeapon(
     return [{
       type: "attackMissed",
       actor: player.getEntity(),
-      message: `${weapon.label} attack missed.`,
+      actorName: entityName(world, player.getEntity()),
     }];
   }
 
   const events: GameEvent[] = [];
   for (const target of targets) {
-    events.push(...attackEntity(world, player.getEntity(), player.getEntity(), target, weapon, random, spatial));
+    events.push(...attackEntity(world, player.getEntity(), target, weapon, random, spatial));
   }
   return events;
 }
 
 export function attackEntity(
   world: World,
-  playerEntity: Entity,
   attacker: Entity,
   defender: Entity,
   attack: AttackSchema,
@@ -127,15 +132,18 @@ export function attackEntity(
   if (!world.entities.isActive(defender)) return [];
   if (!world.components.entityHas(Health, defender)) return [];
 
-  const attackerName = entityName(world, playerEntity, attacker);
-  const defenderName = entityName(world, playerEntity, defender);
+  const attackerName = entityName(world, attacker);
+  const defenderName = entityName(world, defender);
   const outcome = resolveAttack(attack, random);
   if (outcome.type === "miss") {
     return [{
       type: "attackMissed",
       actor: attacker,
+      actorName: attackerName,
       target: defender,
-      message: `${attackerName} missed ${defenderName} (${outcome.roll}+${attack.attackBonus}).`,
+      targetName: defenderName,
+      roll: outcome.roll,
+      total: outcome.total,
     }];
   }
 
@@ -145,31 +153,26 @@ export function attackEntity(
   const events: GameEvent[] = [{
     type: "damageDealt",
     actor: attacker,
+    actorName: attackerName,
     target: defender,
+    targetName: defenderName,
     amount: outcome.damage,
     critical: outcome.critical,
-    message: `${attackerName} hit ${defenderName} for ${outcome.damage}${outcome.critical ? " critical" : ""}.`,
   }];
 
   if (nextHealth > 0) return events;
-
-  if (defender === playerEntity) {
-    events.push({
-      type: "entityDefeated",
-      actor: attacker,
-      entity: defender,
-      message: "You are defeated.",
-    });
-    return events;
-  }
 
   events.push({
     type: "entityDefeated",
     actor: attacker,
     entity: defender,
-    message: `${defenderName} is defeated.`,
+    entityName: defenderName,
   });
-  spatial.removeEntity(defender);
+  // The player entity survives defeat so the session can report the loss;
+  // everything else is removed from play immediately.
+  if (!world.components.entityHas(PlayerTag, defender)) {
+    spatial.removeEntity(defender);
+  }
   return events;
 }
 
@@ -324,8 +327,8 @@ function toAttackTargetMode(value: number): AttackTargetMode {
   }
 }
 
-function entityName(world: World, playerEntity: Entity, entity: Entity): string {
-  if (entity === playerEntity) return "You";
+function entityName(world: World, entity: Entity): string {
+  if (world.components.entityHas(PlayerTag, entity)) return "You";
   if (world.components.entityHas(DisplayNameComponent, entity)) {
     return displayNameText(world.components.getEntityData(DisplayNameComponent, entity).displayName);
   }

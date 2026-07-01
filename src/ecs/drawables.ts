@@ -1,5 +1,5 @@
 import { type Entity, System, type World } from "@phughesmcr/miski";
-import { Door, DrawableKind, DrawableLayer, Facing, Locked } from "@/src/ecs/components.ts";
+import { Door, DrawableKind, Facing, Locked } from "@/src/ecs/components.ts";
 import type { DrawablePartitions, GridPosPartitions } from "@/src/ecs/components.ts";
 import { drawableRenderQuery } from "@/src/ecs/queries.ts";
 
@@ -44,14 +44,6 @@ type DrawableComponents = {
   readonly drawable: { readonly partitions: DrawablePartitions };
 };
 
-const DRAWABLE_LAYER_ORDER: readonly DrawableLayer[] = [
-  DrawableLayer.Item,
-  DrawableLayer.Structure,
-  DrawableLayer.Npc,
-  DrawableLayer.Enemy,
-  DrawableLayer.Player,
-];
-
 const drawableSystems = new WeakMap<World, DrawableSystem>();
 
 const drawableSystem = new System({
@@ -66,16 +58,17 @@ const drawableSystem = new System({
     const indices = entities.indices;
     const count = entities.count;
 
-    for (const currentLayer of DRAWABLE_LAYER_ORDER) {
-      for (let i = 0; i < count; i++) {
-        const entity = indices[i]!;
-        if (layer[entity] !== currentLayer) continue;
-        const drawable = drawableEntityFor(context.world, entity, kind[entity], {
-          x: positionX[entity],
-          y: positionY[entity],
-        });
-        if (drawable !== undefined) context.visit(drawable);
-      }
+    // Sort back-to-front by layer; ties break on entity id for stable output.
+    const ordered: Entity[] = [];
+    for (let i = 0; i < count; i++) ordered.push(indices[i]!);
+    ordered.sort((a, b) => layer[a]! - layer[b]! || a - b);
+
+    for (const entity of ordered) {
+      const drawable = drawableEntityFor(context.world, entity, kind[entity]!, {
+        x: positionX[entity]!,
+        y: positionY[entity]!,
+      });
+      if (drawable !== undefined) context.visit(drawable);
     }
   },
 });

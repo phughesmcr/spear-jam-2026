@@ -6,9 +6,9 @@ import type { Player } from "@/src/ecs/player.ts";
 import { enemyTurnQuery } from "@/src/ecs/queries.ts";
 import type { SpatialAccess, SpatialLookup, SpatialMutations } from "@/src/ecs/spatial.ts";
 import type { GameEvent } from "@/src/game/events.ts";
+import type { RandomSource } from "@/src/game/rng.ts";
+import { Direction } from "@/src/grid/direction.ts";
 import type { CardinalDirection, GridDelta } from "@/src/grid/direction.ts";
-
-type RandomSource = () => number;
 
 type EnemyTurnComponents = {
   readonly gridPos: { readonly partitions: GridPosPartitions };
@@ -68,7 +68,7 @@ function advanceEnemyTurn(
     if (targets.length > 0) {
       const events: GameEvent[] = [];
       for (const target of targets) {
-        events.push(...attackEntity(world, player.getEntity(), entity, target, attack, random, spatial));
+        events.push(...attackEntity(world, entity, target, attack, random, spatial));
       }
       return events;
     }
@@ -152,8 +152,8 @@ function faceEntityToward(
 }
 
 function directionForStep(delta: GridDelta): CardinalDirection {
-  if (delta.dx > 0) return 1;
-  if (delta.dx < 0) return 3;
-  if (delta.dy > 0) return 2;
-  return 0;
+  if (delta.dx > 0) return Direction.East;
+  if (delta.dx < 0) return Direction.West;
+  if (delta.dy > 0) return Direction.South;
+  return Direction.North;
 }

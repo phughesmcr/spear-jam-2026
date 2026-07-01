@@ -60,7 +60,8 @@ function renderTile(
   const terrain = terrainAt(map, x, y);
   const tileX = offsetX + x * tileSize;
   const tileY = offsetY + y * tileSize;
-  ctx.fillStyle = terrain?.blocking === true ? WALL_COLOR : FLOOR_COLOR;
+  // Missing terrain blocks movement, so render it as wall to match.
+  ctx.fillStyle = terrain === undefined || terrain.blocking === true ? WALL_COLOR : FLOOR_COLOR;
   ctx.fillRect(tileX, tileY, tileSize, tileSize);
   ctx.strokeStyle = GRID_LINE_COLOR;
   ctx.strokeRect(tileX + 0.5, tileY + 0.5, tileSize - 1, tileSize - 1);

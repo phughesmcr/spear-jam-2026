@@ -23,10 +23,13 @@ export type MapChange = {
   readonly goto: string;
 };
 
+export type GameOutcome = "victory" | "defeat";
+
 export interface PlayerCommandResult {
   readonly events: readonly GameEvent[];
   readonly mapChange?: MapChange;
   readonly dialogue?: DialogueState;
+  readonly outcome?: GameOutcome;
 }
 
 const MOVE_DIRECTION_OFFSETS: Readonly<Record<RelativeMoveDirection, number>> = {

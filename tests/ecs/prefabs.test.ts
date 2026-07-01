@@ -1,9 +1,9 @@
+import { assertEquals, assertThrows } from "@std/assert";
 import { DialogueTreeId } from "@/src/dialogue/dialogue.ts";
 import { Dialogue, DisplayNameComponent, Enemy, Npc } from "@/src/ecs/components.ts";
 import { DisplayName } from "@/src/game/names.ts";
-import { createEnemy, createNpc } from "@/src/ecs/prefabs.ts";
+import { createDoor, createEnemy, createNpc } from "@/src/ecs/prefabs.ts";
 import { createWorld } from "@/src/ecs/world.ts";
-import { assertEquals } from "@/tests/ecs/helpers.ts";
 
 Deno.test("neutral NPCs and enemies share display names without sharing NPC identity", async () => {
   const world = await createWorld();
@@ -26,4 +26,10 @@ Deno.test("neutral NPCs and enemies share display names without sharing NPC iden
   assertEquals(world.components.entityHas(Dialogue, enemy), false);
   assertEquals(world.components.entityHas(Enemy, enemy), true);
   assertEquals(world.components.getEntityData(DisplayNameComponent, enemy), { displayName: DisplayName.Imp });
+});
+
+Deno.test("a locked door without a lock id is rejected", async () => {
+  const world = await createWorld();
+
+  assertThrows(() => createDoor(world, { x: 1, y: 1, locked: true }), Error, "lock id");
 });

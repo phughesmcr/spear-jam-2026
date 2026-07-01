@@ -1,9 +1,10 @@
+import { assertEquals } from "@std/assert";
 import { Blocking, Enemy, Facing, GridPos, TurnTaker } from "@/src/ecs/components.ts";
 import { enemyTurnSystem } from "@/src/ecs/enemy.ts";
 import { Player } from "@/src/ecs/player.ts";
 import { SpatialIndex } from "@/src/ecs/spatial.ts";
 import { createWorld } from "@/src/ecs/world.ts";
-import { assertEquals, createEntity, flatTestMap } from "@/tests/ecs/helpers.ts";
+import { createEntity, flatTestMap } from "@/tests/ecs/helpers.ts";
 
 Deno.test("enemyTurnSystem moves enemies without an attack component", async () => {
   const world = await createWorld();

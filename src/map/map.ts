@@ -30,6 +30,18 @@ export const LockId = {
 
 export type LockId = (typeof LockId)[keyof typeof LockId];
 
+/**
+ * Lock ids are small integers scoped to a single map. Held keys are stored
+ * under a map-qualified id so a key from one map cannot open another map's
+ * locks even when both maps reuse the same numeric lock id.
+ */
+export function scopedLockId(mapName: string, lockId: number): string {
+  return `${mapName}#${lockId}`;
+}
+
+/** Sentinel `goto` for exits that end the game in victory instead of loading a map. */
+export const VICTORY_GOTO = "victory";
+
 export type PlayerDef = {
   prefab: "player";
   x: number;
@@ -99,15 +111,29 @@ export type MapDimensions = {
 
 export function mapDimensions(map: GameMap): MapDimensions {
   return {
-    width: Math.max(...map.terrain.tiles.map((row) => row.length)),
+    width: map.terrain.tiles[0]?.length ?? 0,
     height: map.terrain.tiles.length,
   };
 }
 
+/** Decoded palette lookup per map, so terrain reads avoid a linear palette scan. */
+const TERRAIN_GRIDS = new WeakMap<GameMap, ReadonlyArray<TerrainTile | undefined>>();
+
+function terrainGrid(map: GameMap): ReadonlyArray<TerrainTile | undefined> {
+  const existing = TERRAIN_GRIDS.get(map);
+  if (existing !== undefined) return existing;
+
+  const paletteById = new Map(map.terrain.palette.map((entry) => [entry.id, entry]));
+  const grid = map.terrain.tiles.flatMap((row) => row.map((tile) => paletteById.get(tile)));
+  TERRAIN_GRIDS.set(map, grid);
+  return grid;
+}
+
 export function terrainAt(map: GameMap, x: number, y: number): TerrainTile | undefined {
-  const tile = map.terrain.tiles[y]?.[x];
-  if (tile === undefined) return undefined;
-  return map.terrain.palette.find((entry) => entry.id === tile);
+  const { width, height } = mapDimensions(map);
+  if (!Number.isInteger(x) || !Number.isInteger(y)) return undefined;
+  if (x < 0 || y < 0 || x >= width || y >= height) return undefined;
+  return terrainGrid(map)[y * width + x];
 }
 
 export function createGameMap(
@@ -115,6 +141,18 @@ export function createGameMap(
   tiles: readonly (readonly number[])[],
   entities: readonly EntityDef[],
 ): GameMap {
+  const width = tiles[0]?.length ?? 0;
+  if (tiles.length === 0 || width === 0) {
+    throw new Error(`Map "${name}" has no terrain tiles.`);
+  }
+  const raggedRow = tiles.findIndex((row) => row.length !== width);
+  if (raggedRow !== -1) {
+    throw new Error(
+      `Map "${name}" terrain must be rectangular: row ${raggedRow} has ${
+        tiles[raggedRow]!.length
+      } tiles, expected ${width}.`,
+    );
+  }
   return {
     name,
     terrain: {

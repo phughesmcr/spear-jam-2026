@@ -1,45 +1,52 @@
 import type { Entity } from "@phughesmcr/miski";
 import type { CommandSlot } from "@/src/game/state.ts";
 
+/**
+ * Structured facts about what happened during a turn.
+ *
+ * Names are resolved when the event is emitted because the entities involved
+ * (e.g. a defeated enemy) may already be destroyed by the time the event is
+ * presented. Message wording is derived in `src/game/messages.ts`.
+ */
 export type GameEvent =
   | {
     readonly type: "attackMissed";
-    readonly message?: string;
-    readonly actor?: Entity;
+    readonly actor: Entity;
+    readonly actorName: string;
     readonly target?: Entity;
+    readonly targetName?: string;
+    readonly roll?: number;
+    readonly total?: number;
   }
   | {
     readonly type: "damageDealt";
-    readonly message?: string;
-    readonly actor?: Entity;
-    readonly target?: Entity;
+    readonly actor: Entity;
+    readonly actorName: string;
+    readonly target: Entity;
+    readonly targetName: string;
     readonly amount: number;
     readonly critical: boolean;
   }
   | {
     readonly type: "entityDefeated";
-    readonly message?: string;
-    readonly actor?: Entity;
+    readonly actor: Entity;
     readonly entity: Entity;
+    readonly entityName: string;
   }
   | {
     readonly type: "keyPickedUp";
-    readonly message?: string;
     readonly entity: Entity;
   }
   | {
     readonly type: "doorLocked";
-    readonly message?: string;
     readonly entity: Entity;
   }
   | {
     readonly type: "doorOpened";
-    readonly message?: string;
     readonly entity: Entity;
   }
   | {
     readonly type: "weaponSelected";
-    readonly message?: string;
     readonly slot: CommandSlot;
     readonly label: string;
   };

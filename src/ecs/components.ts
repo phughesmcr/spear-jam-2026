@@ -7,14 +7,18 @@ export { AttackFacingRequirement, AttackPattern, AttackTargetMode };
 
 export type GridPosSchema = { x: number; y: number };
 export type GridPosPartitions = {
-  readonly x: Uint8Array;
-  readonly y: Uint8Array;
+  readonly x: Int16Array;
+  readonly y: Int16Array;
 };
 
-/** Grid positions are stored as bytes, so map dimensions must stay below 256. */
+/**
+ * Grid positions are stored as signed 16-bit integers so accidental
+ * out-of-range writes stay visible instead of wrapping to valid tiles.
+ * `SpatialIndex` is the single writer and validates bounds before writing.
+ */
 export const GridPos: Component<GridPosSchema> = new Component<GridPosSchema>({
   name: "gridPos",
-  schema: { x: Uint8Array, y: Uint8Array },
+  schema: { x: Int16Array, y: Int16Array },
 });
 
 export type FacingSchema = { dir: CardinalDirection };
@@ -29,7 +33,7 @@ export const Facing: Component<FacingSchema> = new Component<FacingSchema>({
 });
 
 export type DisplayNameSchema = { displayName: DisplayName };
-export const DisplayNameComponent = new Component<DisplayNameSchema>({
+export const DisplayNameComponent: Component<DisplayNameSchema> = new Component<DisplayNameSchema>({
   name: "displayName",
   schema: { displayName: Uint8Array },
 });
@@ -37,7 +41,7 @@ export const DisplayNameComponent = new Component<DisplayNameSchema>({
 export const Npc: Component<null> = new Component<null>({ name: "npc" });
 
 export type DialogueSchema = { dialogueTreeId: number };
-export const Dialogue = new Component<DialogueSchema>({
+export const Dialogue: Component<DialogueSchema> = new Component<DialogueSchema>({
   name: "dialogue",
   schema: { dialogueTreeId: Uint8Array },
 });
@@ -74,25 +78,25 @@ export type DrawablePartitions = {
   readonly kind: Uint8Array;
   readonly layer: Uint8Array;
 };
-export const Drawable = new Component<DrawableSchema>({
+export const Drawable: Component<DrawableSchema> = new Component<DrawableSchema>({
   name: "drawable",
   schema: { kind: Uint8Array, layer: Uint8Array },
 });
 
 export type DoorSchema = { open: number };
-export const Door = new Component<DoorSchema>({
+export const Door: Component<DoorSchema> = new Component<DoorSchema>({
   name: "door",
   schema: { open: Uint8Array },
 });
 
 export type LockedSchema = { lockId: number };
-export const Locked = new Component<LockedSchema>({
+export const Locked: Component<LockedSchema> = new Component<LockedSchema>({
   name: "locked",
   schema: { lockId: Uint8Array },
 });
 
 export type KeySchema = { lockId: number };
-export const Key = new Component<KeySchema>({
+export const Key: Component<KeySchema> = new Component<KeySchema>({
   name: "key",
   schema: { lockId: Uint8Array },
 });
@@ -102,13 +106,13 @@ export const TurnTaker: Component<null> = new Component<null>({ name: "turnTaker
 export const Enemy: Component<null> = new Component<null>({ name: "enemy" });
 
 export type HealthSchema = { current: number; max: number };
-export const Health = new Component<HealthSchema>({
+export const Health: Component<HealthSchema> = new Component<HealthSchema>({
   name: "health",
   schema: { current: Uint8Array, max: Uint8Array },
 });
 
 export type AttackSchema = AttackDef;
-export const Attack = new Component<AttackSchema>({
+export const Attack: Component<AttackSchema> = new Component<AttackSchema>({
   name: "attack",
   schema: {
     minDamage: Uint8Array,

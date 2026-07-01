@@ -1,9 +1,10 @@
+import { assertEquals, assertThrows } from "@std/assert";
 import { Blocking, Door, Facing, GridPos, Interactable, Key } from "@/src/ecs/components.ts";
 import { Player } from "@/src/ecs/player.ts";
 import { SpatialIndex } from "@/src/ecs/spatial.ts";
 import { createWorld } from "@/src/ecs/world.ts";
 import { LockId } from "@/src/map/map.ts";
-import { assertEquals, createEntity, flatTestMap } from "@/tests/ecs/helpers.ts";
+import { createEntity, flatTestMap } from "@/tests/ecs/helpers.ts";
 
 Deno.test("SpatialIndex indexes blocking entities, keys, faced entities, and exits", async () => {
   const world = await createWorld();
@@ -55,23 +56,54 @@ Deno.test("SpatialIndex keeps its index current when entities move or are remove
   assertEquals(spatial.keyAt(2, 1), undefined);
 });
 
-Deno.test("SpatialIndex movement is the single writer for occupancy", async () => {
+Deno.test("SpatialIndex tracks co-located blocking entities individually", async () => {
+  const world = await createWorld();
+  const first = createEntity(world);
+  const second = createEntity(world);
+
+  world.components.addToEntity(GridPos, first, { x: 1, y: 1 });
+  world.components.addToEntity(Blocking, first);
+  world.components.addToEntity(GridPos, second, { x: 1, y: 1 });
+  world.components.addToEntity(Blocking, second);
+  world.refresh();
+
+  const spatial = new SpatialIndex(world, TEST_MAP);
+
+  const found = spatial.blockingEntityAt(1, 1);
+  assertEquals(found === first || found === second, true);
+
+  spatial.removeEntity(found!);
+  const remaining = found === first ? second : first;
+  assertEquals(spatial.blockingEntityAt(1, 1), remaining);
+  assertEquals(spatial.positionBlocks(1, 1), true);
+
+  spatial.removeEntity(remaining);
+  assertEquals(spatial.blockingEntityAt(1, 1), undefined);
+  assertEquals(spatial.positionBlocks(1, 1), false);
+});
+
+Deno.test("SpatialIndex rejects moves to tiles outside the map", async () => {
   const world = await createWorld();
   const actor = createEntity(world);
 
   world.components.addToEntity(GridPos, actor, { x: 1, y: 1 });
-  world.components.addToEntity(Blocking, actor);
   world.refresh();
 
-  const spatial = new SpatialIndex(world, flatTestMap(4, 2));
+  const spatial = new SpatialIndex(world, TEST_MAP);
 
-  world.components.setEntityData(GridPos, actor, { x: 2, y: 1 });
-  spatial.moveEntity(actor, { x: 3, y: 1 });
+  assertThrows(() => spatial.moveEntity(actor, { x: -1, y: 1 }), Error, "outside");
+  assertThrows(() => spatial.moveEntity(actor, { x: 1, y: 99 }), Error, "outside");
+  assertEquals(world.components.getEntityData(GridPos, actor), { x: 1, y: 1 });
+});
 
-  assertEquals(spatial.blockingEntityAt(1, 1), undefined);
-  assertEquals(spatial.blockingEntityAt(2, 1), undefined);
-  assertEquals(spatial.blockingEntityAt(3, 1), actor);
-  assertEquals(world.components.getEntityData(GridPos, actor), { x: 3, y: 1 });
+Deno.test("SpatialIndex rejects moves for entities it never indexed", async () => {
+  const world = await createWorld();
+  const unpositioned = createEntity(world);
+  world.refresh();
+
+  const spatial = new SpatialIndex(world, TEST_MAP);
+
+  assertThrows(() => spatial.moveEntity(unpositioned, { x: 1, y: 1 }), Error, "not indexed");
 });
 
 Deno.test("SpatialIndex updates blocking ownership through the gateway", async () => {

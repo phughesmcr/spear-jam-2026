@@ -1,8 +1,15 @@
 export type CommandSlot = 1 | 2 | 3;
 
+export type PlayerHealthState = {
+  readonly current: number;
+  readonly max: number;
+};
+
+/** Player progress that survives map transitions. */
 export type PlayerState = {
-  readonly heldKeys: readonly number[];
+  readonly heldKeys: readonly string[];
   readonly selectedWeapon: CommandSlot;
+  readonly health?: PlayerHealthState;
 };
 
 export type DialogueState = {
@@ -22,4 +29,6 @@ export type GameMode =
     readonly goto: string;
     readonly playerState: PlayerState;
   }
+  | { readonly type: "victory" }
+  | { readonly type: "defeat" }
   | { readonly type: "error"; readonly message: string };

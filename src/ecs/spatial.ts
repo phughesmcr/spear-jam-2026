@@ -20,24 +20,30 @@ export interface SpatialMutations {
 
 export type SpatialAccess = SpatialLookup & SpatialMutations;
 
-const EMPTY_ENTITY = -1;
-const NO_TILE = -1;
-
+/**
+ * Tile-indexed view of positioned entities.
+ *
+ * The index is the single writer for occupancy: all position changes and
+ * entity removals must go through `moveEntity`/`removeEntity`. Writing
+ * `GridPos` directly or destroying positioned entities elsewhere leaves
+ * the index stale.
+ *
+ * Every tile holds a set of occupants, so overlapping entities (e.g. two
+ * blockers placed on the same tile by a bad map) stay individually tracked
+ * instead of shadowing each other. Blocking and key lookups derive from
+ * the entity's components, never from a cached copy.
+ */
 export class SpatialIndex implements SpatialLookup, SpatialMutations {
   private readonly world: World;
-  private readonly map: GameMap;
   private readonly width: number;
   private readonly height: number;
   private readonly terrainBlocking: Uint8Array;
-  private readonly positioned: Array<Set<Entity> | undefined>;
-  private readonly blocking: Int32Array;
-  private readonly keys: Int32Array;
+  private readonly occupants: Array<Set<Entity> | undefined>;
   private readonly exits: Array<ExitDef | undefined>;
-  private entityTiles = new Int32Array(0);
+  private readonly entityTiles = new Map<Entity, number>();
 
   constructor(world: World, map: GameMap) {
     this.world = world;
-    this.map = map;
 
     const { width, height } = mapDimensions(map);
     this.width = width;
@@ -45,13 +51,11 @@ export class SpatialIndex implements SpatialLookup, SpatialMutations {
 
     const tileCount = width * height;
     this.terrainBlocking = new Uint8Array(tileCount);
-    this.positioned = new Array<Set<Entity> | undefined>(tileCount);
-    this.blocking = emptyEntityArray(tileCount);
-    this.keys = emptyEntityArray(tileCount);
+    this.occupants = new Array<Set<Entity> | undefined>(tileCount);
     this.exits = new Array<ExitDef | undefined>(tileCount);
 
-    this.indexTerrain();
-    this.rebuild();
+    this.indexTerrain(map);
+    this.indexEntities(map);
   }
 
   tileBlocks(x: number, y: number): boolean {
@@ -60,9 +64,7 @@ export class SpatialIndex implements SpatialLookup, SpatialMutations {
   }
 
   blockingEntityAt(x: number, y: number): Entity | undefined {
-    const tile = this.tileIndex(x, y);
-    if (tile === undefined) return undefined;
-    return this.activeEntityAt(this.blocking[tile], tile);
+    return this.occupantWith(Blocking, x, y);
   }
 
   positionBlocks(x: number, y: number): boolean {
@@ -70,9 +72,7 @@ export class SpatialIndex implements SpatialLookup, SpatialMutations {
   }
 
   keyAt(x: number, y: number): Entity | undefined {
-    const tile = this.tileIndex(x, y);
-    if (tile === undefined) return undefined;
-    return this.activeEntityAt(this.keys[tile], tile);
+    return this.occupantWith(Key, x, y);
   }
 
   exitAt(x: number, y: number): ExitDef | undefined {
@@ -86,204 +86,113 @@ export class SpatialIndex implements SpatialLookup, SpatialMutations {
     const delta = directionDelta(dir);
     const x = current.x + delta.dx;
     const y = current.y + delta.dy;
-    return this.blockingEntityAt(x, y) ?? this.positionedEntityAt(x, y);
+    return this.blockingEntityAt(x, y) ?? this.anyEntityAt(x, y);
   }
 
   moveEntity(entity: Entity, to: { readonly x: number; readonly y: number }): void {
-    if (!this.world.entities.isActive(entity)) return;
-    if (!this.world.components.entityHas(GridPos, entity)) return;
+    const tile = this.tileIndex(to.x, to.y);
+    if (tile === undefined) {
+      throw new Error(
+        `Cannot move entity ${entity} to (${to.x}, ${to.y}): outside the ${this.width}x${this.height} map.`,
+      );
+    }
+    if (!this.entityTiles.has(entity)) {
+      throw new Error(`Cannot move entity ${entity}: it is not indexed. Did it skip GridPos or bypass the index?`);
+    }
 
-    const fromTile = this.entityTile(entity);
-    if (fromTile !== undefined) this.removeIndexedEntityAtTile(entity, fromTile);
+    this.removeFromTile(entity);
     this.world.components.setEntityData(GridPos, entity, to);
-    this.addIndexedEntity(entity, to.x, to.y);
+    this.addToTile(entity, tile);
   }
 
   removeEntity(entity: Entity): void {
-    if (!this.world.entities.isActive(entity)) return;
-
-    const tile = this.entityTile(entity);
-    if (tile !== undefined) this.removeIndexedEntityAtTile(entity, tile);
+    this.removeFromTile(entity);
+    this.entityTiles.delete(entity);
     this.world.entities.destroy(entity);
   }
 
   setBlocking(entity: Entity, blocking: boolean): void {
-    if (!this.world.entities.isActive(entity)) return;
-    if (!this.world.components.entityHas(GridPos, entity)) return;
-
-    const tile = this.ensureCurrentIndexedTile(entity);
-    const index = entityIndex(entity);
-    if (blocking) {
-      if (tile !== undefined) this.blocking[tile] = index;
-      if (!this.world.components.entityHas(Blocking, entity)) {
-        this.world.components.addToEntity(Blocking, entity);
-      }
-      return;
-    }
-
-    if (tile !== undefined && this.blocking[tile] === index) {
-      this.blocking[tile] = EMPTY_ENTITY;
-    }
-    if (this.world.components.entityHas(Blocking, entity)) {
+    const has = this.world.components.entityHas(Blocking, entity);
+    if (blocking && !has) {
+      this.world.components.addToEntity(Blocking, entity);
+    } else if (!blocking && has) {
       this.world.components.removeFromEntity(Blocking, entity);
     }
   }
 
-  private indexTerrain(): void {
+  private indexTerrain(map: GameMap): void {
     for (let y = 0; y < this.height; y++) {
       for (let x = 0; x < this.width; x++) {
-        const terrain = terrainAt(this.map, x, y);
-        this.terrainBlocking[this.tileOffset(x, y)] = terrain === undefined || terrain.blocking === true ? 1 : 0;
+        const terrain = terrainAt(map, x, y);
+        this.terrainBlocking[y * this.width + x] = terrain === undefined || terrain.blocking === true ? 1 : 0;
       }
     }
   }
 
-  private rebuild(): void {
-    this.positioned.fill(undefined);
-    this.blocking.fill(EMPTY_ENTITY);
-    this.keys.fill(EMPTY_ENTITY);
-    this.exits.fill(undefined);
-    this.entityTiles = new Int32Array(0);
-
+  private indexEntities(map: GameMap): void {
     for (const entity of this.world.entities.query(positionedQuery)) {
-      if (!this.world.entities.isActive(entity)) continue;
       const { x, y } = this.world.components.getEntityData(GridPos, entity);
-      this.addIndexedEntity(entity, x, y);
+      const tile = this.tileIndex(x, y);
+      if (tile === undefined) {
+        throw new Error(`Entity ${entity} at (${x}, ${y}) is outside the ${this.width}x${this.height} map.`);
+      }
+      this.entityTiles.set(entity, tile);
+      this.addToTile(entity, tile);
     }
 
-    for (const entity of this.map.entities) {
+    for (const entity of map.entities) {
       if (entity.prefab !== "exit") continue;
       const tile = this.tileIndex(entity.x, entity.y);
       if (tile !== undefined) this.exits[tile] = entity;
     }
   }
 
-  private addIndexedEntity(entity: Entity, x: number, y: number): void {
-    const previousTile = this.entityTile(entity);
+  private occupantWith(component: typeof Blocking | typeof Key, x: number, y: number): Entity | undefined {
     const tile = this.tileIndex(x, y);
-    if (previousTile !== undefined && previousTile !== tile) {
-      this.removeIndexedEntityAtTile(entity, previousTile);
+    if (tile === undefined) return undefined;
+
+    const entities = this.occupants[tile];
+    if (entities === undefined) return undefined;
+
+    for (const entity of entities) {
+      if (this.world.components.entityHas(component, entity)) return entity;
     }
-
-    this.setEntityTile(entity, tile ?? NO_TILE);
-    if (tile === undefined) return;
-
-    this.addPositioned(entity, tile);
-    if (this.world.components.entityHas(Blocking, entity)) this.blocking[tile] = entityIndex(entity);
-    if (this.world.components.entityHas(Key, entity)) this.keys[tile] = entityIndex(entity);
+    return undefined;
   }
 
-  private removeIndexedEntityAtTile(entity: Entity, tile: number): void {
-    const positioned = this.positioned[tile];
-    if (positioned !== undefined) {
-      positioned.delete(entity);
-      if (positioned.size === 0) this.positioned[tile] = undefined;
-    }
+  private anyEntityAt(x: number, y: number): Entity | undefined {
+    const tile = this.tileIndex(x, y);
+    if (tile === undefined) return undefined;
 
-    const index = entityIndex(entity);
-    if (this.blocking[tile] === index) this.blocking[tile] = EMPTY_ENTITY;
-    if (this.keys[tile] === index) this.keys[tile] = EMPTY_ENTITY;
-    if (this.entityTile(entity) === tile) this.setEntityTile(entity, NO_TILE);
+    const entities = this.occupants[tile];
+    if (entities === undefined) return undefined;
+    for (const entity of entities) return entity;
+    return undefined;
   }
 
-  private addPositioned(entity: Entity, tile: number): void {
-    const entities = this.positioned[tile];
+  private addToTile(entity: Entity, tile: number): void {
+    this.entityTiles.set(entity, tile);
+    const entities = this.occupants[tile];
     if (entities !== undefined) {
       entities.add(entity);
       return;
     }
-    this.positioned[tile] = new Set([entity]);
+    this.occupants[tile] = new Set([entity]);
   }
 
-  private positionedEntityAt(x: number, y: number): Entity | undefined {
-    const tile = this.tileIndex(x, y);
-    if (tile === undefined) return undefined;
+  private removeFromTile(entity: Entity): void {
+    const tile = this.entityTiles.get(entity);
+    if (tile === undefined) return;
 
-    const entities = this.positioned[tile];
-    if (entities === undefined) return undefined;
-
-    for (const entity of entities) {
-      if (this.entityOccupiesTile(entity, tile)) return entity;
-      this.removeIndexedEntityAtTile(entity, tile);
-    }
-    return undefined;
-  }
-
-  private activeEntityAt(value: number | undefined, tile: number): Entity | undefined {
-    if (value === undefined || value === EMPTY_ENTITY) return undefined;
-
-    const entity = value as Entity;
-    if (this.entityOccupiesTile(entity, tile)) return entity;
-    this.removeIndexedEntityAtTile(entity, tile);
-    return undefined;
-  }
-
-  private entityOccupiesTile(entity: Entity, tile: number): boolean {
-    if (!this.world.entities.isActive(entity)) return false;
-    if (!this.world.components.entityHas(GridPos, entity)) return false;
-    return this.entityTile(entity) === tile && this.gridPosTile(entity) === tile;
-  }
-
-  private ensureCurrentIndexedTile(entity: Entity): number | undefined {
-    const tile = this.entityTile(entity);
-    const gridTile = this.gridPosTile(entity);
-    if (tile !== undefined && tile !== gridTile) {
-      this.removeIndexedEntityAtTile(entity, tile);
-    }
-    if (gridTile !== undefined && this.entityTile(entity) === undefined) {
-      const position = this.world.components.getEntityData(GridPos, entity);
-      this.addIndexedEntity(entity, position.x, position.y);
-    }
-    return this.entityTile(entity);
-  }
-
-  private gridPosTile(entity: Entity): number | undefined {
-    const { x, y } = this.world.components.getEntityData(GridPos, entity);
-    return this.tileIndex(x, y);
-  }
-
-  private entityTile(entity: Entity): number | undefined {
-    const index = entityIndex(entity);
-    if (index >= this.entityTiles.length) return undefined;
-    const tile = this.entityTiles[index];
-    return tile === NO_TILE ? undefined : tile;
-  }
-
-  private setEntityTile(entity: Entity, tile: number): void {
-    this.ensureEntityCapacity(entity);
-    this.entityTiles[entityIndex(entity)] = tile;
-  }
-
-  private ensureEntityCapacity(entity: Entity): void {
-    const index = entityIndex(entity);
-    if (index < this.entityTiles.length) return;
-
-    let nextLength = Math.max(8, this.entityTiles.length);
-    while (nextLength <= index) nextLength *= 2;
-
-    const nextTiles = new Int32Array(nextLength);
-    nextTiles.fill(NO_TILE);
-    nextTiles.set(this.entityTiles);
-    this.entityTiles = nextTiles;
+    const entities = this.occupants[tile];
+    if (entities === undefined) return;
+    entities.delete(entity);
+    if (entities.size === 0) this.occupants[tile] = undefined;
   }
 
   private tileIndex(x: number, y: number): number | undefined {
     if (!Number.isInteger(x) || !Number.isInteger(y)) return undefined;
     if (x < 0 || y < 0 || x >= this.width || y >= this.height) return undefined;
-    return this.tileOffset(x, y);
-  }
-
-  private tileOffset(x: number, y: number): number {
     return y * this.width + x;
   }
-}
-
-function emptyEntityArray(length: number): Int32Array {
-  const array = new Int32Array(length);
-  array.fill(EMPTY_ENTITY);
-  return array;
-}
-
-function entityIndex(entity: Entity): number {
-  return entity as number;
 }

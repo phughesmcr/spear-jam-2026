@@ -1,3 +1,4 @@
+import { assertEquals } from "@std/assert";
 import type { Entity } from "@phughesmcr/miski";
 import {
   AttackFacingRequirement,
@@ -8,6 +9,7 @@ import {
   Facing,
   GridPos,
   Health,
+  Player as PlayerTag,
 } from "@/src/ecs/components.ts";
 import type { AttackSchema } from "@/src/ecs/components.ts";
 import { attackEntity, attackTargets, resolveAttack } from "@/src/ecs/combat.ts";
@@ -15,7 +17,7 @@ import { DisplayName } from "@/src/game/names.ts";
 import { SpatialIndex } from "@/src/ecs/spatial.ts";
 import type { SpatialLookup } from "@/src/ecs/spatial.ts";
 import { createWorld } from "@/src/ecs/world.ts";
-import { assertEquals, createEntity, flatTestMap } from "@/tests/ecs/helpers.ts";
+import { createEntity, flatTestMap } from "@/tests/ecs/helpers.ts";
 
 const BASE_ATTACK: AttackSchema = {
   minDamage: 1,
@@ -112,6 +114,7 @@ Deno.test("attackEntity emits damage events and updates health", async () => {
   const defender = createEntity(world);
 
   world.components.addToEntity(GridPos, player, { x: 1, y: 1 });
+  world.components.addToEntity(PlayerTag, player);
   world.components.addToEntity(GridPos, defender, { x: 2, y: 1 });
   world.components.addToEntity(DisplayNameComponent, defender, { displayName: DisplayName.Imp });
   world.components.addToEntity(Health, defender, { current: 3, max: 3 });
@@ -119,7 +122,6 @@ Deno.test("attackEntity emits damage events and updates health", async () => {
 
   const events = attackEntity(
     world,
-    player,
     player,
     defender,
     { ...BASE_ATTACK, minDamage: 1, maxDamage: 1, attackBonus: 20 },
@@ -131,10 +133,11 @@ Deno.test("attackEntity emits damage events and updates health", async () => {
     {
       type: "damageDealt",
       actor: player,
+      actorName: "You",
       target: defender,
+      targetName: "Imp",
       amount: 1,
       critical: false,
-      message: "You hit Imp for 1.",
     },
   ]);
   assertEquals(world.components.getEntityData(Health, defender), { current: 2, max: 3 });
@@ -146,6 +149,7 @@ Deno.test("attackEntity emits defeat events and removes defeated non-player enti
   const defender = createEntity(world);
 
   world.components.addToEntity(GridPos, player, { x: 1, y: 1 });
+  world.components.addToEntity(PlayerTag, player);
   world.components.addToEntity(GridPos, defender, { x: 2, y: 1 });
   world.components.addToEntity(Blocking, defender);
   world.components.addToEntity(DisplayNameComponent, defender, { displayName: DisplayName.Imp });
@@ -155,7 +159,6 @@ Deno.test("attackEntity emits defeat events and removes defeated non-player enti
   const spatial = new SpatialIndex(world, TEST_MAP);
   const events = attackEntity(
     world,
-    player,
     player,
     defender,
     { ...BASE_ATTACK, minDamage: 1, maxDamage: 1, attackBonus: 20 },
@@ -167,16 +170,17 @@ Deno.test("attackEntity emits defeat events and removes defeated non-player enti
     {
       type: "damageDealt",
       actor: player,
+      actorName: "You",
       target: defender,
+      targetName: "Imp",
       amount: 1,
       critical: false,
-      message: "You hit Imp for 1.",
     },
     {
       type: "entityDefeated",
       actor: player,
       entity: defender,
-      message: "Imp is defeated.",
+      entityName: "Imp",
     },
   ]);
   assertEquals(world.entities.isActive(defender), false);
@@ -189,6 +193,7 @@ Deno.test("attackEntity emits player defeat without removing the player entity",
   const attacker = createEntity(world);
 
   world.components.addToEntity(GridPos, player, { x: 1, y: 1 });
+  world.components.addToEntity(PlayerTag, player);
   world.components.addToEntity(Health, player, { current: 1, max: 1 });
   world.components.addToEntity(GridPos, attacker, { x: 2, y: 1 });
   world.components.addToEntity(DisplayNameComponent, attacker, { displayName: DisplayName.Imp });
@@ -196,7 +201,6 @@ Deno.test("attackEntity emits player defeat without removing the player entity",
 
   const events = attackEntity(
     world,
-    player,
     attacker,
     player,
     { ...BASE_ATTACK, minDamage: 1, maxDamage: 1, attackBonus: 20 },
@@ -208,16 +212,17 @@ Deno.test("attackEntity emits player defeat without removing the player entity",
     {
       type: "damageDealt",
       actor: attacker,
+      actorName: "Imp",
       target: player,
+      targetName: "You",
       amount: 1,
       critical: false,
-      message: "Imp hit You for 1.",
     },
     {
       type: "entityDefeated",
       actor: attacker,
       entity: player,
-      message: "You are defeated.",
+      entityName: "You",
     },
   ]);
   assertEquals(world.entities.isActive(player), true);
@@ -246,4 +251,4 @@ function testSpatial(
   };
 }
 
-const TEST_MAP = flatTestMap(3);
+const TEST_MAP = flatTestMap(3, 2);

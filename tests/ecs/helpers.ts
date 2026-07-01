@@ -29,9 +29,3 @@ export function flatTestMap(
     entities,
   };
 }
-
-export function assertEquals<T>(actual: T, expected: T): void {
-  if (!Object.is(actual, expected) && JSON.stringify(actual) !== JSON.stringify(expected)) {
-    throw new Error(`Expected ${JSON.stringify(expected)}, received ${JSON.stringify(actual)}`);
-  }
-}

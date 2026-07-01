@@ -11,14 +11,6 @@ export default class KeyboardState implements Disposable {
     this.keyStates.clear();
   };
 
-  private listenTo(): void {
-    for (const eventName of KEY_EVENTS) {
-      this.window.addEventListener(eventName, this.handleKeyboardEvent);
-    }
-    this.window.addEventListener("blur", this.clearKeyStates);
-    this.window.document.addEventListener("visibilitychange", this.clearKeyStates);
-  }
-
   constructor(window: Window) {
     this.window = window;
     this.listenTo();
@@ -46,5 +38,13 @@ export default class KeyboardState implements Disposable {
     this.window.document.removeEventListener("visibilitychange", this.clearKeyStates);
     this.keyStates.clear();
     this.keyMap.clear();
+  }
+
+  private listenTo(): void {
+    for (const eventName of KEY_EVENTS) {
+      this.window.addEventListener(eventName, this.handleKeyboardEvent);
+    }
+    this.window.addEventListener("blur", this.clearKeyStates);
+    this.window.document.addEventListener("visibilitychange", this.clearKeyStates);
   }
 }

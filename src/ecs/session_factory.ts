@@ -1,9 +1,10 @@
 import type { Entity } from "@phughesmcr/miski";
+import { Health } from "@/src/ecs/components.ts";
 import { createMapEntity } from "@/src/ecs/prefabs.ts";
 import { Player } from "@/src/ecs/player.ts";
 import { GameSession } from "@/src/ecs/session.ts";
-import type { RandomSource } from "@/src/ecs/session.ts";
 import { createWorld } from "@/src/ecs/world.ts";
+import type { RandomSource } from "@/src/game/rng.ts";
 import type { PlayerState } from "@/src/game/state.ts";
 import type { GameMap } from "@/src/map/map.ts";
 
@@ -27,6 +28,10 @@ export async function createGameSession(
     }
 
     if (playerEntity === undefined) throw new Error("Map is missing a player spawn.");
+
+    if (playerState?.health !== undefined && world.components.entityHas(Health, playerEntity)) {
+      world.components.setEntityData(Health, playerEntity, playerState.health);
+    }
 
     const player = new Player(world, playerEntity);
     world.refresh();

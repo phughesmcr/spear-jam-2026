@@ -5,18 +5,20 @@ import { displayNameText } from "@/src/game/names.ts";
 import type { SpatialIndex } from "@/src/ecs/spatial.ts";
 import type { GameEvent } from "@/src/game/events.ts";
 import type { DialogueState } from "@/src/game/state.ts";
+import { scopedLockId } from "@/src/map/map.ts";
 
 export type PlayerInteractionResult =
   | { readonly type: "unchanged"; readonly events: readonly GameEvent[] }
   | { readonly type: "consumeTurn"; readonly events: readonly GameEvent[] }
   | { readonly type: "dialogue"; readonly dialogue: DialogueState; readonly events: readonly GameEvent[] };
 
-const UNCHANGED_INTERACTION: PlayerInteractionResult = { type: "unchanged", events: [] };
+const UNCHANGED_INTERACTION: PlayerInteractionResult = Object.freeze({ type: "unchanged", events: [] });
 
 export function collectKeyAt(
   world: World,
   spatial: SpatialIndex,
-  heldKeys: Set<number>,
+  heldKeys: Set<string>,
+  mapName: string,
   x: number,
   y: number,
 ): readonly GameEvent[] {
@@ -24,12 +26,11 @@ export function collectKeyAt(
   if (key === undefined) return [];
 
   const { lockId } = world.components.getEntityData(Key, key);
-  heldKeys.add(lockId);
+  heldKeys.add(scopedLockId(mapName, lockId));
   spatial.removeEntity(key);
   return [{
     type: "keyPickedUp",
     entity: key,
-    message: "Picked up a key.",
   }];
 }
 
@@ -37,14 +38,15 @@ export function interactWithEntity(
   world: World,
   spatial: SpatialIndex,
   target: Entity | undefined,
-  heldKeys: ReadonlySet<number>,
+  heldKeys: Set<string>,
+  mapName: string,
 ): PlayerInteractionResult {
   if (target === undefined || !world.components.entityHas(Interactable, target)) {
     return UNCHANGED_INTERACTION;
   }
 
   if (world.components.entityHas(Door, target)) {
-    return interactWithDoor(world, spatial, target, heldKeys);
+    return interactWithDoor(world, spatial, target, heldKeys, mapName);
   }
 
   if (world.components.entityHas(Npc, target)) {
@@ -58,23 +60,26 @@ function interactWithDoor(
   world: World,
   spatial: SpatialIndex,
   door: Entity,
-  heldKeys: ReadonlySet<number>,
+  heldKeys: Set<string>,
+  mapName: string,
 ): PlayerInteractionResult {
   const state = world.components.getEntityData(Door, door);
   if (state.open === 1) return UNCHANGED_INTERACTION;
 
   if (world.components.entityHas(Locked, door)) {
     const lock = world.components.getEntityData(Locked, door);
-    if (!heldKeys.has(lock.lockId)) {
+    const keyId = scopedLockId(mapName, lock.lockId);
+    if (!heldKeys.has(keyId)) {
       return {
         type: "unchanged",
         events: [{
           type: "doorLocked",
           entity: door,
-          message: "The door is locked.",
         }],
       };
     }
+    // Keys are single-use: unlocking consumes the key.
+    heldKeys.delete(keyId);
     world.components.removeFromEntity(Locked, door);
   }
 
@@ -85,7 +90,6 @@ function interactWithDoor(
     events: [{
       type: "doorOpened",
       entity: door,
-      message: "Opened the door.",
     }],
   };
 }

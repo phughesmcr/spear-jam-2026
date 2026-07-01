@@ -1,6 +1,13 @@
 export type CardinalDirection = 0 | 1 | 2 | 3;
 export type GridDelta = { dx: number; dy: number };
 
+export const Direction = {
+  North: 0,
+  East: 1,
+  South: 2,
+  West: 3,
+} as const satisfies Record<string, CardinalDirection>;
+
 const CARDINAL_DIRECTION_COUNT = 4;
 const CARDINAL_DELTAS = [
   { dx: 0, dy: -1 },

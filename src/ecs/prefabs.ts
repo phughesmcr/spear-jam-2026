@@ -25,7 +25,7 @@ import {
 } from "@/src/ecs/components.ts";
 import type { AttackSchema } from "@/src/ecs/components.ts";
 import { normalizeDirection } from "@/src/grid/direction.ts";
-import type { LockId, MapEntityDef } from "@/src/map/map.ts";
+import type { DoorDef, EnemyDef, KeyDef, MapEntityDef, NpcDef, PlayerDef } from "@/src/map/map.ts";
 import type { DisplayName } from "@/src/game/names.ts";
 
 const DEFAULT_PLAYER_HEALTH = 10;
@@ -54,11 +54,7 @@ type FacingPrefab = {
 
 type GridActorPrefab = PositionedPrefab & FacingPrefab;
 
-export type PlayerPrefab = {
-  x: number;
-  y: number;
-  dir: number;
-};
+export type PlayerPrefab = Omit<PlayerDef, "prefab">;
 
 export function createPlayer(world: World, prefab: PlayerPrefab): Entity {
   const entity = createEntity(world, "player");
@@ -74,13 +70,7 @@ export function createPlayer(world: World, prefab: PlayerPrefab): Entity {
   return entity;
 }
 
-export type NpcPrefab = {
-  x: number;
-  y: number;
-  dir: number;
-  displayName: DisplayName;
-  dialogueTreeId?: DialogueTreeId;
-};
+export type NpcPrefab = Omit<NpcDef, "prefab">;
 
 export function createNpc(world: World, prefab: NpcPrefab): Entity {
   const entity = createEntity(world, "npc");
@@ -94,15 +84,7 @@ export function createNpc(world: World, prefab: NpcPrefab): Entity {
   return entity;
 }
 
-export type EnemyPrefab = {
-  x: number;
-  y: number;
-  dir: number;
-  displayName: DisplayName;
-  health?: number;
-  damage?: number;
-  attack?: Partial<AttackSchema>;
-};
+export type EnemyPrefab = Omit<EnemyDef, "prefab">;
 
 export function createEnemy(world: World, prefab: EnemyPrefab): Entity {
   const entity = createEntity(world, "enemy");
@@ -126,19 +108,14 @@ function createAttackSpec(prefab: EnemyPrefab): AttackSchema {
   };
 }
 
-export type DoorPrefab = {
-  x: number;
-  y: number;
-  locked?: boolean;
-  lockId?: LockId;
-};
+export type DoorPrefab = Omit<DoorDef, "prefab">;
 
 export function createDoor(world: World, prefab: DoorPrefab): Entity {
-  const entity = createEntity(world, "door");
   if (prefab.locked === true && prefab.lockId === undefined) {
     throw new Error("Locked door prefab is missing a lock id");
   }
 
+  const entity = createEntity(world, "door");
   addPosition(world, entity, prefab);
   addDrawable(world, entity, DrawableKind.Door, DrawableLayer.Structure);
   world.components.addToEntity(Door, entity, { open: 0 });
@@ -150,11 +127,7 @@ export function createDoor(world: World, prefab: DoorPrefab): Entity {
   return entity;
 }
 
-export type KeyPrefab = {
-  x: number;
-  y: number;
-  lockId: LockId;
-};
+export type KeyPrefab = Omit<KeyDef, "prefab">;
 
 export function createKey(world: World, prefab: KeyPrefab): Entity {
   const entity = createEntity(world, "key");

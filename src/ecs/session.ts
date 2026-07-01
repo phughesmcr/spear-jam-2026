@@ -1,4 +1,5 @@
 import type { World } from "@phughesmcr/miski";
+import { Health } from "@/src/ecs/components.ts";
 import { directionDelta } from "@/src/grid/direction.ts";
 import type { GridDelta } from "@/src/grid/direction.ts";
 import { attackWithSelectedWeapon, DEFAULT_SELECTED_WEAPON, weaponLabel } from "@/src/ecs/combat.ts";
@@ -10,23 +11,24 @@ import { SpatialIndex } from "@/src/ecs/spatial.ts";
 import { relativeMoveDirectionOffset, turnDirectionDelta } from "@/src/game/commands.ts";
 import type { PlayerCommand, PlayerCommandResult } from "@/src/game/commands.ts";
 import type { GameEvent } from "@/src/game/events.ts";
+import type { RandomSource } from "@/src/game/rng.ts";
 import type { CommandSlot, PlayerState } from "@/src/game/state.ts";
+import { VICTORY_GOTO } from "@/src/map/map.ts";
 import type { ExitDef, GameMap } from "@/src/map/map.ts";
 
-const UNCHANGED_PLAYER_COMMAND: PlayerCommandResult = {
+const UNCHANGED_PLAYER_COMMAND: PlayerCommandResult = Object.freeze({
   events: [],
-};
+});
 
 type MoveResult =
   | { readonly moved: false }
   | { readonly moved: true; readonly events: readonly GameEvent[]; readonly exit?: ExitDef };
-export type RandomSource = () => number;
 
 export class GameSession implements Disposable {
   readonly world: World;
   readonly player: Player;
   readonly map: GameMap;
-  private readonly heldKeys: Set<number>;
+  private readonly heldKeys: Set<string>;
   private readonly random: RandomSource;
   private readonly enemyTurnSystem: EnemyTurnSystem;
   private readonly spatial: SpatialIndex;
@@ -54,6 +56,7 @@ export class GameSession implements Disposable {
     return {
       heldKeys: [...this.heldKeys],
       selectedWeapon: this.selectedWeapon,
+      health: this.getPlayerHealth(),
     };
   }
 
@@ -82,6 +85,9 @@ export class GameSession implements Disposable {
     if (!move.moved) return UNCHANGED_PLAYER_COMMAND;
     if (move.exit) {
       this.world.refresh();
+      if (move.exit.goto === VICTORY_GOTO) {
+        return { events: move.events, outcome: "victory" };
+      }
       return {
         events: move.events,
         mapChange: { goto: move.exit.goto },
@@ -97,7 +103,7 @@ export class GameSession implements Disposable {
     if (this.spatial.positionBlocks(next.x, next.y)) return { moved: false };
 
     this.spatial.moveEntity(this.player.getEntity(), next);
-    const events = collectKeyAt(this.world, this.spatial, this.heldKeys, next.x, next.y);
+    const events = collectKeyAt(this.world, this.spatial, this.heldKeys, this.map.name, next.x, next.y);
     return {
       moved: true,
       events,
@@ -120,6 +126,7 @@ export class GameSession implements Disposable {
       this.spatial,
       this.spatial.facedEntity(this.player),
       this.heldKeys,
+      this.map.name,
     );
     switch (interaction.type) {
       case "unchanged":
@@ -147,13 +154,11 @@ export class GameSession implements Disposable {
 
   private handlePlayerSelectWeaponCommand(slot: CommandSlot): PlayerCommandResult {
     this.selectedWeapon = slot;
-    const label = weaponLabel(slot);
     return {
       events: [{
         type: "weaponSelected",
         slot,
-        label,
-        message: `Selected weapon ${slot}: ${label}.`,
+        label: weaponLabel(slot),
       }],
     };
   }
@@ -166,9 +171,18 @@ export class GameSession implements Disposable {
       random: this.random,
     });
     this.world.refresh();
-    return {
-      events: [...events, ...enemyEvents],
-    };
+    const allEvents = [...events, ...enemyEvents];
+    return this.isPlayerDefeated() ? { events: allEvents, outcome: "defeat" } : { events: allEvents };
+  }
+
+  private isPlayerDefeated(): boolean {
+    return (this.getPlayerHealth()?.current ?? 1) <= 0;
+  }
+
+  private getPlayerHealth(): { current: number; max: number } | undefined {
+    const entity = this.player.getEntity();
+    if (!this.world.components.entityHas(Health, entity)) return undefined;
+    return this.world.components.getEntityData(Health, entity);
   }
 
   [Symbol.dispose](): void {

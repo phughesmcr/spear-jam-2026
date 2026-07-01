@@ -1,3 +1,4 @@
+import { assertEquals } from "@std/assert";
 import { SplitMix32 } from "@/src/game/rng.ts";
 
 Deno.test("SplitMix32 produces stable output for a seed", () => {
@@ -16,9 +17,3 @@ Deno.test("SplitMix32 can resume from saved state", () => {
 
   assertEquals(resumed.nextUint32(), first.nextUint32());
 });
-
-function assertEquals<T>(actual: T, expected: T): void {
-  if (actual !== expected) {
-    throw new Error(`Expected ${expected}, received ${actual}`);
-  }
-}

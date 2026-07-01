@@ -5,6 +5,7 @@ import type { GameCommand } from "@/src/game/commands.ts";
 import type { PlayerCommand } from "@/src/game/commands.ts";
 import type { GameEvent } from "@/src/game/events.ts";
 import type { DialogueState, GameMode, PlayerState } from "@/src/game/state.ts";
+import { messageForEvent } from "@/src/game/messages.ts";
 import { SplitMix32 } from "@/src/game/rng.ts";
 import { setupKeyboard } from "@/src/input/input.ts";
 import { getMap, START_MAP_NAME } from "@/src/map/maps.ts";
@@ -109,6 +110,11 @@ class Game implements Disposable {
       return;
     }
 
+    if (this.mode.type === "victory" || this.mode.type === "defeat") {
+      if (command.type === "wait") this.restart();
+      return;
+    }
+
     if (isPlayerCommand(command)) {
       if (this.mode.type !== "playing") return;
       this.handlePlayerCommands([command]);
@@ -141,6 +147,11 @@ class Game implements Disposable {
     this.render();
   }
 
+  private restart(): void {
+    this.recentMessages = [];
+    void this.loadMap(START_MAP_NAME).catch((error: unknown) => this.handleLoadError(error));
+  }
+
   private toggleMenu(): void {
     switch (this.mode.type) {
       case "playing":
@@ -169,6 +180,11 @@ class Game implements Disposable {
     for (const command of commands) {
       const result = this.session.handlePlayerCommand(command);
       this.appendEventMessages(result.events);
+      if (result.outcome) {
+        this.mode = { type: result.outcome };
+        this.render();
+        return;
+      }
       if (result.mapChange) {
         this.enterIntermission(result.mapChange.goto);
         this.render();
@@ -185,9 +201,11 @@ class Game implements Disposable {
   }
 
   private appendEventMessages(events: readonly GameEvent[]): void {
+    if (!this.session) return;
+
+    const playerEntity = this.session.player.getEntity();
     for (const event of events) {
-      if (event.message === undefined || event.message.length === 0) continue;
-      this.recentMessages.push(event.message);
+      this.recentMessages.push(messageForEvent(playerEntity, event));
     }
     if (this.recentMessages.length > MESSAGE_LOG_LIMIT) {
       this.recentMessages.splice(0, this.recentMessages.length - MESSAGE_LOG_LIMIT);

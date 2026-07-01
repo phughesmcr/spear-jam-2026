@@ -10,11 +10,14 @@ export default function Game({ seed }: { seed: number }) {
     if (canvasRef.current) {
       const canvas = canvasRef.current;
       const ctx = canvas.getContext("2d");
-      if (!ctx) throw new Error("Failed to get canvas context");
+      if (!ctx) {
+        console.error("Failed to get canvas context; the game cannot start.");
+        return;
+      }
 
       activeGame = startGame({
-        canvas: canvasRef.current,
-        ctx: ctx,
+        canvas,
+        ctx,
         window: globalThis.window,
         seed,
       });

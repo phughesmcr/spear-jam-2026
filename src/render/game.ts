@@ -40,6 +40,12 @@ export function renderGameFrame(
     case "intermission":
       renderOverlay(ctx, canvasSize, "INTERMISSION", mode.message);
       return;
+    case "victory":
+      renderOverlay(ctx, canvasSize, "VICTORY", "Space to play again");
+      return;
+    case "defeat":
+      renderOverlay(ctx, canvasSize, "DEFEAT", "Space to try again");
+      return;
     case "error":
       renderOverlay(ctx, canvasSize, "LOAD FAILED", mode.message);
       return;
