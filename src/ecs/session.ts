@@ -103,7 +103,7 @@ export class GameSession implements Disposable {
         return this.handlePlayerMoveCommand(relativeMoveDirectionOffset(command.direction));
       case "turn":
         this.turnPlayer(turnDirectionDelta(command.direction));
-        return this.consumePlayerTurn();
+        return UNCHANGED_PLAYER_COMMAND;
       case "wait":
         return this.consumePlayerTurn();
       case "interact":

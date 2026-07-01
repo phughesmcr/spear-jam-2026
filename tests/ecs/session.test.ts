@@ -194,6 +194,38 @@ Deno.test("selecting a weapon emits a player-facing event without consuming a tu
   assertEquals(session.getPlayerState().selectedWeapon, 2);
 });
 
+Deno.test("turning changes facing without consuming a turn", async () => {
+  const world = await createWorld();
+  const playerEntity = createTestPlayer(world, {
+    blocking: true,
+    health: { current: 2, max: 2 },
+  });
+  createTestEnemy(world, {
+    x: 2,
+    y: 1,
+    dir: 3,
+    displayName: DisplayName.Imp,
+    attack: {
+      minDamage: 1,
+      maxDamage: 1,
+      range: 1,
+      requiresFacing: AttackFacingRequirement.Required,
+      attackBonus: 20,
+      critThreshold: 0,
+      critMultiplier: 1,
+      pattern: AttackPattern.Line,
+      targets: AttackTargetMode.First,
+    },
+  });
+
+  const session = createTestSession(world, playerEntity);
+  const result = session.handlePlayerCommand({ type: "turn", direction: "right" });
+
+  assertEquals(result, { events: [] });
+  assertEquals(session.player.getFacing(), { dir: 2 });
+  assertEquals(session.getPlayerState().health, { current: 2, max: 2 });
+});
+
 Deno.test("moving onto a victory exit reports a victory outcome", async () => {
   const world = await createWorld();
   const playerEntity = createTestPlayer(world);
