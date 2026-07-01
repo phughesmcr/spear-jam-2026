@@ -1,13 +1,12 @@
 import { type Entity, System, type World } from "@phughesmcr/miski";
+import { AttackFacingRequirement } from "@/src/ecs/components.ts";
 import type { FacingPartitions, GridPosPartitions } from "@/src/ecs/components.ts";
 import { attackEntity, attackTargets, entityAttack } from "@/src/ecs/combat.ts";
 import type { Player } from "@/src/ecs/player.ts";
 import { enemyTurnQuery } from "@/src/ecs/queries.ts";
+import type { SpatialLookup } from "@/src/ecs/spatial.ts";
 import type { CardinalDirection, GridDelta } from "@/src/grid/direction.ts";
 
-type TileBlocks = (x: number, y: number) => boolean;
-type BlockingEntityAt = (x: number, y: number) => Entity | undefined;
-type PositionBlocks = (x: number, y: number) => boolean;
 type RandomSource = () => number;
 
 type EnemyTurnComponents = {
@@ -18,8 +17,7 @@ type EnemyTurnComponents = {
 export type EnemyTurnContext = {
   readonly world: World;
   readonly player: Player;
-  readonly tileBlocks: TileBlocks;
-  readonly blockingEntityAt: BlockingEntityAt;
+  readonly spatial: SpatialLookup;
   readonly random: RandomSource;
 };
 
@@ -47,12 +45,12 @@ function advanceEnemyTurn(
   gridPos: GridPosPartitions,
   facing: FacingPartitions,
 ): void {
-  const { world, player, tileBlocks, blockingEntityAt, random } = context;
+  const { world, player, spatial, random } = context;
   if (!world.entities.isActive(entity)) return;
 
   const attack = entityAttack(world, entity);
   if (attack !== undefined) {
-    if (attack.requiresFacing === 1) {
+    if (attack.requiresFacing === AttackFacingRequirement.Required) {
       faceEntityToward(entity, player.getPosition(), gridPos, facing);
     }
 
@@ -60,8 +58,7 @@ function advanceEnemyTurn(
       world,
       entity,
       attack,
-      tileBlocks,
-      blockingEntityAt,
+      spatial,
       (candidate) => candidate === player.getEntity(),
     );
     if (targets.length > 0) {
@@ -77,7 +74,7 @@ function advanceEnemyTurn(
     entity,
     gridPos,
     facing,
-    (x, y) => tileBlocks(x, y) || blockingEntityAt(x, y) !== undefined,
+    spatial,
   );
 }
 
@@ -86,7 +83,7 @@ function tryMoveEnemyTowardPlayer(
   entity: Entity,
   gridPos: GridPosPartitions,
   facing: FacingPartitions,
-  positionBlocks: PositionBlocks,
+  spatial: SpatialLookup,
 ): void {
   const playerPosition = player.getPosition();
   const x = gridPos.x[entity]!;
@@ -103,7 +100,7 @@ function tryMoveEnemyTowardPlayer(
   for (const delta of candidates) {
     const nextX = x + delta.dx;
     const nextY = y + delta.dy;
-    if (positionBlocks(nextX, nextY)) continue;
+    if (spatial.positionBlocks(nextX, nextY)) continue;
 
     gridPos.x[entity] = nextX;
     gridPos.y[entity] = nextY;

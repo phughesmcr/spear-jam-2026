@@ -1,21 +1,11 @@
-import { type Entity, type World } from "@phughesmcr/miski";
-import { Door, DrawableKind, Facing, Locked } from "@/src/ecs/components.ts";
-import { forEachDrawableEntity } from "@/src/ecs/drawables.ts";
+import type { World } from "@phughesmcr/miski";
+import { DrawableKind, forEachDrawableEntity } from "@/src/ecs/drawables.ts";
+import type { DrawableEntity } from "@/src/ecs/drawables.ts";
 import { directionDelta } from "@/src/grid/direction.ts";
 import type { MapRenderMetrics } from "@/src/render/map.ts";
 
 type Point = { readonly x: number; readonly y: number };
 type Triangle = readonly [Point, Point, Point];
-
-type DrawableRenderArgs = {
-  readonly ctx: CanvasRenderingContext2D;
-  readonly world: World;
-  readonly entity: Entity;
-  readonly x: number;
-  readonly y: number;
-  readonly metrics: MapRenderMetrics;
-};
-type DrawableRenderer = (args: DrawableRenderArgs) => void;
 
 const ACTOR_STROKE_COLOR = "#101217";
 const PLAYER_COLOR = "#f0c84b";
@@ -27,39 +17,35 @@ const KEY_COLOR = "#f4d35e";
 const PLAYER_RADIUS_RATIO = 0.34;
 const PLAYER_BASE_WIDTH_RATIO = 0.75;
 const NPC_RADIUS_RATIO = 0.28;
-const DRAWABLE_RENDERERS: Readonly<Record<DrawableKind, DrawableRenderer>> = {
-  [DrawableKind.Player]: ({ ctx, world, entity, x, y, metrics }) => {
-    if (!world.components.entityHas(Facing, entity)) return;
-    const { dir } = world.components.getEntityData(Facing, entity);
-    renderPlayer(ctx, x, y, dir, metrics);
-  },
-  [DrawableKind.Npc]: ({ ctx, world, entity, x, y, metrics }) => {
-    if (!world.components.entityHas(Facing, entity)) return;
-    const { dir } = world.components.getEntityData(Facing, entity);
-    renderActor(ctx, x, y, dir, NPC_COLOR, metrics);
-  },
-  [DrawableKind.Enemy]: ({ ctx, world, entity, x, y, metrics }) => {
-    if (!world.components.entityHas(Facing, entity)) return;
-    const { dir } = world.components.getEntityData(Facing, entity);
-    renderActor(ctx, x, y, dir, ENEMY_COLOR, metrics);
-  },
-  [DrawableKind.Door]: ({ ctx, world, entity, x, y, metrics }) => {
-    if (!world.components.entityHas(Door, entity)) return;
-    const door = world.components.getEntityData(Door, entity);
-    const locked = world.components.entityHas(Locked, entity);
-    renderDoor(ctx, x, y, door.open === 1, locked, metrics);
-  },
-  [DrawableKind.Key]: ({ ctx, x, y, metrics }) => renderKey(ctx, x, y, metrics),
-};
-
-const drawableRenderersByKind = DRAWABLE_RENDERERS as Readonly<Record<number, DrawableRenderer | undefined>>;
 
 export function renderDrawableEntities(ctx: CanvasRenderingContext2D, world: World, metrics: MapRenderMetrics): void {
-  forEachDrawableEntity(world, ({ entity, kind, x, y }) => {
-    const renderer = drawableRenderersByKind[kind];
-    if (renderer === undefined) return;
-    renderer({ ctx, world, entity, x, y, metrics });
+  forEachDrawableEntity(world, (drawable) => {
+    renderDrawableEntity(ctx, drawable, metrics);
   });
+}
+
+function renderDrawableEntity(
+  ctx: CanvasRenderingContext2D,
+  drawable: DrawableEntity,
+  metrics: MapRenderMetrics,
+): void {
+  switch (drawable.kind) {
+    case DrawableKind.Player:
+      renderPlayer(ctx, drawable.x, drawable.y, drawable.dir, metrics);
+      return;
+    case DrawableKind.Npc:
+      renderActor(ctx, drawable.x, drawable.y, drawable.dir, NPC_COLOR, metrics);
+      return;
+    case DrawableKind.Enemy:
+      renderActor(ctx, drawable.x, drawable.y, drawable.dir, ENEMY_COLOR, metrics);
+      return;
+    case DrawableKind.Door:
+      renderDoor(ctx, drawable.x, drawable.y, drawable.open, drawable.locked, metrics);
+      return;
+    case DrawableKind.Key:
+      renderKey(ctx, drawable.x, drawable.y, metrics);
+      return;
+  }
 }
 
 function renderKey(ctx: CanvasRenderingContext2D, x: number, y: number, metrics: MapRenderMetrics): void {

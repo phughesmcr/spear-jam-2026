@@ -19,6 +19,11 @@ export type FloorTile = {
 
 export type TerrainTile = WallTile | FloorTile;
 
+export const DEFAULT_TERRAIN_PALETTE: readonly TerrainTile[] = [
+  { id: 0, color: "#000000", ceiling_texture: "ceiling", floor_texture: "floor" },
+  { id: 1, color: "#FFFFFF", wall_texture: "wall", blocking: true },
+];
+
 export const LockId = {
   Door1: 1,
 } as const;
@@ -79,12 +84,12 @@ export type MapEntityDef = PlayerDef | NpcDef | EnemyDef | DoorDef | KeyDef;
 export type EntityDef = MapEntityDef | ExitDef;
 
 export type GameMap = {
-  name: string;
-  terrain: {
-    palette: TerrainTile[];
-    tiles: number[][];
+  readonly name: string;
+  readonly terrain: {
+    readonly palette: readonly TerrainTile[];
+    readonly tiles: readonly (readonly number[])[];
   };
-  entities: EntityDef[];
+  readonly entities: readonly EntityDef[];
 };
 
 export type MapDimensions = {
@@ -103,4 +108,19 @@ export function terrainAt(map: GameMap, x: number, y: number): TerrainTile | und
   const tile = map.terrain.tiles[y]?.[x];
   if (tile === undefined) return undefined;
   return map.terrain.palette.find((entry) => entry.id === tile);
+}
+
+export function createGameMap(
+  name: string,
+  tiles: readonly (readonly number[])[],
+  entities: readonly EntityDef[],
+): GameMap {
+  return {
+    name,
+    terrain: {
+      palette: DEFAULT_TERRAIN_PALETTE,
+      tiles,
+    },
+    entities,
+  };
 }

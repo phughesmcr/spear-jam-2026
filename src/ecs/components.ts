@@ -116,11 +116,17 @@ export const AttackTargetMode = {
 } as const;
 export type AttackTargetMode = (typeof AttackTargetMode)[keyof typeof AttackTargetMode];
 
+export const AttackFacingRequirement = {
+  None: 0,
+  Required: 1,
+} as const;
+export type AttackFacingRequirement = (typeof AttackFacingRequirement)[keyof typeof AttackFacingRequirement];
+
 export type AttackSchema = {
   minDamage: number;
   maxDamage: number;
   range: number;
-  requiresFacing: number;
+  requiresFacing: AttackFacingRequirement;
   attackBonus: number;
   critThreshold: number;
   critMultiplier: number;

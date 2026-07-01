@@ -1,4 +1,4 @@
-import { createGameSession } from "@/src/ecs/session.ts";
+import { createGameSession } from "@/src/ecs/session_factory.ts";
 import type { GameSession } from "@/src/ecs/session.ts";
 import { isPlayerCommand } from "@/src/game/commands.ts";
 import type { GameCommand } from "@/src/game/commands.ts";

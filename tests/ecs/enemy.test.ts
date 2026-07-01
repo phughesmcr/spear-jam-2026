@@ -2,6 +2,7 @@ import type { Entity, World } from "@phughesmcr/miski";
 import { Enemy, Facing, GridPos, TurnTaker } from "@/src/ecs/components.ts";
 import { enemyTurnSystem } from "@/src/ecs/enemy.ts";
 import { Player } from "@/src/ecs/player.ts";
+import type { SpatialLookup } from "@/src/ecs/spatial.ts";
 import { createWorld } from "@/src/ecs/world.ts";
 
 Deno.test("enemyTurnSystem moves enemies without an attack component", async () => {
@@ -22,8 +23,7 @@ Deno.test("enemyTurnSystem moves enemies without an attack component", async () 
   runEnemyTurn({
     world,
     player: new Player(world, playerEntity),
-    tileBlocks: () => false,
-    blockingEntityAt: () => undefined,
+    spatial: openSpatial(),
     random: () => 0,
   });
 
@@ -35,6 +35,14 @@ function createEntity(world: World): Entity {
   const entity = world.entities.create();
   if (entity === undefined) throw new Error("Failed to create test entity");
   return entity;
+}
+
+function openSpatial(): SpatialLookup {
+  return {
+    tileBlocks: () => false,
+    blockingEntityAt: () => undefined,
+    positionBlocks: () => false,
+  };
 }
 
 function assertEquals<T>(actual: T, expected: T): void {

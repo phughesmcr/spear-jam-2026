@@ -1,31 +1,16 @@
-import type { Entity, Query, World } from "@phughesmcr/miski";
-import { dialogueTreeText } from "@/src/dialogue/dialogue.ts";
-import {
-  Blocking,
-  Dialogue,
-  DisplayNameComponent,
-  Door,
-  GridPos,
-  Interactable,
-  Key,
-  Locked,
-  Npc,
-} from "@/src/ecs/components.ts";
+import type { World } from "@phughesmcr/miski";
 import { directionDelta } from "@/src/grid/direction.ts";
 import type { GridDelta } from "@/src/grid/direction.ts";
 import { attackWithSelectedWeapon, DEFAULT_SELECTED_WEAPON, weaponLabel } from "@/src/ecs/combat.ts";
 import { enemyTurnSystem } from "@/src/ecs/enemy.ts";
 import type { EnemyTurnSystem } from "@/src/ecs/enemy.ts";
+import { collectKeyAt, interactWithEntity } from "@/src/ecs/interactions.ts";
 import { Player } from "@/src/ecs/player.ts";
-import { blockingQuery, keyQuery, positionedQuery } from "@/src/ecs/queries.ts";
+import { SpatialQueries } from "@/src/ecs/spatial.ts";
 import { relativeMoveDirectionOffset, turnDirectionDelta } from "@/src/game/commands.ts";
 import type { PlayerCommand, PlayerCommandResult } from "@/src/game/commands.ts";
 import type { CommandSlot, PlayerState } from "@/src/game/state.ts";
-import { terrainAt } from "@/src/map/map.ts";
 import type { ExitDef, GameMap } from "@/src/map/map.ts";
-import { createMapEntity } from "@/src/ecs/prefabs.ts";
-import { createWorld } from "@/src/ecs/world.ts";
-import { displayNameText } from "@/src/ecs/names.ts";
 
 const UNCHANGED_PLAYER_COMMAND: PlayerCommandResult = {
   changedWorld: false,
@@ -34,7 +19,7 @@ const UNCHANGED_PLAYER_COMMAND: PlayerCommandResult = {
 type MoveResult =
   | { readonly moved: false }
   | { readonly moved: true; readonly exit?: ExitDef };
-type RandomSource = () => number;
+export type RandomSource = () => number;
 
 export class GameSession implements Disposable {
   readonly world: World;
@@ -43,6 +28,7 @@ export class GameSession implements Disposable {
   private readonly heldKeys: Set<number>;
   private readonly random: RandomSource;
   private readonly enemyTurnSystem: EnemyTurnSystem;
+  private readonly spatial: SpatialQueries;
   private selectedWeapon: CommandSlot;
   private disposed = false;
 
@@ -59,6 +45,7 @@ export class GameSession implements Disposable {
     this.heldKeys = new Set(playerState?.heldKeys ?? []);
     this.random = random;
     this.enemyTurnSystem = world.systems.create(enemyTurnSystem);
+    this.spatial = new SpatialQueries(world, map);
     this.selectedWeapon = playerState?.selectedWeapon ?? DEFAULT_SELECTED_WEAPON;
   }
 
@@ -106,13 +93,13 @@ export class GameSession implements Disposable {
     const current = this.player.getPosition();
     const next = { x: current.x + delta.dx, y: current.y + delta.dy };
 
-    if (this.positionBlocks(next.x, next.y)) return { moved: false };
+    if (this.spatial.positionBlocks(next.x, next.y)) return { moved: false };
 
     this.player.setPosition(next);
-    this.collectKeyAt(next.x, next.y);
+    collectKeyAt(this.world, this.spatial, this.heldKeys, next.x, next.y);
     return {
       moved: true,
-      exit: this.exitAt(next.x, next.y),
+      exit: this.spatial.exitAt(next.x, next.y),
     };
   }
 
@@ -126,53 +113,18 @@ export class GameSession implements Disposable {
   }
 
   private handlePlayerInteractCommand(): PlayerCommandResult {
-    const target = this.facedEntity();
-    if (target === undefined || !this.world.components.entityHas(Interactable, target)) {
-      return UNCHANGED_PLAYER_COMMAND;
-    }
-
-    if (this.world.components.entityHas(Door, target)) {
-      return this.handleDoorInteractCommand(target);
-    } else if (this.world.components.entityHas(Npc, target)) {
-      const { displayName } = this.world.components.getEntityData(DisplayNameComponent, target);
-      const displayNameLabel = displayNameText(displayName);
-      const dialogueText = this.dialogueTextFor(target) ?? `${displayNameLabel} stayed silent.`;
-      return {
-        changedWorld: false,
-        dialogue: {
-          title: displayNameLabel,
-          message: `${dialogueText} Space to continue.`,
-        },
-      };
-    }
-
-    return this.consumePlayerTurn();
-  }
-
-  private dialogueTextFor(entity: Entity): string | undefined {
-    if (!this.world.components.entityHas(Dialogue, entity)) return undefined;
-
-    const { dialogueTreeId } = this.world.components.getEntityData(Dialogue, entity);
-    return dialogueTreeText(dialogueTreeId);
-  }
-
-  private handleDoorInteractCommand(door: Entity): PlayerCommandResult {
-    const state = this.world.components.getEntityData(Door, door);
-    if (state.open === 1) return UNCHANGED_PLAYER_COMMAND;
-
-    if (this.world.components.entityHas(Locked, door)) {
-      const lock = this.world.components.getEntityData(Locked, door);
-      if (!this.heldKeys.has(lock.lockId)) {
-        console.log("The door is locked.");
+    const interaction = interactWithEntity(this.world, this.spatial.facedEntity(this.player), this.heldKeys);
+    switch (interaction.type) {
+      case "unchanged":
         return UNCHANGED_PLAYER_COMMAND;
-      }
-      this.world.components.removeFromEntity(Locked, door);
+      case "consumeTurn":
+        return this.consumePlayerTurn();
+      case "dialogue":
+        return {
+          changedWorld: false,
+          dialogue: interaction.dialogue,
+        };
     }
-
-    this.world.components.setEntityData(Door, door, { open: 1 });
-    this.world.components.removeFromEntity(Blocking, door);
-    console.log("Opened the door.");
-    return this.consumePlayerTurn();
   }
 
   private handlePlayerAttackCommand(): PlayerCommandResult {
@@ -180,8 +132,7 @@ export class GameSession implements Disposable {
       this.world,
       this.player,
       this.selectedWeapon,
-      (x, y) => this.tileBlocks(x, y),
-      (x, y) => this.blockingEntityAt(x, y),
+      this.spatial,
       this.random,
     );
     return this.consumePlayerTurn();
@@ -197,8 +148,7 @@ export class GameSession implements Disposable {
     this.enemyTurnSystem({
       world: this.world,
       player: this.player,
-      tileBlocks: (x, y) => this.tileBlocks(x, y),
-      blockingEntityAt: (x, y) => this.blockingEntityAt(x, y),
+      spatial: this.spatial,
       random: this.random,
     });
     this.world.refresh();
@@ -207,90 +157,9 @@ export class GameSession implements Disposable {
     };
   }
 
-  tileBlocks(x: number, y: number): boolean {
-    const terrain = terrainAt(this.map, x, y);
-    return terrain ? terrain.blocking === true : true;
-  }
-
-  private positionBlocks(x: number, y: number): boolean {
-    return this.tileBlocks(x, y) || this.blockingEntityAt(x, y) !== undefined;
-  }
-
-  private collectKeyAt(x: number, y: number): void {
-    const key = this.keyAt(x, y);
-    if (key === undefined) return;
-
-    const { lockId } = this.world.components.getEntityData(Key, key);
-    this.heldKeys.add(lockId);
-    this.world.entities.destroy(key);
-    console.log("Picked up a key.");
-  }
-
-  private keyAt(x: number, y: number): Entity | undefined {
-    return this.entityAt(keyQuery, x, y);
-  }
-
-  private exitAt(x: number, y: number): ExitDef | undefined {
-    for (const entity of this.map.entities) {
-      if (entity.prefab === "exit" && entity.x === x && entity.y === y) return entity;
-    }
-    return undefined;
-  }
-
-  private facedEntity(): Entity | undefined {
-    const current = this.player.getPosition();
-    const { dir } = this.player.getFacing();
-    const delta = directionDelta(dir);
-    return this.entityAt(positionedQuery, current.x + delta.dx, current.y + delta.dy);
-  }
-
-  private blockingEntityAt(x: number, y: number): Entity | undefined {
-    return this.entityAt(blockingQuery, x, y);
-  }
-
-  private entityAt(query: Query, x: number, y: number): Entity | undefined {
-    for (const entity of this.world.entities.query(query)) {
-      if (!this.world.entities.isActive(entity)) continue;
-      const position = this.world.components.getEntityData(GridPos, entity);
-      if (position.x === x && position.y === y) return entity;
-    }
-    return undefined;
-  }
-
   [Symbol.dispose](): void {
     if (this.disposed) return;
     this.disposed = true;
     void this.world.destroy();
-  }
-}
-
-export async function createGameSession(
-  map: GameMap,
-  random: RandomSource,
-  playerState?: PlayerState,
-): Promise<GameSession> {
-  const world = await createWorld();
-
-  try {
-    let playerEntity: Entity | undefined;
-
-    for (const entityDef of map.entities) {
-      if (entityDef.prefab === "exit") continue;
-
-      const entity = createMapEntity(world, entityDef);
-      if (entityDef.prefab === "player") {
-        playerEntity = entity;
-      }
-    }
-
-    if (playerEntity === undefined) throw new Error("Map is missing a player spawn.");
-
-    const player = new Player(world, playerEntity);
-    world.refresh();
-
-    return new GameSession(world, player, map, random, playerState);
-  } catch (error) {
-    await world.destroy();
-    throw error;
   }
 }

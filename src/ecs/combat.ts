@@ -1,6 +1,7 @@
 import type { Entity, World } from "@phughesmcr/miski";
 import {
   Attack,
+  AttackFacingRequirement,
   AttackPattern,
   AttackTargetMode,
   DisplayNameComponent,
@@ -11,6 +12,7 @@ import {
 } from "@/src/ecs/components.ts";
 import type { AttackSchema } from "@/src/ecs/components.ts";
 import type { Player } from "@/src/ecs/player.ts";
+import type { SpatialLookup } from "@/src/ecs/spatial.ts";
 import { directionDelta } from "@/src/grid/direction.ts";
 import type { CardinalDirection } from "@/src/grid/direction.ts";
 import type { CommandSlot } from "@/src/game/state.ts";
@@ -20,8 +22,6 @@ type WeaponSpec = AttackSchema & {
   readonly label: string;
 };
 
-type TileBlocks = (x: number, y: number) => boolean;
-type BlockingEntityAt = (x: number, y: number) => Entity | undefined;
 type EntityPredicate = (entity: Entity) => boolean;
 type RandomSource = () => number;
 
@@ -46,7 +46,7 @@ const PLAYER_WEAPONS: Readonly<Record<CommandSlot, WeaponSpec>> = {
     minDamage: 1,
     maxDamage: 2,
     range: 1,
-    requiresFacing: 1,
+    requiresFacing: AttackFacingRequirement.Required,
     attackBonus: 4,
     critThreshold: 20,
     critMultiplier: 2,
@@ -58,7 +58,7 @@ const PLAYER_WEAPONS: Readonly<Record<CommandSlot, WeaponSpec>> = {
     minDamage: 2,
     maxDamage: 3,
     range: 2,
-    requiresFacing: 1,
+    requiresFacing: AttackFacingRequirement.Required,
     attackBonus: 2,
     critThreshold: 20,
     critMultiplier: 2,
@@ -70,7 +70,7 @@ const PLAYER_WEAPONS: Readonly<Record<CommandSlot, WeaponSpec>> = {
     minDamage: 2,
     maxDamage: 4,
     range: 6,
-    requiresFacing: 1,
+    requiresFacing: AttackFacingRequirement.Required,
     attackBonus: 1,
     critThreshold: 20,
     critMultiplier: 2,
@@ -87,8 +87,7 @@ export function attackWithSelectedWeapon(
   world: World,
   player: Player,
   selectedWeapon: CommandSlot,
-  tileBlocks: TileBlocks,
-  blockingEntityAt: BlockingEntityAt,
+  spatial: SpatialLookup,
   random: RandomSource,
 ): void {
   const weapon = PLAYER_WEAPONS[selectedWeapon];
@@ -96,8 +95,7 @@ export function attackWithSelectedWeapon(
     world,
     player.getEntity(),
     weapon,
-    tileBlocks,
-    blockingEntityAt,
+    spatial,
     (entity) => world.components.entityHas(Enemy, entity),
   );
 
@@ -174,17 +172,16 @@ export function attackTargets(
   world: World,
   attacker: Entity,
   attack: AttackSchema,
-  tileBlocks: TileBlocks,
-  blockingEntityAt: BlockingEntityAt,
+  spatial: SpatialLookup,
   isTarget: EntityPredicate,
 ): readonly Entity[] {
   if (!world.components.entityHas(GridPos, attacker)) return [];
 
   switch (attack.pattern) {
     case AttackPattern.Line:
-      return lineAttackTargets(world, attacker, attack, tileBlocks, blockingEntityAt, isTarget);
+      return lineAttackTargets(world, attacker, attack, spatial, isTarget);
     case AttackPattern.Adjacent:
-      return adjacentAttackTargets(world, attacker, attack, tileBlocks, blockingEntityAt, isTarget);
+      return adjacentAttackTargets(world, attacker, attack, spatial, isTarget);
   }
 }
 
@@ -192,8 +189,7 @@ function lineAttackTargets(
   world: World,
   attacker: Entity,
   attack: AttackSchema,
-  tileBlocks: TileBlocks,
-  blockingEntityAt: BlockingEntityAt,
+  spatial: SpatialLookup,
   isTarget: EntityPredicate,
 ): readonly Entity[] {
   if (!world.components.entityHas(Facing, attacker)) return [];
@@ -206,9 +202,9 @@ function lineAttackTargets(
   for (let distance = 1; distance <= attack.range; distance++) {
     const x = position.x + delta.dx * distance;
     const y = position.y + delta.dy * distance;
-    if (tileBlocks(x, y)) break;
+    if (spatial.tileBlocks(x, y)) break;
 
-    const entity = blockingEntityAt(x, y);
+    const entity = spatial.blockingEntityAt(x, y);
     if (entity === undefined || entity === attacker) continue;
 
     if (isTarget(entity)) {
@@ -227,8 +223,7 @@ function adjacentAttackTargets(
   world: World,
   attacker: Entity,
   attack: AttackSchema,
-  tileBlocks: TileBlocks,
-  blockingEntityAt: BlockingEntityAt,
+  spatial: SpatialLookup,
   isTarget: EntityPredicate,
 ): readonly Entity[] {
   const targets: Entity[] = [];
@@ -239,9 +234,9 @@ function adjacentAttackTargets(
     for (let distance = 1; distance <= attack.range; distance++) {
       const x = position.x + delta.dx * distance;
       const y = position.y + delta.dy * distance;
-      if (tileBlocks(x, y)) break;
+      if (spatial.tileBlocks(x, y)) break;
 
-      const entity = blockingEntityAt(x, y);
+      const entity = spatial.blockingEntityAt(x, y);
       if (entity === undefined || entity === attacker) continue;
       if (!isTarget(entity)) break;
 
@@ -270,9 +265,40 @@ function randomInt(min: number, max: number, random: RandomSource): number {
 function toAttackSchema(attack: Record<keyof AttackSchema, number>): AttackSchema {
   return {
     ...attack,
-    pattern: attack.pattern as AttackSchema["pattern"],
-    targets: attack.targets as AttackSchema["targets"],
+    requiresFacing: toAttackFacingRequirement(attack.requiresFacing),
+    pattern: toAttackPattern(attack.pattern),
+    targets: toAttackTargetMode(attack.targets),
   };
+}
+
+function toAttackFacingRequirement(value: number): AttackFacingRequirement {
+  switch (value) {
+    case AttackFacingRequirement.None:
+    case AttackFacingRequirement.Required:
+      return value;
+    default:
+      throw new Error(`Unknown attack facing requirement: ${value}`);
+  }
+}
+
+function toAttackPattern(value: number): AttackPattern {
+  switch (value) {
+    case AttackPattern.Line:
+    case AttackPattern.Adjacent:
+      return value;
+    default:
+      throw new Error(`Unknown attack pattern: ${value}`);
+  }
+}
+
+function toAttackTargetMode(value: number): AttackTargetMode {
+  switch (value) {
+    case AttackTargetMode.First:
+    case AttackTargetMode.All:
+      return value;
+    default:
+      throw new Error(`Unknown attack target mode: ${value}`);
+  }
 }
 
 function entityName(world: World, playerEntity: Entity, entity: Entity): string {
