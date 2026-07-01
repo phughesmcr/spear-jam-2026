@@ -55,6 +55,25 @@ Deno.test("SpatialIndex keeps its index current when entities move or are remove
   assertEquals(spatial.keyAt(2, 1), undefined);
 });
 
+Deno.test("SpatialIndex movement is the single writer for occupancy", async () => {
+  const world = await createWorld();
+  const actor = createEntity(world);
+
+  world.components.addToEntity(GridPos, actor, { x: 1, y: 1 });
+  world.components.addToEntity(Blocking, actor);
+  world.refresh();
+
+  const spatial = new SpatialIndex(world, flatTestMap(4, 2));
+
+  world.components.setEntityData(GridPos, actor, { x: 2, y: 1 });
+  spatial.moveEntity(actor, { x: 3, y: 1 });
+
+  assertEquals(spatial.blockingEntityAt(1, 1), undefined);
+  assertEquals(spatial.blockingEntityAt(2, 1), undefined);
+  assertEquals(spatial.blockingEntityAt(3, 1), actor);
+  assertEquals(world.components.getEntityData(GridPos, actor), { x: 3, y: 1 });
+});
+
 Deno.test("SpatialIndex updates blocking ownership through the gateway", async () => {
   const world = await createWorld();
   const door = createEntity(world);
@@ -74,4 +93,4 @@ Deno.test("SpatialIndex updates blocking ownership through the gateway", async (
   assertEquals(spatial.blockingEntityAt(2, 1), door);
 });
 
-const TEST_MAP = flatTestMap(5, 1, [{ prefab: "exit", x: 4, y: 1, goto: "next" }]);
+const TEST_MAP = flatTestMap(5, 2, [{ prefab: "exit", x: 4, y: 1, goto: "next" }]);
