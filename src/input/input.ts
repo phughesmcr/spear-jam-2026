@@ -15,12 +15,9 @@ const COMMANDS_BY_KEY = {
   Period: { type: "attack" },
   Escape: { type: "menu" },
   KeyP: { type: "pause" },
-  Digit1: { type: "selectItem", slot: 1 },
-  Digit2: { type: "selectItem", slot: 2 },
-  Digit3: { type: "selectItem", slot: 3 },
-  Digit4: { type: "selectWeapon", slot: 1 },
-  Digit5: { type: "selectWeapon", slot: 2 },
-  Digit6: { type: "selectWeapon", slot: 3 },
+  Digit1: { type: "selectWeapon", slot: 1 },
+  Digit2: { type: "selectWeapon", slot: 2 },
+  Digit3: { type: "selectWeapon", slot: 3 },
 } satisfies Readonly<Record<string, GameCommand>>;
 
 export function setupKeyboard(window: Window, receiver: GameCommandReceiver): Disposable {

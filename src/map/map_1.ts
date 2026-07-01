@@ -23,8 +23,10 @@ export const MAP_1: GameMap = createGameMap(
     { prefab: "player", x: 5, y: 5, dir: 1 },
     { prefab: "npc", x: 4, y: 5, dir: 1, displayName: DisplayName.John, dialogueTreeId: DialogueTreeId.JohnIntro },
     { prefab: "enemy", x: 2, y: 5, dir: 3, displayName: DisplayName.Imp },
+    { prefab: "weaponPickup", x: 6, y: 5, slot: 2 },
     { prefab: "door", x: 7, y: 3, locked: true, color: KeyColor.Red },
     { prefab: "key", x: 8, y: 9, color: KeyColor.Red },
-    { prefab: "exit", x: 8, y: 1, goto: "Map 2" },
+    { prefab: "uplinkCode", x: 1, y: 9 },
+    { prefab: "uplinkTerminal", x: 8, y: 1, goto: "Map 2" },
   ],
 );

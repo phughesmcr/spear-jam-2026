@@ -97,6 +97,26 @@ export type KeyDef = {
   color: KeyColor;
 };
 
+export type UplinkCodeDef = {
+  prefab: "uplinkCode";
+  x: number;
+  y: number;
+};
+
+export type UplinkTerminalDef = {
+  prefab: "uplinkTerminal";
+  x: number;
+  y: number;
+  goto: string;
+};
+
+export type WeaponPickupDef = {
+  prefab: "weaponPickup";
+  x: number;
+  y: number;
+  slot: 2 | 3;
+};
+
 export type ExitDef = {
   prefab: "exit";
   x: number;
@@ -104,7 +124,15 @@ export type ExitDef = {
   goto: string;
 };
 
-export type MapEntityDef = PlayerDef | NpcDef | EnemyDef | DoorDef | KeyDef;
+export type MapEntityDef =
+  | PlayerDef
+  | NpcDef
+  | EnemyDef
+  | DoorDef
+  | KeyDef
+  | UplinkCodeDef
+  | UplinkTerminalDef
+  | WeaponPickupDef;
 
 export type EntityDef = MapEntityDef | ExitDef;
 

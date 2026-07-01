@@ -15,6 +15,11 @@ const NPC_COLOR = "#59d39b";
 const ENEMY_COLOR = "#df4f45";
 const DOOR_COLOR = "#9a6a3a";
 const LOCKED_DOOR_COLOR = "#b14b4b";
+const UPLINK_CODE_COLOR = "#7dd3fc";
+const UPLINK_TERMINAL_COLOR = "#22c55e";
+const UPLINK_TERMINAL_SCREEN = "#0f172a";
+const WEAPON_PICKUP_COLOR = "#c084fc";
+const WEAPON_PICKUP_TEXT = "#101217";
 const KEY_COLORS: Record<KeyColorType, string> = {
   [KeyColor.Red]: "#df4f45",
   [KeyColor.Blue]: "#4f8df7",
@@ -50,6 +55,15 @@ function renderDrawableEntity(
       return;
     case DrawableKind.Key:
       renderKey(ctx, drawable.x, drawable.y, drawable.color, metrics);
+      return;
+    case DrawableKind.UplinkCode:
+      renderUplinkCode(ctx, drawable.x, drawable.y, metrics);
+      return;
+    case DrawableKind.UplinkTerminal:
+      renderUplinkTerminal(ctx, drawable.x, drawable.y, metrics);
+      return;
+    case DrawableKind.WeaponPickup:
+      renderWeaponPickup(ctx, drawable.x, drawable.y, drawable.slot, metrics);
       return;
   }
 }
@@ -95,6 +109,83 @@ function renderDoor(
   if (locked) fillColor = color === undefined ? LOCKED_DOOR_COLOR : KEY_COLORS[color];
   ctx.fillStyle = fillColor;
   ctx.fillRect(tileX + inset, tileY + inset, width, height);
+}
+
+function renderUplinkCode(
+  ctx: CanvasRenderingContext2D,
+  x: number,
+  y: number,
+  metrics: MapRenderMetrics,
+): void {
+  const { offsetX, offsetY, tileSize } = metrics;
+  const centerX = offsetX + x * tileSize + tileSize / 2;
+  const centerY = offsetY + y * tileSize + tileSize / 2;
+  const width = tileSize * 0.46;
+  const height = tileSize * 0.28;
+  const notch = Math.max(2, tileSize * 0.08);
+
+  ctx.fillStyle = UPLINK_CODE_COLOR;
+  ctx.fillRect(centerX - width / 2, centerY - height / 2, width, height);
+  ctx.fillStyle = ACTOR_STROKE_COLOR;
+  ctx.fillRect(centerX + width / 2 - notch, centerY - height / 4, notch, height / 2);
+}
+
+function renderUplinkTerminal(
+  ctx: CanvasRenderingContext2D,
+  x: number,
+  y: number,
+  metrics: MapRenderMetrics,
+): void {
+  const { offsetX, offsetY, tileSize } = metrics;
+  const tileX = offsetX + x * tileSize;
+  const tileY = offsetY + y * tileSize;
+  const inset = Math.max(3, tileSize * 0.16);
+  const width = tileSize - inset * 2;
+  const height = tileSize - inset * 2;
+  const screenInset = Math.max(2, tileSize * 0.1);
+
+  ctx.fillStyle = UPLINK_TERMINAL_COLOR;
+  ctx.fillRect(tileX + inset, tileY + inset, width, height);
+  ctx.fillStyle = UPLINK_TERMINAL_SCREEN;
+  ctx.fillRect(
+    tileX + inset + screenInset,
+    tileY + inset + screenInset,
+    width - screenInset * 2,
+    height * 0.42,
+  );
+  ctx.strokeStyle = UPLINK_TERMINAL_SCREEN;
+  ctx.beginPath();
+  ctx.moveTo(tileX + tileSize / 2, tileY + inset);
+  ctx.lineTo(tileX + tileSize / 2, tileY + inset / 2);
+  ctx.moveTo(tileX + tileSize / 2, tileY + inset / 2);
+  ctx.lineTo(tileX + tileSize / 2 - inset, tileY);
+  ctx.moveTo(tileX + tileSize / 2, tileY + inset / 2);
+  ctx.lineTo(tileX + tileSize / 2 + inset, tileY);
+  ctx.stroke();
+}
+
+function renderWeaponPickup(
+  ctx: CanvasRenderingContext2D,
+  x: number,
+  y: number,
+  slot: number,
+  metrics: MapRenderMetrics,
+): void {
+  const { offsetX, offsetY, tileSize } = metrics;
+  const centerX = offsetX + x * tileSize + tileSize / 2;
+  const centerY = offsetY + y * tileSize + tileSize / 2;
+  const radius = tileSize * 0.22;
+
+  ctx.fillStyle = WEAPON_PICKUP_COLOR;
+  ctx.beginPath();
+  ctx.arc(centerX, centerY, radius, 0, Math.PI * 2);
+  ctx.fill();
+
+  ctx.fillStyle = WEAPON_PICKUP_TEXT;
+  ctx.font = `700 ${Math.max(8, Math.floor(tileSize * 0.32))}px ui-monospace, SFMono-Regular, Menlo, monospace`;
+  ctx.textAlign = "center";
+  ctx.textBaseline = "middle";
+  ctx.fillText(String(slot), centerX, centerY + 0.5);
 }
 
 function renderActor(

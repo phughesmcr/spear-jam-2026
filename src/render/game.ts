@@ -2,6 +2,7 @@ import type { GameSession } from "@/src/ecs/session.ts";
 import type { GameMode } from "@/src/game/state.ts";
 import type { GameCanvasSize } from "@/src/render/canvas.ts";
 import { renderDrawableEntities } from "@/src/render/drawables.ts";
+import { renderHud } from "@/src/render/hud.ts";
 import { renderExits, renderMap } from "@/src/render/map.ts";
 import { renderMessageLog } from "@/src/render/messages.ts";
 import { renderOverlay } from "@/src/render/overlay.ts";
@@ -22,6 +23,7 @@ export function renderGameFrame(
     const metrics = renderMap(ctx, canvasSize, map);
     renderExits(ctx, map, metrics);
     renderDrawableEntities(ctx, session.world, metrics);
+    renderHud(ctx, canvasSize, session);
   }
   renderMessageLog(ctx, canvasSize, messages);
   switch (mode.type) {

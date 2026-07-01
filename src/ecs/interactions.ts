@@ -1,17 +1,29 @@
 import type { Entity, World } from "@phughesmcr/miski";
 import { dialogueTreeText } from "@/src/dialogue/dialogue.ts";
-import { Dialogue, DisplayNameComponent, Door, Interactable, Key, Locked, Npc } from "@/src/ecs/components.ts";
+import {
+  Dialogue,
+  DisplayNameComponent,
+  Door,
+  Interactable,
+  Key,
+  Locked,
+  Npc,
+  UplinkTerminal,
+  WeaponPickup,
+} from "@/src/ecs/components.ts";
+import { weaponLabel } from "@/src/ecs/combat.ts";
 import { displayNameText } from "@/src/game/names.ts";
 import type { SpatialIndex } from "@/src/ecs/spatial.ts";
 import type { GameEvent } from "@/src/game/events.ts";
-import type { DialogueState } from "@/src/game/state.ts";
+import type { CommandSlot, DialogueState } from "@/src/game/state.ts";
 import { keyColorForCode } from "@/src/map/map.ts";
 import type { KeyColor } from "@/src/map/map.ts";
 
 export type PlayerInteractionResult =
   | { readonly type: "unchanged"; readonly events: readonly GameEvent[] }
   | { readonly type: "consumeTurn"; readonly events: readonly GameEvent[] }
-  | { readonly type: "dialogue"; readonly dialogue: DialogueState; readonly events: readonly GameEvent[] };
+  | { readonly type: "dialogue"; readonly dialogue: DialogueState; readonly events: readonly GameEvent[] }
+  | { readonly type: "uplinkTerminal"; readonly terminal: Entity; readonly events: readonly GameEvent[] };
 
 const UNCHANGED_INTERACTION: PlayerInteractionResult = Object.freeze({ type: "unchanged", events: [] });
 
@@ -34,11 +46,63 @@ export function collectKeyAt(
   }];
 }
 
+export type UplinkCodePickupResult = {
+  readonly collected: boolean;
+  readonly events: readonly GameEvent[];
+};
+
+export function collectUplinkCodeAt(
+  spatial: SpatialIndex,
+  x: number,
+  y: number,
+): UplinkCodePickupResult {
+  const code = spatial.uplinkCodeAt(x, y);
+  if (code === undefined) return { collected: false, events: [] };
+
+  spatial.removeEntity(code);
+  return {
+    collected: true,
+    events: [{
+      type: "uplinkCodePickedUp",
+      entity: code,
+    }],
+  };
+}
+
+export type WeaponPickupResult = {
+  readonly slot?: CommandSlot;
+  readonly events: readonly GameEvent[];
+};
+
+export function collectWeaponPickupAt(
+  world: World,
+  spatial: SpatialIndex,
+  x: number,
+  y: number,
+): WeaponPickupResult {
+  const weapon = spatial.weaponPickupAt(x, y);
+  if (weapon === undefined) return { events: [] };
+
+  const { slot } = world.components.getEntityData(WeaponPickup, weapon);
+  const commandSlot = commandSlotForCode(slot);
+  spatial.removeEntity(weapon);
+  return {
+    slot: commandSlot,
+    events: [{
+      type: "weaponPickedUp",
+      entity: weapon,
+      slot: commandSlot,
+      label: weaponLabel(commandSlot),
+    }],
+  };
+}
+
 export function interactWithEntity(
   world: World,
   spatial: SpatialIndex,
   target: Entity | undefined,
   heldKeys: Set<KeyColor>,
+  hasUplinkCode: boolean,
 ): PlayerInteractionResult {
   if (target === undefined || !world.components.entityHas(Interactable, target)) {
     return UNCHANGED_INTERACTION;
@@ -52,7 +116,22 @@ export function interactWithEntity(
     return interactWithNpc(world, target);
   }
 
+  if (world.components.entityHas(UplinkTerminal, target)) {
+    return interactWithUplinkTerminal(target, hasUplinkCode);
+  }
+
   return { type: "consumeTurn", events: [] };
+}
+
+function commandSlotForCode(slot: number): CommandSlot {
+  switch (slot) {
+    case 1:
+    case 2:
+    case 3:
+      return slot;
+    default:
+      throw new Error(`Unknown weapon slot: ${slot}`);
+  }
 }
 
 function interactWithDoor(
@@ -101,6 +180,27 @@ function interactWithNpc(world: World, npc: Entity): PlayerInteractionResult {
       title: displayNameLabel,
       message: `${dialogueText} Space to continue.`,
     },
+  };
+}
+
+function interactWithUplinkTerminal(terminal: Entity, hasUplinkCode: boolean): PlayerInteractionResult {
+  if (!hasUplinkCode) {
+    return {
+      type: "unchanged",
+      events: [{
+        type: "uplinkTerminalLocked",
+        entity: terminal,
+      }],
+    };
+  }
+
+  return {
+    type: "uplinkTerminal",
+    terminal,
+    events: [{
+      type: "uplinkTerminalActivated",
+      entity: terminal,
+    }],
   };
 }
 

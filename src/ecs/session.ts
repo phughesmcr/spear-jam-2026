@@ -1,13 +1,19 @@
 import type { Entity, World } from "@phughesmcr/miski";
-import { Health } from "@/src/ecs/components.ts";
+import { GridPos, Health, UplinkTerminal } from "@/src/ecs/components.ts";
 import { directionDelta } from "@/src/grid/direction.ts";
 import type { GridDelta } from "@/src/grid/direction.ts";
 import { attackWithSelectedWeapon, DEFAULT_SELECTED_WEAPON, weaponLabel } from "@/src/ecs/combat.ts";
 import { enemyTurnSystem } from "@/src/ecs/enemy.ts";
 import type { EnemyTurnSystem } from "@/src/ecs/enemy.ts";
-import { collectKeyAt, interactWithEntity } from "@/src/ecs/interactions.ts";
+import {
+  collectKeyAt,
+  collectUplinkCodeAt,
+  collectWeaponPickupAt,
+  interactWithEntity,
+} from "@/src/ecs/interactions.ts";
 import { createMapEntity } from "@/src/ecs/prefabs.ts";
 import { Player } from "@/src/ecs/player.ts";
+import { positionedQuery } from "@/src/ecs/queries.ts";
 import { SpatialIndex } from "@/src/ecs/spatial.ts";
 import { createWorld } from "@/src/ecs/world.ts";
 import { relativeMoveDirectionOffset, turnDirectionDelta } from "@/src/game/commands.ts";
@@ -16,15 +22,16 @@ import type { GameEvent } from "@/src/game/events.ts";
 import type { RandomSource } from "@/src/game/rng.ts";
 import type { CommandSlot, PlayerState } from "@/src/game/state.ts";
 import { VICTORY_GOTO } from "@/src/map/map.ts";
-import type { ExitDef, GameMap, KeyColor } from "@/src/map/map.ts";
+import type { GameMap, KeyColor } from "@/src/map/map.ts";
 
 const UNCHANGED_PLAYER_COMMAND: PlayerCommandResult = Object.freeze({
   events: [],
 });
+const DEFAULT_UNLOCKED_WEAPONS: readonly CommandSlot[] = Object.freeze([DEFAULT_SELECTED_WEAPON]);
 
 type MoveResult =
   | { readonly moved: false }
-  | { readonly moved: true; readonly events: readonly GameEvent[]; readonly exit?: ExitDef };
+  | { readonly moved: true; readonly events: readonly GameEvent[] };
 
 export async function createGameSession(
   map: GameMap,
@@ -69,7 +76,10 @@ export class GameSession implements Disposable {
   private readonly random: RandomSource;
   private readonly enemyTurnSystem: EnemyTurnSystem;
   private readonly spatial: SpatialIndex;
+  private readonly terminalDestinations: ReadonlyMap<Entity, string>;
+  private readonly unlockedWeapons: Set<CommandSlot>;
   private selectedWeapon: CommandSlot;
+  private hasUplinkCode: boolean;
   private disposed = false;
 
   constructor(
@@ -86,14 +96,19 @@ export class GameSession implements Disposable {
     this.random = random;
     this.enemyTurnSystem = world.systems.create(enemyTurnSystem);
     this.spatial = new SpatialIndex(world, map);
-    this.selectedWeapon = playerState?.selectedWeapon ?? DEFAULT_SELECTED_WEAPON;
+    this.terminalDestinations = terminalDestinationsFor(world, map);
+    this.unlockedWeapons = unlockedWeaponsFor(playerState);
+    this.selectedWeapon = selectedWeaponFor(playerState?.selectedWeapon, this.unlockedWeapons);
+    this.hasUplinkCode = playerState?.hasUplinkCode ?? false;
   }
 
   getPlayerState(): PlayerState {
     return {
       heldKeys: [...this.heldKeys],
       selectedWeapon: this.selectedWeapon,
+      unlockedWeapons: sortedWeaponSlots(this.unlockedWeapons),
       health: this.getPlayerHealth(),
+      hasUplinkCode: this.hasUplinkCode,
     };
   }
 
@@ -120,17 +135,6 @@ export class GameSession implements Disposable {
   private handlePlayerMoveCommand(directionOffset: number): PlayerCommandResult {
     const move = this.tryMovePlayerRelative(directionOffset);
     if (!move.moved) return UNCHANGED_PLAYER_COMMAND;
-    if (move.exit) {
-      this.heldKeys.clear();
-      this.world.refresh();
-      if (move.exit.goto === VICTORY_GOTO) {
-        return { events: move.events, outcome: "victory" };
-      }
-      return {
-        events: move.events,
-        mapChange: { goto: move.exit.goto },
-      };
-    }
     return this.consumePlayerTurn(move.events);
   }
 
@@ -141,11 +145,14 @@ export class GameSession implements Disposable {
     if (this.spatial.positionBlocks(next.x, next.y)) return { moved: false };
 
     this.spatial.moveEntity(this.player.getEntity(), next);
-    const events = collectKeyAt(this.world, this.spatial, this.heldKeys, next.x, next.y);
+    const keyEvents = collectKeyAt(this.world, this.spatial, this.heldKeys, next.x, next.y);
+    const codePickup = collectUplinkCodeAt(this.spatial, next.x, next.y);
+    const weaponPickup = collectWeaponPickupAt(this.world, this.spatial, next.x, next.y);
+    if (codePickup.collected) this.hasUplinkCode = true;
+    if (weaponPickup.slot !== undefined) this.unlockedWeapons.add(weaponPickup.slot);
     return {
       moved: true,
-      events,
-      exit: this.spatial.exitAt(next.x, next.y),
+      events: [...keyEvents, ...codePickup.events, ...weaponPickup.events],
     };
   }
 
@@ -164,6 +171,7 @@ export class GameSession implements Disposable {
       this.spatial,
       this.spatial.facedEntity(this.player),
       this.heldKeys,
+      this.hasUplinkCode,
     );
     switch (interaction.type) {
       case "unchanged":
@@ -175,7 +183,26 @@ export class GameSession implements Disposable {
           events: interaction.events,
           dialogue: interaction.dialogue,
         };
+      case "uplinkTerminal":
+        return this.activateUplinkTerminal(interaction.terminal, interaction.events);
     }
+  }
+
+  private activateUplinkTerminal(terminal: Entity, events: readonly GameEvent[]): PlayerCommandResult {
+    const goto = this.terminalDestinations.get(terminal);
+    if (goto === undefined) {
+      throw new Error(`Uplink terminal ${terminal} is missing a map destination.`);
+    }
+
+    this.clearTransientInventory();
+    this.world.refresh();
+    if (goto === VICTORY_GOTO) {
+      return { events, outcome: "victory" };
+    }
+    return {
+      events,
+      mapChange: { goto },
+    };
   }
 
   private handlePlayerAttackCommand(): PlayerCommandResult {
@@ -190,12 +217,23 @@ export class GameSession implements Disposable {
   }
 
   private handlePlayerSelectWeaponCommand(slot: CommandSlot): PlayerCommandResult {
+    const label = weaponLabel(slot);
+    if (!this.unlockedWeapons.has(slot)) {
+      return {
+        events: [{
+          type: "weaponUnavailable",
+          slot,
+          label,
+        }],
+      };
+    }
+
     this.selectedWeapon = slot;
     return {
       events: [{
         type: "weaponSelected",
         slot,
-        label: weaponLabel(slot),
+        label,
       }],
     };
   }
@@ -222,9 +260,56 @@ export class GameSession implements Disposable {
     return this.world.components.getEntityData(Health, entity);
   }
 
+  private clearTransientInventory(): void {
+    this.heldKeys.clear();
+    this.hasUplinkCode = false;
+  }
+
   [Symbol.dispose](): void {
     if (this.disposed) return;
     this.disposed = true;
     void this.world.destroy();
   }
+}
+
+function terminalDestinationsFor(world: World, map: GameMap): ReadonlyMap<Entity, string> {
+  const destinationsByPosition = new Map<string, string>();
+  for (const entityDef of map.entities) {
+    if (entityDef.prefab === "uplinkTerminal") {
+      destinationsByPosition.set(positionKey(entityDef.x, entityDef.y), entityDef.goto);
+    }
+  }
+
+  const destinations = new Map<Entity, string>();
+  for (const entity of world.entities.query(positionedQuery)) {
+    if (!world.components.entityHas(UplinkTerminal, entity)) continue;
+    const { x, y } = world.components.getEntityData(GridPos, entity);
+    const goto = destinationsByPosition.get(positionKey(x, y));
+    if (goto !== undefined) destinations.set(entity, goto);
+  }
+  return destinations;
+}
+
+function positionKey(x: number, y: number): string {
+  return `${x},${y}`;
+}
+
+function unlockedWeaponsFor(playerState: PlayerState | undefined): Set<CommandSlot> {
+  const slots = new Set<CommandSlot>(DEFAULT_UNLOCKED_WEAPONS);
+  for (const slot of playerState?.unlockedWeapons ?? []) {
+    slots.add(slot);
+  }
+  return slots;
+}
+
+function selectedWeaponFor(
+  selectedWeapon: CommandSlot | undefined,
+  unlockedWeapons: ReadonlySet<CommandSlot>,
+): CommandSlot {
+  if (selectedWeapon !== undefined && unlockedWeapons.has(selectedWeapon)) return selectedWeapon;
+  return DEFAULT_SELECTED_WEAPON;
+}
+
+function sortedWeaponSlots(slots: ReadonlySet<CommandSlot>): readonly CommandSlot[] {
+  return [...slots].sort((a, b) => a - b);
 }

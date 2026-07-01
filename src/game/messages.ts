@@ -12,11 +12,21 @@ export function messageForEvent(playerEntity: Entity, event: GameEvent): string 
       return event.entity === playerEntity ? "You are defeated." : `${event.entityName} is defeated.`;
     case "keyPickedUp":
       return "Picked up a key.";
+    case "uplinkCodePickedUp":
+      return "Picked up an uplink code.";
+    case "weaponPickedUp":
+      return `Picked up weapon ${event.slot}: ${event.label}.`;
     case "doorLocked":
       return "The door is locked.";
     case "doorOpened":
       return "Opened the door.";
+    case "uplinkTerminalLocked":
+      return "The uplink needs a code.";
+    case "uplinkTerminalActivated":
+      return "Uplink accepted.";
     case "weaponSelected":
       return `Selected weapon ${event.slot}: ${event.label}.`;
+    case "weaponUnavailable":
+      return `Weapon ${event.slot} is not unlocked.`;
   }
 }

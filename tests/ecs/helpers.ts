@@ -19,6 +19,9 @@ import {
   Npc,
   Player as PlayerComponent,
   TurnTaker,
+  UplinkCode,
+  UplinkTerminal,
+  WeaponPickup,
 } from "@/src/ecs/components.ts";
 import type { CardinalDirection } from "@/src/grid/direction.ts";
 import type { DialogueTreeId } from "@/src/dialogue/dialogue.ts";
@@ -27,6 +30,7 @@ import { Player } from "@/src/ecs/player.ts";
 import { GameSession } from "@/src/ecs/session.ts";
 import type { RandomSource } from "@/src/game/rng.ts";
 import type { PlayerState } from "@/src/game/state.ts";
+import type { CommandSlot } from "@/src/game/state.ts";
 
 export function createEntity(world: World): Entity {
   const entity = world.entities.create();
@@ -128,6 +132,47 @@ export function createTestKey(world: World, opts: TestKeyOptions): Entity {
   const entity = createEntity(world);
   world.components.addToEntity(GridPos, entity, { x: opts.x, y: opts.y });
   world.components.addToEntity(Key, entity, { color: keyColorCode(opts.color) });
+  return entity;
+}
+
+export type TestUplinkCodeOptions = {
+  x: number;
+  y: number;
+};
+
+export function createTestUplinkCode(world: World, opts: TestUplinkCodeOptions): Entity {
+  const entity = createEntity(world);
+  world.components.addToEntity(GridPos, entity, { x: opts.x, y: opts.y });
+  world.components.addToEntity(UplinkCode, entity);
+  return entity;
+}
+
+export type TestUplinkTerminalOptions = {
+  x: number;
+  y: number;
+  blocking?: boolean;
+  interactable?: boolean;
+};
+
+export function createTestUplinkTerminal(world: World, opts: TestUplinkTerminalOptions): Entity {
+  const entity = createEntity(world);
+  world.components.addToEntity(GridPos, entity, { x: opts.x, y: opts.y });
+  world.components.addToEntity(UplinkTerminal, entity);
+  if (opts.blocking) world.components.addToEntity(Blocking, entity);
+  if (opts.interactable) world.components.addToEntity(Interactable, entity);
+  return entity;
+}
+
+export type TestWeaponPickupOptions = {
+  x: number;
+  y: number;
+  slot: CommandSlot;
+};
+
+export function createTestWeaponPickup(world: World, opts: TestWeaponPickupOptions): Entity {
+  const entity = createEntity(world);
+  world.components.addToEntity(GridPos, entity, { x: opts.x, y: opts.y });
+  world.components.addToEntity(WeaponPickup, entity, { slot: opts.slot });
   return entity;
 }
 

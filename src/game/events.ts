@@ -38,6 +38,16 @@ export type GameEvent =
     readonly entity: Entity;
   }
   | {
+    readonly type: "uplinkCodePickedUp";
+    readonly entity: Entity;
+  }
+  | {
+    readonly type: "weaponPickedUp";
+    readonly entity: Entity;
+    readonly slot: CommandSlot;
+    readonly label: string;
+  }
+  | {
     readonly type: "doorLocked";
     readonly entity: Entity;
   }
@@ -46,7 +56,20 @@ export type GameEvent =
     readonly entity: Entity;
   }
   | {
+    readonly type: "uplinkTerminalLocked";
+    readonly entity: Entity;
+  }
+  | {
+    readonly type: "uplinkTerminalActivated";
+    readonly entity: Entity;
+  }
+  | {
     readonly type: "weaponSelected";
+    readonly slot: CommandSlot;
+    readonly label: string;
+  }
+  | {
+    readonly type: "weaponUnavailable";
     readonly slot: CommandSlot;
     readonly label: string;
   };

@@ -22,11 +22,24 @@ import {
   Npc,
   Player,
   TurnTaker,
+  UplinkCode,
+  UplinkTerminal,
+  WeaponPickup,
 } from "@/src/ecs/components.ts";
 import type { AttackSchema } from "@/src/ecs/components.ts";
 import { normalizeDirection } from "@/src/grid/direction.ts";
 import { keyColorCode } from "@/src/map/map.ts";
-import type { DoorDef, EnemyDef, KeyDef, MapEntityDef, NpcDef, PlayerDef } from "@/src/map/map.ts";
+import type {
+  DoorDef,
+  EnemyDef,
+  KeyDef,
+  MapEntityDef,
+  NpcDef,
+  PlayerDef,
+  UplinkCodeDef,
+  UplinkTerminalDef,
+  WeaponPickupDef,
+} from "@/src/map/map.ts";
 import type { DisplayName } from "@/src/game/names.ts";
 
 const DEFAULT_PLAYER_HEALTH = 10;
@@ -132,6 +145,38 @@ export function createKey(world: World, prefab: KeyPrefab): Entity {
   return entity;
 }
 
+export type UplinkCodePrefab = Omit<UplinkCodeDef, "prefab">;
+
+export function createUplinkCode(world: World, prefab: UplinkCodePrefab): Entity {
+  const entity = createEntity(world, "uplinkCode");
+  addPosition(world, entity, prefab);
+  addDrawable(world, entity, DrawableKind.UplinkCode, DrawableLayer.Item);
+  world.components.addToEntity(UplinkCode, entity);
+  return entity;
+}
+
+export type UplinkTerminalPrefab = Omit<UplinkTerminalDef, "prefab">;
+
+export function createUplinkTerminal(world: World, prefab: UplinkTerminalPrefab): Entity {
+  const entity = createEntity(world, "uplinkTerminal");
+  addPosition(world, entity, prefab);
+  addDrawable(world, entity, DrawableKind.UplinkTerminal, DrawableLayer.Structure);
+  world.components.addToEntity(UplinkTerminal, entity);
+  world.components.addToEntity(Interactable, entity);
+  world.components.addToEntity(Blocking, entity);
+  return entity;
+}
+
+export type WeaponPickupPrefab = Omit<WeaponPickupDef, "prefab">;
+
+export function createWeaponPickup(world: World, prefab: WeaponPickupPrefab): Entity {
+  const entity = createEntity(world, "weaponPickup");
+  addPosition(world, entity, prefab);
+  addDrawable(world, entity, DrawableKind.WeaponPickup, DrawableLayer.Item);
+  world.components.addToEntity(WeaponPickup, entity, { slot: prefab.slot });
+  return entity;
+}
+
 function createEntity(world: World, prefabName: string): Entity {
   const entity = world.entities.create();
   if (entity === undefined) throw new Error(`Failed to create ${prefabName} entity`);
@@ -184,5 +229,11 @@ export function createMapEntity(world: World, prefab: MapEntityDef): Entity {
       return createDoor(world, prefab);
     case "key":
       return createKey(world, prefab);
+    case "uplinkCode":
+      return createUplinkCode(world, prefab);
+    case "uplinkTerminal":
+      return createUplinkTerminal(world, prefab);
+    case "weaponPickup":
+      return createWeaponPickup(world, prefab);
   }
 }

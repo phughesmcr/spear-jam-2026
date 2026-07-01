@@ -1,9 +1,19 @@
 import { type Entity, System, type World } from "@phughesmcr/miski";
-import { Door, DrawableKind, Facing, Key, Locked } from "@/src/ecs/components.ts";
+import {
+  Door,
+  DrawableKind,
+  Facing,
+  Key,
+  Locked,
+  UplinkCode,
+  UplinkTerminal,
+  WeaponPickup,
+} from "@/src/ecs/components.ts";
 import type { DrawablePartitions, GridPosPartitions } from "@/src/ecs/components.ts";
 import { drawableRenderQuery } from "@/src/ecs/queries.ts";
 import { keyColorForCode } from "@/src/map/map.ts";
 import type { KeyColor } from "@/src/map/map.ts";
+import type { CommandSlot } from "@/src/game/state.ts";
 
 export { DrawableKind };
 
@@ -34,7 +44,26 @@ export type KeyDrawableEntity = DrawableBase & {
   readonly color: KeyColor;
 };
 
-export type DrawableEntity = ActorDrawableEntity | DoorDrawableEntity | KeyDrawableEntity;
+export type UplinkCodeDrawableEntity = DrawableBase & {
+  readonly kind: typeof DrawableKind.UplinkCode;
+};
+
+export type UplinkTerminalDrawableEntity = DrawableBase & {
+  readonly kind: typeof DrawableKind.UplinkTerminal;
+};
+
+export type WeaponPickupDrawableEntity = DrawableBase & {
+  readonly kind: typeof DrawableKind.WeaponPickup;
+  readonly slot: CommandSlot;
+};
+
+export type DrawableEntity =
+  | ActorDrawableEntity
+  | DoorDrawableEntity
+  | KeyDrawableEntity
+  | UplinkCodeDrawableEntity
+  | UplinkTerminalDrawableEntity
+  | WeaponPickupDrawableEntity;
 
 export type DrawableEntityVisitor = (drawable: DrawableEntity) => void;
 
@@ -104,6 +133,12 @@ function drawableEntityFor(
       return doorDrawableEntityFor(world, entity, position);
     case DrawableKind.Key:
       return keyDrawableEntityFor(world, entity, position);
+    case DrawableKind.UplinkCode:
+      return uplinkCodeDrawableEntityFor(world, entity, position);
+    case DrawableKind.UplinkTerminal:
+      return uplinkTerminalDrawableEntityFor(world, entity, position);
+    case DrawableKind.WeaponPickup:
+      return weaponPickupDrawableEntityFor(world, entity, position);
     default:
       return undefined;
   }
@@ -156,4 +191,54 @@ function keyDrawableEntityFor(
     kind: DrawableKind.Key,
     color: keyColorForCode(key.color),
   };
+}
+
+function uplinkCodeDrawableEntityFor(
+  world: World,
+  entity: Entity,
+  position: DrawableBase,
+): UplinkCodeDrawableEntity | undefined {
+  if (!world.components.entityHas(UplinkCode, entity)) return undefined;
+  return {
+    ...position,
+    kind: DrawableKind.UplinkCode,
+  };
+}
+
+function uplinkTerminalDrawableEntityFor(
+  world: World,
+  entity: Entity,
+  position: DrawableBase,
+): UplinkTerminalDrawableEntity | undefined {
+  if (!world.components.entityHas(UplinkTerminal, entity)) return undefined;
+  return {
+    ...position,
+    kind: DrawableKind.UplinkTerminal,
+  };
+}
+
+function weaponPickupDrawableEntityFor(
+  world: World,
+  entity: Entity,
+  position: DrawableBase,
+): WeaponPickupDrawableEntity | undefined {
+  if (!world.components.entityHas(WeaponPickup, entity)) return undefined;
+
+  const { slot } = world.components.getEntityData(WeaponPickup, entity);
+  return {
+    ...position,
+    kind: DrawableKind.WeaponPickup,
+    slot: commandSlotForCode(slot),
+  };
+}
+
+function commandSlotForCode(slot: number): CommandSlot {
+  switch (slot) {
+    case 1:
+    case 2:
+    case 3:
+      return slot;
+    default:
+      throw new Error(`Unknown weapon slot: ${slot}`);
+  }
 }

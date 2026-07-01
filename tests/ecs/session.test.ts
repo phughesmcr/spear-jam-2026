@@ -20,6 +20,9 @@ import {
   createTestNpc,
   createTestPlayer,
   createTestSession,
+  createTestUplinkCode,
+  createTestUplinkTerminal,
+  createTestWeaponPickup,
   flatTestMap,
 } from "@/tests/ecs/helpers.ts";
 
@@ -84,6 +87,44 @@ Deno.test("moving onto a key emits a pickup event and stores that key color", as
   ]);
   assertEquals(world.entities.isActive(key), false);
   assertEquals(session.getPlayerState().heldKeys, [KeyColor.Red]);
+});
+
+Deno.test("moving onto an uplink code emits a pickup event and stores the code", async () => {
+  const world = await createWorld();
+  const playerEntity = createTestPlayer(world);
+  const code = createTestUplinkCode(world, { x: 2, y: 1 });
+
+  const session = createTestSession(world, playerEntity);
+  const result = session.handlePlayerCommand({ type: "move", direction: "forward" });
+
+  assertEquals(result.events, [
+    {
+      type: "uplinkCodePickedUp",
+      entity: code,
+    },
+  ]);
+  assertEquals(world.entities.isActive(code), false);
+  assertEquals(session.getPlayerState().hasUplinkCode, true);
+});
+
+Deno.test("moving onto a weapon pickup unlocks that weapon", async () => {
+  const world = await createWorld();
+  const playerEntity = createTestPlayer(world);
+  const weapon = createTestWeaponPickup(world, { x: 2, y: 1, slot: 2 });
+
+  const session = createTestSession(world, playerEntity);
+  const result = session.handlePlayerCommand({ type: "move", direction: "forward" });
+
+  assertEquals(result.events, [
+    {
+      type: "weaponPickedUp",
+      entity: weapon,
+      slot: 2,
+      label: "Pistol",
+    },
+  ]);
+  assertEquals(world.entities.isActive(weapon), false);
+  assertEquals(session.getPlayerState().unlockedWeapons, [1, 2]);
 });
 
 Deno.test("interacting with a locked door emits an event without consuming a turn", async () => {
@@ -161,7 +202,7 @@ Deno.test("opening a locked door keeps the key color until level exit", async ()
   assertEquals(world.components.getEntityData(GridPos, playerEntity), { x: 2, y: 1 });
 });
 
-Deno.test("moving onto a level exit clears held keys before state carries forward", async () => {
+Deno.test("moving onto a legacy level exit no longer changes maps or clears keys", async () => {
   const world = await createWorld();
   const playerEntity = createTestPlayer(world);
   const map = flatTestMap(3, 2, [{ prefab: "exit", x: 2, y: 1, goto: "Next Map" }]);
@@ -171,15 +212,124 @@ Deno.test("moving onto a level exit clears held keys before state carries forwar
 
   const result = session.handlePlayerCommand({ type: "move", direction: "forward" });
 
-  assertEquals(result, { events: [], mapChange: { goto: "Next Map" } });
-  assertEquals(session.getPlayerState().heldKeys, []);
+  assertEquals(result, { events: [] });
+  assertEquals(world.components.getEntityData(GridPos, playerEntity), { x: 2, y: 1 });
+  assertEquals(session.getPlayerState().heldKeys, [KeyColor.Red, KeyColor.Blue]);
 });
 
-Deno.test("selecting a weapon emits a player-facing event without consuming a turn", async () => {
+Deno.test("interacting with an uplink terminal without a code emits an event without consuming a turn", async () => {
+  const world = await createWorld();
+  const playerEntity = createTestPlayer(world);
+  const terminal = createTestUplinkTerminal(world, {
+    x: 2,
+    y: 1,
+    blocking: true,
+    interactable: true,
+  });
+  const map = flatTestMap(3, 2, [{ prefab: "uplinkTerminal", x: 2, y: 1, goto: "Next Map" }]);
+
+  const session = createTestSession(world, playerEntity, map);
+  const result = session.handlePlayerCommand({ type: "interact" });
+
+  assertEquals(result, {
+    events: [
+      {
+        type: "uplinkTerminalLocked",
+        entity: terminal,
+      },
+    ],
+  });
+  assertEquals(session.getPlayerState().hasUplinkCode, false);
+});
+
+Deno.test("interacting with an uplink terminal after collecting a code advances the level", async () => {
+  const world = await createWorld();
+  const playerEntity = createTestPlayer(world, { health: { current: 4, max: 10 } });
+  const terminal = createTestUplinkTerminal(world, {
+    x: 2,
+    y: 1,
+    blocking: true,
+    interactable: true,
+  });
+  const map = flatTestMap(3, 2, [{ prefab: "uplinkTerminal", x: 2, y: 1, goto: "Next Map" }]);
+  const session = createTestSession(world, playerEntity, map, {
+    playerState: {
+      heldKeys: [KeyColor.Red],
+      selectedWeapon: 2,
+      unlockedWeapons: [1, 2],
+      hasUplinkCode: true,
+    },
+  });
+
+  const result = session.handlePlayerCommand({ type: "interact" });
+
+  assertEquals(result, {
+    events: [
+      {
+        type: "uplinkTerminalActivated",
+        entity: terminal,
+      },
+    ],
+    mapChange: { goto: "Next Map" },
+  });
+  assertEquals(session.getPlayerState(), {
+    heldKeys: [],
+    selectedWeapon: 2,
+    unlockedWeapons: [1, 2],
+    health: { current: 4, max: 10 },
+    hasUplinkCode: false,
+  });
+});
+
+Deno.test("createGameSession wires map-defined uplink codes and terminals", async () => {
+  const map = flatTestMap(4, 2, [
+    { prefab: "player", x: 1, y: 1, dir: 1 },
+    { prefab: "uplinkCode", x: 2, y: 1 },
+    { prefab: "weaponPickup", x: 3, y: 1, slot: 2 },
+    { prefab: "uplinkTerminal", x: 3, y: 0, goto: "Next Map" },
+  ]);
+  const session = await createGameSession(map, () => 0);
+
+  const pickup = session.handlePlayerCommand({ type: "move", direction: "forward" });
+  assertEquals(pickup.events.map((event) => event.type), ["uplinkCodePickedUp"]);
+  assertEquals(session.getPlayerState().hasUplinkCode, true);
+
+  const weaponPickup = session.handlePlayerCommand({ type: "move", direction: "forward" });
+  assertEquals(weaponPickup.events.map((event) => event.type), ["weaponPickedUp"]);
+  assertEquals(session.getPlayerState().unlockedWeapons, [1, 2]);
+
+  session.handlePlayerCommand({ type: "turn", direction: "left" });
+  const activation = session.handlePlayerCommand({ type: "interact" });
+  assertEquals(activation.events.map((event) => event.type), ["uplinkTerminalActivated"]);
+  assertEquals(activation.mapChange, { goto: "Next Map" });
+});
+
+Deno.test("selecting a locked weapon emits a player-facing event without consuming a turn", async () => {
   const world = await createWorld();
   const playerEntity = createTestPlayer(world);
 
   const session = createTestSession(world, playerEntity);
+  const result = session.handlePlayerCommand({ type: "selectWeapon", slot: 2 });
+
+  assertEquals(result, {
+    events: [
+      {
+        type: "weaponUnavailable",
+        slot: 2,
+        label: "Pistol",
+      },
+    ],
+  });
+  assertEquals(session.getPlayerState().selectedWeapon, 1);
+});
+
+Deno.test("selecting an unlocked weapon emits a player-facing event without consuming a turn", async () => {
+  const world = await createWorld();
+  const playerEntity = createTestPlayer(world);
+
+  const session = createTestSession(world, playerEntity, TEST_MAP, {
+    playerState: { heldKeys: [], selectedWeapon: 1, unlockedWeapons: [1, 2] },
+  });
   const result = session.handlePlayerCommand({ type: "selectWeapon", slot: 2 });
 
   assertEquals(result, {
@@ -226,15 +376,31 @@ Deno.test("turning changes facing without consuming a turn", async () => {
   assertEquals(session.getPlayerState().health, { current: 2, max: 2 });
 });
 
-Deno.test("moving onto a victory exit reports a victory outcome", async () => {
+Deno.test("interacting with an uplink terminal linked to victory reports a victory outcome", async () => {
   const world = await createWorld();
   const playerEntity = createTestPlayer(world);
+  const terminal = createTestUplinkTerminal(world, {
+    x: 2,
+    y: 1,
+    blocking: true,
+    interactable: true,
+  });
 
-  const map = flatTestMap(3, 2, [{ prefab: "exit", x: 2, y: 1, goto: VICTORY_GOTO }]);
-  const session = createTestSession(world, playerEntity, map);
-  const result = session.handlePlayerCommand({ type: "move", direction: "forward" });
+  const map = flatTestMap(3, 2, [{ prefab: "uplinkTerminal", x: 2, y: 1, goto: VICTORY_GOTO }]);
+  const session = createTestSession(world, playerEntity, map, {
+    playerState: { heldKeys: [], selectedWeapon: 1, unlockedWeapons: [1], hasUplinkCode: true },
+  });
+  const result = session.handlePlayerCommand({ type: "interact" });
 
-  assertEquals(result, { events: [], outcome: "victory" });
+  assertEquals(result, {
+    events: [
+      {
+        type: "uplinkTerminalActivated",
+        entity: terminal,
+      },
+    ],
+    outcome: "victory",
+  });
 });
 
 Deno.test("an enemy reducing the player to zero health reports a defeat outcome", async () => {

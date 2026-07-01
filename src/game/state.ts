@@ -11,7 +11,9 @@ export type PlayerHealthState = {
 export type PlayerState = {
   readonly heldKeys: readonly KeyColor[];
   readonly selectedWeapon: CommandSlot;
+  readonly unlockedWeapons?: readonly CommandSlot[];
   readonly health?: PlayerHealthState;
+  readonly hasUplinkCode?: boolean;
 };
 
 export type DialogueState = {

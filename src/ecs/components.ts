@@ -58,6 +58,9 @@ export const DrawableKind = {
   Enemy: 3,
   Door: 4,
   Key: 5,
+  UplinkCode: 6,
+  UplinkTerminal: 7,
+  WeaponPickup: 8,
 } as const;
 export type DrawableKind = (typeof DrawableKind)[keyof typeof DrawableKind];
 
@@ -101,6 +104,16 @@ export const Key: Component<KeySchema> = new Component<KeySchema>({
   schema: { color: Uint8Array },
 });
 
+export const UplinkCode: Component<null> = new Component<null>({ name: "uplinkCode" });
+
+export const UplinkTerminal: Component<null> = new Component<null>({ name: "uplinkTerminal" });
+
+export type WeaponPickupSchema = { slot: number };
+export const WeaponPickup: Component<WeaponPickupSchema> = new Component<WeaponPickupSchema>({
+  name: "weaponPickup",
+  schema: { slot: Uint8Array },
+});
+
 export const TurnTaker: Component<null> = new Component<null>({ name: "turnTaker" });
 
 export const Enemy: Component<null> = new Component<null>({ name: "enemy" });
@@ -140,6 +153,9 @@ export const ALL_COMPONENTS: DynamicComponent[] = [
   Door,
   Locked,
   Key,
+  UplinkCode,
+  UplinkTerminal,
+  WeaponPickup,
   TurnTaker,
   Enemy,
   Health,
