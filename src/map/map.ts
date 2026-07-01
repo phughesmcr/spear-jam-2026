@@ -77,7 +77,7 @@ export type EnemyDef = {
   y: number;
   dir: number;
   displayName: DisplayName;
-  archetype?: "meleeDog" | "gunslinger";
+  archetype?: "meleeDog" | "gunslinger" | "networkNeophyte" | "systemSentinel" | "agenticAcolyte";
   health?: number;
   damage?: number;
   attack?: Partial<AttackDef>;

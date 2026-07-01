@@ -203,6 +203,9 @@ function enemyArchetypeFor(world: World, entity: Entity): EnemyArchetype | undef
   switch (archetype) {
     case EnemyArchetype.MeleeDog:
     case EnemyArchetype.Gunslinger:
+    case EnemyArchetype.NetworkNeophyte:
+    case EnemyArchetype.SystemSentinel:
+    case EnemyArchetype.AgenticAcolyte:
       return archetype;
     default:
       throw new Error(`Unknown enemy archetype: ${archetype}`);

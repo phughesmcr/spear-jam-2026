@@ -476,8 +476,15 @@ Deno.test("attacking with a ranged weapon spends ammo before resolving combat", 
       entity: enemy,
       entityName: "Imp",
     },
+    {
+      type: "creditsEarned",
+      amount: 10,
+      credits: 10,
+      score: 10,
+    },
   ]);
   assertEquals(session.getPlayerState().ammo, { pistol: 0, cannon: 0 });
+  assertEquals(session.getPlayerState().progress, { credits: 10, score: 10, xp: 0, levelCredits: 10 });
 });
 
 Deno.test("turning changes facing without consuming a turn", async () => {
@@ -537,6 +544,46 @@ Deno.test("interacting with an uplink terminal linked to victory reports a victo
     ],
     outcome: "victory",
   });
+});
+
+Deno.test("activating an uplink terminal converts level credits to XP", async () => {
+  const world = await createWorld();
+  const playerEntity = createTestPlayer(world);
+  const terminal = createTestUplinkTerminal(world, {
+    x: 2,
+    y: 1,
+    blocking: true,
+    interactable: true,
+  });
+  const map = flatTestMap(3, 2, [{ prefab: "uplinkTerminal", x: 2, y: 1, goto: "Next Map" }]);
+  const session = createTestSession(world, playerEntity, map, {
+    playerState: {
+      heldKeys: [KeyColor.Red],
+      selectedWeapon: 1,
+      hasUplinkCode: true,
+      progress: { credits: 20, score: 20, xp: 5, levelCredits: 20 },
+    },
+  });
+
+  const result = session.handlePlayerCommand({ type: "interact" });
+
+  assertEquals(result, {
+    events: [
+      {
+        type: "uplinkTerminalActivated",
+        entity: terminal,
+      },
+      {
+        type: "xpGained",
+        amount: 20,
+        xp: 25,
+      },
+    ],
+    mapChange: { goto: "Next Map" },
+  });
+  assertEquals(session.getPlayerState().progress, { credits: 20, score: 20, xp: 25, levelCredits: 0 });
+  assertEquals(session.getPlayerState().heldKeys, []);
+  assertEquals(session.getPlayerState().hasUplinkCode, false);
 });
 
 Deno.test("an enemy reducing the player to zero health reports a defeat outcome", async () => {

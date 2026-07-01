@@ -51,6 +51,7 @@ function hudLines(mapName: string, playerState: PlayerState): readonly HudLine[]
   const keyText = playerState.heldKeys.length === 0 ? "Keys none" : `Keys ${playerState.heldKeys.join(", ")}`;
   const weaponText = `Weapon ${playerState.selectedWeapon} / owned ${ownedWeaponText(playerState)}`;
   const ammo = playerState.ammo ?? { pistol: 0, cannon: 0 };
+  const progress = playerState.progress ?? { credits: 0, score: 0, xp: 0, levelCredits: 0 };
 
   return [
     { text: mapName, color: HUD_ACCENT },
@@ -60,6 +61,11 @@ function hudLines(mapName: string, playerState: PlayerState): readonly HudLine[]
     },
     { text: weaponText, color: HUD_TEXT },
     { text: `Ammo P ${ammo.pistol} / C ${ammo.cannon}`, color: ammo.pistol + ammo.cannon === 0 ? HUD_MUTED : HUD_TEXT },
+    {
+      text: `Credits ${progress.credits} / Score ${progress.score}`,
+      color: progress.score === 0 ? HUD_MUTED : HUD_TEXT,
+    },
+    { text: `XP ${progress.xp}`, color: progress.xp === 0 ? HUD_MUTED : HUD_TEXT },
     { text: keyText, color: playerState.heldKeys.length === 0 ? HUD_MUTED : HUD_TEXT },
     {
       text: playerState.hasUplinkCode === true ? "Uplink code ready" : "Find uplink code",

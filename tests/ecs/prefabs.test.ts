@@ -2,6 +2,8 @@ import { assertEquals, assertThrows } from "@std/assert";
 import { DialogueTreeId } from "@/src/dialogue/dialogue.ts";
 import {
   Attack,
+  AttackFacingRequirement,
+  AttackPattern,
   Dialogue,
   DisplayNameComponent,
   Enemy,
@@ -46,30 +48,80 @@ Deno.test("a locked door without a key color is rejected", async () => {
 Deno.test("enemy archetypes apply top-down tuning defaults", async () => {
   const world = await createWorld();
 
-  const dog = createEnemy(world, {
-    x: 1,
-    y: 1,
-    dir: 1,
-    displayName: DisplayName.DigitalDog,
-    archetype: "meleeDog",
-  });
-  const gunslinger = createEnemy(world, {
-    x: 2,
-    y: 1,
-    dir: 3,
-    displayName: DisplayName.GigabitGunslinger,
-    archetype: "gunslinger",
-  });
+  const cases = [
+    {
+      archetype: "meleeDog",
+      displayName: DisplayName.DigitalDog,
+      code: EnemyArchetype.MeleeDog,
+      health: 2,
+      damage: 1,
+      range: 1,
+      pattern: AttackPattern.Line,
+      requiresFacing: AttackFacingRequirement.Required,
+    },
+    {
+      archetype: "gunslinger",
+      displayName: DisplayName.GigabitGunslinger,
+      code: EnemyArchetype.Gunslinger,
+      health: 2,
+      damage: 1,
+      range: 4,
+      pattern: AttackPattern.Line,
+      requiresFacing: AttackFacingRequirement.Required,
+    },
+    {
+      archetype: "networkNeophyte",
+      displayName: DisplayName.NetworkNeophyte,
+      code: EnemyArchetype.NetworkNeophyte,
+      health: 3,
+      damage: 1,
+      range: 1,
+      pattern: AttackPattern.Line,
+      requiresFacing: AttackFacingRequirement.Required,
+    },
+    {
+      archetype: "systemSentinel",
+      displayName: DisplayName.SystemSentinel,
+      code: EnemyArchetype.SystemSentinel,
+      health: 7,
+      damage: 2,
+      range: 1,
+      pattern: AttackPattern.Line,
+      requiresFacing: AttackFacingRequirement.Required,
+    },
+    {
+      archetype: "agenticAcolyte",
+      displayName: DisplayName.AgenticAcolyte,
+      code: EnemyArchetype.AgenticAcolyte,
+      health: 4,
+      damage: 2,
+      range: 2,
+      pattern: AttackPattern.Adjacent,
+      requiresFacing: AttackFacingRequirement.None,
+    },
+  ] as const;
 
-  assertEquals(world.components.getEntityData(EnemyArchetypeComponent, dog), {
-    archetype: EnemyArchetype.MeleeDog,
-  });
-  assertEquals(world.components.getEntityData(Health, dog), { current: 2, max: 2 });
-  assertEquals(world.components.getEntityData(Attack, dog).range, 1);
+  for (const expected of cases) {
+    const entity = createEnemy(world, {
+      x: 1,
+      y: 1,
+      dir: 1,
+      displayName: expected.displayName,
+      archetype: expected.archetype,
+    });
+    const attack = world.components.getEntityData(Attack, entity);
 
-  assertEquals(world.components.getEntityData(EnemyArchetypeComponent, gunslinger), {
-    archetype: EnemyArchetype.Gunslinger,
-  });
-  assertEquals(world.components.getEntityData(Health, gunslinger), { current: 2, max: 2 });
-  assertEquals(world.components.getEntityData(Attack, gunslinger).range, 4);
+    assertEquals(world.components.getEntityData(EnemyArchetypeComponent, entity), {
+      archetype: expected.code,
+    });
+    assertEquals(world.components.getEntityData(Health, entity), {
+      current: expected.health,
+      max: expected.health,
+    });
+    assertEquals(attack.minDamage, expected.damage);
+    assertEquals(attack.maxDamage, expected.damage);
+    assertEquals(attack.range, expected.range);
+    assertEquals(attack.pattern, expected.pattern);
+    assertEquals(attack.requiresFacing, expected.requiresFacing);
+  }
 });

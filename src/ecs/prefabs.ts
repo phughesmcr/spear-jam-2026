@@ -82,6 +82,33 @@ const ENEMY_ARCHETYPE_DEFAULTS: Readonly<Record<EnemyArchetype, EnemyArchetypeDe
       range: 4,
     },
   },
+  [EnemyArchetype.NetworkNeophyte]: {
+    health: 3,
+    damage: 1,
+    attack: {
+      attackBonus: 2,
+      range: 1,
+    },
+  },
+  [EnemyArchetype.SystemSentinel]: {
+    health: 7,
+    damage: 2,
+    attack: {
+      attackBonus: 4,
+      range: 1,
+    },
+  },
+  [EnemyArchetype.AgenticAcolyte]: {
+    health: 4,
+    damage: 2,
+    attack: {
+      requiresFacing: AttackFacingRequirement.None,
+      attackBonus: 3,
+      range: 2,
+      pattern: AttackPattern.Adjacent,
+      targets: AttackTargetMode.All,
+    },
+  },
 };
 
 type PositionedPrefab = {
@@ -153,6 +180,12 @@ function enemyArchetypeCode(archetype: EnemyPrefab["archetype"]): EnemyArchetype
       return EnemyArchetype.MeleeDog;
     case "gunslinger":
       return EnemyArchetype.Gunslinger;
+    case "networkNeophyte":
+      return EnemyArchetype.NetworkNeophyte;
+    case "systemSentinel":
+      return EnemyArchetype.SystemSentinel;
+    case "agenticAcolyte":
+      return EnemyArchetype.AgenticAcolyte;
   }
 }
 

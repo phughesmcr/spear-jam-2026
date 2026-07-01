@@ -20,7 +20,7 @@ import { relativeMoveDirectionOffset, turnDirectionDelta } from "@/src/game/comm
 import type { PlayerCommand, PlayerCommandResult } from "@/src/game/commands.ts";
 import type { GameEvent } from "@/src/game/events.ts";
 import type { RandomSource } from "@/src/game/rng.ts";
-import type { AmmoKind, CommandSlot, PlayerAmmoState, PlayerState } from "@/src/game/state.ts";
+import type { AmmoKind, CommandSlot, PlayerAmmoState, PlayerProgressState, PlayerState } from "@/src/game/state.ts";
 import { VICTORY_GOTO } from "@/src/map/map.ts";
 import type { GameMap, KeyColor } from "@/src/map/map.ts";
 
@@ -29,6 +29,8 @@ const UNCHANGED_PLAYER_COMMAND: PlayerCommandResult = Object.freeze({
 });
 const DEFAULT_UNLOCKED_WEAPONS: readonly CommandSlot[] = Object.freeze([DEFAULT_SELECTED_WEAPON]);
 const DEFAULT_AMMO: PlayerAmmoState = Object.freeze({ pistol: 0, cannon: 0 });
+const DEFAULT_PROGRESS: PlayerProgressState = Object.freeze({ credits: 0, score: 0, xp: 0, levelCredits: 0 });
+const ENEMY_DEFEAT_CREDITS = 10;
 
 type MoveResult =
   | { readonly moved: false }
@@ -80,6 +82,7 @@ export class GameSession implements Disposable {
   private readonly terminalDestinations: ReadonlyMap<Entity, string>;
   private readonly unlockedWeapons: Set<CommandSlot>;
   private readonly ammo: { pistol: number; cannon: number };
+  private readonly progress: { credits: number; score: number; xp: number; levelCredits: number };
   private selectedWeapon: CommandSlot;
   private hasUplinkCode: boolean;
   private disposed = false;
@@ -101,12 +104,14 @@ export class GameSession implements Disposable {
     this.terminalDestinations = terminalDestinationsFor(world, map);
     this.unlockedWeapons = unlockedWeaponsFor(playerState);
     this.ammo = ammoFor(playerState);
+    this.progress = progressFor(playerState);
     this.selectedWeapon = selectedWeaponFor(playerState?.selectedWeapon, this.unlockedWeapons);
     this.hasUplinkCode = playerState?.hasUplinkCode ?? false;
   }
 
   getPlayerState(): PlayerState {
-    return {
+    const progress = playerProgressState(this.progress);
+    const state: PlayerState = {
       heldKeys: [...this.heldKeys],
       selectedWeapon: this.selectedWeapon,
       unlockedWeapons: sortedWeaponSlots(this.unlockedWeapons),
@@ -114,6 +119,7 @@ export class GameSession implements Disposable {
       health: this.getPlayerHealth(),
       hasUplinkCode: this.hasUplinkCode,
     };
+    return progress === undefined ? state : { ...state, progress };
   }
 
   handlePlayerCommand(command: PlayerCommand): PlayerCommandResult {
@@ -199,13 +205,14 @@ export class GameSession implements Disposable {
       throw new Error(`Uplink terminal ${terminal} is missing a map destination.`);
     }
 
+    const levelCompleteEvents = this.completeLevel(events);
     this.clearTransientInventory();
     this.world.refresh();
     if (goto === VICTORY_GOTO) {
-      return { events, outcome: "victory" };
+      return { events: levelCompleteEvents, outcome: "victory" };
     }
     return {
-      events,
+      events: levelCompleteEvents,
       mapChange: { goto },
     };
   }
@@ -222,7 +229,7 @@ export class GameSession implements Disposable {
       this.spatial,
       this.random,
     );
-    return this.consumePlayerTurn([...ammoEvents.events, ...events]);
+    return this.consumePlayerTurn([...ammoEvents.events, ...this.awardCreditsForDefeats(events)]);
   }
 
   private handlePlayerSelectWeaponCommand(slot: CommandSlot): PlayerCommandResult {
@@ -333,6 +340,35 @@ export class GameSession implements Disposable {
     };
   }
 
+  private awardCreditsForDefeats(events: readonly GameEvent[]): readonly GameEvent[] {
+    const rewardEvents: GameEvent[] = [];
+    const playerEntity = this.player.getEntity();
+    for (const event of events) {
+      if (event.type !== "entityDefeated" || event.actor !== playerEntity || event.entity === playerEntity) continue;
+
+      this.progress.credits += ENEMY_DEFEAT_CREDITS;
+      this.progress.score += ENEMY_DEFEAT_CREDITS;
+      this.progress.levelCredits += ENEMY_DEFEAT_CREDITS;
+      rewardEvents.push({
+        type: "creditsEarned",
+        amount: ENEMY_DEFEAT_CREDITS,
+        credits: this.progress.credits,
+        score: this.progress.score,
+      });
+    }
+
+    return rewardEvents.length === 0 ? events : [...events, ...rewardEvents];
+  }
+
+  private completeLevel(events: readonly GameEvent[]): readonly GameEvent[] {
+    if (this.progress.levelCredits <= 0) return events;
+
+    const xpGain = this.progress.levelCredits;
+    this.progress.xp += xpGain;
+    this.progress.levelCredits = 0;
+    return [...events, { type: "xpGained", amount: xpGain, xp: this.progress.xp }];
+  }
+
   private clearTransientInventory(): void {
     this.heldKeys.clear();
     this.hasUplinkCode = false;
@@ -380,6 +416,31 @@ function ammoFor(playerState: PlayerState | undefined): { pistol: number; cannon
     pistol: playerState?.ammo?.pistol ?? DEFAULT_AMMO.pistol,
     cannon: playerState?.ammo?.cannon ?? DEFAULT_AMMO.cannon,
   };
+}
+
+function progressFor(
+  playerState: PlayerState | undefined,
+): { credits: number; score: number; xp: number; levelCredits: number } {
+  return {
+    credits: playerState?.progress?.credits ?? DEFAULT_PROGRESS.credits,
+    score: playerState?.progress?.score ?? DEFAULT_PROGRESS.score,
+    xp: playerState?.progress?.xp ?? DEFAULT_PROGRESS.xp,
+    levelCredits: playerState?.progress?.levelCredits ?? DEFAULT_PROGRESS.levelCredits,
+  };
+}
+
+function playerProgressState(
+  progress: { readonly credits: number; readonly score: number; readonly xp: number; readonly levelCredits: number },
+): PlayerProgressState | undefined {
+  if (
+    progress.credits === DEFAULT_PROGRESS.credits &&
+    progress.score === DEFAULT_PROGRESS.score &&
+    progress.xp === DEFAULT_PROGRESS.xp &&
+    progress.levelCredits === DEFAULT_PROGRESS.levelCredits
+  ) {
+    return undefined;
+  }
+  return { ...progress };
 }
 
 function selectedWeaponFor(

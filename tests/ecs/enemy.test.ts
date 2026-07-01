@@ -148,6 +148,111 @@ Deno.test("gunslingers back away when adjacent", async () => {
   assertEquals(events, []);
 });
 
+Deno.test("network neophytes use standard one-step pursuit", async () => {
+  const world = await createWorld();
+  const playerEntity = createTestPlayer(world, {
+    x: 4,
+    y: 1,
+    dir: 3,
+    blocking: true,
+    tag: true,
+    health: { current: 5, max: 5 },
+  });
+  const neophyte = createTestEnemy(world, {
+    x: 1,
+    y: 1,
+    dir: 0,
+    displayName: DisplayName.NetworkNeophyte,
+    attack: MELEE_ATTACK,
+    archetype: EnemyArchetype.NetworkNeophyte,
+  });
+  world.refresh();
+
+  const events = world.systems.create(enemyTurnSystem)({
+    world,
+    player: new Player(world, playerEntity),
+    spatial: new SpatialIndex(world, flatTestMap(6, 3)),
+    random: () => 0,
+  });
+
+  assertEquals(world.components.getEntityData(GridPos, neophyte), { x: 2, y: 1 });
+  assertEquals(world.components.getEntityData(Facing, neophyte), { dir: 1 });
+  assertEquals(world.components.getEntityData(Health, playerEntity), { current: 5, max: 5 });
+  assertEquals(events, []);
+});
+
+Deno.test("system sentinels hold position and face the player when out of range", async () => {
+  const world = await createWorld();
+  const playerEntity = createTestPlayer(world, {
+    x: 4,
+    y: 1,
+    dir: 3,
+    blocking: true,
+    tag: true,
+    health: { current: 5, max: 5 },
+  });
+  const sentinel = createTestEnemy(world, {
+    x: 1,
+    y: 1,
+    dir: 0,
+    displayName: DisplayName.SystemSentinel,
+    attack: MELEE_ATTACK,
+    archetype: EnemyArchetype.SystemSentinel,
+  });
+  world.refresh();
+
+  const events = world.systems.create(enemyTurnSystem)({
+    world,
+    player: new Player(world, playerEntity),
+    spatial: new SpatialIndex(world, flatTestMap(6, 3)),
+    random: () => 0,
+  });
+
+  assertEquals(world.components.getEntityData(GridPos, sentinel), { x: 1, y: 1 });
+  assertEquals(world.components.getEntityData(Facing, sentinel), { dir: 1 });
+  assertEquals(world.components.getEntityData(Health, playerEntity), { current: 5, max: 5 });
+  assertEquals(events, []);
+});
+
+Deno.test("agentic acolytes attack nearby cardinal targets without facing first", async () => {
+  const world = await createWorld();
+  const playerEntity = createTestPlayer(world, {
+    x: 3,
+    y: 1,
+    dir: 3,
+    blocking: true,
+    tag: true,
+    health: { current: 5, max: 5 },
+  });
+  const acolyte = createTestEnemy(world, {
+    x: 1,
+    y: 1,
+    dir: 0,
+    displayName: DisplayName.AgenticAcolyte,
+    attack: {
+      ...MELEE_ATTACK,
+      range: 2,
+      requiresFacing: AttackFacingRequirement.None,
+      pattern: AttackPattern.Adjacent,
+      targets: AttackTargetMode.All,
+    },
+    archetype: EnemyArchetype.AgenticAcolyte,
+  });
+  world.refresh();
+
+  const events = world.systems.create(enemyTurnSystem)({
+    world,
+    player: new Player(world, playerEntity),
+    spatial: new SpatialIndex(world, flatTestMap(6, 3)),
+    random: () => 0,
+  });
+
+  assertEquals(world.components.getEntityData(GridPos, acolyte), { x: 1, y: 1 });
+  assertEquals(world.components.getEntityData(Facing, acolyte), { dir: 0 });
+  assertEquals(world.components.getEntityData(Health, playerEntity), { current: 4, max: 5 });
+  assertEquals(events.map((event) => event.type), ["damageDealt"]);
+});
+
 const TEST_MAP = flatTestMap(5, 2);
 
 const MELEE_ATTACK: AttackSchema = {

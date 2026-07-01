@@ -268,5 +268,6 @@ function clonePlayerState(playerState: PlayerState | undefined): PlayerState | u
     ammo: playerState.ammo === undefined ? undefined : { ...playerState.ammo },
     health: playerState.health === undefined ? undefined : { ...playerState.health },
     hasUplinkCode: playerState.hasUplinkCode,
+    progress: playerState.progress === undefined ? undefined : { ...playerState.progress },
   };
 }

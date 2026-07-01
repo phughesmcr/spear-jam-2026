@@ -14,6 +14,13 @@ export type PlayerHealthState = {
   readonly max: number;
 };
 
+export type PlayerProgressState = {
+  readonly credits: number;
+  readonly score: number;
+  readonly xp: number;
+  readonly levelCredits: number;
+};
+
 /** Player progress that survives map transitions. */
 export type PlayerState = {
   readonly heldKeys: readonly KeyColor[];
@@ -22,6 +29,7 @@ export type PlayerState = {
   readonly ammo?: PlayerAmmoState;
   readonly health?: PlayerHealthState;
   readonly hasUplinkCode?: boolean;
+  readonly progress?: PlayerProgressState;
 };
 
 export type DialogueState = {

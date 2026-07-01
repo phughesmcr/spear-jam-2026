@@ -93,4 +93,15 @@ export type GameEvent =
   | {
     readonly type: "noAmmo";
     readonly ammo: AmmoKind;
+  }
+  | {
+    readonly type: "creditsEarned";
+    readonly amount: number;
+    readonly credits: number;
+    readonly score: number;
+  }
+  | {
+    readonly type: "xpGained";
+    readonly amount: number;
+    readonly xp: number;
   };

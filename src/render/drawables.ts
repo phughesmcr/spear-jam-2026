@@ -16,6 +16,9 @@ const NPC_COLOR = "#59d39b";
 const ENEMY_COLOR = "#df4f45";
 const DOG_COLOR = "#ef4444";
 const GUNSLINGER_COLOR = "#38bdf8";
+const NETWORK_NEOPHYTE_COLOR = "#34d399";
+const SYSTEM_SENTINEL_COLOR = "#f59e0b";
+const AGENTIC_ACOLYTE_COLOR = "#a78bfa";
 const ENEMY_SYMBOL_COLOR = "#101217";
 const ENEMY_HP_BACK = "#111827";
 const ENEMY_HP_HEALTHY = "#22c55e";
@@ -262,6 +265,18 @@ function renderEnemy(
       return;
     case EnemyArchetype.Gunslinger:
       renderActorSymbol(ctx, x, y, dir, GUNSLINGER_COLOR, "G", metrics);
+      renderEnemyHealth(ctx, x, y, health, metrics);
+      return;
+    case EnemyArchetype.NetworkNeophyte:
+      renderActorSymbol(ctx, x, y, dir, NETWORK_NEOPHYTE_COLOR, "N", metrics);
+      renderEnemyHealth(ctx, x, y, health, metrics);
+      return;
+    case EnemyArchetype.SystemSentinel:
+      renderActorSymbol(ctx, x, y, dir, SYSTEM_SENTINEL_COLOR, "S", metrics);
+      renderEnemyHealth(ctx, x, y, health, metrics);
+      return;
+    case EnemyArchetype.AgenticAcolyte:
+      renderActorSymbol(ctx, x, y, dir, AGENTIC_ACOLYTE_COLOR, "A", metrics);
       renderEnemyHealth(ctx, x, y, health, metrics);
       return;
     case undefined:

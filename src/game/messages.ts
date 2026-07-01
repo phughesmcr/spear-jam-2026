@@ -36,5 +36,9 @@ export function messageForEvent(playerEntity: Entity, event: GameEvent): string 
       return `Spent ${event.amount} ${event.ammo} ammo.`;
     case "noAmmo":
       return `No ${event.ammo} ammo.`;
+    case "creditsEarned":
+      return `Earned ${event.amount} credits.`;
+    case "xpGained":
+      return `Converted ${event.amount} credits to XP.`;
   }
 }

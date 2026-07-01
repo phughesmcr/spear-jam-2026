@@ -89,4 +89,9 @@ Deno.test("messageForEvent covers interaction events", () => {
   );
   assertEquals(messageForEvent(PLAYER, { type: "ammoSpent", ammo: "pistol", amount: 1 }), "Spent 1 pistol ammo.");
   assertEquals(messageForEvent(PLAYER, { type: "noAmmo", ammo: "cannon" }), "No cannon ammo.");
+  assertEquals(
+    messageForEvent(PLAYER, { type: "creditsEarned", amount: 10, credits: 20, score: 30 }),
+    "Earned 10 credits.",
+  );
+  assertEquals(messageForEvent(PLAYER, { type: "xpGained", amount: 20, xp: 35 }), "Converted 20 credits to XP.");
 });

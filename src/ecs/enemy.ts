@@ -58,6 +58,12 @@ function advanceEnemyTurn(
       return advanceMeleeDogTurn(context, entity, gridPos, facing);
     case EnemyArchetype.Gunslinger:
       return advanceGunslingerTurn(context, entity, gridPos, facing);
+    case EnemyArchetype.NetworkNeophyte:
+      return advanceNetworkNeophyteTurn(context, entity, gridPos, facing);
+    case EnemyArchetype.SystemSentinel:
+      return advanceSystemSentinelTurn(context, entity, gridPos, facing);
+    case EnemyArchetype.AgenticAcolyte:
+      return advanceAgenticAcolyteTurn(context, entity, gridPos, facing);
     case undefined:
       return advanceGenericEnemyTurn(context, entity, gridPos, facing);
   }
@@ -111,6 +117,15 @@ function advanceMeleeDogTurn(
   return [];
 }
 
+function advanceNetworkNeophyteTurn(
+  context: EnemyTurnContext,
+  entity: Entity,
+  gridPos: GridPosPartitions,
+  facing: FacingPartitions,
+): readonly GameEvent[] {
+  return advanceGenericEnemyTurn(context, entity, gridPos, facing);
+}
+
 function advanceGunslingerTurn(
   context: EnemyTurnContext,
   entity: Entity,
@@ -124,6 +139,38 @@ function advanceGunslingerTurn(
     return [];
   }
 
+  const attackEvents = attackPlayerIfPossible(context, entity, gridPos, facing);
+  if (attackEvents !== undefined) return attackEvents;
+
+  tryMoveEnemyTowardPlayer(
+    context.player,
+    entity,
+    gridPos,
+    facing,
+    context.spatial,
+  );
+  return [];
+}
+
+function advanceSystemSentinelTurn(
+  context: EnemyTurnContext,
+  entity: Entity,
+  gridPos: GridPosPartitions,
+  facing: FacingPartitions,
+): readonly GameEvent[] {
+  const attackEvents = attackPlayerIfPossible(context, entity, gridPos, facing);
+  if (attackEvents !== undefined) return attackEvents;
+
+  faceEntityToward(entity, context.player.getPosition(), gridPos, facing);
+  return [];
+}
+
+function advanceAgenticAcolyteTurn(
+  context: EnemyTurnContext,
+  entity: Entity,
+  gridPos: GridPosPartitions,
+  facing: FacingPartitions,
+): readonly GameEvent[] {
   const attackEvents = attackPlayerIfPossible(context, entity, gridPos, facing);
   if (attackEvents !== undefined) return attackEvents;
 
@@ -314,6 +361,9 @@ function enemyArchetype(world: World, entity: Entity): EnemyArchetype | undefine
   switch (archetype) {
     case EnemyArchetype.MeleeDog:
     case EnemyArchetype.Gunslinger:
+    case EnemyArchetype.NetworkNeophyte:
+    case EnemyArchetype.SystemSentinel:
+    case EnemyArchetype.AgenticAcolyte:
       return archetype;
     default:
       throw new Error(`Unknown enemy archetype: ${archetype}`);

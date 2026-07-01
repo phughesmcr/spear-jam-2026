@@ -135,6 +135,9 @@ export const Enemy: Component<null> = new Component<null>({ name: "enemy" });
 export const EnemyArchetype = {
   MeleeDog: 1,
   Gunslinger: 2,
+  NetworkNeophyte: 3,
+  SystemSentinel: 4,
+  AgenticAcolyte: 5,
 } as const;
 export type EnemyArchetype = (typeof EnemyArchetype)[keyof typeof EnemyArchetype];
 
