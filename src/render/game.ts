@@ -1,7 +1,15 @@
-import type { Query } from "@phughesmcr/miski";
+import { type Entity, System, type World } from "@phughesmcr/miski";
 import { directionDelta } from "@/src/grid/direction.ts";
-import { Door, Facing, GridPos, Locked } from "@/src/ecs/components.ts";
-import { doorRenderQuery, enemyRenderQuery, keyQuery, npcRenderQuery } from "@/src/ecs/queries.ts";
+import {
+  Door,
+  DrawableKind,
+  DrawableLayer,
+  type DrawablePartitions,
+  Facing,
+  type GridPosPartitions,
+  Locked,
+} from "@/src/ecs/components.ts";
+import { drawableRenderQuery } from "@/src/ecs/queries.ts";
 import type { GameSession } from "@/src/ecs/session.ts";
 import type { GameMode } from "@/src/game/state.ts";
 import { mapDimensions, terrainAt } from "@/src/map/map.ts";
@@ -19,6 +27,21 @@ interface MapRenderMetrics {
   readonly offsetY: number;
 }
 
+type DrawableRenderSystem = (ctx: CanvasRenderingContext2D, metrics: MapRenderMetrics, world: World) => void;
+type DrawableRenderComponents = {
+  readonly gridPos: { readonly partitions: GridPosPartitions };
+  readonly drawable: { readonly partitions: DrawablePartitions };
+};
+type DrawableRenderArgs = {
+  readonly ctx: CanvasRenderingContext2D;
+  readonly world: World;
+  readonly entity: Entity;
+  readonly x: number;
+  readonly y: number;
+  readonly metrics: MapRenderMetrics;
+};
+type DrawableRenderer = (args: DrawableRenderArgs) => void;
+
 const MIN_TILE_SIZE = 8;
 const EMPTY_COLOR = "#101217";
 const FLOOR_COLOR = "#232832";
@@ -34,9 +57,80 @@ const EXIT_COLOR = "#4ea1ff";
 const PLAYER_RADIUS_RATIO = 0.34;
 const PLAYER_BASE_WIDTH_RATIO = 0.75;
 const NPC_RADIUS_RATIO = 0.28;
+const DRAWABLE_LAYER_ORDER: readonly DrawableLayer[] = [
+  DrawableLayer.Item,
+  DrawableLayer.Structure,
+  DrawableLayer.Npc,
+  DrawableLayer.Enemy,
+  DrawableLayer.Player,
+];
+const DRAWABLE_RENDERERS: Readonly<Record<DrawableKind, DrawableRenderer>> = {
+  [DrawableKind.Player]: ({ ctx, world, entity, x, y, metrics }) => {
+    if (!world.components.entityHas(Facing, entity)) return;
+    const { dir } = world.components.getEntityData(Facing, entity);
+    renderPlayer(ctx, x, y, dir, metrics);
+  },
+  [DrawableKind.Npc]: ({ ctx, world, entity, x, y, metrics }) => {
+    if (!world.components.entityHas(Facing, entity)) return;
+    const { dir } = world.components.getEntityData(Facing, entity);
+    renderActor(ctx, x, y, dir, NPC_COLOR, metrics);
+  },
+  [DrawableKind.Enemy]: ({ ctx, world, entity, x, y, metrics }) => {
+    if (!world.components.entityHas(Facing, entity)) return;
+    const { dir } = world.components.getEntityData(Facing, entity);
+    renderActor(ctx, x, y, dir, ENEMY_COLOR, metrics);
+  },
+  [DrawableKind.Door]: ({ ctx, world, entity, x, y, metrics }) => {
+    if (!world.components.entityHas(Door, entity)) return;
+    const door = world.components.getEntityData(Door, entity);
+    const locked = world.components.entityHas(Locked, entity);
+    renderDoor(ctx, x, y, door.open === 1, locked, metrics);
+  },
+  [DrawableKind.Key]: ({ ctx, x, y, metrics }) => renderKey(ctx, x, y, metrics),
+};
+const drawableRenderersByKind = DRAWABLE_RENDERERS as Readonly<Record<number, DrawableRenderer | undefined>>;
 const OVERLAY_COLOR = "rgba(0, 0, 0, 0.6)";
 const OVERLAY_TITLE_COLOR = "#f3f4f6";
 const OVERLAY_SUBTITLE_COLOR = "#c9d1d9";
+
+const drawableRenderSystems = new WeakMap<World, DrawableRenderSystem>();
+
+const drawableRenderSystem = new System({
+  name: "drawableRenderSystem",
+  query: drawableRenderQuery,
+  callback: (
+    components,
+    entities,
+    ctx: CanvasRenderingContext2D,
+    metrics: MapRenderMetrics,
+    world: World,
+  ): void => {
+    const renderComponents = components as unknown as DrawableRenderComponents;
+    const positionX = renderComponents.gridPos.partitions.x;
+    const positionY = renderComponents.gridPos.partitions.y;
+    const drawableKind = renderComponents.drawable.partitions.kind;
+    const drawableLayer = renderComponents.drawable.partitions.layer;
+    const indices = entities.indices;
+    const count = entities.count;
+
+    for (const layer of DRAWABLE_LAYER_ORDER) {
+      for (let i = 0; i < count; i++) {
+        const entity = indices[i]!;
+        if (drawableLayer[entity] !== layer) continue;
+        const renderer = drawableRenderersByKind[drawableKind[entity]];
+        if (renderer === undefined) continue;
+        renderer({
+          ctx,
+          world,
+          entity,
+          x: positionX[entity],
+          y: positionY[entity],
+          metrics,
+        });
+      }
+    }
+  },
+});
 
 export function renderGameFrame(
   ctx: CanvasRenderingContext2D,
@@ -47,18 +141,11 @@ export function renderGameFrame(
   ctx.fillStyle = EMPTY_COLOR;
   ctx.fillRect(0, 0, canvasSize.width, canvasSize.height);
   if (session) {
-    const { map, player } = session;
+    const { map } = session;
     const metrics = renderMap(ctx, canvasSize, map);
     renderExits(ctx, map, metrics);
-    renderKeys(ctx, session, metrics);
-    renderDoors(ctx, session, metrics);
-    renderNpcs(ctx, session, metrics);
-    renderEnemies(ctx, session, metrics);
-    const position = player.getPosition();
-    const facing = player.getFacing();
-    renderPlayer(ctx, position.x, position.y, facing.dir, metrics);
+    renderDrawableEntities(ctx, session.world, metrics);
   }
-
   switch (mode.type) {
     case "loading":
       renderOverlay(ctx, canvasSize, "LOADING");
@@ -78,6 +165,18 @@ export function renderGameFrame(
     case "playing":
       return;
   }
+}
+
+function renderDrawableEntities(ctx: CanvasRenderingContext2D, world: World, metrics: MapRenderMetrics): void {
+  getDrawableRenderSystem(world)(ctx, metrics, world);
+}
+
+function getDrawableRenderSystem(world: World): DrawableRenderSystem {
+  const existing = drawableRenderSystems.get(world);
+  if (existing !== undefined) return existing;
+  const created = world.systems.create(drawableRenderSystem);
+  drawableRenderSystems.set(world, created);
+  return created;
 }
 
 function renderOverlay(
@@ -163,18 +262,10 @@ function renderExit(ctx: CanvasRenderingContext2D, x: number, y: number, metrics
   const tileX = offsetX + x * tileSize;
   const tileY = offsetY + y * tileSize;
   const inset = Math.max(3, tileSize * 0.22);
-
   ctx.strokeStyle = EXIT_COLOR;
   ctx.lineWidth = Math.max(2, tileSize * 0.08);
   ctx.strokeRect(tileX + inset, tileY + inset, tileSize - inset * 2, tileSize - inset * 2);
   ctx.lineWidth = 1;
-}
-
-function renderKeys(ctx: CanvasRenderingContext2D, session: GameSession, metrics: MapRenderMetrics): void {
-  for (const entity of session.world.entities.query(keyQuery)) {
-    const position = session.world.components.getEntityData(GridPos, entity);
-    renderKey(ctx, position.x, position.y, metrics);
-  }
 }
 
 function renderKey(ctx: CanvasRenderingContext2D, x: number, y: number, metrics: MapRenderMetrics): void {
@@ -182,7 +273,6 @@ function renderKey(ctx: CanvasRenderingContext2D, x: number, y: number, metrics:
   const centerX = offsetX + x * tileSize + tileSize / 2;
   const centerY = offsetY + y * tileSize + tileSize / 2;
   const radius = tileSize * 0.18;
-
   ctx.fillStyle = KEY_COLOR;
   ctx.beginPath();
   ctx.moveTo(centerX, centerY - radius);
@@ -191,15 +281,6 @@ function renderKey(ctx: CanvasRenderingContext2D, x: number, y: number, metrics:
   ctx.lineTo(centerX - radius, centerY);
   ctx.closePath();
   ctx.fill();
-}
-
-function renderDoors(ctx: CanvasRenderingContext2D, session: GameSession, metrics: MapRenderMetrics): void {
-  for (const entity of session.world.entities.query(doorRenderQuery)) {
-    const position = session.world.components.getEntityData(GridPos, entity);
-    const door = session.world.components.getEntityData(Door, entity);
-    const locked = session.world.components.entityHas(Locked, entity);
-    renderDoor(ctx, position.x, position.y, door.open === 1, locked, metrics);
-  }
 }
 
 function renderDoor(
@@ -211,38 +292,14 @@ function renderDoor(
   metrics: MapRenderMetrics,
 ): void {
   if (open) return;
-
   const { offsetX, offsetY, tileSize } = metrics;
   const tileX = offsetX + x * tileSize;
   const tileY = offsetY + y * tileSize;
   const inset = Math.max(2, tileSize * 0.18);
   const width = tileSize - inset * 2;
   const height = tileSize - inset * 2;
-
   ctx.fillStyle = locked ? LOCKED_DOOR_COLOR : DOOR_COLOR;
   ctx.fillRect(tileX + inset, tileY + inset, width, height);
-}
-
-function renderNpcs(ctx: CanvasRenderingContext2D, session: GameSession, metrics: MapRenderMetrics): void {
-  renderActors(ctx, session, npcRenderQuery, NPC_COLOR, metrics);
-}
-
-function renderEnemies(ctx: CanvasRenderingContext2D, session: GameSession, metrics: MapRenderMetrics): void {
-  renderActors(ctx, session, enemyRenderQuery, ENEMY_COLOR, metrics);
-}
-
-function renderActors(
-  ctx: CanvasRenderingContext2D,
-  session: GameSession,
-  query: Query,
-  color: string,
-  metrics: MapRenderMetrics,
-): void {
-  for (const entity of session.world.entities.query(query)) {
-    const position = session.world.components.getEntityData(GridPos, entity);
-    const facing = session.world.components.getEntityData(Facing, entity);
-    renderActor(ctx, position.x, position.y, facing.dir, color, metrics);
-  }
 }
 
 function renderActor(
@@ -258,12 +315,10 @@ function renderActor(
   const centerY = offsetY + y * tileSize + tileSize / 2;
   const radius = tileSize * NPC_RADIUS_RATIO;
   const forward = directionDelta(dir);
-
   ctx.fillStyle = color;
   ctx.beginPath();
   ctx.arc(centerX, centerY, radius, 0, Math.PI * 2);
   ctx.fill();
-
   ctx.strokeStyle = EMPTY_COLOR;
   ctx.beginPath();
   ctx.moveTo(centerX, centerY);

@@ -5,6 +5,9 @@ import {
   AttackTargetMode,
   Blocking,
   Door,
+  Drawable,
+  DrawableKind,
+  DrawableLayer,
   Enemy,
   Facing,
   GridPos,
@@ -47,6 +50,10 @@ export function createPlayer(world: World, prefab: PlayerPrefab): Entity {
   if (entity === undefined) throw new Error("Failed to create player entity");
   world.components.addToEntity(GridPos, entity, { x: prefab.x, y: prefab.y });
   world.components.addToEntity(Facing, entity, { dir: normalizeDirection(prefab.dir) });
+  world.components.addToEntity(Drawable, entity, {
+    kind: DrawableKind.Player,
+    layer: DrawableLayer.Player,
+  });
   world.components.addToEntity(Player, entity);
   world.components.addToEntity(Blocking, entity);
   world.components.addToEntity(TurnTaker, entity);
@@ -72,6 +79,10 @@ export function createNpc(world: World, prefab: NpcPrefab): Entity {
   if (entity === undefined) throw new Error("Failed to create npc entity");
   world.components.addToEntity(GridPos, entity, { x: prefab.x, y: prefab.y });
   world.components.addToEntity(Facing, entity, { dir: normalizeDirection(prefab.dir) });
+  world.components.addToEntity(Drawable, entity, {
+    kind: DrawableKind.Npc,
+    layer: DrawableLayer.Npc,
+  });
   world.components.addToEntity(Npc, entity, { displayName: prefab.displayName });
   world.components.addToEntity(Blocking, entity);
   world.components.addToEntity(Interactable, entity);
@@ -96,6 +107,10 @@ export function createEnemy(world: World, prefab: EnemyPrefab): Entity {
   const health = prefab.health ?? DEFAULT_ENEMY_HEALTH;
   world.components.addToEntity(GridPos, entity, { x: prefab.x, y: prefab.y });
   world.components.addToEntity(Facing, entity, { dir: normalizeDirection(prefab.dir) });
+  world.components.addToEntity(Drawable, entity, {
+    kind: DrawableKind.Enemy,
+    layer: DrawableLayer.Enemy,
+  });
   world.components.addToEntity(Npc, entity, { displayName: prefab.displayName });
   world.components.addToEntity(Enemy, entity);
   world.components.addToEntity(Blocking, entity);
@@ -130,6 +145,10 @@ export function createDoor(world: World, prefab: DoorPrefab): Entity {
   }
 
   world.components.addToEntity(GridPos, entity, { x: prefab.x, y: prefab.y });
+  world.components.addToEntity(Drawable, entity, {
+    kind: DrawableKind.Door,
+    layer: DrawableLayer.Structure,
+  });
   world.components.addToEntity(Door, entity, { open: 0 });
   world.components.addToEntity(Interactable, entity);
   world.components.addToEntity(Blocking, entity);
@@ -149,6 +168,10 @@ export function createKey(world: World, prefab: KeyPrefab): Entity {
   const entity = world.entities.create();
   if (entity === undefined) throw new Error("Failed to create key entity");
   world.components.addToEntity(GridPos, entity, { x: prefab.x, y: prefab.y });
+  world.components.addToEntity(Drawable, entity, {
+    kind: DrawableKind.Key,
+    layer: DrawableLayer.Item,
+  });
   world.components.addToEntity(Key, entity, { lockId: prefab.lockId });
   return entity;
 }

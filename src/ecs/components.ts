@@ -3,6 +3,10 @@ import type { CardinalDirection } from "@/src/grid/direction.ts";
 import type { DisplayName } from "@/src/ecs/names.ts";
 
 export type GridPosSchema = { x: number; y: number };
+export type GridPosPartitions = {
+  readonly x: Uint8Array;
+  readonly y: Uint8Array;
+};
 
 /** Grid positions are stored as bytes, so map dimensions must stay below 256. */
 export const GridPos: Component<GridPosSchema> = new Component<GridPosSchema>({
@@ -28,6 +32,37 @@ export const Player: Component<null> = new Component<null>({ name: "player", max
 export const Blocking: Component<null> = new Component<null>({ name: "blocking" });
 
 export const Interactable: Component<null> = new Component<null>({ name: "interactable" });
+
+export const DrawableKind = {
+  Player: 1,
+  Npc: 2,
+  Enemy: 3,
+  Door: 4,
+  Key: 5,
+} as const;
+export type DrawableKind = (typeof DrawableKind)[keyof typeof DrawableKind];
+
+export const DrawableLayer = {
+  Item: 10,
+  Structure: 20,
+  Npc: 30,
+  Enemy: 31,
+  Player: 40,
+} as const;
+export type DrawableLayer = (typeof DrawableLayer)[keyof typeof DrawableLayer];
+
+export type DrawableSchema = {
+  kind: DrawableKind;
+  layer: DrawableLayer;
+};
+export type DrawablePartitions = {
+  readonly kind: Uint8Array;
+  readonly layer: Uint8Array;
+};
+export const Drawable = new Component<DrawableSchema>({
+  name: "drawable",
+  schema: { kind: Uint8Array, layer: Uint8Array },
+});
 
 export type DoorSchema = { open: number };
 export const Door = new Component<DoorSchema>({
@@ -102,6 +137,7 @@ export const ALL_COMPONENTS: DynamicComponent[] = [
   Player,
   Blocking,
   Interactable,
+  Drawable,
   Door,
   Locked,
   Key,
