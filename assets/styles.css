@@ -1,9 +1,15 @@
 @import "tailwindcss";
 
-* { 
-  margin: 0; 
-  padding: 0; 
-  box-sizing: border-box; 
+:root {
+  --game-aspect-ratio: 0.5625;
+  --game-display-width: 720px;
+  --game-display-height: 1280px;
+}
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
 }
 html,
 body {
@@ -18,19 +24,21 @@ body {
   font-family: ui-monospace, "SFMono-Regular", "Cascadia Code", "Liberation Mono", Menlo, monospace;
 }
 #stage {
-  width: 100%;
-  height: 100%;
+  width: 100dvw;
+  height: 100dvh;
   display: flex;
   align-items: center;
   justify-content: center;
+  overflow: hidden;
   touch-action: none;
   user-select: none;
 }
 #gameCanvas {
   display: block;
   image-rendering: pixelated;
-  aspect-ratio: 16/9;
-  width: min(100vw, calc(100vh * 16 / 9));
-  height: auto;
+  aspect-ratio: var(--game-aspect-ratio);
+  width: var(--game-display-width);
+  height: var(--game-display-height);
+  flex: 0 0 auto;
   touch-action: none;
 }

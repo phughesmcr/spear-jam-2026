@@ -1,25 +1,29 @@
 import { useEffect, useRef } from "preact/hooks";
+import { startGame } from "@/src/entry.ts";
 
 export default function Game({ seed }: { seed: number }) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
 
   useEffect(() => {
+    let activeGame: Disposable | undefined;
+
     if (canvasRef.current) {
       const canvas = canvasRef.current;
       const ctx = canvas.getContext("2d");
-      if (ctx) {
-        ctx.fillStyle = "red";
-        ctx.fillRect(0, 0, canvas.width, canvas.height);
-        // print seed to canvas
-        ctx.font = "16px Arial";
-        ctx.fillStyle = "white";
-        ctx.fillText("Seed: " + seed, 10, 20);
-      }
-    }
-  }, []);
+      if (!ctx) throw new Error("Failed to get canvas context");
 
-  return (
-    <canvas ref={canvasRef} id="game-canvas" width="100%" height="100%">
-    </canvas>
-  );
+      activeGame = startGame({
+        canvas: canvasRef.current,
+        ctx: ctx,
+        host: globalThis,
+        seed,
+      });
+    }
+
+    return () => {
+      activeGame?.[Symbol.dispose]();
+    };
+  }, [seed]);
+
+  return <canvas id="gameCanvas" ref={canvasRef}></canvas>;
 }
