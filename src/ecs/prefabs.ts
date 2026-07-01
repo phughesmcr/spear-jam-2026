@@ -61,12 +61,6 @@ export function createPlayer(world: World, prefab: PlayerPrefab): Entity {
   addGridActor(world, entity, prefab, DrawableKind.Player, DrawableLayer.Player);
   world.components.addToEntity(Player, entity);
   addHealth(world, entity, DEFAULT_PLAYER_HEALTH);
-  world.components.addToEntity(Attack, entity, {
-    ...DEFAULT_ATTACK,
-    minDamage: 1,
-    maxDamage: 2,
-    attackBonus: 4,
-  });
   return entity;
 }
 

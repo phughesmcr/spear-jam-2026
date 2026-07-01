@@ -1,47 +1,33 @@
-import { assertEquals } from "@std/assert";
+import { assertEquals, assertRejects } from "@std/assert";
 import { DialogueTreeId } from "@/src/dialogue/dialogue.ts";
-import {
-  Attack,
-  AttackFacingRequirement,
-  AttackPattern,
-  AttackTargetMode,
-  Blocking,
-  Dialogue,
-  DisplayNameComponent,
-  Door,
-  Enemy,
-  Facing,
-  GridPos,
-  Health,
-  Interactable,
-  Key,
-  Locked,
-  Npc,
-  Player as PlayerTag,
-  TurnTaker,
-} from "@/src/ecs/components.ts";
+import { AttackFacingRequirement, AttackPattern, AttackTargetMode, Blocking, Health, Locked } from "@/src/ecs/components.ts";
+import { GridPos } from "@/src/ecs/components.ts";
 import { DisplayName } from "@/src/game/names.ts";
-import { Player } from "@/src/ecs/player.ts";
-import { GameSession } from "@/src/ecs/session.ts";
+import { createGameSession } from "@/src/ecs/session.ts";
 import { createWorld } from "@/src/ecs/world.ts";
 import { LockId, scopedLockId, VICTORY_GOTO } from "@/src/map/map.ts";
-import { createEntity, flatTestMap } from "@/tests/ecs/helpers.ts";
+import {
+  createTestDoor,
+  createTestEnemy,
+  createTestKey,
+  createTestNpc,
+  createTestPlayer,
+  createTestSession,
+  flatTestMap,
+} from "@/tests/ecs/helpers.ts";
 
 Deno.test("interacting with an NPC enters dialogue without consuming a turn", async () => {
   const world = await createWorld();
-  const playerEntity = createEntity(world);
-  const npc = createEntity(world);
+  const playerEntity = createTestPlayer(world);
+  createTestNpc(world, {
+    x: 2,
+    y: 1,
+    displayName: DisplayName.John,
+    dialogueTreeId: DialogueTreeId.JohnIntro,
+    interactable: true,
+  });
 
-  world.components.addToEntity(GridPos, playerEntity, { x: 1, y: 1 });
-  world.components.addToEntity(Facing, playerEntity, { dir: 1 });
-  world.components.addToEntity(GridPos, npc, { x: 2, y: 1 });
-  world.components.addToEntity(DisplayNameComponent, npc, { displayName: DisplayName.John });
-  world.components.addToEntity(Npc, npc);
-  world.components.addToEntity(Dialogue, npc, { dialogueTreeId: DialogueTreeId.JohnIntro });
-  world.components.addToEntity(Interactable, npc);
-  world.refresh();
-
-  const session = new GameSession(world, new Player(world, playerEntity), TEST_MAP, () => 0);
+  const session = createTestSession(world, playerEntity);
   const result = session.handlePlayerCommand({ type: "interact" });
 
   assertEquals(result, {
@@ -55,18 +41,15 @@ Deno.test("interacting with an NPC enters dialogue without consuming a turn", as
 
 Deno.test("interacting with an NPC without dialogue data falls back to silence", async () => {
   const world = await createWorld();
-  const playerEntity = createEntity(world);
-  const npc = createEntity(world);
+  const playerEntity = createTestPlayer(world);
+  createTestNpc(world, {
+    x: 2,
+    y: 1,
+    displayName: DisplayName.John,
+    interactable: true,
+  });
 
-  world.components.addToEntity(GridPos, playerEntity, { x: 1, y: 1 });
-  world.components.addToEntity(Facing, playerEntity, { dir: 1 });
-  world.components.addToEntity(GridPos, npc, { x: 2, y: 1 });
-  world.components.addToEntity(DisplayNameComponent, npc, { displayName: DisplayName.John });
-  world.components.addToEntity(Npc, npc);
-  world.components.addToEntity(Interactable, npc);
-  world.refresh();
-
-  const session = new GameSession(world, new Player(world, playerEntity), TEST_MAP, () => 0);
+  const session = createTestSession(world, playerEntity);
   const result = session.handlePlayerCommand({ type: "interact" });
 
   assertEquals(result, {
@@ -80,16 +63,10 @@ Deno.test("interacting with an NPC without dialogue data falls back to silence",
 
 Deno.test("moving onto a key emits a pickup event and stores a map-scoped key", async () => {
   const world = await createWorld();
-  const playerEntity = createEntity(world);
-  const key = createEntity(world);
+  const playerEntity = createTestPlayer(world);
+  const key = createTestKey(world, { x: 2, y: 1, lockId: LockId.Door1 });
 
-  world.components.addToEntity(GridPos, playerEntity, { x: 1, y: 1 });
-  world.components.addToEntity(Facing, playerEntity, { dir: 1 });
-  world.components.addToEntity(GridPos, key, { x: 2, y: 1 });
-  world.components.addToEntity(Key, key, { lockId: LockId.Door1 });
-  world.refresh();
-
-  const session = new GameSession(world, new Player(world, playerEntity), TEST_MAP, () => 0);
+  const session = createTestSession(world, playerEntity);
   const result = session.handlePlayerCommand({ type: "move", direction: "forward" });
 
   assertEquals(result.events, [
@@ -104,19 +81,16 @@ Deno.test("moving onto a key emits a pickup event and stores a map-scoped key", 
 
 Deno.test("interacting with a locked door emits an event without consuming a turn", async () => {
   const world = await createWorld();
-  const playerEntity = createEntity(world);
-  const door = createEntity(world);
+  const playerEntity = createTestPlayer(world);
+  const door = createTestDoor(world, {
+    x: 2,
+    y: 1,
+    lockId: LockId.Door1,
+    blocking: true,
+    interactable: true,
+  });
 
-  world.components.addToEntity(GridPos, playerEntity, { x: 1, y: 1 });
-  world.components.addToEntity(Facing, playerEntity, { dir: 1 });
-  world.components.addToEntity(GridPos, door, { x: 2, y: 1 });
-  world.components.addToEntity(Door, door, { open: 0 });
-  world.components.addToEntity(Locked, door, { lockId: LockId.Door1 });
-  world.components.addToEntity(Blocking, door);
-  world.components.addToEntity(Interactable, door);
-  world.refresh();
-
-  const session = new GameSession(world, new Player(world, playerEntity), TEST_MAP, () => 0);
+  const session = createTestSession(world, playerEntity);
   const result = session.handlePlayerCommand({ type: "interact" });
 
   assertEquals(result, {
@@ -132,25 +106,18 @@ Deno.test("interacting with a locked door emits an event without consuming a tur
 
 Deno.test("a key from another map does not open this map's lock", async () => {
   const world = await createWorld();
-  const playerEntity = createEntity(world);
-  const door = createEntity(world);
+  const playerEntity = createTestPlayer(world);
+  const door = createTestDoor(world, {
+    x: 2,
+    y: 1,
+    lockId: LockId.Door1,
+    blocking: true,
+    interactable: true,
+  });
 
-  world.components.addToEntity(GridPos, playerEntity, { x: 1, y: 1 });
-  world.components.addToEntity(Facing, playerEntity, { dir: 1 });
-  world.components.addToEntity(GridPos, door, { x: 2, y: 1 });
-  world.components.addToEntity(Door, door, { open: 0 });
-  world.components.addToEntity(Locked, door, { lockId: LockId.Door1 });
-  world.components.addToEntity(Blocking, door);
-  world.components.addToEntity(Interactable, door);
-  world.refresh();
-
-  const session = new GameSession(
-    world,
-    new Player(world, playerEntity),
-    TEST_MAP,
-    () => 0,
-    { heldKeys: [scopedLockId("Another Map", LockId.Door1)], selectedWeapon: 1 },
-  );
+  const session = createTestSession(world, playerEntity, TEST_MAP, {
+    playerState: { heldKeys: [scopedLockId("Another Map", LockId.Door1)], selectedWeapon: 1 },
+  });
 
   const result = session.handlePlayerCommand({ type: "interact" });
   assertEquals(result.events, [{ type: "doorLocked", entity: door }]);
@@ -159,25 +126,18 @@ Deno.test("a key from another map does not open this map's lock", async () => {
 
 Deno.test("opening a locked door consumes the key and unblocks movement", async () => {
   const world = await createWorld();
-  const playerEntity = createEntity(world);
-  const door = createEntity(world);
+  const playerEntity = createTestPlayer(world);
+  const door = createTestDoor(world, {
+    x: 2,
+    y: 1,
+    lockId: LockId.Door1,
+    blocking: true,
+    interactable: true,
+  });
 
-  world.components.addToEntity(GridPos, playerEntity, { x: 1, y: 1 });
-  world.components.addToEntity(Facing, playerEntity, { dir: 1 });
-  world.components.addToEntity(GridPos, door, { x: 2, y: 1 });
-  world.components.addToEntity(Door, door, { open: 0 });
-  world.components.addToEntity(Locked, door, { lockId: LockId.Door1 });
-  world.components.addToEntity(Blocking, door);
-  world.components.addToEntity(Interactable, door);
-  world.refresh();
-
-  const session = new GameSession(
-    world,
-    new Player(world, playerEntity),
-    TEST_MAP,
-    () => 0,
-    { heldKeys: [scopedLockId(TEST_MAP.name, LockId.Door1)], selectedWeapon: 1 },
-  );
+  const session = createTestSession(world, playerEntity, TEST_MAP, {
+    playerState: { heldKeys: [scopedLockId(TEST_MAP.name, LockId.Door1)], selectedWeapon: 1 },
+  });
 
   const openResult = session.handlePlayerCommand({ type: "interact" });
   assertEquals(openResult.events, [
@@ -196,13 +156,9 @@ Deno.test("opening a locked door consumes the key and unblocks movement", async 
 
 Deno.test("selecting a weapon emits a player-facing event without consuming a turn", async () => {
   const world = await createWorld();
-  const playerEntity = createEntity(world);
+  const playerEntity = createTestPlayer(world);
 
-  world.components.addToEntity(GridPos, playerEntity, { x: 1, y: 1 });
-  world.components.addToEntity(Facing, playerEntity, { dir: 1 });
-  world.refresh();
-
-  const session = new GameSession(world, new Player(world, playerEntity), TEST_MAP, () => 0);
+  const session = createTestSession(world, playerEntity);
   const result = session.handlePlayerCommand({ type: "selectWeapon", slot: 2 });
 
   assertEquals(result, {
@@ -219,14 +175,10 @@ Deno.test("selecting a weapon emits a player-facing event without consuming a tu
 
 Deno.test("moving onto a victory exit reports a victory outcome", async () => {
   const world = await createWorld();
-  const playerEntity = createEntity(world);
-
-  world.components.addToEntity(GridPos, playerEntity, { x: 1, y: 1 });
-  world.components.addToEntity(Facing, playerEntity, { dir: 1 });
-  world.refresh();
+  const playerEntity = createTestPlayer(world);
 
   const map = flatTestMap(3, 2, [{ prefab: "exit", x: 2, y: 1, goto: VICTORY_GOTO }]);
-  const session = new GameSession(world, new Player(world, playerEntity), map, () => 0);
+  const session = createTestSession(world, playerEntity, map);
   const result = session.handlePlayerCommand({ type: "move", direction: "forward" });
 
   assertEquals(result, { events: [], outcome: "victory" });
@@ -234,35 +186,30 @@ Deno.test("moving onto a victory exit reports a victory outcome", async () => {
 
 Deno.test("an enemy reducing the player to zero health reports a defeat outcome", async () => {
   const world = await createWorld();
-  const playerEntity = createEntity(world);
-  const enemy = createEntity(world);
-
-  world.components.addToEntity(GridPos, playerEntity, { x: 1, y: 1 });
-  world.components.addToEntity(Facing, playerEntity, { dir: 1 });
-  world.components.addToEntity(Blocking, playerEntity);
-  world.components.addToEntity(PlayerTag, playerEntity);
-  world.components.addToEntity(Health, playerEntity, { current: 1, max: 1 });
-
-  world.components.addToEntity(GridPos, enemy, { x: 2, y: 1 });
-  world.components.addToEntity(Facing, enemy, { dir: 3 });
-  world.components.addToEntity(Blocking, enemy);
-  world.components.addToEntity(Enemy, enemy);
-  world.components.addToEntity(TurnTaker, enemy);
-  world.components.addToEntity(DisplayNameComponent, enemy, { displayName: DisplayName.Imp });
-  world.components.addToEntity(Attack, enemy, {
-    minDamage: 1,
-    maxDamage: 1,
-    range: 1,
-    requiresFacing: AttackFacingRequirement.Required,
-    attackBonus: 20,
-    critThreshold: 0,
-    critMultiplier: 1,
-    pattern: AttackPattern.Line,
-    targets: AttackTargetMode.First,
+  const playerEntity = createTestPlayer(world, {
+    blocking: true,
+    tag: true,
+    health: { current: 1, max: 1 },
   });
-  world.refresh();
+  const enemy = createTestEnemy(world, {
+    x: 2,
+    y: 1,
+    dir: 3,
+    displayName: DisplayName.Imp,
+    attack: {
+      minDamage: 1,
+      maxDamage: 1,
+      range: 1,
+      requiresFacing: AttackFacingRequirement.Required,
+      attackBonus: 20,
+      critThreshold: 0,
+      critMultiplier: 1,
+      pattern: AttackPattern.Line,
+      targets: AttackTargetMode.First,
+    },
+  });
 
-  const session = new GameSession(world, new Player(world, playerEntity), TEST_MAP, () => 0);
+  const session = createTestSession(world, playerEntity);
   const result = session.handlePlayerCommand({ type: "wait" });
 
   assertEquals(result.outcome, "defeat");
@@ -288,3 +235,29 @@ Deno.test("an enemy reducing the player to zero health reports a defeat outcome"
 });
 
 const TEST_MAP = flatTestMap(3, 2);
+
+Deno.test("createGameSession applies carried-over player health", async () => {
+  const map = flatTestMap(3, 2, [{ prefab: "player", x: 1, y: 1, dir: 1 }]);
+  const session = await createGameSession(map, () => 0, {
+    heldKeys: [],
+    selectedWeapon: 1,
+    health: { current: 3, max: 10 },
+  });
+
+  assertEquals(
+    session.world.components.getEntityData(Health, session.player.getEntity()),
+    { current: 3, max: 10 },
+  );
+  assertEquals(session.getPlayerState().health, { current: 3, max: 10 });
+});
+
+Deno.test("createGameSession spawns the player at full health without carried state", async () => {
+  const map = flatTestMap(3, 2, [{ prefab: "player", x: 1, y: 1, dir: 1 }]);
+  const session = await createGameSession(map, () => 0);
+
+  assertEquals(session.getPlayerState().health, { current: 10, max: 10 });
+});
+
+Deno.test("createGameSession rejects maps without a player spawn", async () => {
+  await assertRejects(() => createGameSession(flatTestMap(3, 2), () => 0), Error, "player spawn");
+});

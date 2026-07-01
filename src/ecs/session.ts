@@ -1,4 +1,4 @@
-import type { World } from "@phughesmcr/miski";
+import type { Entity, World } from "@phughesmcr/miski";
 import { Health } from "@/src/ecs/components.ts";
 import { directionDelta } from "@/src/grid/direction.ts";
 import type { GridDelta } from "@/src/grid/direction.ts";
@@ -6,8 +6,10 @@ import { attackWithSelectedWeapon, DEFAULT_SELECTED_WEAPON, weaponLabel } from "
 import { enemyTurnSystem } from "@/src/ecs/enemy.ts";
 import type { EnemyTurnSystem } from "@/src/ecs/enemy.ts";
 import { collectKeyAt, interactWithEntity } from "@/src/ecs/interactions.ts";
+import { createMapEntity } from "@/src/ecs/prefabs.ts";
 import { Player } from "@/src/ecs/player.ts";
 import { SpatialIndex } from "@/src/ecs/spatial.ts";
+import { createWorld } from "@/src/ecs/world.ts";
 import { relativeMoveDirectionOffset, turnDirectionDelta } from "@/src/game/commands.ts";
 import type { PlayerCommand, PlayerCommandResult } from "@/src/game/commands.ts";
 import type { GameEvent } from "@/src/game/events.ts";
@@ -23,6 +25,41 @@ const UNCHANGED_PLAYER_COMMAND: PlayerCommandResult = Object.freeze({
 type MoveResult =
   | { readonly moved: false }
   | { readonly moved: true; readonly events: readonly GameEvent[]; readonly exit?: ExitDef };
+
+export async function createGameSession(
+  map: GameMap,
+  random: RandomSource,
+  playerState?: PlayerState,
+): Promise<GameSession> {
+  const world = await createWorld();
+
+  try {
+    let playerEntity: Entity | undefined;
+
+    for (const entityDef of map.entities) {
+      if (entityDef.prefab === "exit") continue;
+
+      const entity = createMapEntity(world, entityDef);
+      if (entityDef.prefab === "player") {
+        playerEntity = entity;
+      }
+    }
+
+    if (playerEntity === undefined) throw new Error("Map is missing a player spawn.");
+
+    if (playerState?.health !== undefined && world.components.entityHas(Health, playerEntity)) {
+      world.components.setEntityData(Health, playerEntity, playerState.health);
+    }
+
+    const player = new Player(world, playerEntity);
+    world.refresh();
+
+    return new GameSession(world, player, map, random, playerState);
+  } catch (error) {
+    await world.destroy();
+    throw error;
+  }
+}
 
 export class GameSession implements Disposable {
   readonly world: World;
