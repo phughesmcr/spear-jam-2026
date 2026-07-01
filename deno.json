@@ -1,4 +1,8 @@
 {
+  "description": "Entry for 30 Days of RPG Adventures #1: Spear of Destiny",
+  "version": "0.0.1",
+  "license": "MIT",
+  "unstable": ["tsgo"],
   "nodeModulesDir": "manual",
   "tasks": {
     "check": "deno fmt --check . && deno lint . && deno check",
@@ -13,7 +17,24 @@
         "fresh",
         "recommended"
       ]
-    }
+    },
+    "include": [
+      "default-param-last",
+      "explicit-function-return-type",
+      "explicit-module-boundary-types",
+      "no-await-in-sync-fn",
+      "no-const-assign",
+      "no-eval",
+      "no-non-null-asserted-optional-chain",
+      "no-sync-fn-in-async-fn",
+      "no-throw-literal",
+      "no-top-level-await",
+      "no-undef",
+      "no-useless-rename",
+      "prefer-ascii",
+      "single-var-declarator"
+    ],
+    "exclude": ["*.md", "**/*.md", "LICENSE"]
   },
   "exclude": [
     "**/_fresh/*"
@@ -30,6 +51,9 @@
     "@tailwindcss/vite": "npm:@tailwindcss/vite@^4.1.12"
   },
   "compilerOptions": {
+    "erasableSyntaxOnly": true,
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
     "lib": [
       "dom",
       "dom.asynciterable",
@@ -57,5 +81,21 @@
     "types": [
       "vite/client"
     ]
+  },
+  "fmt": {
+    "bracePosition": "sameLine",
+    "indentWidth": 2,
+    "lineWidth": 120,
+    "newLineKind": "lf",
+    "nextControlFlowPosition": "sameLine",
+    "operatorPosition": "sameLine",
+    "proseWrap": "always",
+    "quoteProps": "consistent",
+    "semiColons": true,
+    "singleQuote": false,
+    "trailingCommas": "onlyMultiLine",
+    "useBraces": "whenNotSingleLine",
+    "useTabs": false,
+    "exclude": ["*.md", "**/*.md", "LICENSE"]
   }
 }
