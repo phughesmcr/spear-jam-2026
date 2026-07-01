@@ -5,11 +5,17 @@ export type PlayerState = {
   readonly selectedWeapon: CommandSlot;
 };
 
+export type DialogueState = {
+  readonly title: string;
+  readonly message: string;
+};
+
 export type GameMode =
   | { readonly type: "loading" }
   | { readonly type: "playing" }
   | { readonly type: "paused" }
   | { readonly type: "menu" }
+  | ({ readonly type: "dialogue" } & DialogueState)
   | {
     readonly type: "intermission";
     readonly message: string;

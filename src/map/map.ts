@@ -1,5 +1,6 @@
 import type { DisplayName } from "@/src/ecs/names.ts";
 import type { AttackSchema } from "@/src/ecs/components.ts";
+import type { DialogueTreeId } from "@/src/dialogue/dialogue.ts";
 
 export type WallTile = {
   id: number;
@@ -37,6 +38,7 @@ export type NpcDef = {
   y: number;
   dir: number;
   displayName: DisplayName;
+  dialogueTreeId?: DialogueTreeId;
 };
 
 export type EnemyDef = {

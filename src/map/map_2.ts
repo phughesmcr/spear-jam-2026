@@ -1,3 +1,4 @@
+import { DialogueTreeId } from "@/src/dialogue/dialogue.ts";
 import { DisplayName } from "@/src/ecs/names.ts";
 import { LockId } from "@/src/map/map.ts";
 import type { GameMap } from "@/src/map/map.ts";
@@ -26,7 +27,7 @@ export const MAP_2: GameMap = {
   },
   entities: [
     { prefab: "player", x: 5, y: 5, dir: 1 },
-    { prefab: "npc", x: 4, y: 5, dir: 1, displayName: DisplayName.John },
+    { prefab: "npc", x: 4, y: 5, dir: 1, displayName: DisplayName.John, dialogueTreeId: DialogueTreeId.JohnIntro },
     { prefab: "enemy", x: 6, y: 5, dir: 3, displayName: DisplayName.Imp },
     { prefab: "enemy", x: 8, y: 5, dir: 3, displayName: DisplayName.Imp },
     { prefab: "door", x: 7, y: 3, locked: true, lockId: LockId.Door1 },

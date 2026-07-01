@@ -15,16 +15,28 @@ export const GridPos: Component<GridPosSchema> = new Component<GridPosSchema>({
 });
 
 export type FacingSchema = { dir: CardinalDirection };
+export type FacingPartitions = {
+  readonly dir: Uint8Array;
+};
+
 /** Cardinal heading: 0=N, 1=E, 2=S, 3=W. Drives the directional FOV cone. */
 export const Facing: Component<FacingSchema> = new Component<FacingSchema>({
   name: "facing",
   schema: { dir: Uint8Array },
 });
 
-export type NpcSchema = { displayName: DisplayName };
-export const Npc = new Component<NpcSchema>({
-  name: "npc",
+export type DisplayNameSchema = { displayName: DisplayName };
+export const DisplayNameComponent = new Component<DisplayNameSchema>({
+  name: "displayName",
   schema: { displayName: Uint8Array },
+});
+
+export const Npc: Component<null> = new Component<null>({ name: "npc" });
+
+export type DialogueSchema = { dialogueTreeId: number };
+export const Dialogue = new Component<DialogueSchema>({
+  name: "dialogue",
+  schema: { dialogueTreeId: Uint8Array },
 });
 
 export const Player: Component<null> = new Component<null>({ name: "player", maxEntities: 1 });
@@ -133,7 +145,9 @@ export const Attack = new Component<AttackSchema>({
 export const ALL_COMPONENTS: DynamicComponent[] = [
   GridPos,
   Facing,
+  DisplayNameComponent,
   Npc,
+  Dialogue,
   Player,
   Blocking,
   Interactable,

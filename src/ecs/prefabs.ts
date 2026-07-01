@@ -1,9 +1,12 @@
 import type { Entity, World } from "@phughesmcr/miski";
+import { DialogueTreeId } from "@/src/dialogue/dialogue.ts";
 import {
   Attack,
   AttackPattern,
   AttackTargetMode,
   Blocking,
+  Dialogue,
+  DisplayNameComponent,
   Door,
   Drawable,
   DrawableKind,
@@ -46,14 +49,10 @@ export type PlayerPrefab = {
 };
 
 export function createPlayer(world: World, prefab: PlayerPrefab): Entity {
-  const entity = world.entities.create();
-  if (entity === undefined) throw new Error("Failed to create player entity");
+  const entity = createEntity(world, "player");
   world.components.addToEntity(GridPos, entity, { x: prefab.x, y: prefab.y });
   world.components.addToEntity(Facing, entity, { dir: normalizeDirection(prefab.dir) });
-  world.components.addToEntity(Drawable, entity, {
-    kind: DrawableKind.Player,
-    layer: DrawableLayer.Player,
-  });
+  addDrawable(world, entity, DrawableKind.Player, DrawableLayer.Player);
   world.components.addToEntity(Player, entity);
   world.components.addToEntity(Blocking, entity);
   world.components.addToEntity(TurnTaker, entity);
@@ -72,18 +71,19 @@ export type NpcPrefab = {
   y: number;
   dir: number;
   displayName: DisplayName;
+  dialogueTreeId?: DialogueTreeId;
 };
 
 export function createNpc(world: World, prefab: NpcPrefab): Entity {
-  const entity = world.entities.create();
-  if (entity === undefined) throw new Error("Failed to create npc entity");
+  const entity = createEntity(world, "npc");
   world.components.addToEntity(GridPos, entity, { x: prefab.x, y: prefab.y });
   world.components.addToEntity(Facing, entity, { dir: normalizeDirection(prefab.dir) });
-  world.components.addToEntity(Drawable, entity, {
-    kind: DrawableKind.Npc,
-    layer: DrawableLayer.Npc,
-  });
-  world.components.addToEntity(Npc, entity, { displayName: prefab.displayName });
+  addDrawable(world, entity, DrawableKind.Npc, DrawableLayer.Npc);
+  world.components.addToEntity(DisplayNameComponent, entity, { displayName: prefab.displayName });
+  world.components.addToEntity(Npc, entity);
+  if (prefab.dialogueTreeId !== undefined && prefab.dialogueTreeId !== DialogueTreeId.None) {
+    world.components.addToEntity(Dialogue, entity, { dialogueTreeId: prefab.dialogueTreeId });
+  }
   world.components.addToEntity(Blocking, entity);
   world.components.addToEntity(Interactable, entity);
   world.components.addToEntity(TurnTaker, entity);
@@ -101,17 +101,13 @@ export type EnemyPrefab = {
 };
 
 export function createEnemy(world: World, prefab: EnemyPrefab): Entity {
-  const entity = world.entities.create();
-  if (entity === undefined) throw new Error("Failed to create enemy entity");
+  const entity = createEntity(world, "enemy");
 
   const health = prefab.health ?? DEFAULT_ENEMY_HEALTH;
   world.components.addToEntity(GridPos, entity, { x: prefab.x, y: prefab.y });
   world.components.addToEntity(Facing, entity, { dir: normalizeDirection(prefab.dir) });
-  world.components.addToEntity(Drawable, entity, {
-    kind: DrawableKind.Enemy,
-    layer: DrawableLayer.Enemy,
-  });
-  world.components.addToEntity(Npc, entity, { displayName: prefab.displayName });
+  addDrawable(world, entity, DrawableKind.Enemy, DrawableLayer.Enemy);
+  world.components.addToEntity(DisplayNameComponent, entity, { displayName: prefab.displayName });
   world.components.addToEntity(Enemy, entity);
   world.components.addToEntity(Blocking, entity);
   world.components.addToEntity(TurnTaker, entity);
@@ -138,17 +134,13 @@ export type DoorPrefab = {
 };
 
 export function createDoor(world: World, prefab: DoorPrefab): Entity {
-  const entity = world.entities.create();
-  if (entity === undefined) throw new Error("Failed to create door entity");
+  const entity = createEntity(world, "door");
   if (prefab.locked === true && prefab.lockId === undefined) {
     throw new Error("Locked door prefab is missing a lock id");
   }
 
   world.components.addToEntity(GridPos, entity, { x: prefab.x, y: prefab.y });
-  world.components.addToEntity(Drawable, entity, {
-    kind: DrawableKind.Door,
-    layer: DrawableLayer.Structure,
-  });
+  addDrawable(world, entity, DrawableKind.Door, DrawableLayer.Structure);
   world.components.addToEntity(Door, entity, { open: 0 });
   world.components.addToEntity(Interactable, entity);
   world.components.addToEntity(Blocking, entity);
@@ -165,15 +157,21 @@ export type KeyPrefab = {
 };
 
 export function createKey(world: World, prefab: KeyPrefab): Entity {
-  const entity = world.entities.create();
-  if (entity === undefined) throw new Error("Failed to create key entity");
+  const entity = createEntity(world, "key");
   world.components.addToEntity(GridPos, entity, { x: prefab.x, y: prefab.y });
-  world.components.addToEntity(Drawable, entity, {
-    kind: DrawableKind.Key,
-    layer: DrawableLayer.Item,
-  });
+  addDrawable(world, entity, DrawableKind.Key, DrawableLayer.Item);
   world.components.addToEntity(Key, entity, { lockId: prefab.lockId });
   return entity;
+}
+
+function createEntity(world: World, prefabName: string): Entity {
+  const entity = world.entities.create();
+  if (entity === undefined) throw new Error(`Failed to create ${prefabName} entity`);
+  return entity;
+}
+
+function addDrawable(world: World, entity: Entity, kind: DrawableKind, layer: DrawableLayer): void {
+  world.components.addToEntity(Drawable, entity, { kind, layer });
 }
 
 export function createMapEntity(world: World, prefab: MapEntityDef): Entity {

@@ -1,5 +1,5 @@
 import { Query } from "@phughesmcr/miski";
-import { Blocking, Drawable, GridPos, Key, Player, TurnTaker } from "./components.ts";
+import { Blocking, Drawable, Enemy, Facing, GridPos, Key, TurnTaker } from "./components.ts";
 
 /** All entities with a grid position */
 export const positionedQuery: Query = new Query({
@@ -21,8 +21,7 @@ export const drawableRenderQuery = new Query({
   all: { gridPos: GridPos, drawable: Drawable },
 });
 
-/** All non-player entities that participate in the turn loop */
-export const nonPlayerTurnTakerQuery: Query = new Query({
-  all: { turnTaker: TurnTaker },
-  none: { player: Player },
+/** All enemies that participate in the turn loop */
+export const enemyTurnQuery = new Query({
+  all: { enemy: Enemy, turnTaker: TurnTaker, gridPos: GridPos, facing: Facing },
 });

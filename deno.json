@@ -51,6 +51,11 @@
     "tailwindcss": "npm:tailwindcss@^4.1.10",
     "@tailwindcss/vite": "npm:@tailwindcss/vite@^4.1.12"
   },
+  "test": {
+    "include": [
+      "tests/**/*.test.ts"
+    ]
+  },
   "compilerOptions": {
     "erasableSyntaxOnly": true,
     "noUnusedLocals": true,

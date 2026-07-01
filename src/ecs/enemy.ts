@@ -1,8 +1,8 @@
-import type { Entity, World } from "@phughesmcr/miski";
-import { Enemy, Facing, GridPos } from "@/src/ecs/components.ts";
+import { type Entity, System, type World } from "@phughesmcr/miski";
+import type { FacingPartitions, GridPosPartitions } from "@/src/ecs/components.ts";
 import { attackEntity, attackTargets, entityAttack } from "@/src/ecs/combat.ts";
 import type { Player } from "@/src/ecs/player.ts";
-import { nonPlayerTurnTakerQuery } from "@/src/ecs/queries.ts";
+import { enemyTurnQuery } from "@/src/ecs/queries.ts";
 import type { CardinalDirection, GridDelta } from "@/src/grid/direction.ts";
 
 type TileBlocks = (x: number, y: number) => boolean;
@@ -10,33 +10,50 @@ type BlockingEntityAt = (x: number, y: number) => Entity | undefined;
 type PositionBlocks = (x: number, y: number) => boolean;
 type RandomSource = () => number;
 
-export function advanceEnemyTurns(
-  world: World,
-  player: Player,
-  tileBlocks: TileBlocks,
-  blockingEntityAt: BlockingEntityAt,
-  random: RandomSource,
-): void {
-  for (const entity of world.entities.query(nonPlayerTurnTakerQuery)) {
-    advanceEnemyTurn(world, player, entity, tileBlocks, blockingEntityAt, random);
-  }
-}
+type EnemyTurnComponents = {
+  readonly gridPos: { readonly partitions: GridPosPartitions };
+  readonly facing: { readonly partitions: FacingPartitions };
+};
+
+export type EnemyTurnContext = {
+  readonly world: World;
+  readonly player: Player;
+  readonly tileBlocks: TileBlocks;
+  readonly blockingEntityAt: BlockingEntityAt;
+  readonly random: RandomSource;
+};
+
+export type EnemyTurnSystem = (context: EnemyTurnContext) => void;
+
+export const enemyTurnSystem = new System({
+  name: "enemyTurnSystem",
+  query: enemyTurnQuery,
+  callback: (components, enemies, context: EnemyTurnContext): void => {
+    const enemyComponents = components as unknown as EnemyTurnComponents;
+    const gridPos = enemyComponents.gridPos.partitions;
+    const facing = enemyComponents.facing.partitions;
+    const indices = enemies.indices;
+    const count = enemies.count;
+
+    for (let i = 0; i < count; i++) {
+      advanceEnemyTurn(context, indices[i]!, gridPos, facing);
+    }
+  },
+});
 
 function advanceEnemyTurn(
-  world: World,
-  player: Player,
+  context: EnemyTurnContext,
   entity: Entity,
-  tileBlocks: TileBlocks,
-  blockingEntityAt: BlockingEntityAt,
-  random: RandomSource,
+  gridPos: GridPosPartitions,
+  facing: FacingPartitions,
 ): void {
+  const { world, player, tileBlocks, blockingEntityAt, random } = context;
   if (!world.entities.isActive(entity)) return;
-  if (!world.components.entityHas(Enemy, entity)) return;
 
   const attack = entityAttack(world, entity);
   if (attack !== undefined) {
     if (attack.requiresFacing === 1) {
-      faceEntityToward(world, entity, player.getPosition());
+      faceEntityToward(entity, player.getPosition(), gridPos, facing);
     }
 
     const targets = attackTargets(
@@ -56,35 +73,45 @@ function advanceEnemyTurn(
   }
 
   tryMoveEnemyTowardPlayer(
-    world,
     player,
     entity,
+    gridPos,
+    facing,
     (x, y) => tileBlocks(x, y) || blockingEntityAt(x, y) !== undefined,
   );
 }
 
-function tryMoveEnemyTowardPlayer(world: World, player: Player, entity: Entity, positionBlocks: PositionBlocks): void {
-  const position = world.components.getEntityData(GridPos, entity);
+function tryMoveEnemyTowardPlayer(
+  player: Player,
+  entity: Entity,
+  gridPos: GridPosPartitions,
+  facing: FacingPartitions,
+  positionBlocks: PositionBlocks,
+): void {
   const playerPosition = player.getPosition();
-  const stepX = Math.sign(playerPosition.x - position.x);
-  const stepY = Math.sign(playerPosition.y - position.y);
+  const x = gridPos.x[entity]!;
+  const y = gridPos.y[entity]!;
+  const stepX = Math.sign(playerPosition.x - x);
+  const stepY = Math.sign(playerPosition.y - y);
   const candidates = enemyMoveCandidates(
     { dx: stepX, dy: 0 },
     { dx: 0, dy: stepY },
-    Math.abs(playerPosition.x - position.x),
-    Math.abs(playerPosition.y - position.y),
+    Math.abs(playerPosition.x - x),
+    Math.abs(playerPosition.y - y),
   );
 
   for (const delta of candidates) {
-    const next = { x: position.x + delta.dx, y: position.y + delta.dy };
-    if (positionBlocks(next.x, next.y)) continue;
+    const nextX = x + delta.dx;
+    const nextY = y + delta.dy;
+    if (positionBlocks(nextX, nextY)) continue;
 
-    world.components.setEntityData(GridPos, entity, next);
-    world.components.setEntityData(Facing, entity, { dir: directionForStep(delta) });
+    gridPos.x[entity] = nextX;
+    gridPos.y[entity] = nextY;
+    facing.dir[entity] = directionForStep(delta);
     return;
   }
 
-  faceEntityToward(world, entity, playerPosition);
+  faceEntityToward(entity, playerPosition, gridPos, facing);
 }
 
 function enemyMoveCandidates(
@@ -104,17 +131,21 @@ function enemyMoveCandidates(
   return candidates;
 }
 
-function faceEntityToward(world: World, entity: Entity, target: { readonly x: number; readonly y: number }): void {
-  const position = world.components.getEntityData(GridPos, entity);
+function faceEntityToward(
+  entity: Entity,
+  target: { readonly x: number; readonly y: number },
+  gridPos: GridPosPartitions,
+  facing: FacingPartitions,
+): void {
   const delta = {
-    dx: Math.sign(target.x - position.x),
-    dy: Math.sign(target.y - position.y),
+    dx: Math.sign(target.x - gridPos.x[entity]!),
+    dy: Math.sign(target.y - gridPos.y[entity]!),
   };
 
   if (Math.abs(delta.dx) >= Math.abs(delta.dy) && delta.dx !== 0) {
-    world.components.setEntityData(Facing, entity, { dir: directionForStep({ dx: delta.dx, dy: 0 }) });
+    facing.dir[entity] = directionForStep({ dx: delta.dx, dy: 0 });
   } else if (delta.dy !== 0) {
-    world.components.setEntityData(Facing, entity, { dir: directionForStep({ dx: 0, dy: delta.dy }) });
+    facing.dir[entity] = directionForStep({ dx: 0, dy: delta.dy });
   }
 }
 

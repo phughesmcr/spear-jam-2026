@@ -3,7 +3,7 @@ import type { GameSession } from "@/src/ecs/session.ts";
 import { isPlayerCommand } from "@/src/game/commands.ts";
 import type { GameCommand } from "@/src/game/commands.ts";
 import type { PlayerCommand } from "@/src/game/commands.ts";
-import type { GameMode, PlayerState } from "@/src/game/state.ts";
+import type { DialogueState, GameMode, PlayerState } from "@/src/game/state.ts";
 import { SplitMix32 } from "@/src/game/rng.ts";
 import { setupKeyboard } from "@/src/input/input.ts";
 import { getMap, START_MAP_NAME } from "@/src/map/maps.ts";
@@ -100,6 +100,11 @@ class Game implements Disposable {
       return;
     }
 
+    if (this.mode.type === "dialogue") {
+      this.handleDialogueCommand(command);
+      return;
+    }
+
     if (isPlayerCommand(command)) {
       if (this.mode.type !== "playing") return;
       this.handlePlayerCommands([command]);
@@ -123,6 +128,13 @@ class Game implements Disposable {
     if (command.type !== "wait") return;
     const { goto, playerState } = this.mode;
     void this.loadMap(goto, playerState).catch((error: unknown) => this.handleLoadError(error));
+  }
+
+  private handleDialogueCommand(command: GameCommand): void {
+    if (this.mode.type !== "dialogue") return;
+    if (command.type !== "wait") return;
+    this.mode = { type: "playing" };
+    this.render();
   }
 
   private toggleMenu(): void {
@@ -158,6 +170,11 @@ class Game implements Disposable {
         this.render();
         return;
       }
+      if (result.dialogue) {
+        this.enterDialogue(result.dialogue);
+        this.render();
+        return;
+      }
       shouldRender ||= result.changedWorld;
     }
 
@@ -173,6 +190,13 @@ class Game implements Disposable {
       message: `Entering ${goto}. Space to continue.`,
       goto,
       playerState: this.session.getPlayerState(),
+    };
+  }
+
+  private enterDialogue(dialogue: DialogueState): void {
+    this.mode = {
+      type: "dialogue",
+      ...dialogue,
     };
   }
 

@@ -1,5 +1,14 @@
 import type { Entity, World } from "@phughesmcr/miski";
-import { Attack, AttackPattern, AttackTargetMode, Enemy, Facing, GridPos, Health, Npc } from "@/src/ecs/components.ts";
+import {
+  Attack,
+  AttackPattern,
+  AttackTargetMode,
+  DisplayNameComponent,
+  Enemy,
+  Facing,
+  GridPos,
+  Health,
+} from "@/src/ecs/components.ts";
 import type { AttackSchema } from "@/src/ecs/components.ts";
 import type { Player } from "@/src/ecs/player.ts";
 import { directionDelta } from "@/src/grid/direction.ts";
@@ -268,8 +277,8 @@ function toAttackSchema(attack: Record<keyof AttackSchema, number>): AttackSchem
 
 function entityName(world: World, playerEntity: Entity, entity: Entity): string {
   if (entity === playerEntity) return "You";
-  if (world.components.entityHas(Npc, entity)) {
-    return displayNameText(world.components.getEntityData(Npc, entity).displayName);
+  if (world.components.entityHas(DisplayNameComponent, entity)) {
+    return displayNameText(world.components.getEntityData(DisplayNameComponent, entity).displayName);
   }
   return "Something";
 }

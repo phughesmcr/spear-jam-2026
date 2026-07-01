@@ -1,4 +1,4 @@
-import type { CommandSlot } from "@/src/game/state.ts";
+import type { CommandSlot, DialogueState } from "@/src/game/state.ts";
 
 export type RelativeMoveDirection = "forward" | "backward" | "left" | "right";
 export type TurnDirection = "left" | "right";
@@ -25,6 +25,7 @@ export type MapChange = {
 export interface PlayerCommandResult {
   readonly changedWorld: boolean;
   readonly mapChange?: MapChange;
+  readonly dialogue?: DialogueState;
 }
 
 const MOVE_DIRECTION_OFFSETS: Readonly<Record<RelativeMoveDirection, number>> = {

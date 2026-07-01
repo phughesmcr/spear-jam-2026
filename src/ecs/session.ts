@@ -1,9 +1,21 @@
 import type { Entity, Query, World } from "@phughesmcr/miski";
-import { Blocking, Door, GridPos, Interactable, Key, Locked, Npc } from "@/src/ecs/components.ts";
+import { dialogueTreeText } from "@/src/dialogue/dialogue.ts";
+import {
+  Blocking,
+  Dialogue,
+  DisplayNameComponent,
+  Door,
+  GridPos,
+  Interactable,
+  Key,
+  Locked,
+  Npc,
+} from "@/src/ecs/components.ts";
 import { directionDelta } from "@/src/grid/direction.ts";
 import type { GridDelta } from "@/src/grid/direction.ts";
 import { attackWithSelectedWeapon, DEFAULT_SELECTED_WEAPON, weaponLabel } from "@/src/ecs/combat.ts";
-import { advanceEnemyTurns } from "@/src/ecs/enemy.ts";
+import { enemyTurnSystem } from "@/src/ecs/enemy.ts";
+import type { EnemyTurnSystem } from "@/src/ecs/enemy.ts";
 import { Player } from "@/src/ecs/player.ts";
 import { blockingQuery, keyQuery, positionedQuery } from "@/src/ecs/queries.ts";
 import { relativeMoveDirectionOffset, turnDirectionDelta } from "@/src/game/commands.ts";
@@ -30,6 +42,7 @@ export class GameSession implements Disposable {
   readonly map: GameMap;
   private readonly heldKeys: Set<number>;
   private readonly random: RandomSource;
+  private readonly enemyTurnSystem: EnemyTurnSystem;
   private selectedWeapon: CommandSlot;
   private disposed = false;
 
@@ -45,6 +58,7 @@ export class GameSession implements Disposable {
     this.map = map;
     this.heldKeys = new Set(playerState?.heldKeys ?? []);
     this.random = random;
+    this.enemyTurnSystem = world.systems.create(enemyTurnSystem);
     this.selectedWeapon = playerState?.selectedWeapon ?? DEFAULT_SELECTED_WEAPON;
   }
 
@@ -120,11 +134,26 @@ export class GameSession implements Disposable {
     if (this.world.components.entityHas(Door, target)) {
       return this.handleDoorInteractCommand(target);
     } else if (this.world.components.entityHas(Npc, target)) {
-      const npc = this.world.components.getEntityData(Npc, target);
-      console.log(`Interacted with ${displayNameText(npc.displayName)}.`);
+      const { displayName } = this.world.components.getEntityData(DisplayNameComponent, target);
+      const displayNameLabel = displayNameText(displayName);
+      const dialogueText = this.dialogueTextFor(target) ?? `${displayNameLabel} stayed silent.`;
+      return {
+        changedWorld: false,
+        dialogue: {
+          title: displayNameLabel,
+          message: `${dialogueText} Space to continue.`,
+        },
+      };
     }
 
     return this.consumePlayerTurn();
+  }
+
+  private dialogueTextFor(entity: Entity): string | undefined {
+    if (!this.world.components.entityHas(Dialogue, entity)) return undefined;
+
+    const { dialogueTreeId } = this.world.components.getEntityData(Dialogue, entity);
+    return dialogueTreeText(dialogueTreeId);
   }
 
   private handleDoorInteractCommand(door: Entity): PlayerCommandResult {
@@ -165,13 +194,13 @@ export class GameSession implements Disposable {
   }
 
   private consumePlayerTurn(): PlayerCommandResult {
-    advanceEnemyTurns(
-      this.world,
-      this.player,
-      (x, y) => this.tileBlocks(x, y),
-      (x, y) => this.blockingEntityAt(x, y),
-      this.random,
-    );
+    this.enemyTurnSystem({
+      world: this.world,
+      player: this.player,
+      tileBlocks: (x, y) => this.tileBlocks(x, y),
+      blockingEntityAt: (x, y) => this.blockingEntityAt(x, y),
+      random: this.random,
+    });
     this.world.refresh();
     return {
       changedWorld: true,
