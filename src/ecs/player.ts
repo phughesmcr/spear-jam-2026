@@ -21,10 +21,6 @@ export class Player {
     return this.world.components.getEntityData(GridPos, this.entity);
   }
 
-  setPosition({ x, y }: GridPosSchema): void {
-    this.world.components.setEntityData(GridPos, this.entity, { x, y });
-  }
-
   getFacing(): FacingSchema {
     const facing = this.world.components.getEntityData(Facing, this.entity);
     return { dir: normalizeDirection(facing.dir) };

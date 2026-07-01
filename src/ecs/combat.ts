@@ -12,9 +12,10 @@ import {
 } from "@/src/ecs/components.ts";
 import type { AttackSchema } from "@/src/ecs/components.ts";
 import type { Player } from "@/src/ecs/player.ts";
-import type { SpatialLookup } from "@/src/ecs/spatial.ts";
+import type { SpatialAccess, SpatialLookup, SpatialMutations } from "@/src/ecs/spatial.ts";
 import { directionDelta } from "@/src/grid/direction.ts";
 import type { CardinalDirection } from "@/src/grid/direction.ts";
+import type { GameEvent } from "@/src/game/events.ts";
 import type { CommandSlot } from "@/src/game/state.ts";
 import { displayNameText } from "@/src/ecs/names.ts";
 
@@ -87,9 +88,9 @@ export function attackWithSelectedWeapon(
   world: World,
   player: Player,
   selectedWeapon: CommandSlot,
-  spatial: SpatialLookup,
+  spatial: SpatialAccess,
   random: RandomSource,
-): void {
+): readonly GameEvent[] {
   const weapon = PLAYER_WEAPONS[selectedWeapon];
   const targets = attackTargets(
     world,
@@ -100,13 +101,18 @@ export function attackWithSelectedWeapon(
   );
 
   if (targets.length === 0) {
-    console.log(`${weapon.label} attack missed.`);
-    return;
+    return [{
+      type: "attackMissed",
+      actor: player.getEntity(),
+      message: `${weapon.label} attack missed.`,
+    }];
   }
 
+  const events: GameEvent[] = [];
   for (const target of targets) {
-    attackEntity(world, player.getEntity(), player.getEntity(), target, weapon, random);
+    events.push(...attackEntity(world, player.getEntity(), player.getEntity(), target, weapon, random, spatial));
   }
+  return events;
 }
 
 export function attackEntity(
@@ -116,38 +122,55 @@ export function attackEntity(
   defender: Entity,
   attack: AttackSchema,
   random: RandomSource,
-): void {
-  if (!world.entities.isActive(defender)) return;
-  if (!world.components.entityHas(Health, defender)) return;
+  spatial: SpatialMutations,
+): readonly GameEvent[] {
+  if (!world.entities.isActive(defender)) return [];
+  if (!world.components.entityHas(Health, defender)) return [];
 
+  const attackerName = entityName(world, playerEntity, attacker);
+  const defenderName = entityName(world, playerEntity, defender);
   const outcome = resolveAttack(attack, random);
   if (outcome.type === "miss") {
-    console.log(
-      `${entityName(world, playerEntity, attacker)} missed ${
-        entityName(world, playerEntity, defender)
-      } (${outcome.roll}+${attack.attackBonus}).`,
-    );
-    return;
+    return [{
+      type: "attackMissed",
+      actor: attacker,
+      target: defender,
+      message: `${attackerName} missed ${defenderName} (${outcome.roll}+${attack.attackBonus}).`,
+    }];
   }
 
   const health = world.components.getEntityData(Health, defender);
   const nextHealth = Math.max(0, health.current - outcome.damage);
   world.components.setEntityData(Health, defender, { current: nextHealth, max: health.max });
-  console.log(
-    `${entityName(world, playerEntity, attacker)} hit ${
-      entityName(world, playerEntity, defender)
-    } for ${outcome.damage}${outcome.critical ? " critical" : ""}.`,
-  );
+  const events: GameEvent[] = [{
+    type: "damageDealt",
+    actor: attacker,
+    target: defender,
+    amount: outcome.damage,
+    critical: outcome.critical,
+    message: `${attackerName} hit ${defenderName} for ${outcome.damage}${outcome.critical ? " critical" : ""}.`,
+  }];
 
-  if (nextHealth > 0) return;
+  if (nextHealth > 0) return events;
 
   if (defender === playerEntity) {
-    console.log("You are defeated.");
-    return;
+    events.push({
+      type: "entityDefeated",
+      actor: attacker,
+      entity: defender,
+      message: "You are defeated.",
+    });
+    return events;
   }
 
-  console.log(`${entityName(world, playerEntity, defender)} is defeated.`);
-  world.entities.destroy(defender);
+  events.push({
+    type: "entityDefeated",
+    actor: attacker,
+    entity: defender,
+    message: `${defenderName} is defeated.`,
+  });
+  spatial.removeEntity(defender);
+  return events;
 }
 
 export function resolveAttack(attack: AttackSchema, random: RandomSource): AttackOutcome {

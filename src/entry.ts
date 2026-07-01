@@ -3,6 +3,7 @@ import type { GameSession } from "@/src/ecs/session.ts";
 import { isPlayerCommand } from "@/src/game/commands.ts";
 import type { GameCommand } from "@/src/game/commands.ts";
 import type { PlayerCommand } from "@/src/game/commands.ts";
+import type { GameEvent } from "@/src/game/events.ts";
 import type { DialogueState, GameMode, PlayerState } from "@/src/game/state.ts";
 import { SplitMix32 } from "@/src/game/rng.ts";
 import { setupKeyboard } from "@/src/input/input.ts";
@@ -10,6 +11,8 @@ import { getMap, START_MAP_NAME } from "@/src/map/maps.ts";
 import { configureCanvasDpi, DEFAULT_GAME_CANVAS_SIZE } from "@/src/render/canvas.ts";
 import type { GameCanvasSize } from "@/src/render/canvas.ts";
 import { renderGameFrame } from "@/src/render/game.ts";
+
+const MESSAGE_LOG_LIMIT = 5;
 
 export interface GameSpec {
   ctx: CanvasRenderingContext2D;
@@ -33,6 +36,7 @@ class Game implements Disposable {
   private canvasSize: GameCanvasSize = DEFAULT_GAME_CANVAS_SIZE;
   private inputController?: Disposable;
   private session?: GameSession;
+  private recentMessages: string[] = [];
   private mode: GameMode = { type: "loading" };
   private started = false;
 
@@ -57,7 +61,7 @@ class Game implements Disposable {
   }
 
   private render(): void {
-    renderGameFrame(this.spec.ctx, this.canvasSize, this.session, this.mode);
+    renderGameFrame(this.spec.ctx, this.canvasSize, this.session, this.mode, this.recentMessages);
   }
 
   private async loadMap(mapName: string, playerState?: PlayerState): Promise<void> {
@@ -162,9 +166,9 @@ class Game implements Disposable {
   private handlePlayerCommands(commands: readonly PlayerCommand[]): void {
     if (!this.session) return;
 
-    let shouldRender = false;
     for (const command of commands) {
       const result = this.session.handlePlayerCommand(command);
+      this.appendEventMessages(result.events);
       if (result.mapChange) {
         this.enterIntermission(result.mapChange.goto);
         this.render();
@@ -175,11 +179,18 @@ class Game implements Disposable {
         this.render();
         return;
       }
-      shouldRender ||= result.changedWorld;
     }
 
-    if (shouldRender) {
-      this.render();
+    this.render();
+  }
+
+  private appendEventMessages(events: readonly GameEvent[]): void {
+    for (const event of events) {
+      if (event.message === undefined || event.message.length === 0) continue;
+      this.recentMessages.push(event.message);
+    }
+    if (this.recentMessages.length > MESSAGE_LOG_LIMIT) {
+      this.recentMessages.splice(0, this.recentMessages.length - MESSAGE_LOG_LIMIT);
     }
   }
 

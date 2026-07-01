@@ -4,7 +4,8 @@ import type { FacingPartitions, GridPosPartitions } from "@/src/ecs/components.t
 import { attackEntity, attackTargets, entityAttack } from "@/src/ecs/combat.ts";
 import type { Player } from "@/src/ecs/player.ts";
 import { enemyTurnQuery } from "@/src/ecs/queries.ts";
-import type { SpatialLookup } from "@/src/ecs/spatial.ts";
+import type { SpatialAccess, SpatialLookup, SpatialMutations } from "@/src/ecs/spatial.ts";
+import type { GameEvent } from "@/src/game/events.ts";
 import type { CardinalDirection, GridDelta } from "@/src/grid/direction.ts";
 
 type RandomSource = () => number;
@@ -17,25 +18,28 @@ type EnemyTurnComponents = {
 export type EnemyTurnContext = {
   readonly world: World;
   readonly player: Player;
-  readonly spatial: SpatialLookup;
+  readonly spatial: SpatialAccess;
   readonly random: RandomSource;
 };
 
-export type EnemyTurnSystem = (context: EnemyTurnContext) => void;
+export type EnemyTurnSystem = (context: EnemyTurnContext) => readonly GameEvent[];
 
 export const enemyTurnSystem = new System({
   name: "enemyTurnSystem",
   query: enemyTurnQuery,
-  callback: (components, enemies, context: EnemyTurnContext): void => {
+  callback: (components, enemies, context: EnemyTurnContext): readonly GameEvent[] => {
+    // Miski currently loses precise partition types for typed system callbacks.
     const enemyComponents = components as unknown as EnemyTurnComponents;
     const gridPos = enemyComponents.gridPos.partitions;
     const facing = enemyComponents.facing.partitions;
     const indices = enemies.indices;
     const count = enemies.count;
+    const events: GameEvent[] = [];
 
     for (let i = 0; i < count; i++) {
-      advanceEnemyTurn(context, indices[i]!, gridPos, facing);
+      events.push(...advanceEnemyTurn(context, indices[i]!, gridPos, facing));
     }
+    return events;
   },
 });
 
@@ -44,9 +48,9 @@ function advanceEnemyTurn(
   entity: Entity,
   gridPos: GridPosPartitions,
   facing: FacingPartitions,
-): void {
+): readonly GameEvent[] {
   const { world, player, spatial, random } = context;
-  if (!world.entities.isActive(entity)) return;
+  if (!world.entities.isActive(entity)) return [];
 
   const attack = entityAttack(world, entity);
   if (attack !== undefined) {
@@ -62,10 +66,11 @@ function advanceEnemyTurn(
       (candidate) => candidate === player.getEntity(),
     );
     if (targets.length > 0) {
+      const events: GameEvent[] = [];
       for (const target of targets) {
-        attackEntity(world, player.getEntity(), entity, target, attack, random);
+        events.push(...attackEntity(world, player.getEntity(), entity, target, attack, random, spatial));
       }
-      return;
+      return events;
     }
   }
 
@@ -76,6 +81,7 @@ function advanceEnemyTurn(
     facing,
     spatial,
   );
+  return [];
 }
 
 function tryMoveEnemyTowardPlayer(
@@ -83,7 +89,7 @@ function tryMoveEnemyTowardPlayer(
   entity: Entity,
   gridPos: GridPosPartitions,
   facing: FacingPartitions,
-  spatial: SpatialLookup,
+  spatial: SpatialLookup & Pick<SpatialMutations, "moveEntity">,
 ): void {
   const playerPosition = player.getPosition();
   const x = gridPos.x[entity]!;
@@ -102,8 +108,7 @@ function tryMoveEnemyTowardPlayer(
     const nextY = y + delta.dy;
     if (spatial.positionBlocks(nextX, nextY)) continue;
 
-    gridPos.x[entity] = nextX;
-    gridPos.y[entity] = nextY;
+    spatial.moveEntity(entity, { x: nextX, y: nextY });
     facing.dir[entity] = directionForStep(delta);
     return;
   }

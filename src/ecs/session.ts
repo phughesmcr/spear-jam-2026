@@ -6,19 +6,20 @@ import { enemyTurnSystem } from "@/src/ecs/enemy.ts";
 import type { EnemyTurnSystem } from "@/src/ecs/enemy.ts";
 import { collectKeyAt, interactWithEntity } from "@/src/ecs/interactions.ts";
 import { Player } from "@/src/ecs/player.ts";
-import { SpatialQueries } from "@/src/ecs/spatial.ts";
+import { SpatialIndex } from "@/src/ecs/spatial.ts";
 import { relativeMoveDirectionOffset, turnDirectionDelta } from "@/src/game/commands.ts";
 import type { PlayerCommand, PlayerCommandResult } from "@/src/game/commands.ts";
+import type { GameEvent } from "@/src/game/events.ts";
 import type { CommandSlot, PlayerState } from "@/src/game/state.ts";
 import type { ExitDef, GameMap } from "@/src/map/map.ts";
 
 const UNCHANGED_PLAYER_COMMAND: PlayerCommandResult = {
-  changedWorld: false,
+  events: [],
 };
 
 type MoveResult =
   | { readonly moved: false }
-  | { readonly moved: true; readonly exit?: ExitDef };
+  | { readonly moved: true; readonly events: readonly GameEvent[]; readonly exit?: ExitDef };
 export type RandomSource = () => number;
 
 export class GameSession implements Disposable {
@@ -28,7 +29,7 @@ export class GameSession implements Disposable {
   private readonly heldKeys: Set<number>;
   private readonly random: RandomSource;
   private readonly enemyTurnSystem: EnemyTurnSystem;
-  private readonly spatial: SpatialQueries;
+  private readonly spatial: SpatialIndex;
   private selectedWeapon: CommandSlot;
   private disposed = false;
 
@@ -45,7 +46,7 @@ export class GameSession implements Disposable {
     this.heldKeys = new Set(playerState?.heldKeys ?? []);
     this.random = random;
     this.enemyTurnSystem = world.systems.create(enemyTurnSystem);
-    this.spatial = new SpatialQueries(world, map);
+    this.spatial = new SpatialIndex(world, map);
     this.selectedWeapon = playerState?.selectedWeapon ?? DEFAULT_SELECTED_WEAPON;
   }
 
@@ -82,11 +83,11 @@ export class GameSession implements Disposable {
     if (move.exit) {
       this.world.refresh();
       return {
-        changedWorld: true,
+        events: move.events,
         mapChange: { goto: move.exit.goto },
       };
     }
-    return this.consumePlayerTurn();
+    return this.consumePlayerTurn(move.events);
   }
 
   private tryMovePlayer(delta: GridDelta): MoveResult {
@@ -95,10 +96,11 @@ export class GameSession implements Disposable {
 
     if (this.spatial.positionBlocks(next.x, next.y)) return { moved: false };
 
-    this.player.setPosition(next);
-    collectKeyAt(this.world, this.spatial, this.heldKeys, next.x, next.y);
+    this.spatial.moveEntity(this.player.getEntity(), next);
+    const events = collectKeyAt(this.world, this.spatial, this.heldKeys, next.x, next.y);
     return {
       moved: true,
+      events,
       exit: this.spatial.exitAt(next.x, next.y),
     };
   }
@@ -113,39 +115,51 @@ export class GameSession implements Disposable {
   }
 
   private handlePlayerInteractCommand(): PlayerCommandResult {
-    const interaction = interactWithEntity(this.world, this.spatial.facedEntity(this.player), this.heldKeys);
+    const interaction = interactWithEntity(
+      this.world,
+      this.spatial,
+      this.spatial.facedEntity(this.player),
+      this.heldKeys,
+    );
     switch (interaction.type) {
       case "unchanged":
-        return UNCHANGED_PLAYER_COMMAND;
+        return { events: interaction.events };
       case "consumeTurn":
-        return this.consumePlayerTurn();
+        return this.consumePlayerTurn(interaction.events);
       case "dialogue":
         return {
-          changedWorld: false,
+          events: interaction.events,
           dialogue: interaction.dialogue,
         };
     }
   }
 
   private handlePlayerAttackCommand(): PlayerCommandResult {
-    attackWithSelectedWeapon(
+    const events = attackWithSelectedWeapon(
       this.world,
       this.player,
       this.selectedWeapon,
       this.spatial,
       this.random,
     );
-    return this.consumePlayerTurn();
+    return this.consumePlayerTurn(events);
   }
 
   private handlePlayerSelectWeaponCommand(slot: CommandSlot): PlayerCommandResult {
     this.selectedWeapon = slot;
-    console.log(`Selected weapon ${slot}: ${weaponLabel(slot)}.`);
-    return UNCHANGED_PLAYER_COMMAND;
+    const label = weaponLabel(slot);
+    return {
+      events: [{
+        type: "weaponSelected",
+        slot,
+        label,
+        message: `Selected weapon ${slot}: ${label}.`,
+      }],
+    };
   }
 
-  private consumePlayerTurn(): PlayerCommandResult {
-    this.enemyTurnSystem({
+  private consumePlayerTurn(events: readonly GameEvent[] = []): PlayerCommandResult {
+    const enemyEvents = this.enemyTurnSystem({
       world: this.world,
       player: this.player,
       spatial: this.spatial,
@@ -153,7 +167,7 @@ export class GameSession implements Disposable {
     });
     this.world.refresh();
     return {
-      changedWorld: true,
+      events: [...events, ...enemyEvents],
     };
   }
 

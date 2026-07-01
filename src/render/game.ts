@@ -3,6 +3,7 @@ import type { GameMode } from "@/src/game/state.ts";
 import type { GameCanvasSize } from "@/src/render/canvas.ts";
 import { renderDrawableEntities } from "@/src/render/drawables.ts";
 import { renderExits, renderMap } from "@/src/render/map.ts";
+import { renderMessageLog } from "@/src/render/messages.ts";
 import { renderOverlay } from "@/src/render/overlay.ts";
 
 const BACKGROUND_COLOR = "#101217";
@@ -12,6 +13,7 @@ export function renderGameFrame(
   canvasSize: GameCanvasSize,
   session?: GameSession,
   mode: GameMode = { type: "loading" },
+  messages: readonly string[] = [],
 ): void {
   ctx.fillStyle = BACKGROUND_COLOR;
   ctx.fillRect(0, 0, canvasSize.width, canvasSize.height);
@@ -21,6 +23,7 @@ export function renderGameFrame(
     renderExits(ctx, map, metrics);
     renderDrawableEntities(ctx, session.world, metrics);
   }
+  renderMessageLog(ctx, canvasSize, messages);
   switch (mode.type) {
     case "loading":
       renderOverlay(ctx, canvasSize, "LOADING");

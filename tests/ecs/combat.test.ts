@@ -1,9 +1,21 @@
-import type { Entity, World } from "@phughesmcr/miski";
-import { AttackFacingRequirement, AttackPattern, AttackTargetMode, Facing, GridPos } from "@/src/ecs/components.ts";
+import type { Entity } from "@phughesmcr/miski";
+import {
+  AttackFacingRequirement,
+  AttackPattern,
+  AttackTargetMode,
+  Blocking,
+  DisplayNameComponent,
+  Facing,
+  GridPos,
+  Health,
+} from "@/src/ecs/components.ts";
 import type { AttackSchema } from "@/src/ecs/components.ts";
-import { attackTargets, resolveAttack } from "@/src/ecs/combat.ts";
+import { attackEntity, attackTargets, resolveAttack } from "@/src/ecs/combat.ts";
+import { DisplayName } from "@/src/ecs/names.ts";
+import { SpatialIndex } from "@/src/ecs/spatial.ts";
 import type { SpatialLookup } from "@/src/ecs/spatial.ts";
 import { createWorld } from "@/src/ecs/world.ts";
+import { assertEquals, createEntity, flatTestMap } from "@/tests/ecs/helpers.ts";
 
 const BASE_ATTACK: AttackSchema = {
   minDamage: 1,
@@ -94,15 +106,126 @@ Deno.test("attackTargets can hit all cardinal adjacent targets without facing", 
   assertEquals(targets, [northTarget, eastTarget]);
 });
 
+Deno.test("attackEntity emits damage events and updates health", async () => {
+  const world = await createWorld();
+  const player = createEntity(world);
+  const defender = createEntity(world);
+
+  world.components.addToEntity(GridPos, player, { x: 1, y: 1 });
+  world.components.addToEntity(GridPos, defender, { x: 2, y: 1 });
+  world.components.addToEntity(DisplayNameComponent, defender, { displayName: DisplayName.Imp });
+  world.components.addToEntity(Health, defender, { current: 3, max: 3 });
+  world.refresh();
+
+  const events = attackEntity(
+    world,
+    player,
+    player,
+    defender,
+    { ...BASE_ATTACK, minDamage: 1, maxDamage: 1, attackBonus: 20 },
+    sequenceRandom([0, 0]),
+    new SpatialIndex(world, TEST_MAP),
+  );
+
+  assertEquals(events, [
+    {
+      type: "damageDealt",
+      actor: player,
+      target: defender,
+      amount: 1,
+      critical: false,
+      message: "You hit Imp for 1.",
+    },
+  ]);
+  assertEquals(world.components.getEntityData(Health, defender), { current: 2, max: 3 });
+});
+
+Deno.test("attackEntity emits defeat events and removes defeated non-player entities from spatial lookup", async () => {
+  const world = await createWorld();
+  const player = createEntity(world);
+  const defender = createEntity(world);
+
+  world.components.addToEntity(GridPos, player, { x: 1, y: 1 });
+  world.components.addToEntity(GridPos, defender, { x: 2, y: 1 });
+  world.components.addToEntity(Blocking, defender);
+  world.components.addToEntity(DisplayNameComponent, defender, { displayName: DisplayName.Imp });
+  world.components.addToEntity(Health, defender, { current: 1, max: 1 });
+  world.refresh();
+
+  const spatial = new SpatialIndex(world, TEST_MAP);
+  const events = attackEntity(
+    world,
+    player,
+    player,
+    defender,
+    { ...BASE_ATTACK, minDamage: 1, maxDamage: 1, attackBonus: 20 },
+    sequenceRandom([0, 0]),
+    spatial,
+  );
+
+  assertEquals(events, [
+    {
+      type: "damageDealt",
+      actor: player,
+      target: defender,
+      amount: 1,
+      critical: false,
+      message: "You hit Imp for 1.",
+    },
+    {
+      type: "entityDefeated",
+      actor: player,
+      entity: defender,
+      message: "Imp is defeated.",
+    },
+  ]);
+  assertEquals(world.entities.isActive(defender), false);
+  assertEquals(spatial.blockingEntityAt(2, 1), undefined);
+});
+
+Deno.test("attackEntity emits player defeat without removing the player entity", async () => {
+  const world = await createWorld();
+  const player = createEntity(world);
+  const attacker = createEntity(world);
+
+  world.components.addToEntity(GridPos, player, { x: 1, y: 1 });
+  world.components.addToEntity(Health, player, { current: 1, max: 1 });
+  world.components.addToEntity(GridPos, attacker, { x: 2, y: 1 });
+  world.components.addToEntity(DisplayNameComponent, attacker, { displayName: DisplayName.Imp });
+  world.refresh();
+
+  const events = attackEntity(
+    world,
+    player,
+    attacker,
+    player,
+    { ...BASE_ATTACK, minDamage: 1, maxDamage: 1, attackBonus: 20 },
+    sequenceRandom([0, 0]),
+    new SpatialIndex(world, TEST_MAP),
+  );
+
+  assertEquals(events, [
+    {
+      type: "damageDealt",
+      actor: attacker,
+      target: player,
+      amount: 1,
+      critical: false,
+      message: "Imp hit You for 1.",
+    },
+    {
+      type: "entityDefeated",
+      actor: attacker,
+      entity: player,
+      message: "You are defeated.",
+    },
+  ]);
+  assertEquals(world.entities.isActive(player), true);
+});
+
 function sequenceRandom(values: readonly number[]): () => number {
   let index = 0;
   return () => values[index++] ?? values[values.length - 1] ?? 0;
-}
-
-function createEntity(world: World): Entity {
-  const entity = world.entities.create();
-  if (entity === undefined) throw new Error("Failed to create test entity");
-  return entity;
 }
 
 function entityAt(positions: readonly { readonly x: number; readonly y: number; readonly entity: Entity }[]) {
@@ -123,8 +246,4 @@ function testSpatial(
   };
 }
 
-function assertEquals<T>(actual: T, expected: T): void {
-  if (!Object.is(actual, expected) && JSON.stringify(actual) !== JSON.stringify(expected)) {
-    throw new Error(`Expected ${JSON.stringify(expected)}, received ${JSON.stringify(actual)}`);
-  }
-}
+const TEST_MAP = flatTestMap(3);
