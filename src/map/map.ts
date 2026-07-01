@@ -1,0 +1,92 @@
+import { DisplayName } from "@/src/strings.ts";
+
+export type WallTile = {
+  id: number;
+  color: string;
+  wall_texture?: string;
+  blocking: boolean;
+};
+
+export type FloorTile = {
+  id: number;
+  color: string;
+  floor_texture: string;
+  ceiling_texture: string;
+  blocking?: boolean;
+};
+
+export type TerrainTile = WallTile | FloorTile;
+
+export const LockId = {
+  Door1: 1,
+} as const;
+
+export type LockId = number;
+
+export type PlayerDef = {
+  prefab: "player";
+  x: number;
+  y: number;
+  dir: number;
+};
+
+export type NpcDef = {
+  prefab: "npc";
+  x: number;
+  y: number;
+  dir: number;
+  displayName: DisplayName;
+};
+
+export type DoorDef = {
+  prefab: "door";
+  x: number;
+  y: number;
+  locked?: boolean;
+  lockId?: LockId;
+};
+
+export type KeyDef = {
+  prefab: "key";
+  x: number;
+  y: number;
+  lockId: LockId;
+};
+
+export type ExitDef = {
+  prefab: "exit";
+  x: number;
+  y: number;
+  goto: string;
+};
+
+export type MapEntityDef = PlayerDef | NpcDef | DoorDef | KeyDef;
+
+export type EntityDef = MapEntityDef | ExitDef;
+
+export type GameMap = {
+  name: string;
+  terrain: {
+    palette: TerrainTile[];
+    tiles: number[][];
+  };
+  entities: EntityDef[];
+};
+
+export type MapDimensions = {
+  readonly width: number;
+  readonly height: number;
+};
+
+export function mapDimensions(map: GameMap): MapDimensions {
+  return {
+    width: Math.max(...map.terrain.tiles.map((row) => row.length)),
+    height: map.terrain.tiles.length,
+  };
+}
+
+export function terrainAt(map: GameMap, x: number, y: number): TerrainTile | undefined {
+  const tile = map.terrain.tiles[y]?.[x];
+  if (tile === undefined) return undefined;
+  return map.terrain.palette.find((entry) => entry.id === tile);
+}

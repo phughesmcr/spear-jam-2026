@@ -3,11 +3,12 @@ import { Blocking, Combatant, Door, GridPos, Interactable, Key, Locked, Npc } fr
 import { directionDelta } from "@/src/map/direction.ts";
 import type { GridDelta } from "@/src/map/direction.ts";
 import { Player } from "@/src/ecs/player.ts";
+import type { PlayerState } from "@/src/ecs/player.ts";
 import { blockingQuery, keyQuery, nonPlayerTurnTakerQuery, positionedQuery } from "@/src/ecs/queries.ts";
 import { relativeMoveDirectionOffset, turnDirectionDelta } from "@/src/game/commands.ts";
 import type { PlayerCommand, PlayerCommandResult } from "@/src/game/commands.ts";
-import { terrainAt } from "@/src/map/map_1.ts";
-import type { GameMap } from "@/src/map/map_1.ts";
+import { terrainAt } from "@/src/map/map.ts";
+import type { ExitDef, GameMap } from "@/src/map/map.ts";
 import { createMapEntity } from "@/src/ecs/prefabs.ts";
 import { createWorld } from "@/src/ecs/world.ts";
 import { displayNameText } from "@/src/strings.ts";
@@ -17,17 +18,28 @@ const UNCHANGED_PLAYER_COMMAND: PlayerCommandResult = {
   changedWorld: false,
 };
 
+type MoveResult =
+  | { readonly moved: false }
+  | { readonly moved: true; readonly exit?: ExitDef };
+
 export class GameSession implements Disposable {
   readonly world: World;
   readonly player: Player;
   readonly map: GameMap;
-  private readonly heldKeys = new Set<number>();
+  private readonly heldKeys: Set<number>;
   private disposed = false;
 
-  constructor(world: World, player: Player, map: GameMap) {
+  constructor(world: World, player: Player, map: GameMap, playerState: PlayerState = { heldKeys: [] }) {
     this.world = world;
     this.player = player;
     this.map = map;
+    this.heldKeys = new Set(playerState.heldKeys);
+  }
+
+  getPlayerState(): PlayerState {
+    return {
+      heldKeys: [...this.heldKeys],
+    };
   }
 
   handlePlayerCommand(command: PlayerCommand): PlayerCommandResult {
@@ -50,22 +62,34 @@ export class GameSession implements Disposable {
   }
 
   private handlePlayerMoveCommand(directionOffset: number): PlayerCommandResult {
-    if (!this.tryMovePlayerRelative(directionOffset)) return UNCHANGED_PLAYER_COMMAND;
+    const move = this.tryMovePlayerRelative(directionOffset);
+    if (!move.moved) return UNCHANGED_PLAYER_COMMAND;
+    if (move.exit) {
+      this.world.refresh();
+      return {
+        consumedTurn: true,
+        changedWorld: true,
+        mapChange: { goto: move.exit.goto },
+      };
+    }
     return this.consumePlayerTurn();
   }
 
-  private tryMovePlayer(delta: GridDelta): boolean {
+  private tryMovePlayer(delta: GridDelta): MoveResult {
     const current = this.player.getPosition();
     const next = { x: current.x + delta.dx, y: current.y + delta.dy };
 
-    if (this.positionBlocks(next.x, next.y)) return false;
+    if (this.positionBlocks(next.x, next.y)) return { moved: false };
 
     this.player.setPosition(next);
     this.collectKeyAt(next.x, next.y);
-    return true;
+    return {
+      moved: true,
+      exit: this.exitAt(next.x, next.y),
+    };
   }
 
-  private tryMovePlayerRelative(directionOffset: number): boolean {
+  private tryMovePlayerRelative(directionOffset: number): MoveResult {
     const { dir } = this.player.getFacing();
     return this.tryMovePlayer(directionDelta(dir + directionOffset));
   }
@@ -165,6 +189,13 @@ export class GameSession implements Disposable {
     return undefined;
   }
 
+  private exitAt(x: number, y: number): ExitDef | undefined {
+    for (const entity of this.map.entities) {
+      if (entity.prefab === "exit" && entity.x === x && entity.y === y) return entity;
+    }
+    return undefined;
+  }
+
   private facedEntity(): Entity | undefined {
     const current = this.player.getPosition();
     const { dir } = this.player.getFacing();
@@ -195,13 +226,15 @@ export class GameSession implements Disposable {
   }
 }
 
-export async function createGameSession(map: GameMap): Promise<GameSession> {
+export async function createGameSession(map: GameMap, playerState?: PlayerState): Promise<GameSession> {
   const world = await createWorld();
 
   try {
     let playerEntity: Entity | undefined;
 
     for (const entityDef of map.entities) {
+      if (entityDef.prefab === "exit") continue;
+
       const entity = createMapEntity(world, entityDef);
       if (entityDef.prefab === "player") {
         playerEntity = entity;
@@ -213,7 +246,7 @@ export async function createGameSession(map: GameMap): Promise<GameSession> {
     const player = new Player(world, playerEntity);
     world.refresh();
 
-    return new GameSession(world, player, map);
+    return new GameSession(world, player, map, playerState);
   } catch (error) {
     await world.destroy();
     throw error;

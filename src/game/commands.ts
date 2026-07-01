@@ -17,9 +17,14 @@ export type GameCommand =
   | { readonly type: "menu" }
   | { readonly type: "pause" };
 
+export type MapChange = {
+  readonly goto: string;
+};
+
 export interface PlayerCommandResult {
   readonly consumedTurn: boolean;
   readonly changedWorld: boolean;
+  readonly mapChange?: MapChange;
 }
 
 const MOVE_DIRECTION_OFFSETS: Readonly<Record<RelativeMoveDirection, number>> = {

@@ -3,9 +3,10 @@ import type { GameSession } from "@/src/ecs/session.ts";
 import { isPlayerCommand } from "@/src/game/commands.ts";
 import type { GameCommand } from "@/src/game/commands.ts";
 import type { PlayerCommand } from "@/src/game/commands.ts";
+import type { PlayerState } from "@/src/ecs/player.ts";
 import type { GameMode } from "@/src/game/state.ts";
 import { setupKeyboard } from "@/src/input/input.ts";
-import { MAP_1 } from "@/src/map/map_1.ts";
+import { getMap, START_MAP_NAME } from "@/src/map/maps.ts";
 import { configureCanvasDpi, DEFAULT_GAME_CANVAS_SIZE } from "@/src/render/canvas.ts";
 import type { GameCanvasSize } from "@/src/render/canvas.ts";
 import { renderGameFrame } from "@/src/render/game.ts";
@@ -47,7 +48,7 @@ class Game implements Disposable {
   start(): void {
     this.started = true;
     this.render();
-    void this.load().catch((error: unknown) => this.handleLoadError(error));
+    void this.loadMap(START_MAP_NAME).catch((error: unknown) => this.handleLoadError(error));
   }
 
   resize(size: GameCanvasSize): void {
@@ -61,16 +62,21 @@ class Game implements Disposable {
     renderGameFrame(this.spec.ctx, this.canvasSize, this.session, this.mode);
   }
 
-  private async load(): Promise<void> {
-    const session = await createGameSession(MAP_1);
+  private async loadMap(mapName: string, playerState?: PlayerState): Promise<void> {
+    this.mode = { type: "loading" };
+    this.render();
+
+    const session = await createGameSession(getMap(mapName), playerState);
     if (this.controller.signal.aborted) {
       session[Symbol.dispose]();
       return;
     }
 
+    const previousSession = this.session;
     this.session = session;
+    previousSession?.[Symbol.dispose]();
     this.mode = { type: "playing" };
-    this.inputController = setupKeyboard(this.spec.window, (command) => this.handleGameCommands([command]));
+    this.inputController ??= setupKeyboard(this.spec.window, (command) => this.handleGameCommands([command]));
     this.render();
   }
 
@@ -91,6 +97,11 @@ class Game implements Disposable {
   }
 
   private handleGameCommand(command: GameCommand): void {
+    if (this.mode.type === "intermission") {
+      this.handleIntermissionCommand(command);
+      return;
+    }
+
     if (isPlayerCommand(command)) {
       if (this.mode.type !== "playing") return;
       this.handlePlayerCommands([command]);
@@ -107,6 +118,13 @@ class Game implements Disposable {
         this.render();
         return;
     }
+  }
+
+  private handleIntermissionCommand(command: GameCommand): void {
+    if (this.mode.type !== "intermission") return;
+    if (command.type !== "wait") return;
+    const { goto, playerState } = this.mode;
+    void this.loadMap(goto, playerState).catch((error: unknown) => this.handleLoadError(error));
   }
 
   private toggleMenu(): void {
@@ -137,12 +155,27 @@ class Game implements Disposable {
     let shouldRender = false;
     for (const command of commands) {
       const result = this.session.handlePlayerCommand(command);
+      if (result.mapChange) {
+        this.enterIntermission(result.mapChange.goto);
+        this.render();
+        return;
+      }
       shouldRender ||= result.changedWorld;
     }
 
     if (shouldRender) {
       this.render();
     }
+  }
+
+  private enterIntermission(goto: string): void {
+    if (!this.session) return;
+    this.mode = {
+      type: "intermission",
+      message: `Entering ${goto}. Space to continue.`,
+      goto,
+      playerState: this.session.getPlayerState(),
+    };
   }
 
   [Symbol.dispose](): void {

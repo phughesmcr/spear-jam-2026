@@ -12,8 +12,7 @@ import {
   TurnTaker,
 } from "@/src/ecs/components.ts";
 import { normalizeDirection } from "@/src/map/direction.ts";
-import type { EntityDef } from "@/src/map/map_1.ts";
-import type { LockId } from "@/src/map/map_1.ts";
+import type { LockId, MapEntityDef } from "@/src/map/map.ts";
 import type { DisplayName } from "@/src/strings.ts";
 
 export type PlayerPrefab = {
@@ -90,7 +89,7 @@ export function createKey(world: World, prefab: KeyPrefab): Entity {
   return entity;
 }
 
-export function createMapEntity(world: World, prefab: EntityDef): Entity {
+export function createMapEntity(world: World, prefab: MapEntityDef): Entity {
   switch (prefab.prefab) {
     case "player":
       return createPlayer(world, prefab);

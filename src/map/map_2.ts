@@ -2,8 +2,8 @@ import { DisplayName } from "@/src/strings.ts";
 import { LockId } from "@/src/map/map.ts";
 import type { GameMap } from "@/src/map/map.ts";
 
-export const MAP_1: GameMap = {
-  name: "Map 1",
+export const MAP_2: GameMap = {
+  name: "Map 2",
   terrain: {
     palette: [
       { id: 0, color: "#000000", ceiling_texture: "ceiling", floor_texture: "floor" },
@@ -29,6 +29,5 @@ export const MAP_1: GameMap = {
     { prefab: "npc", x: 6, y: 5, dir: 3, displayName: DisplayName.John },
     { prefab: "door", x: 7, y: 3, locked: true, lockId: LockId.Door1 },
     { prefab: "key", x: 8, y: 9, lockId: LockId.Door1 },
-    { prefab: "exit", x: 8, y: 1, goto: "Map 2" },
   ],
 };

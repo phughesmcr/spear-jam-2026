@@ -4,6 +4,10 @@ import type { FacingSchema, GridPosSchema } from "@/src/ecs/components.ts";
 import { normalizeDirection } from "@/src/map/direction.ts";
 import type { CardinalDirection, GridDelta } from "@/src/map/direction.ts";
 
+export type PlayerState = {
+  readonly heldKeys: readonly number[];
+};
+
 export class Player {
   private readonly world: World;
   private entity: Entity;

@@ -3,8 +3,8 @@ import { Door, Facing, GridPos, Locked } from "@/src/ecs/components.ts";
 import { doorRenderQuery, keyQuery, npcRenderQuery } from "@/src/ecs/queries.ts";
 import type { GameSession } from "@/src/ecs/session.ts";
 import type { GameMode } from "@/src/game/state.ts";
-import { mapDimensions, terrainAt } from "@/src/map/map_1.ts";
-import type { GameMap } from "@/src/map/map_1.ts";
+import { mapDimensions, terrainAt } from "@/src/map/map.ts";
+import type { GameMap } from "@/src/map/map.ts";
 import type { GameCanvasSize } from "@/src/render/canvas.ts";
 
 type Point = { readonly x: number; readonly y: number };
@@ -28,6 +28,7 @@ const NPC_COLOR = "#59d39b";
 const DOOR_COLOR = "#9a6a3a";
 const LOCKED_DOOR_COLOR = "#b14b4b";
 const KEY_COLOR = "#f4d35e";
+const EXIT_COLOR = "#4ea1ff";
 const PLAYER_RADIUS_RATIO = 0.34;
 const PLAYER_BASE_WIDTH_RATIO = 0.75;
 const NPC_RADIUS_RATIO = 0.28;
@@ -46,6 +47,7 @@ export function renderGameFrame(
   if (session) {
     const { map, player } = session;
     const metrics = renderMap(ctx, canvasSize, map);
+    renderExits(ctx, map, metrics);
     renderKeys(ctx, session, metrics);
     renderDoors(ctx, session, metrics);
     renderNpcs(ctx, session, metrics);
@@ -143,6 +145,26 @@ function renderTile(
   ctx.fillRect(tileX, tileY, tileSize, tileSize);
   ctx.strokeStyle = GRID_LINE_COLOR;
   ctx.strokeRect(tileX + 0.5, tileY + 0.5, tileSize - 1, tileSize - 1);
+}
+
+function renderExits(ctx: CanvasRenderingContext2D, map: GameMap, metrics: MapRenderMetrics): void {
+  for (const entity of map.entities) {
+    if (entity.prefab === "exit") {
+      renderExit(ctx, entity.x, entity.y, metrics);
+    }
+  }
+}
+
+function renderExit(ctx: CanvasRenderingContext2D, x: number, y: number, metrics: MapRenderMetrics): void {
+  const { offsetX, offsetY, tileSize } = metrics;
+  const tileX = offsetX + x * tileSize;
+  const tileY = offsetY + y * tileSize;
+  const inset = Math.max(3, tileSize * 0.22);
+
+  ctx.strokeStyle = EXIT_COLOR;
+  ctx.lineWidth = Math.max(2, tileSize * 0.08);
+  ctx.strokeRect(tileX + inset, tileY + inset, tileSize - inset * 2, tileSize - inset * 2);
+  ctx.lineWidth = 1;
 }
 
 function renderKeys(ctx: CanvasRenderingContext2D, session: GameSession, metrics: MapRenderMetrics): void {
