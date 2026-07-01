@@ -1,7 +1,8 @@
+import type { CommandSlot } from "@/src/game/state.ts";
+
 export type RelativeMoveDirection = "forward" | "backward" | "left" | "right";
 export type TurnDirection = "left" | "right";
 export type TurnDelta = -1 | 1;
-export type CommandSlot = 1 | 2 | 3;
 
 export type PlayerCommand =
   | { readonly type: "move"; readonly direction: RelativeMoveDirection }
@@ -22,7 +23,6 @@ export type MapChange = {
 };
 
 export interface PlayerCommandResult {
-  readonly consumedTurn: boolean;
   readonly changedWorld: boolean;
   readonly mapChange?: MapChange;
 }

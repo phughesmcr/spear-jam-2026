@@ -1,6 +1,7 @@
-import { directionDelta } from "@/src/map/direction.ts";
+import type { Query } from "@phughesmcr/miski";
+import { directionDelta } from "@/src/grid/direction.ts";
 import { Door, Facing, GridPos, Locked } from "@/src/ecs/components.ts";
-import { doorRenderQuery, keyQuery, npcRenderQuery } from "@/src/ecs/queries.ts";
+import { doorRenderQuery, enemyRenderQuery, keyQuery, npcRenderQuery } from "@/src/ecs/queries.ts";
 import type { GameSession } from "@/src/ecs/session.ts";
 import type { GameMode } from "@/src/game/state.ts";
 import { mapDimensions, terrainAt } from "@/src/map/map.ts";
@@ -25,6 +26,7 @@ const WALL_COLOR = "#5a5f68";
 const GRID_LINE_COLOR = "#151922";
 const PLAYER_COLOR = "#f0c84b";
 const NPC_COLOR = "#59d39b";
+const ENEMY_COLOR = "#df4f45";
 const DOOR_COLOR = "#9a6a3a";
 const LOCKED_DOOR_COLOR = "#b14b4b";
 const KEY_COLOR = "#f4d35e";
@@ -51,6 +53,7 @@ export function renderGameFrame(
     renderKeys(ctx, session, metrics);
     renderDoors(ctx, session, metrics);
     renderNpcs(ctx, session, metrics);
+    renderEnemies(ctx, session, metrics);
     const position = player.getPosition();
     const facing = player.getFacing();
     renderPlayer(ctx, position.x, position.y, facing.dir, metrics);
@@ -221,18 +224,33 @@ function renderDoor(
 }
 
 function renderNpcs(ctx: CanvasRenderingContext2D, session: GameSession, metrics: MapRenderMetrics): void {
-  for (const entity of session.world.entities.query(npcRenderQuery)) {
+  renderActors(ctx, session, npcRenderQuery, NPC_COLOR, metrics);
+}
+
+function renderEnemies(ctx: CanvasRenderingContext2D, session: GameSession, metrics: MapRenderMetrics): void {
+  renderActors(ctx, session, enemyRenderQuery, ENEMY_COLOR, metrics);
+}
+
+function renderActors(
+  ctx: CanvasRenderingContext2D,
+  session: GameSession,
+  query: Query,
+  color: string,
+  metrics: MapRenderMetrics,
+): void {
+  for (const entity of session.world.entities.query(query)) {
     const position = session.world.components.getEntityData(GridPos, entity);
     const facing = session.world.components.getEntityData(Facing, entity);
-    renderNpc(ctx, position.x, position.y, facing.dir, metrics);
+    renderActor(ctx, position.x, position.y, facing.dir, color, metrics);
   }
 }
 
-function renderNpc(
+function renderActor(
   ctx: CanvasRenderingContext2D,
   x: number,
   y: number,
   dir: number,
+  color: string,
   metrics: MapRenderMetrics,
 ): void {
   const { offsetX, offsetY, tileSize } = metrics;
@@ -241,7 +259,7 @@ function renderNpc(
   const radius = tileSize * NPC_RADIUS_RATIO;
   const forward = directionDelta(dir);
 
-  ctx.fillStyle = NPC_COLOR;
+  ctx.fillStyle = color;
   ctx.beginPath();
   ctx.arc(centerX, centerY, radius, 0, Math.PI * 2);
   ctx.fill();

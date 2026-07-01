@@ -1,16 +1,12 @@
 import type { Entity, World } from "@phughesmcr/miski";
 import { Facing, GridPos } from "@/src/ecs/components.ts";
 import type { FacingSchema, GridPosSchema } from "@/src/ecs/components.ts";
-import { normalizeDirection } from "@/src/map/direction.ts";
-import type { CardinalDirection, GridDelta } from "@/src/map/direction.ts";
-
-export type PlayerState = {
-  readonly heldKeys: readonly number[];
-};
+import { normalizeDirection } from "@/src/grid/direction.ts";
+import type { CardinalDirection } from "@/src/grid/direction.ts";
 
 export class Player {
   private readonly world: World;
-  private entity: Entity;
+  private readonly entity: Entity;
 
   constructor(world: World, entity: Entity) {
     this.world = world;
@@ -21,21 +17,12 @@ export class Player {
     return this.entity;
   }
 
-  setEntity(entity: Entity): void {
-    this.entity = entity;
-  }
-
   getPosition(): GridPosSchema {
     return this.world.components.getEntityData(GridPos, this.entity);
   }
 
   setPosition({ x, y }: GridPosSchema): void {
     this.world.components.setEntityData(GridPos, this.entity, { x, y });
-  }
-
-  moveBy(delta: GridDelta): void {
-    const current = this.getPosition();
-    this.setPosition({ x: current.x + delta.dx, y: current.y + delta.dy });
   }
 
   getFacing(): FacingSchema {

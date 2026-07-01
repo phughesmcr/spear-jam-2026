@@ -1,4 +1,4 @@
-import { DisplayName } from "@/src/strings.ts";
+import type { DisplayName } from "@/src/ecs/names.ts";
 
 export type WallTile = {
   id: number;
@@ -21,7 +21,7 @@ export const LockId = {
   Door1: 1,
 } as const;
 
-export type LockId = number;
+export type LockId = (typeof LockId)[keyof typeof LockId];
 
 export type PlayerDef = {
   prefab: "player";
@@ -36,6 +36,16 @@ export type NpcDef = {
   y: number;
   dir: number;
   displayName: DisplayName;
+};
+
+export type EnemyDef = {
+  prefab: "enemy";
+  x: number;
+  y: number;
+  dir: number;
+  displayName: DisplayName;
+  health?: number;
+  damage?: number;
 };
 
 export type DoorDef = {
@@ -60,7 +70,7 @@ export type ExitDef = {
   goto: string;
 };
 
-export type MapEntityDef = PlayerDef | NpcDef | DoorDef | KeyDef;
+export type MapEntityDef = PlayerDef | NpcDef | EnemyDef | DoorDef | KeyDef;
 
 export type EntityDef = MapEntityDef | ExitDef;
 

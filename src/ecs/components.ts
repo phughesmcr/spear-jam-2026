@@ -1,6 +1,6 @@
 import { Component, type DynamicComponent } from "@phughesmcr/miski";
-import type { CardinalDirection } from "@/src/map/direction.ts";
-import { DisplayName } from "@/src/strings.ts";
+import type { CardinalDirection } from "@/src/grid/direction.ts";
+import type { DisplayName } from "@/src/ecs/names.ts";
 
 export type GridPosSchema = { x: number; y: number };
 
@@ -49,7 +49,19 @@ export const Key = new Component<KeySchema>({
 
 export const TurnTaker: Component<null> = new Component<null>({ name: "turnTaker" });
 
-export const Combatant: Component<null> = new Component<null>({ name: "combatant" });
+export const Enemy: Component<null> = new Component<null>({ name: "enemy" });
+
+export type HealthSchema = { current: number; max: number };
+export const Health = new Component<HealthSchema>({
+  name: "health",
+  schema: { current: Uint8Array, max: Uint8Array },
+});
+
+export type AttackSchema = { damage: number };
+export const Attack = new Component<AttackSchema>({
+  name: "attack",
+  schema: { damage: Uint8Array },
+});
 
 export const ALL_COMPONENTS: DynamicComponent[] = [
   GridPos,
@@ -62,5 +74,7 @@ export const ALL_COMPONENTS: DynamicComponent[] = [
   Locked,
   Key,
   TurnTaker,
-  Combatant,
+  Enemy,
+  Health,
+  Attack,
 ];

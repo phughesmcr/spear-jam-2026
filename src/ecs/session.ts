@@ -1,20 +1,21 @@
-import type { Entity, World } from "@phughesmcr/miski";
-import { Blocking, Combatant, Door, GridPos, Interactable, Key, Locked, Npc } from "@/src/ecs/components.ts";
-import { directionDelta } from "@/src/map/direction.ts";
-import type { GridDelta } from "@/src/map/direction.ts";
+import type { Entity, Query, World } from "@phughesmcr/miski";
+import { Blocking, Door, GridPos, Interactable, Key, Locked, Npc } from "@/src/ecs/components.ts";
+import { directionDelta } from "@/src/grid/direction.ts";
+import type { GridDelta } from "@/src/grid/direction.ts";
+import { attackWithSelectedWeapon, DEFAULT_SELECTED_WEAPON, weaponLabel } from "@/src/ecs/combat.ts";
+import { advanceEnemyTurns } from "@/src/ecs/enemy.ts";
 import { Player } from "@/src/ecs/player.ts";
-import type { PlayerState } from "@/src/ecs/player.ts";
-import { blockingQuery, keyQuery, nonPlayerTurnTakerQuery, positionedQuery } from "@/src/ecs/queries.ts";
+import { blockingQuery, keyQuery, positionedQuery } from "@/src/ecs/queries.ts";
 import { relativeMoveDirectionOffset, turnDirectionDelta } from "@/src/game/commands.ts";
 import type { PlayerCommand, PlayerCommandResult } from "@/src/game/commands.ts";
+import type { CommandSlot, PlayerState } from "@/src/game/state.ts";
 import { terrainAt } from "@/src/map/map.ts";
 import type { ExitDef, GameMap } from "@/src/map/map.ts";
 import { createMapEntity } from "@/src/ecs/prefabs.ts";
 import { createWorld } from "@/src/ecs/world.ts";
-import { displayNameText } from "@/src/strings.ts";
+import { displayNameText } from "@/src/ecs/names.ts";
 
 const UNCHANGED_PLAYER_COMMAND: PlayerCommandResult = {
-  consumedTurn: false,
   changedWorld: false,
 };
 
@@ -27,18 +28,26 @@ export class GameSession implements Disposable {
   readonly player: Player;
   readonly map: GameMap;
   private readonly heldKeys: Set<number>;
+  private selectedWeapon: CommandSlot;
   private disposed = false;
 
-  constructor(world: World, player: Player, map: GameMap, playerState: PlayerState = { heldKeys: [] }) {
+  constructor(
+    world: World,
+    player: Player,
+    map: GameMap,
+    playerState: PlayerState = { heldKeys: [], selectedWeapon: DEFAULT_SELECTED_WEAPON },
+  ) {
     this.world = world;
     this.player = player;
     this.map = map;
     this.heldKeys = new Set(playerState.heldKeys);
+    this.selectedWeapon = playerState.selectedWeapon;
   }
 
   getPlayerState(): PlayerState {
     return {
       heldKeys: [...this.heldKeys],
+      selectedWeapon: this.selectedWeapon,
     };
   }
 
@@ -55,8 +64,9 @@ export class GameSession implements Disposable {
         return this.handlePlayerInteractCommand();
       case "attack":
         return this.handlePlayerAttackCommand();
-      case "selectItem":
       case "selectWeapon":
+        return this.handlePlayerSelectWeaponCommand(command.slot);
+      case "selectItem":
         return UNCHANGED_PLAYER_COMMAND;
     }
   }
@@ -67,7 +77,6 @@ export class GameSession implements Disposable {
     if (move.exit) {
       this.world.refresh();
       return {
-        consumedTurn: true,
         changedWorld: true,
         mapChange: { goto: move.exit.goto },
       };
@@ -134,32 +143,28 @@ export class GameSession implements Disposable {
   }
 
   private handlePlayerAttackCommand(): PlayerCommandResult {
-    const target = this.facedEntity();
-    if (target === undefined || !this.world.components.entityHas(Combatant, target)) {
-      return UNCHANGED_PLAYER_COMMAND;
-    }
-
+    attackWithSelectedWeapon(
+      this.world,
+      this.player,
+      this.selectedWeapon,
+      (x, y) => this.tileBlocks(x, y),
+      (x, y) => this.blockingEntityAt(x, y),
+    );
     return this.consumePlayerTurn();
   }
 
+  private handlePlayerSelectWeaponCommand(slot: CommandSlot): PlayerCommandResult {
+    this.selectedWeapon = slot;
+    console.log(`Selected weapon ${slot}: ${weaponLabel(slot)}.`);
+    return UNCHANGED_PLAYER_COMMAND;
+  }
+
   private consumePlayerTurn(): PlayerCommandResult {
-    this.advanceNonPlayerTurns();
+    advanceEnemyTurns(this.world, this.player, (x, y) => this.positionBlocks(x, y));
     this.world.refresh();
     return {
-      consumedTurn: true,
       changedWorld: true,
     };
-  }
-
-  private advanceNonPlayerTurns(): void {
-    for (const entity of this.world.entities.query(nonPlayerTurnTakerQuery)) {
-      this.advanceNonPlayerTurn(entity);
-    }
-  }
-
-  private advanceNonPlayerTurn(entity: Entity): void {
-    if (!this.world.entities.isActive(entity)) return;
-    // NPCs intentionally wait until they gain behavior components.
   }
 
   tileBlocks(x: number, y: number): boolean {
@@ -182,11 +187,7 @@ export class GameSession implements Disposable {
   }
 
   private keyAt(x: number, y: number): Entity | undefined {
-    for (const entity of this.world.entities.query(keyQuery)) {
-      const position = this.world.components.getEntityData(GridPos, entity);
-      if (position.x === x && position.y === y) return entity;
-    }
-    return undefined;
+    return this.entityAt(keyQuery, x, y);
   }
 
   private exitAt(x: number, y: number): ExitDef | undefined {
@@ -200,19 +201,16 @@ export class GameSession implements Disposable {
     const current = this.player.getPosition();
     const { dir } = this.player.getFacing();
     const delta = directionDelta(dir);
-    return this.entityAt(current.x + delta.dx, current.y + delta.dy);
-  }
-
-  private entityAt(x: number, y: number): Entity | undefined {
-    for (const entity of this.world.entities.query(positionedQuery)) {
-      const position = this.world.components.getEntityData(GridPos, entity);
-      if (position.x === x && position.y === y) return entity;
-    }
-    return undefined;
+    return this.entityAt(positionedQuery, current.x + delta.dx, current.y + delta.dy);
   }
 
   private blockingEntityAt(x: number, y: number): Entity | undefined {
-    for (const entity of this.world.entities.query(blockingQuery)) {
+    return this.entityAt(blockingQuery, x, y);
+  }
+
+  private entityAt(query: Query, x: number, y: number): Entity | undefined {
+    for (const entity of this.world.entities.query(query)) {
+      if (!this.world.entities.isActive(entity)) continue;
       const position = this.world.components.getEntityData(GridPos, entity);
       if (position.x === x && position.y === y) return entity;
     }

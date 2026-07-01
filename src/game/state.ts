@@ -1,4 +1,9 @@
-import type { PlayerState } from "@/src/ecs/player.ts";
+export type CommandSlot = 1 | 2 | 3;
+
+export type PlayerState = {
+  readonly heldKeys: readonly number[];
+  readonly selectedWeapon: CommandSlot;
+};
 
 export type GameMode =
   | { readonly type: "loading" }

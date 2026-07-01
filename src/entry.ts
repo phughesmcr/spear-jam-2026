@@ -3,8 +3,7 @@ import type { GameSession } from "@/src/ecs/session.ts";
 import { isPlayerCommand } from "@/src/game/commands.ts";
 import type { GameCommand } from "@/src/game/commands.ts";
 import type { PlayerCommand } from "@/src/game/commands.ts";
-import type { PlayerState } from "@/src/ecs/player.ts";
-import type { GameMode } from "@/src/game/state.ts";
+import type { GameMode, PlayerState } from "@/src/game/state.ts";
 import { setupKeyboard } from "@/src/input/input.ts";
 import { getMap, START_MAP_NAME } from "@/src/map/maps.ts";
 import { configureCanvasDpi, DEFAULT_GAME_CANVAS_SIZE } from "@/src/render/canvas.ts";
@@ -39,10 +38,6 @@ class Game implements Disposable {
     this.spec = spec;
     this.controller = controller;
     this.canvasController = configureCanvasDpi(spec.window, spec.canvas, spec.ctx, (size) => this.resize(size));
-  }
-
-  setCanvasController(canvasController: Disposable): void {
-    this.canvasController = canvasController;
   }
 
   start(): void {
