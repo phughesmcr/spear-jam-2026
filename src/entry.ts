@@ -1,14 +1,11 @@
 import { createGameSession as createRealGameSession, type GameSession } from "@/src/ecs/session.ts";
-import { isPlayerCommand } from "@/src/game/commands.ts";
 import type { GameCommand } from "@/src/game/commands.ts";
 import type { PlayerCommand, PlayerCommandResult } from "@/src/game/commands.ts";
-import { combatFeedbackForEvents } from "@/src/game/combat_feedback.ts";
 import type { CombatFeedback } from "@/src/game/combat_feedback.ts";
-import type { GameEvent } from "@/src/game/events.ts";
-import { createPlayerState } from "@/src/game/state.ts";
-import type { DialogueState, GameMode, PlayerState } from "@/src/game/state.ts";
-import { messageForEvent } from "@/src/game/messages.ts";
 import { SplitMix32 } from "@/src/game/rng.ts";
+import { createGameModel, transition } from "@/src/game/transition.ts";
+import type { GameEffect, GameModel, GameTransitionEvent } from "@/src/game/transition.ts";
+import type { GameMode, PlayerState } from "@/src/game/state.ts";
 import { setupInput as setupRealInput } from "@/src/input/input.ts";
 import type { CanvasPointerInput } from "@/src/input/pointer.ts";
 import { getMap as getRealMap, START_MAP_NAME } from "@/src/map/maps.ts";
@@ -19,13 +16,6 @@ import {
   renderGameFrame as renderRealGameFrame,
 } from "@/src/render/game.ts";
 import { verbMenuHotspotIndexAt } from "@/src/render/verb_menu.ts";
-import { VERBS, verbToCommand } from "@/src/game/verbs.ts";
-
-const MESSAGE_LOG_LIMIT = 5;
-
-type IntermissionMode = Extract<GameMode, { readonly type: "intermission" }>;
-type DialogueMode = Extract<GameMode, { readonly type: "dialogue" }>;
-type VerbMenuMode = Extract<GameMode, { readonly type: "verbMenu" }>;
 
 interface GameSessionHandle extends Disposable {
   readonly map: GameSession["map"];
@@ -79,17 +69,11 @@ class Game implements Disposable {
   private readonly controller: AbortController;
   private readonly runtime: GameRuntime;
   private readonly rng: SplitMix32;
+  private model: GameModel = createGameModel(START_MAP_NAME);
   private canvasController: Disposable;
   private canvasSize: GameCanvasSize = DEFAULT_GAME_CANVAS_SIZE;
   private inputController?: Disposable;
   private session?: GameSessionHandle;
-  private currentMapName = START_MAP_NAME;
-  private currentLevelEntryState?: PlayerState;
-  private recentMessages: string[] = [];
-  private combatFeedback: readonly CombatFeedback[] = [];
-  private mode: GameMode = { type: "loading" };
-  private lastVerbIndex = 0;
-  private verbPointerDownIndex?: number;
   private started = false;
   private readonly renderLoadedAssets = (): void => {
     if (this.started) this.render();
@@ -110,8 +94,7 @@ class Game implements Disposable {
 
   start(): void {
     this.started = true;
-    this.render();
-    this.startLoad(START_MAP_NAME);
+    this.apply({ type: "start" });
   }
 
   resize(size: GameCanvasSize): void {
@@ -126,17 +109,14 @@ class Game implements Disposable {
       this.spec.ctx,
       this.canvasSize,
       this.session,
-      this.mode,
-      this.recentMessages,
-      this.combatFeedback,
+      this.model.mode,
+      this.model.recentMessages,
+      this.model.combatFeedback,
       this.renderLoadedAssets,
     );
   }
 
   private async loadMap(mapName: string, playerState?: PlayerState): Promise<void> {
-    this.mode = { type: "loading" };
-    this.render();
-
     const [session] = await Promise.all([
       this.runtime.createGameSession(this.runtime.getMap(mapName), () => this.rng.nextFloat(), playerState),
       this.runtime.preloadGameAssets(this.spec.canvas.ownerDocument, this.renderLoadedAssets),
@@ -149,17 +129,7 @@ class Game implements Disposable {
     const previousSession = this.session;
     this.session = session;
     previousSession?.[Symbol.dispose]();
-    this.currentMapName = mapName;
-    this.currentLevelEntryState = playerState === undefined ? undefined : createPlayerState(playerState);
-    this.mode = { type: "playing" };
-    this.inputController ??= this.runtime.setupInput(
-      this.spec.window,
-      this.spec.canvas,
-      () => this.canvasSize,
-      (command) => this.handleGameCommand(command),
-      (input) => this.handlePointerInput(input),
-    );
-    this.render();
+    this.apply({ type: "mapLoaded", mapName, playerState });
   }
 
   private startLoad(mapName: string, playerState?: PlayerState): void {
@@ -169,250 +139,69 @@ class Game implements Disposable {
   private handleLoadError(error: unknown): void {
     if (this.controller.signal.aborted) return;
     console.error("Failed to start game.", error);
-    this.mode = {
-      type: "error",
+    this.apply({
+      type: "loadFailed",
       message: error instanceof Error ? error.message : "Unknown error",
-    };
-    this.render();
+    });
   }
 
   private handleGameCommand(command: GameCommand): void {
-    const mode = this.mode;
-    if (mode.type === "intermission") {
-      this.handleIntermissionCommand(mode, command);
-      return;
-    }
-
-    if (mode.type === "dialogue") {
-      this.handleDialogueCommand(mode, command);
-      return;
-    }
-
-    if (mode.type === "verbMenu") {
-      this.handleVerbMenuCommand(mode, command);
-      return;
-    }
-
-    if (mode.type === "victory" || mode.type === "defeat") {
-      if (command.type === "wait") this.restartFromOutcome(mode.type);
-      return;
-    }
-
-    if (isPlayerCommand(command)) {
-      if (mode.type !== "playing") return;
-      this.handlePlayerCommand(command);
-      return;
-    }
-
-    switch (command.type) {
-      case "action":
-        if (this.mode.type !== "playing") return;
-        this.openVerbMenu();
-        this.render();
-        return;
-      case "menu":
-        this.toggleMenu();
-        this.render();
-        return;
-      case "pause":
-        this.togglePause();
-        this.render();
-        return;
-    }
-  }
-
-  private handleIntermissionCommand(mode: IntermissionMode, command: GameCommand): void {
-    if (command.type !== "wait") return;
-    const { goto, playerState } = mode;
-    this.startLoad(goto, playerState);
-  }
-
-  private handleDialogueCommand(_mode: DialogueMode, command: GameCommand): void {
-    if (command.type !== "wait") return;
-    this.mode = { type: "playing" };
-    this.render();
-  }
-
-  private handleVerbMenuCommand(mode: VerbMenuMode, command: GameCommand): void {
-    switch (command.type) {
-      case "move":
-        if (command.direction === "forward") {
-          this.selectVerb((mode.selectedIndex - 1 + VERBS.length) % VERBS.length);
-          this.render();
-          return;
-        }
-        if (command.direction === "backward") {
-          this.selectVerb((mode.selectedIndex + 1) % VERBS.length);
-          this.render();
-          return;
-        }
-        return;
-      case "wait":
-      case "action":
-        this.confirmVerbSelection(mode);
-        return;
-      case "menu":
-        this.verbPointerDownIndex = undefined;
-        this.mode = { type: "playing" };
-        this.render();
-        return;
-      case "turn":
-      case "interact":
-      case "examine":
-      case "attack":
-      case "selectWeapon":
-      case "pause":
-        return;
-    }
+    this.apply({ type: "gameCommand", command });
   }
 
   private handlePointerInput(input: CanvasPointerInput): void {
-    const mode = this.mode;
-    if (mode.type !== "verbMenu") return;
-
-    const hotspotIndex = verbMenuHotspotIndexAt(this.canvasSize, input);
-    switch (input.phase) {
-      case "move":
-        if (hotspotIndex !== undefined && hotspotIndex !== mode.selectedIndex) {
-          this.selectVerb(hotspotIndex);
-          this.render();
-        }
-        return;
-      case "down":
-        this.verbPointerDownIndex = hotspotIndex;
-        if (hotspotIndex !== undefined && hotspotIndex !== mode.selectedIndex) {
-          this.selectVerb(hotspotIndex);
-          this.render();
-        }
-        return;
-      case "up": {
-        const downIndex = this.verbPointerDownIndex;
-        this.verbPointerDownIndex = undefined;
-        if (hotspotIndex === undefined) return;
-        const selectedMode = this.selectVerb(hotspotIndex);
-        if (downIndex === hotspotIndex) {
-          this.confirmVerbSelection(selectedMode);
-        } else {
-          this.render();
-        }
-        return;
-      }
-      case "cancel":
-        this.verbPointerDownIndex = undefined;
-        return;
-    }
-  }
-
-  private restartFromOutcome(outcome: "victory" | "defeat"): void {
-    this.recentMessages = [];
-    this.combatFeedback = [];
-    if (outcome === "defeat") {
-      const playerState = this.currentLevelEntryState === undefined ?
-        undefined :
-        createPlayerState(this.currentLevelEntryState);
-      this.startLoad(this.currentMapName, playerState);
-      return;
-    }
-
-    this.startLoad(START_MAP_NAME);
-  }
-
-  private toggleMenu(): void {
-    switch (this.mode.type) {
-      case "playing":
-        this.mode = { type: "menu" };
-        return;
-      case "menu":
-        this.mode = { type: "playing" };
-        return;
-    }
-  }
-
-  private togglePause(): void {
-    switch (this.mode.type) {
-      case "playing":
-        this.mode = { type: "paused" };
-        return;
-      case "paused":
-        this.mode = { type: "playing" };
-        return;
-    }
-  }
-
-  private openVerbMenu(): void {
-    this.verbPointerDownIndex = undefined;
-    this.mode = { type: "verbMenu", selectedIndex: this.lastVerbIndex };
-  }
-
-  private selectVerb(selectedIndex: number): VerbMenuMode {
-    const mode = this.mode;
-    if (mode.type === "verbMenu" && selectedIndex === mode.selectedIndex) return mode;
-
-    const nextMode = { type: "verbMenu", selectedIndex } satisfies VerbMenuMode;
-    this.mode = nextMode;
-    return nextMode;
-  }
-
-  private confirmVerbSelection(mode: VerbMenuMode): void {
-    const selectedIndex = mode.selectedIndex;
-    this.verbPointerDownIndex = undefined;
-    this.lastVerbIndex = selectedIndex;
-    this.mode = { type: "playing" };
-    this.handlePlayerCommand(verbToCommand(selectedIndex));
+    this.apply({
+      type: "verbPointer",
+      phase: input.phase,
+      hotspotIndex: verbMenuHotspotIndexAt(this.canvasSize, input),
+    });
   }
 
   private handlePlayerCommand(command: PlayerCommand): void {
     if (!this.session) return;
 
     const result = this.session.handlePlayerCommand(command);
-    this.appendEventMessages(result.events);
-    if (result.outcome) {
-      this.mode = { type: result.outcome };
-      this.render();
-      return;
-    }
-    if (result.mapChange) {
-      this.enterIntermission(result.mapChange.goto);
-      this.render();
-      return;
-    }
-    if (result.dialogue) {
-      this.enterDialogue(result.dialogue);
-      this.render();
-      return;
-    }
-
-    this.render();
-  }
-
-  private appendEventMessages(events: readonly GameEvent[]): void {
-    if (!this.session) return;
-
-    const playerEntity = this.session.player.getEntity();
-    this.combatFeedback = combatFeedbackForEvents(playerEntity, events);
-    for (const event of events) {
-      this.recentMessages.push(messageForEvent(playerEntity, event));
-    }
-    if (this.recentMessages.length > MESSAGE_LOG_LIMIT) {
-      this.recentMessages.splice(0, this.recentMessages.length - MESSAGE_LOG_LIMIT);
-    }
-  }
-
-  private enterIntermission(goto: string): void {
-    if (!this.session) return;
-    this.mode = {
-      type: "intermission",
-      message: `Entering ${goto}. Space to continue.`,
-      goto,
+    this.apply({
+      type: "playerCommandResult",
+      result,
+      playerEntity: this.session.player.getEntity(),
       playerState: this.session.getPlayerState(),
-    };
+    });
   }
 
-  private enterDialogue(dialogue: DialogueState): void {
-    this.mode = {
-      type: "dialogue",
-      ...dialogue,
-    };
+  private apply(event: GameTransitionEvent): void {
+    const next = transition(this.model, event);
+    this.model = next.model;
+    this.executeEffects(next.effects);
+  }
+
+  private executeEffects(effects: readonly GameEffect[]): void {
+    for (const effect of effects) {
+      switch (effect.type) {
+        case "render":
+          this.render();
+          break;
+        case "ensureInput":
+          this.ensureInput();
+          break;
+        case "loadMap":
+          this.startLoad(effect.mapName, effect.playerState);
+          break;
+        case "runPlayerCommand":
+          this.handlePlayerCommand(effect.command);
+          break;
+      }
+    }
+  }
+
+  private ensureInput(): void {
+    this.inputController ??= this.runtime.setupInput(
+      this.spec.window,
+      this.spec.canvas,
+      () => this.canvasSize,
+      (command) => this.handleGameCommand(command),
+      (input) => this.handlePointerInput(input),
+    );
   }
 
   [Symbol.dispose](): void {
