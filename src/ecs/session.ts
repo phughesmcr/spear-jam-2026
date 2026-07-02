@@ -17,15 +17,22 @@ import { relativeMoveDirectionOffset, turnDirectionDelta } from "@/src/game/comm
 import type { PlayerCommand, PlayerCommandResult } from "@/src/game/commands.ts";
 import type { GameEvent } from "@/src/game/events.ts";
 import type { RandomSource } from "@/src/game/rng.ts";
-import type { AmmoKind, CommandSlot, PlayerProgressState, PlayerState } from "@/src/game/state.ts";
+import { createPlayerState } from "@/src/game/state.ts";
+import type { AmmoKind, CommandSlot, PlayerState, PlayerStateInput } from "@/src/game/state.ts";
 import { VICTORY_GOTO } from "@/src/map/map.ts";
 import type { GameMap } from "@/src/map/map.ts";
 
 const UNCHANGED_PLAYER_COMMAND: PlayerCommandResult = Object.freeze({
   events: [],
 });
-const DEFAULT_PROGRESS: PlayerProgressState = Object.freeze({ credits: 0, score: 0, xp: 0, levelCredits: 0 });
 const ENEMY_DEFEAT_CREDITS = 10;
+
+type MutablePlayerProgress = {
+  credits: number;
+  score: number;
+  xp: number;
+  levelCredits: number;
+};
 
 type MoveResult =
   | { readonly moved: false }
@@ -34,11 +41,12 @@ type MoveResult =
 export async function createGameSession(
   map: GameMap,
   random: RandomSource,
-  playerState?: PlayerState,
+  playerState?: PlayerStateInput,
 ): Promise<GameSession> {
   const world = await createWorld();
 
   try {
+    const state = createPlayerState(playerState);
     let playerEntity: Entity | undefined;
 
     for (const entityDef of map.entities) {
@@ -51,13 +59,13 @@ export async function createGameSession(
     if (playerEntity === undefined) throw new Error("Map is missing a player spawn.");
 
     if (playerState?.health !== undefined && world.components.entityHas(Health, playerEntity)) {
-      world.components.setEntityData(Health, playerEntity, playerState.health);
+      world.components.setEntityData(Health, playerEntity, state.health);
     }
 
     const player = new Player(world, playerEntity);
     world.refresh();
 
-    return new GameSession(world, player, map, random, playerState);
+    return new GameSession(world, player, map, random, state);
   } catch (error) {
     await world.destroy();
     throw error;
@@ -73,7 +81,7 @@ export class GameSession implements Disposable {
   private readonly spatial: SpatialIndex;
   private readonly terminalDestinations: ReadonlyMap<Entity, string>;
   private readonly inventory: PlayerInventory;
-  private readonly progress: { credits: number; score: number; xp: number; levelCredits: number };
+  private readonly progress: MutablePlayerProgress;
   private disposed = false;
 
   constructor(
@@ -81,8 +89,9 @@ export class GameSession implements Disposable {
     player: Player,
     map: GameMap,
     random: RandomSource,
-    playerState?: PlayerState,
+    playerState?: PlayerStateInput,
   ) {
+    const state = createPlayerState(playerState);
     this.world = world;
     this.player = player;
     this.map = map;
@@ -90,17 +99,16 @@ export class GameSession implements Disposable {
     this.enemyTurnSystem = world.systems.create(enemyTurnSystem);
     this.spatial = new SpatialIndex(world, map);
     this.terminalDestinations = terminalDestinationsFor(world, map);
-    this.inventory = new PlayerInventory(playerState);
-    this.progress = progressFor(playerState);
+    this.inventory = new PlayerInventory(state);
+    this.progress = { ...state.progress };
   }
 
   getPlayerState(): PlayerState {
-    const progress = playerProgressState(this.progress);
-    const state: PlayerState = {
+    return createPlayerState({
       ...this.inventory.getState(),
       health: this.getPlayerHealth(),
-    };
-    return progress === undefined ? state : { ...state, progress };
+      progress: this.progress,
+    });
   }
 
   handlePlayerCommand(command: PlayerCommand): PlayerCommandResult {
@@ -367,29 +375,4 @@ function terminalDestinationsFor(world: World, map: GameMap): ReadonlyMap<Entity
 
 function positionKey(x: number, y: number): string {
   return `${x},${y}`;
-}
-
-function progressFor(
-  playerState: PlayerState | undefined,
-): { credits: number; score: number; xp: number; levelCredits: number } {
-  return {
-    credits: playerState?.progress?.credits ?? DEFAULT_PROGRESS.credits,
-    score: playerState?.progress?.score ?? DEFAULT_PROGRESS.score,
-    xp: playerState?.progress?.xp ?? DEFAULT_PROGRESS.xp,
-    levelCredits: playerState?.progress?.levelCredits ?? DEFAULT_PROGRESS.levelCredits,
-  };
-}
-
-function playerProgressState(
-  progress: { readonly credits: number; readonly score: number; readonly xp: number; readonly levelCredits: number },
-): PlayerProgressState | undefined {
-  if (
-    progress.credits === DEFAULT_PROGRESS.credits &&
-    progress.score === DEFAULT_PROGRESS.score &&
-    progress.xp === DEFAULT_PROGRESS.xp &&
-    progress.levelCredits === DEFAULT_PROGRESS.levelCredits
-  ) {
-    return undefined;
-  }
-  return { ...progress };
 }

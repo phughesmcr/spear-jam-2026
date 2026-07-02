@@ -38,8 +38,6 @@ export type AttackOutcome =
     readonly critical: boolean;
   };
 
-export const DEFAULT_SELECTED_WEAPON: CommandSlot = 1;
-
 const DEFAULT_DEFENSE = 10;
 const CARDINAL_DIRECTIONS = [
   Direction.North,

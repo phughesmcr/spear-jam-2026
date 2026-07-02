@@ -30,8 +30,7 @@ import type { DisplayName } from "@/src/game/names.ts";
 import { Player } from "@/src/ecs/player.ts";
 import { GameSession } from "@/src/ecs/session.ts";
 import type { RandomSource } from "@/src/game/rng.ts";
-import type { PlayerState } from "@/src/game/state.ts";
-import type { CommandSlot } from "@/src/game/state.ts";
+import type { CommandSlot, PlayerStateInput } from "@/src/game/state.ts";
 
 export function createEntity(world: World): Entity {
   const entity = world.entities.create();
@@ -221,7 +220,7 @@ export function createTestSession(
   world: World,
   playerEntity: Entity,
   map: GameMap = flatTestMap(3, 2),
-  opts: { random?: RandomSource; playerState?: PlayerState } = {},
+  opts: { random?: RandomSource; playerState?: PlayerStateInput } = {},
 ): GameSession {
   world.refresh();
   return new GameSession(

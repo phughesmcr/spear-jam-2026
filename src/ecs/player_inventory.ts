@@ -1,9 +1,6 @@
-import { DEFAULT_SELECTED_WEAPON } from "@/src/ecs/combat.ts";
-import type { AmmoKind, CommandSlot, PlayerAmmoState, PlayerState } from "@/src/game/state.ts";
+import { createPlayerState } from "@/src/game/state.ts";
+import type { AmmoKind, CommandSlot, PlayerState, PlayerStateInput } from "@/src/game/state.ts";
 import type { KeyColor } from "@/src/map/map.ts";
-
-const DEFAULT_UNLOCKED_WEAPONS: readonly CommandSlot[] = Object.freeze([DEFAULT_SELECTED_WEAPON]);
-const DEFAULT_AMMO: PlayerAmmoState = Object.freeze({ pistol: 0, cannon: 0 });
 
 export type PlayerInventoryState = Pick<
   PlayerState,
@@ -17,12 +14,13 @@ export class PlayerInventory {
   private selectedWeaponSlot: CommandSlot;
   private hasUplinkCodeValue: boolean;
 
-  constructor(playerState?: PlayerState) {
-    this.heldKeySet = new Set(playerState?.heldKeys ?? []);
-    this.unlockedWeaponSet = unlockedWeaponsFor(playerState);
-    this.ammoCounts = ammoFor(playerState);
-    this.selectedWeaponSlot = selectedWeaponFor(playerState?.selectedWeapon, this.unlockedWeaponSet);
-    this.hasUplinkCodeValue = playerState?.hasUplinkCode ?? false;
+  constructor(playerState?: PlayerStateInput) {
+    const state = createPlayerState(playerState);
+    this.heldKeySet = new Set(state.heldKeys);
+    this.unlockedWeaponSet = new Set(state.unlockedWeapons);
+    this.ammoCounts = { ...state.ammo };
+    this.selectedWeaponSlot = state.selectedWeapon;
+    this.hasUplinkCodeValue = state.hasUplinkCode;
   }
 
   get heldKeys(): ReadonlySet<KeyColor> {
@@ -83,29 +81,6 @@ export class PlayerInventory {
     this.heldKeySet.clear();
     this.hasUplinkCodeValue = false;
   }
-}
-
-function unlockedWeaponsFor(playerState: PlayerState | undefined): Set<CommandSlot> {
-  const slots = new Set<CommandSlot>(DEFAULT_UNLOCKED_WEAPONS);
-  for (const slot of playerState?.unlockedWeapons ?? []) {
-    slots.add(slot);
-  }
-  return slots;
-}
-
-function ammoFor(playerState: PlayerState | undefined): { pistol: number; cannon: number } {
-  return {
-    pistol: playerState?.ammo?.pistol ?? DEFAULT_AMMO.pistol,
-    cannon: playerState?.ammo?.cannon ?? DEFAULT_AMMO.cannon,
-  };
-}
-
-function selectedWeaponFor(
-  selectedWeapon: CommandSlot | undefined,
-  unlockedWeapons: ReadonlySet<CommandSlot>,
-): CommandSlot {
-  if (selectedWeapon !== undefined && unlockedWeapons.has(selectedWeapon)) return selectedWeapon;
-  return DEFAULT_SELECTED_WEAPON;
 }
 
 function sortedWeaponSlots(slots: ReadonlySet<CommandSlot>): readonly CommandSlot[] {

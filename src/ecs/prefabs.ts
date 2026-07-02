@@ -30,6 +30,7 @@ import {
 import type { AttackSchema } from "@/src/ecs/components.ts";
 import { normalizeDirection } from "@/src/grid/direction.ts";
 import { keyColorCode } from "@/src/map/map.ts";
+import { DEFAULT_PLAYER_STATE } from "@/src/game/state.ts";
 import type {
   DoorDef,
   EnemyDef,
@@ -44,7 +45,6 @@ import type {
 } from "@/src/map/map.ts";
 import type { DisplayName } from "@/src/game/names.ts";
 
-const DEFAULT_PLAYER_HEALTH = 10;
 const DEFAULT_ATTACK: AttackSchema = {
   minDamage: 1,
   maxDamage: 1,
@@ -125,7 +125,7 @@ export function createPlayer(world: World, prefab: PlayerPrefab): Entity {
   const entity = createEntity(world, "player");
   addGridActor(world, entity, prefab, DrawableKind.Player, DrawableLayer.Player);
   world.components.addToEntity(Player, entity);
-  addHealth(world, entity, DEFAULT_PLAYER_HEALTH);
+  addHealth(world, entity, DEFAULT_PLAYER_STATE.health.max);
   return entity;
 }
 

@@ -261,13 +261,5 @@ class Game implements Disposable {
 
 function clonePlayerState(playerState: PlayerState | undefined): PlayerState | undefined {
   if (playerState === undefined) return undefined;
-  return {
-    heldKeys: [...playerState.heldKeys],
-    selectedWeapon: playerState.selectedWeapon,
-    unlockedWeapons: playerState.unlockedWeapons === undefined ? undefined : [...playerState.unlockedWeapons],
-    ammo: playerState.ammo === undefined ? undefined : { ...playerState.ammo },
-    health: playerState.health === undefined ? undefined : { ...playerState.health },
-    hasUplinkCode: playerState.hasUplinkCode,
-    progress: playerState.progress === undefined ? undefined : { ...playerState.progress },
-  };
+  return structuredClone(playerState);
 }

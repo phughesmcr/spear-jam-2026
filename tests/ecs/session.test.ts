@@ -306,6 +306,7 @@ Deno.test("interacting with an uplink terminal after collecting a code advances 
     ammo: { pistol: 0, cannon: 0 },
     health: { current: 4, max: 10 },
     hasUplinkCode: false,
+    progress: { credits: 0, score: 0, xp: 0, levelCredits: 0 },
   });
 });
 

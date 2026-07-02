@@ -47,17 +47,17 @@ type HudLine = {
 
 function hudLines(mapName: string, playerState: PlayerState): readonly HudLine[] {
   const health = playerState.health;
-  const hpText = health === undefined ? "HP --/--" : `HP ${health.current}/${health.max}`;
+  const hpText = `HP ${health.current}/${health.max}`;
   const keyText = playerState.heldKeys.length === 0 ? "Keys none" : `Keys ${playerState.heldKeys.join(", ")}`;
   const weaponText = `Weapon ${playerState.selectedWeapon} / owned ${ownedWeaponText(playerState)}`;
-  const ammo = playerState.ammo ?? { pistol: 0, cannon: 0 };
-  const progress = playerState.progress ?? { credits: 0, score: 0, xp: 0, levelCredits: 0 };
+  const ammo = playerState.ammo;
+  const progress = playerState.progress;
 
   return [
     { text: mapName, color: HUD_ACCENT },
     {
       text: hpText,
-      color: health !== undefined && health.current <= Math.ceil(health.max * 0.3) ? HUD_DANGER : HUD_TEXT,
+      color: health.current <= Math.ceil(health.max * 0.3) ? HUD_DANGER : HUD_TEXT,
     },
     { text: weaponText, color: HUD_TEXT },
     { text: `Ammo P ${ammo.pistol} / C ${ammo.cannon}`, color: ammo.pistol + ammo.cannon === 0 ? HUD_MUTED : HUD_TEXT },
@@ -68,14 +68,14 @@ function hudLines(mapName: string, playerState: PlayerState): readonly HudLine[]
     { text: `XP ${progress.xp}`, color: progress.xp === 0 ? HUD_MUTED : HUD_TEXT },
     { text: keyText, color: playerState.heldKeys.length === 0 ? HUD_MUTED : HUD_TEXT },
     {
-      text: playerState.hasUplinkCode === true ? "Uplink code ready" : "Find uplink code",
-      color: playerState.hasUplinkCode === true ? HUD_TEXT : HUD_MUTED,
+      text: playerState.hasUplinkCode ? "Uplink code ready" : "Find uplink code",
+      color: playerState.hasUplinkCode ? HUD_TEXT : HUD_MUTED,
     },
   ];
 }
 
 function ownedWeaponText(playerState: PlayerState): string {
-  return (playerState.unlockedWeapons ?? [1]).join(",");
+  return playerState.unlockedWeapons.join(",");
 }
 
 function fitText(ctx: CanvasRenderingContext2D, text: string, maxWidth: number): string {
