@@ -1,7 +1,7 @@
-import type { World } from "@phughesmcr/miski";
 import { EnemyArchetype, ItemKind } from "@/src/ecs/components.ts";
-import { DrawableKind, forEachDrawableEntity } from "@/src/ecs/drawables.ts";
+import { DrawableKind } from "@/src/ecs/drawables.ts";
 import type { ConsumableItemKind, DrawableEntity } from "@/src/ecs/drawables.ts";
+import type { GameSession } from "@/src/ecs/session.ts";
 import { directionDelta } from "@/src/grid/direction.ts";
 import { KeyColor } from "@/src/map/map.ts";
 import type { KeyColor as KeyColorType } from "@/src/map/map.ts";
@@ -44,8 +44,12 @@ const PLAYER_RADIUS_RATIO = 0.34;
 const PLAYER_BASE_WIDTH_RATIO = 0.75;
 const NPC_RADIUS_RATIO = 0.28;
 
-export function renderDrawableEntities(ctx: CanvasRenderingContext2D, world: World, metrics: MapRenderMetrics): void {
-  forEachDrawableEntity(world, (drawable) => {
+export function renderDrawableEntities(
+  ctx: CanvasRenderingContext2D,
+  session: GameSession,
+  metrics: MapRenderMetrics,
+): void {
+  session.forEachDrawable((drawable) => {
     renderDrawableEntity(ctx, drawable, metrics);
   });
 }

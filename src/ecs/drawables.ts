@@ -93,15 +93,13 @@ type DrawableRenderContext = {
   readonly world: World;
   readonly visit: DrawableEntityVisitor;
 };
-type DrawableSystem = (context: DrawableRenderContext) => void;
+export type DrawableSystem = (context: DrawableRenderContext) => void;
 type DrawableComponents = {
   readonly gridPos: { readonly partitions: GridPosPartitions };
   readonly drawable: { readonly partitions: DrawablePartitions };
 };
 
-const drawableSystems = new WeakMap<World, DrawableSystem>();
-
-const drawableSystem = new System({
+export const drawableSystem = new System({
   name: "drawableSystem",
   query: drawableRenderQuery,
   callback: (components, entities, context: DrawableRenderContext): void => {
@@ -127,18 +125,6 @@ const drawableSystem = new System({
     }
   },
 });
-
-export function forEachDrawableEntity(world: World, visit: DrawableEntityVisitor): void {
-  drawableSystemFor(world)({ world, visit });
-}
-
-function drawableSystemFor(world: World): DrawableSystem {
-  const existing = drawableSystems.get(world);
-  if (existing !== undefined) return existing;
-  const created = world.systems.create(drawableSystem);
-  drawableSystems.set(world, created);
-  return created;
-}
 
 function drawableEntityFor(
   world: World,

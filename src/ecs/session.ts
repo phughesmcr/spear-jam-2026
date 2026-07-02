@@ -3,6 +3,8 @@ import { Health } from "@/src/ecs/components.ts";
 import { directionDelta } from "@/src/grid/direction.ts";
 import type { GridDelta } from "@/src/grid/direction.ts";
 import { attackWithSelectedWeapon, weaponAmmoKind, weaponLabel } from "@/src/ecs/combat.ts";
+import { drawableSystem } from "@/src/ecs/drawables.ts";
+import type { DrawableEntityVisitor, DrawableSystem } from "@/src/ecs/drawables.ts";
 import { enemyTurnSystem } from "@/src/ecs/enemy.ts";
 import type { EnemyTurnSystem } from "@/src/ecs/enemy.ts";
 import { collectItemAt, interactWithEntity } from "@/src/ecs/interactions.ts";
@@ -79,6 +81,7 @@ export class GameSession implements Disposable {
   readonly player: Player;
   readonly map: GameMap;
   private readonly random: RandomSource;
+  private readonly drawableSystem: DrawableSystem;
   private readonly enemyTurnSystem: EnemyTurnSystem;
   private readonly spatial: SpatialIndex;
   private readonly terminalDestinations: ReadonlyMap<Entity, string>;
@@ -99,6 +102,7 @@ export class GameSession implements Disposable {
     this.player = player;
     this.map = map;
     this.random = random;
+    this.drawableSystem = world.systems.create(drawableSystem);
     this.enemyTurnSystem = world.systems.create(enemyTurnSystem);
     this.spatial = new SpatialIndex(world, map);
     this.terminalDestinations = new Map(terminalDestinations);
@@ -112,6 +116,10 @@ export class GameSession implements Disposable {
       health: this.getPlayerHealth(),
       progress: this.progress,
     });
+  }
+
+  forEachDrawable(visit: DrawableEntityVisitor): void {
+    this.drawableSystem({ world: this.world, visit });
   }
 
   handlePlayerCommand(command: PlayerCommand): PlayerCommandResult {
