@@ -142,6 +142,24 @@ export const TurnTaker: Component<null> = new Component<null>({ name: "turnTaker
 
 export const Enemy: Component<null> = new Component<null>({ name: "enemy" });
 
+export const AwarenessState = {
+  Idle: 0,
+  Investigating: 1,
+  Alert: 2,
+} as const;
+export type AwarenessState = (typeof AwarenessState)[keyof typeof AwarenessState];
+
+export type EnemyAwarenessSchema = {
+  state: AwarenessState;
+  lastKnownX: number;
+  lastKnownY: number;
+  turnsSinceSeen: number;
+};
+export const EnemyAwareness: Component<EnemyAwarenessSchema> = new Component<EnemyAwarenessSchema>({
+  name: "enemyAwareness",
+  schema: { state: Uint8Array, lastKnownX: Int16Array, lastKnownY: Int16Array, turnsSinceSeen: Uint8Array },
+});
+
 export const EnemyArchetype = {
   MeleeDog: 1,
   Gunslinger: 2,
@@ -237,6 +255,7 @@ export const ALL_COMPONENTS: DynamicComponent[] = [
   Item,
   TurnTaker,
   Enemy,
+  EnemyAwareness,
   EnemyArchetypeComponent,
   Health,
   Attack,

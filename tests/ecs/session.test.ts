@@ -8,6 +8,7 @@ import {
   Drawable,
   DrawableKind,
   DrawableLayer,
+  Facing,
   GridPos,
   Health,
   Interactable,
@@ -298,6 +299,33 @@ Deno.test("visibility treats closed doors as opaque and reveals behind them afte
 
   assertEquals(session.getVisibility().isVisible(2, 0), true);
   assertEquals(drawableTiles(session), [`${DrawableKind.Item}:2,0`]);
+});
+
+Deno.test("closed doors block enemy sight", async () => {
+  const world = await createWorld();
+  const playerEntity = createTestPlayer(world, {
+    x: 1,
+    y: 1,
+    dir: Direction.East,
+    blocking: true,
+    tag: true,
+    health: { current: 2, max: 2 },
+  });
+  createTestDoor(world, { x: 2, y: 1, blocking: true, interactable: true });
+  const enemy = createTestEnemy(world, {
+    x: 3,
+    y: 1,
+    dir: Direction.West,
+    displayName: DisplayName.Imp,
+    attack: TEST_ATTACK,
+  });
+  const session = createTestSession(world, playerEntity, flatTestMap(5, 3));
+
+  const result = session.handlePlayerCommand({ type: "wait" });
+
+  assertEquals(result, { events: [] });
+  assertEquals(world.components.getEntityData(GridPos, enemy), { x: 3, y: 1 });
+  assertEquals(session.getPlayerState().health, { current: 2, max: 2 });
 });
 
 Deno.test("explicit open, use, and talk verbs resolve their matching targets", async () => {
@@ -769,6 +797,46 @@ Deno.test("attacking empty space with a ranged weapon still spends ammo", async 
     },
   ]);
   assertEquals(session.getPlayerState().ammo, { pistol: 0, cannon: 0 });
+});
+
+Deno.test("ranged attack noise makes hidden enemies investigate", async () => {
+  const world = await createWorld();
+  const playerEntity = createTestPlayer(world, {
+    x: 1,
+    y: 1,
+    dir: Direction.East,
+    blocking: true,
+    tag: true,
+  });
+  const enemy = createTestEnemy(world, {
+    x: 4,
+    y: 1,
+    dir: Direction.East,
+    displayName: DisplayName.Imp,
+    health: { current: 3, max: 3 },
+    attack: TEST_ATTACK,
+  });
+  const session = createTestSession(world, playerEntity, flatTestMap(6, 3), {
+    playerState: {
+      heldKeys: [],
+      selectedWeapon: 2,
+      unlockedWeapons: [1, 2],
+      ammo: { pistol: 1, cannon: 0 },
+    },
+  });
+
+  const result = session.handlePlayerCommand({ type: "attack" });
+
+  assertEquals(result.events, [
+    { type: "ammoSpent", ammo: "pistol", amount: 1 },
+    {
+      type: "attackMissed",
+      actor: playerEntity,
+      actorName: "You",
+    },
+  ]);
+  assertEquals(world.components.getEntityData(GridPos, enemy), { x: 3, y: 1 });
+  assertEquals(world.components.getEntityData(Facing, enemy), { dir: Direction.West });
 });
 
 Deno.test("turning changes facing without consuming a turn", async () => {

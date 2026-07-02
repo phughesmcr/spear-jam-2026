@@ -19,6 +19,7 @@ import { relativeMoveDirectionOffset, turnDirectionDelta } from "@/src/game/comm
 import type { PlayerCommand, PlayerCommandResult } from "@/src/game/commands.ts";
 import type { InteractVerb } from "@/src/game/commands.ts";
 import type { GameEvent } from "@/src/game/events.ts";
+import type { NoiseStimulus } from "@/src/game/perception.ts";
 import type { RandomSource } from "@/src/game/rng.ts";
 import { createPlayerState, DEFAULT_PLAYER_STATE } from "@/src/game/state.ts";
 import type { CommandSlot, PlayerState, PlayerStateInput } from "@/src/game/state.ts";
@@ -32,6 +33,10 @@ const UNCHANGED_PLAYER_COMMAND: PlayerCommandResult = Object.freeze({
 });
 const ENEMY_DEFEAT_CREDITS = 10;
 const PLAYER_VISIBILITY_RADIUS = 6;
+const MOVE_NOISE_RADIUS = 2;
+const DOOR_NOISE_RADIUS = 4;
+const MELEE_ATTACK_NOISE_RADIUS = 4;
+const RANGED_ATTACK_NOISE_RADIUS = 8;
 
 type MoveResult =
   | { readonly moved: false }
@@ -152,7 +157,7 @@ export class GameSession implements Disposable {
   private handlePlayerMoveCommand(directionOffset: number): PlayerCommandResult {
     const move = this.tryMovePlayerRelative(directionOffset);
     if (!move.moved) return UNCHANGED_PLAYER_COMMAND;
-    return this.consumePlayerTurn(move.events);
+    return this.consumePlayerTurn(move.events, this.playerNoise(MOVE_NOISE_RADIUS));
   }
 
   private tryMovePlayer(delta: GridDelta): MoveResult {
@@ -193,7 +198,7 @@ export class GameSession implements Disposable {
       case "unchanged":
         return { events: interaction.events };
       case "consumeTurn":
-        return this.consumePlayerTurn(interaction.events);
+        return this.consumePlayerTurn(interaction.events, this.noiseForEvents(interaction.events));
       case "dialogue":
         return {
           events: interaction.events,
@@ -238,7 +243,10 @@ export class GameSession implements Disposable {
       this.spatial,
       this.random,
     );
-    return this.consumePlayerTurn([...ammoEvents, ...this.awardCreditsForDefeats(events)]);
+    return this.consumePlayerTurn(
+      [...ammoEvents, ...this.awardCreditsForDefeats(events)],
+      this.playerNoise(attackNoiseRadius(selectedWeapon)),
+    );
   }
 
   private handlePlayerSelectWeaponCommand(slot: CommandSlot): PlayerCommandResult {
@@ -263,12 +271,14 @@ export class GameSession implements Disposable {
     };
   }
 
-  private consumePlayerTurn(events: readonly GameEvent[] = []): PlayerCommandResult {
+  private consumePlayerTurn(events: readonly GameEvent[] = [], noise?: NoiseStimulus): PlayerCommandResult {
     const enemyEvents = this.enemyTurnSystem({
       world: this.world,
       player: this.player,
       spatial: this.spatial,
       random: this.random,
+      blocksSight: (x, y) => this.tileBlocksSight(x, y),
+      noises: noise === undefined ? [] : [noise],
     });
     this.world.refresh();
     this.refreshVisibility();
@@ -295,6 +305,22 @@ export class GameSession implements Disposable {
 
   private drawableIsVisible(drawable: DrawableEntity): boolean {
     return drawable.kind === DrawableKind.Player || this.visibility.isVisible(drawable.x, drawable.y);
+  }
+
+  private noiseForEvents(events: readonly GameEvent[]): NoiseStimulus | undefined {
+    if (events.some((event) => event.type === "doorOpened")) return this.playerNoise(DOOR_NOISE_RADIUS);
+    return undefined;
+  }
+
+  private playerNoise(radius: number): NoiseStimulus | undefined {
+    if (radius <= 0) return undefined;
+
+    const position = this.player.getPosition();
+    return {
+      x: position.x,
+      y: position.y,
+      radius,
+    };
   }
 
   private isPlayerDefeated(): boolean {
@@ -389,4 +415,8 @@ export class GameSession implements Disposable {
     this.disposed = true;
     void this.world.destroy();
   }
+}
+
+function attackNoiseRadius(slot: CommandSlot): number {
+  return slot === 1 ? MELEE_ATTACK_NOISE_RADIUS : RANGED_ATTACK_NOISE_RADIUS;
 }

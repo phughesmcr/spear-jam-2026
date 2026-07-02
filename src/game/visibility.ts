@@ -1,4 +1,4 @@
-import { directionDelta } from "@/src/grid/direction.ts";
+import { canSeePoint } from "@/src/game/perception.ts";
 import type { CardinalDirection, GridPoint } from "@/src/grid/direction.ts";
 
 export interface TileVisibility {
@@ -42,8 +42,7 @@ export class VisibilityMap implements TileVisibility {
       for (let x = minX; x <= maxX; x++) {
         const target = { x, y };
         if (distanceSquared(origin, target) > radiusSquared) continue;
-        if (options.facing !== undefined && !isWithinFacingCone(origin, target, options.facing)) continue;
-        if (!hasLineOfSight(origin, target, options.blocksSight)) continue;
+        if (!canSeePoint(origin, target, options)) continue;
         this.reveal(x, y);
       }
     }
@@ -74,46 +73,6 @@ export class VisibilityMap implements TileVisibility {
   }
 }
 
-function hasLineOfSight(
-  origin: GridPoint,
-  target: GridPoint,
-  blocksSight: (x: number, y: number) => boolean,
-): boolean {
-  let x = origin.x;
-  let y = origin.y;
-  const dx = Math.abs(target.x - origin.x);
-  const sx = origin.x < target.x ? 1 : -1;
-  const dy = -Math.abs(target.y - origin.y);
-  const sy = origin.y < target.y ? 1 : -1;
-  let error = dx + dy;
-
-  while (true) {
-    if (x === target.x && y === target.y) return true;
-    if ((x !== origin.x || y !== origin.y) && blocksSight(x, y)) return false;
-
-    const doubledError = error * 2;
-    if (doubledError >= dy) {
-      error += dy;
-      x += sx;
-    }
-    if (doubledError <= dx) {
-      error += dx;
-      y += sy;
-    }
-  }
-}
-
 function distanceSquared(a: GridPoint, b: GridPoint): number {
   return (a.x - b.x) ** 2 + (a.y - b.y) ** 2;
-}
-
-function isWithinFacingCone(origin: GridPoint, target: GridPoint, facing: CardinalDirection): boolean {
-  const forward = directionDelta(facing);
-  const side = { dx: -forward.dy, dy: forward.dx };
-  const dx = target.x - origin.x;
-  const dy = target.y - origin.y;
-  const forwardDistance = dx * forward.dx + dy * forward.dy;
-  const sideDistance = dx * side.dx + dy * side.dy;
-
-  return forwardDistance >= 0 && Math.abs(sideDistance) <= forwardDistance;
 }
