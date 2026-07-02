@@ -15,6 +15,7 @@ const COMMANDS_BY_KEY = {
   KeyD: { type: "move", direction: "right" },
   KeyQ: { type: "turn", direction: "left" },
   KeyE: { type: "turn", direction: "right" },
+  Comma: { type: "attack" },
   Period: { type: "action" },
   Escape: { type: "menu" },
   KeyP: { type: "pause" },
