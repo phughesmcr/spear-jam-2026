@@ -5,17 +5,19 @@ import {
   AttackPattern,
   AttackTargetMode,
   Blocking,
+  GridPos,
   Health,
+  Interactable,
   ItemKind,
   Locked,
 } from "@/src/ecs/components.ts";
-import { GridPos } from "@/src/ecs/components.ts";
 import { ExamineTextId } from "@/src/game/examine.ts";
 import { DisplayName } from "@/src/game/names.ts";
 import { createGameSession } from "@/src/ecs/session.ts";
 import { createWorld } from "@/src/ecs/world.ts";
 import { KeyColor, VICTORY_GOTO } from "@/src/map/map.ts";
 import {
+  createEntity,
   createTestDoor,
   createTestEnemy,
   createTestItem,
@@ -188,6 +190,45 @@ Deno.test("verb commands gate by target component", async () => {
     type: "verbFailed",
     verb: "talk",
   }]);
+});
+
+Deno.test("generic interactables report failure without consuming a turn", async () => {
+  const setup = async () => {
+    const world = await createWorld();
+    const playerEntity = createTestPlayer(world, {
+      blocking: true,
+      health: { current: 2, max: 2 },
+    });
+    const generic = createEntity(world);
+    world.components.addToEntity(GridPos, generic, { x: 2, y: 1 });
+    world.components.addToEntity(Interactable, generic);
+    createTestEnemy(world, {
+      x: 1,
+      y: 0,
+      dir: 2,
+      displayName: DisplayName.Imp,
+      attack: TEST_ATTACK,
+    });
+    return createTestSession(world, playerEntity);
+  };
+
+  const explicitSession = await setup();
+  assertEquals(explicitSession.handlePlayerCommand({ type: "interact", verb: "use" }), {
+    events: [{
+      type: "verbFailed",
+      verb: "use",
+    }],
+  });
+  assertEquals(explicitSession.getPlayerState().health, { current: 2, max: 2 });
+
+  const implicitSession = await setup();
+  assertEquals(implicitSession.handlePlayerCommand({ type: "interact" }), {
+    events: [{
+      type: "verbFailed",
+      verb: "use",
+    }],
+  });
+  assertEquals(implicitSession.getPlayerState().health, { current: 2, max: 2 });
 });
 
 Deno.test("opening an already-open door reports that it is open", async () => {

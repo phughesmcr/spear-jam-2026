@@ -31,6 +31,7 @@ import type { DisplayName } from "@/src/game/names.ts";
 import { Player } from "@/src/ecs/player.ts";
 import { GameSession } from "@/src/ecs/session.ts";
 import type { RandomSource } from "@/src/game/rng.ts";
+import { createPlayerState } from "@/src/game/state.ts";
 import type { CommandSlot, PlayerStateInput } from "@/src/game/state.ts";
 
 export function createEntity(world: World): Entity {
@@ -250,6 +251,6 @@ export function createTestSession(
     map,
     opts.random ?? (() => 0),
     opts.terminalDestinations ?? new Map(),
-    opts.playerState,
+    createPlayerState(opts.playerState),
   );
 }

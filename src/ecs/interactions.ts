@@ -29,6 +29,21 @@ export type PlayerInteractionResult =
 
 const UNCHANGED_INTERACTION: PlayerInteractionResult = Object.freeze({ type: "unchanged", events: [] });
 
+type InteractionKind = "door" | "npc" | "terminal" | "generic";
+
+const DEFAULT_VERB_BY_KIND: Readonly<Record<InteractionKind, InteractVerb>> = {
+  door: "open",
+  npc: "talk",
+  terminal: "use",
+  generic: "use",
+};
+
+const VERB_PERMISSIONS: Readonly<Record<InteractVerb, readonly InteractionKind[]>> = {
+  open: ["door"],
+  talk: ["npc"],
+  use: ["terminal"],
+};
+
 export type ItemPickup =
   | { readonly type: "key"; readonly entity: Entity; readonly color: KeyColor }
   | { readonly type: "uplinkCode"; readonly entity: Entity }
@@ -63,44 +78,40 @@ export function interactWithEntity(
     return verb === undefined ? UNCHANGED_INTERACTION : failedVerb(verb);
   }
 
-  if (verb !== undefined) {
-    return interactWithVerb(world, spatial, target, heldKeys, hasUplinkCode, verb);
-  }
+  const kind = interactionKindFor(world, target);
+  const resolvedVerb = verb ?? DEFAULT_VERB_BY_KIND[kind];
+  if (!verbAllowedForKind(resolvedVerb, kind)) return failedVerb(resolvedVerb);
 
-  if (world.components.entityHas(Door, target)) {
-    return interactWithDoor(world, spatial, target, heldKeys, false);
-  }
-
-  if (world.components.entityHas(Npc, target)) {
-    return interactWithNpc(world, target);
-  }
-
-  if (world.components.entityHas(UplinkTerminal, target)) {
-    return interactWithUplinkTerminal(target, hasUplinkCode);
-  }
-
-  return { type: "consumeTurn", events: [] };
+  return performInteraction(world, spatial, target, heldKeys, hasUplinkCode, resolvedVerb, verb !== undefined);
 }
 
-function interactWithVerb(
+function interactionKindFor(world: World, target: Entity): InteractionKind {
+  if (world.components.entityHas(Door, target)) return "door";
+  if (world.components.entityHas(Npc, target)) return "npc";
+  if (world.components.entityHas(UplinkTerminal, target)) return "terminal";
+  return "generic";
+}
+
+function verbAllowedForKind(verb: InteractVerb, kind: InteractionKind): boolean {
+  return VERB_PERMISSIONS[verb].includes(kind);
+}
+
+function performInteraction(
   world: World,
   spatial: SpatialIndex,
   target: Entity,
   heldKeys: ReadonlySet<KeyColor>,
   hasUplinkCode: boolean,
   verb: InteractVerb,
+  explicitVerb: boolean,
 ): PlayerInteractionResult {
   switch (verb) {
     case "open":
-      return world.components.entityHas(Door, target) ?
-        interactWithDoor(world, spatial, target, heldKeys, true) :
-        failedVerb(verb);
+      return interactWithDoor(world, spatial, target, heldKeys, explicitVerb);
     case "talk":
-      return world.components.entityHas(Npc, target) ? interactWithNpc(world, target) : failedVerb(verb);
+      return interactWithNpc(world, target);
     case "use":
-      if (world.components.entityHas(Door, target) || world.components.entityHas(Npc, target)) return failedVerb(verb);
-      if (world.components.entityHas(UplinkTerminal, target)) return interactWithUplinkTerminal(target, hasUplinkCode);
-      return { type: "consumeTurn", events: [] };
+      return interactWithUplinkTerminal(target, hasUplinkCode);
   }
 }
 

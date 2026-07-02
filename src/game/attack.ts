@@ -27,3 +27,15 @@ export type AttackDef = {
   pattern: AttackPattern;
   targets: AttackTargetMode;
 };
+
+export const DEFAULT_ATTACK: AttackDef = {
+  minDamage: 1,
+  maxDamage: 1,
+  range: 1,
+  requiresFacing: AttackFacingRequirement.Required,
+  attackBonus: 2,
+  critThreshold: 20,
+  critMultiplier: 2,
+  pattern: AttackPattern.Line,
+  targets: AttackTargetMode.First,
+};

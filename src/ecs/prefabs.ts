@@ -29,6 +29,7 @@ import {
   UplinkTerminal,
 } from "@/src/ecs/components.ts";
 import type { AttackSchema } from "@/src/ecs/components.ts";
+import { DEFAULT_ATTACK } from "@/src/game/attack.ts";
 import { normalizeDirection } from "@/src/grid/direction.ts";
 import { keyColorCode } from "@/src/map/map.ts";
 import { DEFAULT_PLAYER_STATE } from "@/src/game/state.ts";
@@ -46,17 +47,6 @@ import type {
 } from "@/src/map/map.ts";
 import type { DisplayName } from "@/src/game/names.ts";
 
-const DEFAULT_ATTACK: AttackSchema = {
-  minDamage: 1,
-  maxDamage: 1,
-  range: 1,
-  requiresFacing: AttackFacingRequirement.Required,
-  attackBonus: 2,
-  critThreshold: 20,
-  critMultiplier: 2,
-  pattern: AttackPattern.Line,
-  targets: AttackTargetMode.First,
-};
 type EnemyArchetypeDefaults = {
   readonly health: number;
   readonly damage: number;

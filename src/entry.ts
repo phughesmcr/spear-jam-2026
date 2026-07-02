@@ -5,6 +5,7 @@ import type { PlayerCommand } from "@/src/game/commands.ts";
 import { combatFeedbackForEvents } from "@/src/game/combat_feedback.ts";
 import type { CombatFeedback } from "@/src/game/combat_feedback.ts";
 import type { GameEvent } from "@/src/game/events.ts";
+import { createPlayerState } from "@/src/game/state.ts";
 import type { DialogueState, GameMode, PlayerState } from "@/src/game/state.ts";
 import { messageForEvent } from "@/src/game/messages.ts";
 import { SplitMix32 } from "@/src/game/rng.ts";
@@ -18,6 +19,10 @@ import { verbMenuHotspotIndexAt } from "@/src/render/verb_menu.ts";
 import { VERBS, verbToCommand } from "@/src/game/verbs.ts";
 
 const MESSAGE_LOG_LIMIT = 5;
+
+type IntermissionMode = Extract<GameMode, { readonly type: "intermission" }>;
+type DialogueMode = Extract<GameMode, { readonly type: "dialogue" }>;
+type VerbMenuMode = Extract<GameMode, { readonly type: "verbMenu" }>;
 
 export interface GameSpec {
   ctx: CanvasRenderingContext2D;
@@ -99,13 +104,13 @@ class Game implements Disposable {
     this.session = session;
     previousSession?.[Symbol.dispose]();
     this.currentMapName = mapName;
-    this.currentLevelEntryState = clonePlayerState(playerState);
+    this.currentLevelEntryState = snapshotPlayerState(playerState);
     this.mode = { type: "playing" };
     this.inputController ??= setupInput(
       this.spec.window,
       this.spec.canvas,
       () => this.canvasSize,
-      (command) => this.handleGameCommands([command]),
+      (command) => this.handleGameCommand(command),
       (input) => this.handlePointerInput(input),
     );
     this.render();
@@ -121,35 +126,30 @@ class Game implements Disposable {
     this.render();
   }
 
-  private handleGameCommands(commands: readonly GameCommand[]): void {
-    for (const command of commands) {
-      this.handleGameCommand(command);
-    }
-  }
-
   private handleGameCommand(command: GameCommand): void {
-    if (this.mode.type === "intermission") {
-      this.handleIntermissionCommand(command);
+    const mode = this.mode;
+    if (mode.type === "intermission") {
+      this.handleIntermissionCommand(mode, command);
       return;
     }
 
-    if (this.mode.type === "dialogue") {
-      this.handleDialogueCommand(command);
+    if (mode.type === "dialogue") {
+      this.handleDialogueCommand(mode, command);
       return;
     }
 
-    if (this.mode.type === "verbMenu") {
-      this.handleVerbMenuCommand(command);
+    if (mode.type === "verbMenu") {
+      this.handleVerbMenuCommand(mode, command);
       return;
     }
 
-    if (this.mode.type === "victory" || this.mode.type === "defeat") {
-      if (command.type === "wait") this.restartFromOutcome(this.mode.type);
+    if (mode.type === "victory" || mode.type === "defeat") {
+      if (command.type === "wait") this.restartFromOutcome(mode.type);
       return;
     }
 
     if (isPlayerCommand(command)) {
-      if (this.mode.type !== "playing") return;
+      if (mode.type !== "playing") return;
       this.handlePlayerCommands([command]);
       return;
     }
@@ -171,39 +171,35 @@ class Game implements Disposable {
     }
   }
 
-  private handleIntermissionCommand(command: GameCommand): void {
-    if (this.mode.type !== "intermission") return;
+  private handleIntermissionCommand(mode: IntermissionMode, command: GameCommand): void {
     if (command.type !== "wait") return;
-    const { goto, playerState } = this.mode;
+    const { goto, playerState } = mode;
     void this.loadMap(goto, playerState).catch((error: unknown) => this.handleLoadError(error));
   }
 
-  private handleDialogueCommand(command: GameCommand): void {
-    if (this.mode.type !== "dialogue") return;
+  private handleDialogueCommand(_mode: DialogueMode, command: GameCommand): void {
     if (command.type !== "wait") return;
     this.mode = { type: "playing" };
     this.render();
   }
 
-  private handleVerbMenuCommand(command: GameCommand): void {
-    if (this.mode.type !== "verbMenu") return;
-
+  private handleVerbMenuCommand(mode: VerbMenuMode, command: GameCommand): void {
     switch (command.type) {
       case "move":
         if (command.direction === "forward") {
-          this.moveVerbSelection(-1);
+          this.moveVerbSelection(mode, -1);
           this.render();
           return;
         }
         if (command.direction === "backward") {
-          this.moveVerbSelection(1);
+          this.moveVerbSelection(mode, 1);
           this.render();
           return;
         }
         return;
       case "wait":
       case "action":
-        this.confirmVerbSelection();
+        this.confirmVerbSelection(mode);
         return;
       case "menu":
         this.verbPointerDownIndex = undefined;
@@ -221,20 +217,21 @@ class Game implements Disposable {
   }
 
   private handlePointerInput(input: CanvasPointerInput): void {
-    if (this.mode.type !== "verbMenu") return;
+    const mode = this.mode;
+    if (mode.type !== "verbMenu") return;
 
     const hotspotIndex = verbMenuHotspotIndexAt(this.canvasSize, input);
     switch (input.phase) {
       case "move":
-        if (hotspotIndex !== undefined && hotspotIndex !== this.mode.selectedIndex) {
-          this.selectVerbSelection(hotspotIndex);
+        if (hotspotIndex !== undefined && hotspotIndex !== mode.selectedIndex) {
+          this.selectVerbSelection(mode, hotspotIndex);
           this.render();
         }
         return;
       case "down":
         this.verbPointerDownIndex = hotspotIndex;
-        if (hotspotIndex !== undefined && hotspotIndex !== this.mode.selectedIndex) {
-          this.selectVerbSelection(hotspotIndex);
+        if (hotspotIndex !== undefined && hotspotIndex !== mode.selectedIndex) {
+          this.selectVerbSelection(mode, hotspotIndex);
           this.render();
         }
         return;
@@ -242,9 +239,9 @@ class Game implements Disposable {
         const downIndex = this.verbPointerDownIndex;
         this.verbPointerDownIndex = undefined;
         if (hotspotIndex === undefined) return;
-        this.selectVerbSelection(hotspotIndex);
+        const selectedMode = this.selectVerbSelection(mode, hotspotIndex);
         if (downIndex === hotspotIndex) {
-          this.confirmVerbSelection();
+          this.confirmVerbSelection(selectedMode);
         } else {
           this.render();
         }
@@ -260,7 +257,7 @@ class Game implements Disposable {
     this.recentMessages = [];
     this.combatFeedback = [];
     if (outcome === "defeat") {
-      void this.loadMap(this.currentMapName, clonePlayerState(this.currentLevelEntryState)).catch((error: unknown) =>
+      void this.loadMap(this.currentMapName, snapshotPlayerState(this.currentLevelEntryState)).catch((error: unknown) =>
         this.handleLoadError(error)
       );
       return;
@@ -296,20 +293,23 @@ class Game implements Disposable {
     this.mode = { type: "verbMenu", selectedIndex: this.lastVerbIndex };
   }
 
-  private moveVerbSelection(delta: number): void {
-    if (this.mode.type !== "verbMenu") return;
-    const selectedIndex = (this.mode.selectedIndex + delta + VERBS.length) % VERBS.length;
-    this.mode = { type: "verbMenu", selectedIndex };
+  private moveVerbSelection(mode: VerbMenuMode, delta: number): VerbMenuMode {
+    const selectedIndex = (mode.selectedIndex + delta + VERBS.length) % VERBS.length;
+    const nextMode = { type: "verbMenu", selectedIndex } satisfies VerbMenuMode;
+    this.mode = nextMode;
+    return nextMode;
   }
 
-  private selectVerbSelection(selectedIndex: number): void {
-    if (this.mode.type !== "verbMenu") return;
-    this.mode = { type: "verbMenu", selectedIndex };
+  private selectVerbSelection(mode: VerbMenuMode, selectedIndex: number): VerbMenuMode {
+    if (selectedIndex === mode.selectedIndex) return mode;
+
+    const nextMode = { type: "verbMenu", selectedIndex } satisfies VerbMenuMode;
+    this.mode = nextMode;
+    return nextMode;
   }
 
-  private confirmVerbSelection(): void {
-    if (this.mode.type !== "verbMenu") return;
-    const selectedIndex = this.mode.selectedIndex;
+  private confirmVerbSelection(mode: VerbMenuMode): void {
+    const selectedIndex = mode.selectedIndex;
     this.verbPointerDownIndex = undefined;
     this.lastVerbIndex = selectedIndex;
     this.mode = { type: "playing" };
@@ -380,7 +380,7 @@ class Game implements Disposable {
   }
 }
 
-function clonePlayerState(playerState: PlayerState | undefined): PlayerState | undefined {
+function snapshotPlayerState(playerState: PlayerState | undefined): PlayerState | undefined {
   if (playerState === undefined) return undefined;
-  return structuredClone(playerState);
+  return createPlayerState(playerState);
 }

@@ -1,7 +1,7 @@
 import { VERBS } from "@/src/game/verbs.ts";
+import type { VerbId } from "@/src/game/verbs.ts";
 import type { GameCanvasSize } from "@/src/render/canvas.ts";
 
-type VerbLabel = "ATTACK" | "USE" | "OPEN" | "EXAMINE" | "TALK";
 export type VerbMenuPoint = {
   readonly x: number;
   readonly y: number;
@@ -9,14 +9,19 @@ export type VerbMenuPoint = {
 export type VerbMenuSpriteRect = VerbMenuPoint & {
   readonly size: number;
 };
-type VerbHotspot = {
-  readonly label: VerbLabel;
+type VerbHotspotSpec = {
+  readonly glowSrc: string;
   readonly centerX: number;
   readonly centerY: number;
   readonly radiusX: number;
   readonly radiusY: number;
   readonly labelX: number;
   readonly labelY: number;
+};
+type VerbHotspot = VerbHotspotSpec & {
+  readonly verbId: VerbId;
+  readonly verbIndex: number;
+  readonly label: string;
 };
 
 const PANEL_MARGIN = 12;
@@ -35,21 +40,65 @@ const LABEL_BACKGROUND = "rgba(3, 7, 18, 0.62)";
 const MENU_SCRIM = "rgba(0, 0, 0, 0.66)";
 const LABEL_MARGIN = 8;
 const VERB_MENU_SPRITE_SRC = new URL("../../assets/game/ui/verb_menu_cutout.png", import.meta.url).href;
-const GLOW_SOURCES: Record<VerbLabel, string> = {
-  ATTACK: new URL("../../assets/game/ui/verb_menu_glow_attack.png", import.meta.url).href,
-  USE: new URL("../../assets/game/ui/verb_menu_glow_use.png", import.meta.url).href,
-  OPEN: new URL("../../assets/game/ui/verb_menu_glow_open.png", import.meta.url).href,
-  EXAMINE: new URL("../../assets/game/ui/verb_menu_glow_examine.png", import.meta.url).href,
-  TALK: new URL("../../assets/game/ui/verb_menu_glow_talk.png", import.meta.url).href,
-};
-const HOTSPOTS: readonly VerbHotspot[] = [
+const HOTSPOT_SPECS: Readonly<Record<VerbId, VerbHotspotSpec>> = {
   // Body-part directions use the doll's left/right, so ATTACK is the screen-right knife hand.
-  { label: "ATTACK", centerX: 0.86, centerY: 0.39, radiusX: 0.13, radiusY: 0.22, labelX: 0.78, labelY: 0.19 },
-  { label: "USE", centerX: 0.17, centerY: 0.44, radiusX: 0.17, radiusY: 0.16, labelX: 0.08, labelY: 0.28 },
-  { label: "OPEN", centerX: 0.53, centerY: 0.57, radiusX: 0.12, radiusY: 0.13, labelX: 0.43, labelY: 0.72 },
-  { label: "EXAMINE", centerX: 0.5, centerY: 0.27, radiusX: 0.17, radiusY: 0.08, labelX: 0.36, labelY: 0.14 },
-  { label: "TALK", centerX: 0.5, centerY: 0.37, radiusX: 0.16, radiusY: 0.08, labelX: 0.42, labelY: 0.42 },
-];
+  attack: {
+    glowSrc: new URL("../../assets/game/ui/verb_menu_glow_attack.png", import.meta.url).href,
+    centerX: 0.86,
+    centerY: 0.39,
+    radiusX: 0.13,
+    radiusY: 0.22,
+    labelX: 0.78,
+    labelY: 0.19,
+  },
+  use: {
+    glowSrc: new URL("../../assets/game/ui/verb_menu_glow_use.png", import.meta.url).href,
+    centerX: 0.17,
+    centerY: 0.44,
+    radiusX: 0.17,
+    radiusY: 0.16,
+    labelX: 0.08,
+    labelY: 0.28,
+  },
+  open: {
+    glowSrc: new URL("../../assets/game/ui/verb_menu_glow_open.png", import.meta.url).href,
+    centerX: 0.53,
+    centerY: 0.57,
+    radiusX: 0.12,
+    radiusY: 0.13,
+    labelX: 0.43,
+    labelY: 0.72,
+  },
+  examine: {
+    glowSrc: new URL("../../assets/game/ui/verb_menu_glow_examine.png", import.meta.url).href,
+    centerX: 0.5,
+    centerY: 0.27,
+    radiusX: 0.17,
+    radiusY: 0.08,
+    labelX: 0.36,
+    labelY: 0.14,
+  },
+  talk: {
+    glowSrc: new URL("../../assets/game/ui/verb_menu_glow_talk.png", import.meta.url).href,
+    centerX: 0.5,
+    centerY: 0.37,
+    radiusX: 0.16,
+    radiusY: 0.08,
+    labelX: 0.42,
+    labelY: 0.42,
+  },
+};
+const HOTSPOTS: readonly VerbHotspot[] = Object.freeze(
+  VERBS.map((verb, verbIndex) => ({
+    ...HOTSPOT_SPECS[verb.id],
+    verbId: verb.id,
+    verbIndex,
+    label: verb.label,
+  })),
+);
+const HOTSPOTS_BY_VERB_ID: Readonly<Record<VerbId, VerbHotspot>> = Object.freeze(
+  Object.fromEntries(HOTSPOTS.map((hotspot) => [hotspot.verbId, hotspot])) as Record<VerbId, VerbHotspot>,
+);
 
 type ImageAsset = {
   readonly src: string;
@@ -59,13 +108,9 @@ type ImageAsset = {
 };
 
 const spriteAsset: ImageAsset = { src: VERB_MENU_SPRITE_SRC, loaded: false, failed: false };
-const glowAssets: Record<VerbLabel, ImageAsset> = {
-  ATTACK: { src: GLOW_SOURCES.ATTACK, loaded: false, failed: false },
-  USE: { src: GLOW_SOURCES.USE, loaded: false, failed: false },
-  OPEN: { src: GLOW_SOURCES.OPEN, loaded: false, failed: false },
-  EXAMINE: { src: GLOW_SOURCES.EXAMINE, loaded: false, failed: false },
-  TALK: { src: GLOW_SOURCES.TALK, loaded: false, failed: false },
-};
+const glowAssets = Object.fromEntries(
+  VERBS.map((verb) => [verb.id, { src: HOTSPOT_SPECS[verb.id].glowSrc, loaded: false, failed: false }]),
+) as Record<VerbId, ImageAsset>;
 
 export function renderVerbMenu(
   ctx: CanvasRenderingContext2D,
@@ -102,7 +147,7 @@ export function verbMenuHotspotIndexAt(
   for (const hotspot of HOTSPOTS) {
     const dx = (localX - hotspot.centerX) / hotspot.radiusX;
     const dy = (localY - hotspot.centerY) / hotspot.radiusY;
-    if (dx * dx + dy * dy <= 1) return verbIndexForLabel(hotspot.label);
+    if (dx * dx + dy * dy <= 1) return hotspot.verbIndex;
   }
 
   return undefined;
@@ -157,10 +202,11 @@ function renderSpriteVerbMenu(
   onAssetLoad?: () => void,
 ): void {
   const rect = verbMenuSpriteRect(canvasSize);
-  const selectedHotspot = HOTSPOTS.find((hotspot) => hotspot.label === VERBS[selectedIndex]?.label);
+  const selectedVerb = VERBS[selectedIndex];
+  const selectedHotspot = selectedVerb === undefined ? undefined : HOTSPOTS_BY_VERB_ID[selectedVerb.id];
   const selectedGlow = selectedHotspot === undefined ?
     undefined :
-    loadedImage(ctx, glowAssets[selectedHotspot.label], onAssetLoad);
+    loadedImage(ctx, glowAssets[selectedHotspot.verbId], onAssetLoad);
 
   ctx.save();
   ctx.fillStyle = MENU_SCRIM;
@@ -277,11 +323,6 @@ function loadedImage(
   }
 
   return undefined;
-}
-
-function verbIndexForLabel(label: VerbLabel): number | undefined {
-  const index = VERBS.findIndex((verb) => verb.label === label);
-  return index >= 0 ? index : undefined;
 }
 
 function clamp(value: number, min: number, max: number): number {

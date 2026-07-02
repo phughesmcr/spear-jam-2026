@@ -15,6 +15,7 @@ import type { AttackSchema } from "@/src/ecs/components.ts";
 import type { Player } from "@/src/ecs/player.ts";
 import type { SpatialAccess, SpatialLookup, SpatialMutations } from "@/src/ecs/spatial.ts";
 import { CARDINAL_DELTAS, directionDelta } from "@/src/grid/direction.ts";
+import { DEFAULT_ATTACK } from "@/src/game/attack.ts";
 import type { GameEvent } from "@/src/game/events.ts";
 import type { RandomSource } from "@/src/game/rng.ts";
 import { displayNameText } from "@/src/game/names.ts";
@@ -40,42 +41,27 @@ export type AttackOutcome =
 const DEFAULT_DEFENSE = 10;
 const PLAYER_WEAPONS: Readonly<Record<CommandSlot, WeaponSpec>> = {
   1: {
+    ...DEFAULT_ATTACK,
     label: "Melee",
-    minDamage: 1,
     maxDamage: 2,
-    range: 1,
-    requiresFacing: AttackFacingRequirement.Required,
     attackBonus: 4,
-    critThreshold: 20,
-    critMultiplier: 2,
-    pattern: AttackPattern.Line,
-    targets: AttackTargetMode.First,
   },
   2: {
+    ...DEFAULT_ATTACK,
     label: "Pistol",
     ammo: "pistol",
     minDamage: 2,
     maxDamage: 3,
     range: 2,
-    requiresFacing: AttackFacingRequirement.Required,
-    attackBonus: 2,
-    critThreshold: 20,
-    critMultiplier: 2,
-    pattern: AttackPattern.Line,
-    targets: AttackTargetMode.First,
   },
   3: {
+    ...DEFAULT_ATTACK,
     label: "Current Cannon",
     ammo: "cannon",
     minDamage: 2,
     maxDamage: 4,
     range: 6,
-    requiresFacing: AttackFacingRequirement.Required,
     attackBonus: 1,
-    critThreshold: 20,
-    critMultiplier: 2,
-    pattern: AttackPattern.Line,
-    targets: AttackTargetMode.First,
   },
 };
 

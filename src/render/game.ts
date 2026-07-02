@@ -31,9 +31,6 @@ export function renderGameFrame(
     renderHud(ctx, canvasSize, session);
   }
   renderMessageLog(ctx, canvasSize, messages);
-  if (mode.type === "verbMenu") {
-    renderVerbMenu(ctx, canvasSize, mode.selectedIndex, onAssetLoad);
-  }
   switch (mode.type) {
     case "loading":
       renderOverlay(ctx, canvasSize, "LOADING");
@@ -59,8 +56,10 @@ export function renderGameFrame(
     case "error":
       renderOverlay(ctx, canvasSize, "LOAD FAILED", mode.message);
       return;
-    case "playing":
     case "verbMenu":
+      renderVerbMenu(ctx, canvasSize, mode.selectedIndex, onAssetLoad);
+      return;
+    case "playing":
       return;
   }
 }

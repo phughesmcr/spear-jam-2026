@@ -9,9 +9,9 @@ import { enemyTurnSystem } from "@/src/ecs/enemy.ts";
 import type { EnemyTurnSystem } from "@/src/ecs/enemy.ts";
 import { collectItemAt, interactWithEntity } from "@/src/ecs/interactions.ts";
 import type { ItemPickup } from "@/src/ecs/interactions.ts";
-import { PlayerInventory } from "@/src/ecs/player_inventory.ts";
 import { createMapEntity } from "@/src/ecs/prefabs.ts";
 import { Player } from "@/src/ecs/player.ts";
+import { PlayerStatus } from "@/src/ecs/player_status.ts";
 import { SpatialIndex } from "@/src/ecs/spatial.ts";
 import { createWorld } from "@/src/ecs/world.ts";
 import { examineEntity } from "@/src/game/examine.ts";
@@ -20,7 +20,7 @@ import type { PlayerCommand, PlayerCommandResult } from "@/src/game/commands.ts"
 import type { InteractVerb } from "@/src/game/commands.ts";
 import type { GameEvent } from "@/src/game/events.ts";
 import type { RandomSource } from "@/src/game/rng.ts";
-import { createPlayerState } from "@/src/game/state.ts";
+import { createPlayerState, DEFAULT_PLAYER_STATE } from "@/src/game/state.ts";
 import type { CommandSlot, PlayerState, PlayerStateInput } from "@/src/game/state.ts";
 import { VICTORY_GOTO } from "@/src/map/map.ts";
 import type { GameMap } from "@/src/map/map.ts";
@@ -30,13 +30,6 @@ const UNCHANGED_PLAYER_COMMAND: PlayerCommandResult = Object.freeze({
 });
 const ENEMY_DEFEAT_CREDITS = 10;
 
-type MutablePlayerProgress = {
-  credits: number;
-  score: number;
-  xp: number;
-  levelCredits: number;
-};
-
 type MoveResult =
   | { readonly moved: false }
   | { readonly moved: true; readonly events: readonly GameEvent[] };
@@ -44,7 +37,7 @@ type MoveResult =
 export async function createGameSession(
   map: GameMap,
   random: RandomSource,
-  playerState?: PlayerStateInput,
+  playerState: PlayerStateInput = {},
 ): Promise<GameSession> {
   const world = await createWorld();
 
@@ -64,7 +57,7 @@ export async function createGameSession(
 
     if (playerEntity === undefined) throw new Error("Map is missing a player spawn.");
 
-    if (playerState?.health !== undefined && world.components.entityHas(Health, playerEntity)) {
+    if (world.components.entityHas(Health, playerEntity)) {
       world.components.setEntityData(Health, playerEntity, state.health);
     }
 
@@ -87,8 +80,7 @@ export class GameSession implements Disposable {
   private readonly enemyTurnSystem: EnemyTurnSystem;
   private readonly spatial: SpatialIndex;
   private readonly terminalDestinations: ReadonlyMap<Entity, string>;
-  private readonly inventory: PlayerInventory;
-  private readonly progress: MutablePlayerProgress;
+  private readonly status: PlayerStatus;
   private disposed = false;
 
   constructor(
@@ -97,9 +89,8 @@ export class GameSession implements Disposable {
     map: GameMap,
     random: RandomSource,
     terminalDestinations: ReadonlyMap<Entity, string>,
-    playerState?: PlayerStateInput,
+    playerState: PlayerState,
   ) {
-    const state = createPlayerState(playerState);
     this.world = world;
     this.player = player;
     this.map = map;
@@ -108,16 +99,15 @@ export class GameSession implements Disposable {
     this.enemyTurnSystem = world.systems.create(enemyTurnSystem);
     this.spatial = new SpatialIndex(world, map);
     this.terminalDestinations = new Map(terminalDestinations);
-    this.inventory = new PlayerInventory(state);
-    this.progress = { ...state.progress };
+    this.status = new PlayerStatus(playerState);
   }
 
   getPlayerState(): PlayerState {
-    return createPlayerState({
-      ...this.inventory.getState(),
-      health: this.getPlayerHealth(),
-      progress: this.progress,
-    });
+    const health = this.getPlayerHealth() ?? DEFAULT_PLAYER_STATE.health;
+    return {
+      ...this.status.getState(),
+      health: { ...health },
+    };
   }
 
   forEachDrawable(visit: DrawableEntityVisitor): void {
@@ -179,8 +169,8 @@ export class GameSession implements Disposable {
       this.world,
       this.spatial,
       this.spatial.facedEntity(this.player),
-      this.inventory.heldKeys,
-      this.inventory.hasUplinkCode,
+      this.status.heldKeys,
+      this.status.hasUplinkCode,
       verb,
     );
     switch (interaction.type) {
@@ -205,7 +195,7 @@ export class GameSession implements Disposable {
     }
 
     const levelCompleteEvents = this.completeLevel(events);
-    this.inventory.clearTransient();
+    this.status.clearTransient();
     this.world.refresh();
     if (goto === VICTORY_GOTO) {
       return { events: levelCompleteEvents, outcome: "victory" };
@@ -217,11 +207,11 @@ export class GameSession implements Disposable {
   }
 
   private handlePlayerAttackCommand(): PlayerCommandResult {
-    const selectedWeapon = this.inventory.selectedWeapon;
+    const selectedWeapon = this.status.selectedWeapon;
     const ammoKind = weaponAmmoKind(selectedWeapon);
     let ammoEvents: readonly GameEvent[] = [];
     if (ammoKind !== undefined) {
-      if (!this.inventory.spendAmmo(ammoKind)) return { events: [{ type: "noAmmo", ammo: ammoKind }] };
+      if (!this.status.spendAmmo(ammoKind)) return { events: [{ type: "noAmmo", ammo: ammoKind }] };
       ammoEvents = [{ type: "ammoSpent", ammo: ammoKind, amount: 1 }];
     }
 
@@ -237,7 +227,7 @@ export class GameSession implements Disposable {
 
   private handlePlayerSelectWeaponCommand(slot: CommandSlot): PlayerCommandResult {
     const label = weaponLabel(slot);
-    if (!this.inventory.hasWeapon(slot)) {
+    if (!this.status.hasWeapon(slot)) {
       return {
         events: [{
           type: "weaponUnavailable",
@@ -247,7 +237,7 @@ export class GameSession implements Disposable {
       };
     }
 
-    this.inventory.selectWeapon(slot);
+    this.status.selectWeapon(slot);
     return {
       events: [{
         type: "weaponSelected",
@@ -282,19 +272,19 @@ export class GameSession implements Disposable {
   private applyItemPickup(pickup: ItemPickup): readonly GameEvent[] {
     switch (pickup.type) {
       case "key":
-        this.inventory.addKey(pickup.color);
+        this.status.addKey(pickup.color);
         return [{
           type: "keyPickedUp",
           entity: pickup.entity,
         }];
       case "uplinkCode":
-        this.inventory.addUplinkCode();
+        this.status.addUplinkCode();
         return [{
           type: "uplinkCodePickedUp",
           entity: pickup.entity,
         }];
       case "weapon":
-        this.inventory.unlockWeapon(pickup.slot);
+        this.status.unlockWeapon(pickup.slot);
         return [{
           type: "weaponPickedUp",
           entity: pickup.entity,
@@ -304,7 +294,7 @@ export class GameSession implements Disposable {
       case "health":
         return this.applyHealthPatch(pickup.entity, pickup.amount);
       case "ammo":
-        this.inventory.addAmmo(pickup.ammo, pickup.amount);
+        this.status.addAmmo(pickup.ammo, pickup.amount);
         return [{
           type: "ammoPickedUp",
           entity: pickup.entity,
@@ -337,14 +327,12 @@ export class GameSession implements Disposable {
     for (const event of events) {
       if (event.type !== "entityDefeated" || event.actor !== playerEntity || event.entity === playerEntity) continue;
 
-      this.progress.credits += ENEMY_DEFEAT_CREDITS;
-      this.progress.score += ENEMY_DEFEAT_CREDITS;
-      this.progress.levelCredits += ENEMY_DEFEAT_CREDITS;
+      const progress = this.status.addCredits(ENEMY_DEFEAT_CREDITS);
       rewardEvents.push({
         type: "creditsEarned",
         amount: ENEMY_DEFEAT_CREDITS,
-        credits: this.progress.credits,
-        score: this.progress.score,
+        credits: progress.credits,
+        score: progress.score,
       });
     }
 
@@ -352,12 +340,10 @@ export class GameSession implements Disposable {
   }
 
   private completeLevel(events: readonly GameEvent[]): readonly GameEvent[] {
-    if (this.progress.levelCredits <= 0) return events;
+    const xpGain = this.status.convertLevelCreditsToXp();
+    if (xpGain === undefined) return events;
 
-    const xpGain = this.progress.levelCredits;
-    this.progress.xp += xpGain;
-    this.progress.levelCredits = 0;
-    return [...events, { type: "xpGained", amount: xpGain, xp: this.progress.xp }];
+    return [...events, { type: "xpGained", amount: xpGain.amount, xp: xpGain.xp }];
   }
 
   [Symbol.dispose](): void {
