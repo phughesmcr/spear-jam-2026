@@ -1,4 +1,4 @@
-import { Component, type DynamicComponent, type Entity, type World } from "@phughesmcr/miski";
+import { Component, type ComponentPartitions, type DynamicComponent, type Entity, type World } from "@phughesmcr/miski";
 import type { CardinalDirection } from "@/src/grid/direction.ts";
 import type { DisplayName } from "@/src/game/names.ts";
 import { type AttackDef, AttackFacingRequirement, AttackPattern, AttackTargetMode } from "@/src/game/attack.ts";
@@ -7,30 +7,27 @@ import type { CommandSlot } from "@/src/game/state.ts";
 export { AttackFacingRequirement, AttackPattern, AttackTargetMode };
 
 export type GridPosSchema = { x: number; y: number };
-export type GridPosPartitions = {
-  readonly x: Int16Array;
-  readonly y: Int16Array;
-};
+const GRID_POS_STORAGE = { x: Int16Array, y: Int16Array };
+export type GridPosPartitions = ComponentPartitions<typeof GRID_POS_STORAGE>;
 
 /**
  * Grid positions are stored as signed 16-bit integers so accidental
  * out-of-range writes stay visible instead of wrapping to valid tiles.
  * `SpatialIndex` is the single writer and validates bounds before writing.
  */
-export const GridPos: Component<GridPosSchema> = new Component<GridPosSchema>({
+export const GridPos: Component<typeof GRID_POS_STORAGE> = new Component<typeof GRID_POS_STORAGE>({
   name: "gridPos",
-  schema: { x: Int16Array, y: Int16Array },
+  schema: GRID_POS_STORAGE,
 });
 
 export type FacingSchema = { dir: CardinalDirection };
-export type FacingPartitions = {
-  readonly dir: Uint8Array;
-};
+const FACING_STORAGE = { dir: Uint8Array };
+export type FacingPartitions = ComponentPartitions<typeof FACING_STORAGE>;
 
 /** Cardinal heading: 0=N, 1=E, 2=S, 3=W. */
-export const Facing: Component<FacingSchema> = new Component<FacingSchema>({
+export const Facing: Component<typeof FACING_STORAGE> = new Component<typeof FACING_STORAGE>({
   name: "facing",
-  schema: { dir: Uint8Array },
+  schema: FACING_STORAGE,
 });
 
 export type DisplayNameSchema = { displayName: DisplayName };
@@ -81,17 +78,10 @@ export const DrawableLayer = {
 } as const;
 export type DrawableLayer = (typeof DrawableLayer)[keyof typeof DrawableLayer];
 
-export type DrawableSchema = {
-  kind: DrawableKind;
-  layer: DrawableLayer;
-};
-export type DrawablePartitions = {
-  readonly kind: Uint8Array;
-  readonly layer: Uint8Array;
-};
-export const Drawable: Component<DrawableSchema> = new Component<DrawableSchema>({
+const DRAWABLE_STORAGE = { kind: Uint8Array, layer: Uint8Array };
+export const Drawable: Component<typeof DRAWABLE_STORAGE> = new Component<typeof DRAWABLE_STORAGE>({
   name: "drawable",
-  schema: { kind: Uint8Array, layer: Uint8Array },
+  schema: DRAWABLE_STORAGE,
 });
 
 export type DoorSchema = { open: number };
@@ -155,12 +145,6 @@ export type EnemyAwarenessSchema = {
   lastKnownY: number;
   turnsSinceSeen: number;
 };
-export type EnemyAwarenessPartitions = {
-  readonly state: Uint8Array;
-  readonly lastKnownX: Int16Array;
-  readonly lastKnownY: Int16Array;
-  readonly turnsSinceSeen: Uint8Array;
-};
 const UNKNOWN_LAST_KNOWN_POSITION = -1;
 export const IDLE_AWARENESS = {
   state: AwarenessState.Idle,
@@ -168,9 +152,18 @@ export const IDLE_AWARENESS = {
   lastKnownY: UNKNOWN_LAST_KNOWN_POSITION,
   turnsSinceSeen: 0,
 } as const satisfies EnemyAwarenessSchema;
-export const EnemyAwareness: Component<EnemyAwarenessSchema> = new Component<EnemyAwarenessSchema>({
+const ENEMY_AWARENESS_STORAGE = {
+  state: Uint8Array,
+  lastKnownX: Int16Array,
+  lastKnownY: Int16Array,
+  turnsSinceSeen: Uint8Array,
+};
+export type EnemyAwarenessPartitions = ComponentPartitions<typeof ENEMY_AWARENESS_STORAGE>;
+export const EnemyAwareness: Component<typeof ENEMY_AWARENESS_STORAGE> = new Component<
+  typeof ENEMY_AWARENESS_STORAGE
+>({
   name: "enemyAwareness",
-  schema: { state: Uint8Array, lastKnownX: Int16Array, lastKnownY: Int16Array, turnsSinceSeen: Uint8Array },
+  schema: ENEMY_AWARENESS_STORAGE,
 });
 
 export const EnemyArchetype = {
@@ -202,10 +195,8 @@ export function enemyArchetypeForCode(archetype: number): EnemyArchetype {
 }
 
 export function enemyArchetypeFor(world: World, entity: Entity): EnemyArchetype | undefined {
-  if (!world.components.entityHas(EnemyArchetypeComponent, entity)) return undefined;
-
-  const archetype = world.components.getEntityData(EnemyArchetypeComponent, entity).archetype;
-  return enemyArchetypeForCode(archetype);
+  const archetype = world.components.readEntityData(EnemyArchetypeComponent, entity)?.archetype;
+  return archetype === undefined ? undefined : enemyArchetypeForCode(archetype);
 }
 
 export function commandSlotForCode(slot: number): CommandSlot {
@@ -226,9 +217,9 @@ export const Health: Component<HealthSchema> = new Component<HealthSchema>({
 });
 
 export function healthFor(world: World, entity: Entity): HealthSchema | undefined {
-  if (!world.components.entityHas(Health, entity)) return undefined;
+  const health = world.components.readEntityData(Health, entity);
+  if (health === undefined) return undefined;
 
-  const health = world.components.getEntityData(Health, entity);
   return {
     current: health.current,
     max: health.max,

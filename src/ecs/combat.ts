@@ -122,8 +122,8 @@ export function attackEntity(
   random: RandomSource,
   spatial: SpatialMutations,
 ): readonly GameEvent[] {
-  if (!world.entities.isActive(defender)) return [];
-  if (!world.components.entityHas(Health, defender)) return [];
+  const health = world.components.readEntityData(Health, defender);
+  if (health === undefined) return [];
 
   const attackerName = entityName(world, attacker);
   const defenderName = entityName(world, defender);
@@ -140,9 +140,8 @@ export function attackEntity(
     }];
   }
 
-  const health = world.components.getEntityData(Health, defender);
   const nextHealth = Math.max(0, health.current - outcome.damage);
-  world.components.setEntityData(Health, defender, { current: nextHealth, max: health.max });
+  world.components.setEntityData(Health, defender, { current: nextHealth });
   const events: GameEvent[] = [{
     type: "damageDealt",
     actor: attacker,
@@ -183,8 +182,8 @@ export function resolveAttack(attack: AttackSchema, random: RandomSource): Attac
 }
 
 export function entityAttack(world: World, entity: Entity): AttackSchema | undefined {
-  if (!world.components.entityHas(Attack, entity)) return undefined;
-  return toAttackSchema(world.components.getEntityData(Attack, entity));
+  const attack = world.components.readEntityData(Attack, entity);
+  return attack === undefined ? undefined : toAttackSchema(attack);
 }
 
 export function attackTargets(
@@ -321,8 +320,7 @@ function toAttackTargetMode(value: number): AttackTargetMode {
 
 function entityName(world: World, entity: Entity): string {
   if (world.components.entityHas(PlayerTag, entity)) return "You";
-  if (world.components.entityHas(DisplayNameComponent, entity)) {
-    return displayNameText(world.components.getEntityData(DisplayNameComponent, entity).displayName);
-  }
+  const displayName = world.components.readEntityData(DisplayNameComponent, entity)?.displayName;
+  if (displayName !== undefined) return displayNameText(displayName);
   return "Something";
 }

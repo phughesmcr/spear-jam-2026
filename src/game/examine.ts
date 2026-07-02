@@ -27,15 +27,12 @@ export function examineEntity(world: World, target: Entity | undefined): GameEve
 function resolvedExamineText(world: World, target: Entity | undefined): string {
   if (target === undefined) return "Nothing of interest here.";
 
-  if (world.components.entityHas(Examine, target)) {
-    const text = examineText(world.components.getEntityData(Examine, target).examineTextId);
-    if (text !== undefined) return text;
-  }
+  const examine = world.components.readEntityData(Examine, target);
+  const text = examine === undefined ? undefined : examineText(examine.examineTextId);
+  if (text !== undefined) return text;
 
-  if (world.components.entityHas(DisplayNameComponent, target)) {
-    const { displayName } = world.components.getEntityData(DisplayNameComponent, target);
-    return `It's a ${displayNameText(displayName)}.`;
-  }
+  const displayName = world.components.readEntityData(DisplayNameComponent, target)?.displayName;
+  if (displayName !== undefined) return `It's a ${displayNameText(displayName)}.`;
 
   return "Nothing of interest here.";
 }

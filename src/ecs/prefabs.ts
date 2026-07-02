@@ -118,7 +118,7 @@ type ExaminePrefab = {
 export type PlayerPrefab = Omit<PlayerDef, "prefab">;
 
 export function createPlayer(world: World, prefab: PlayerPrefab): Entity {
-  const entity = createEntity(world, "player");
+  const entity = createEntity(world);
   addGridActor(world, entity, prefab, DrawableKind.Player, DrawableLayer.Player);
   world.components.addToEntity(Player, entity);
   addHealth(world, entity, DEFAULT_PLAYER_STATE.health.max);
@@ -128,7 +128,7 @@ export function createPlayer(world: World, prefab: PlayerPrefab): Entity {
 export type NpcPrefab = Omit<NpcDef, "prefab">;
 
 export function createNpc(world: World, prefab: NpcPrefab): Entity {
-  const entity = createEntity(world, "npc");
+  const entity = createEntity(world);
   addGridActor(world, entity, prefab, DrawableKind.Npc, DrawableLayer.Npc);
   addDisplayName(world, entity, prefab.displayName);
   addExamine(world, entity, prefab);
@@ -143,7 +143,7 @@ export function createNpc(world: World, prefab: NpcPrefab): Entity {
 export type EnemyPrefab = Omit<EnemyDef, "prefab">;
 
 export function createEnemy(world: World, prefab: EnemyPrefab): Entity {
-  const entity = createEntity(world, "enemy");
+  const entity = createEntity(world);
 
   const archetype = prefab.archetype ?? EnemyArchetype.MeleeDog;
   const defaults = ENEMY_ARCHETYPE_DEFAULTS[archetype];
@@ -177,7 +177,7 @@ export function createDoor(world: World, prefab: DoorPrefab): Entity {
     throw new Error("Locked door prefab is missing a key color");
   }
 
-  const entity = createEntity(world, "door");
+  const entity = createEntity(world);
   addPosition(world, entity, prefab);
   addDrawable(world, entity, DrawableKind.Door, DrawableLayer.Structure);
   addExamine(world, entity, prefab);
@@ -193,7 +193,7 @@ export function createDoor(world: World, prefab: DoorPrefab): Entity {
 export type KeyPrefab = Omit<KeyDef, "prefab">;
 
 export function createKey(world: World, prefab: KeyPrefab): Entity {
-  const entity = createEntity(world, "key");
+  const entity = createEntity(world);
   addPosition(world, entity, prefab);
   addDrawable(world, entity, DrawableKind.Key, DrawableLayer.Item);
   addItem(world, entity, ItemKind.Key, keyColorCode(prefab.color));
@@ -203,7 +203,7 @@ export function createKey(world: World, prefab: KeyPrefab): Entity {
 export type UplinkCodePrefab = Omit<UplinkCodeDef, "prefab">;
 
 export function createUplinkCode(world: World, prefab: UplinkCodePrefab): Entity {
-  const entity = createEntity(world, "uplinkCode");
+  const entity = createEntity(world);
   addPosition(world, entity, prefab);
   addDrawable(world, entity, DrawableKind.UplinkCode, DrawableLayer.Item);
   addItem(world, entity, ItemKind.UplinkCode, 0);
@@ -213,7 +213,7 @@ export function createUplinkCode(world: World, prefab: UplinkCodePrefab): Entity
 export type UplinkTerminalPrefab = Omit<UplinkTerminalDef, "prefab">;
 
 export function createUplinkTerminal(world: World, prefab: UplinkTerminalPrefab): Entity {
-  const entity = createEntity(world, "uplinkTerminal");
+  const entity = createEntity(world);
   addPosition(world, entity, prefab);
   addDrawable(world, entity, DrawableKind.UplinkTerminal, DrawableLayer.Structure);
   addExamine(world, entity, prefab);
@@ -226,7 +226,7 @@ export function createUplinkTerminal(world: World, prefab: UplinkTerminalPrefab)
 export type WeaponPickupPrefab = Omit<WeaponPickupDef, "prefab">;
 
 export function createWeaponPickup(world: World, prefab: WeaponPickupPrefab): Entity {
-  const entity = createEntity(world, "weaponPickup");
+  const entity = createEntity(world);
   addPosition(world, entity, prefab);
   addDrawable(world, entity, DrawableKind.WeaponPickup, DrawableLayer.Item);
   addItem(world, entity, ItemKind.Weapon, prefab.slot);
@@ -236,17 +236,15 @@ export function createWeaponPickup(world: World, prefab: WeaponPickupPrefab): En
 export type ItemPrefab = Omit<ItemDef, "prefab">;
 
 export function createItem(world: World, prefab: ItemPrefab): Entity {
-  const entity = createEntity(world, "item");
+  const entity = createEntity(world);
   addPosition(world, entity, prefab);
   addDrawable(world, entity, DrawableKind.Item, DrawableLayer.Item);
   addItem(world, entity, prefab.item, prefab.amount);
   return entity;
 }
 
-function createEntity(world: World, prefabName: string): Entity {
-  const entity = world.entities.create();
-  if (entity === undefined) throw new Error(`Failed to create ${prefabName} entity`);
-  return entity;
+function createEntity(world: World): Entity {
+  return world.entities.createOrThrow();
 }
 
 function addGridActor(

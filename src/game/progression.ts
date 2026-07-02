@@ -132,10 +132,7 @@ export class PlayerProgression {
     const health = healthFor(world, playerEntity);
     const healed = health === undefined ? 0 : Math.min(amount, health.max - health.current);
     if (health !== undefined && healed > 0) {
-      world.components.setEntityData(Health, playerEntity, {
-        current: health.current + healed,
-        max: health.max,
-      });
+      world.components.setEntityData(Health, playerEntity, { current: health.current + healed });
     }
     return [{
       type: "healthPickedUp",

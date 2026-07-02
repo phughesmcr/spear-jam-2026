@@ -61,7 +61,7 @@ export async function createGameSession(
 
     if (playerEntity === undefined) throw new Error("Map is missing a player spawn.");
 
-    if (world.components.entityHas(Health, playerEntity)) {
+    if (world.components.readEntityData(Health, playerEntity) !== undefined) {
       world.components.setEntityData(Health, playerEntity, state.health);
     }
 
@@ -299,8 +299,7 @@ export class GameSession implements Disposable {
 
     const blockingEntity = this.spatial.blockingEntityAt(x, y);
     if (blockingEntity === undefined) return false;
-    return this.world.components.entityHas(Door, blockingEntity) &&
-      this.world.components.getEntityData(Door, blockingEntity).open === 0;
+    return this.world.components.readEntityData(Door, blockingEntity)?.open === 0;
   }
 
   private drawableIsVisible(drawable: DrawableEntity): boolean {

@@ -37,9 +37,7 @@ import { createPlayerState } from "@/src/game/state.ts";
 import type { CommandSlot, PlayerStateInput } from "@/src/game/state.ts";
 
 export function createEntity(world: World): Entity {
-  const entity = world.entities.create();
-  if (entity === undefined) throw new Error("Failed to create test entity");
-  return entity;
+  return world.entities.createOrThrow();
 }
 
 export function flatTestMap(

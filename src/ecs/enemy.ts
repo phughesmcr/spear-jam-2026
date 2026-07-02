@@ -23,12 +23,6 @@ import type { RandomSource } from "@/src/game/rng.ts";
 import { CARDINAL_DELTAS, Direction, manhattanDistance } from "@/src/grid/direction.ts";
 import type { CardinalDirection, GridDelta, GridPoint } from "@/src/grid/direction.ts";
 
-type EnemyTurnComponents = {
-  readonly gridPos: { readonly partitions: GridPosPartitions };
-  readonly facing: { readonly partitions: FacingPartitions };
-  readonly enemyAwareness: { readonly partitions: EnemyAwarenessPartitions };
-};
-
 type TurnPolicy = {
   readonly moveSteps: 0 | 1 | 2;
   readonly attackAfterStep: boolean;
@@ -86,11 +80,9 @@ export const enemyTurnSystem = new System({
   name: "enemyTurnSystem",
   query: enemyTurnQuery,
   callback: (components, enemies, context: EnemyTurnContext): readonly GameEvent[] => {
-    // Miski currently loses precise partition types for typed system callbacks.
-    const enemyComponents = components as unknown as EnemyTurnComponents;
-    const gridPos = enemyComponents.gridPos.partitions;
-    const facing = enemyComponents.facing.partitions;
-    const enemyAwareness = enemyComponents.enemyAwareness.partitions;
+    const gridPos = components.gridPos.partitions;
+    const facing = components.facing.partitions;
+    const enemyAwareness = components.enemyAwareness.partitions;
     const indices = enemies.indices;
     const count = enemies.count;
     const events: GameEvent[] = [];

@@ -5,7 +5,7 @@
   "unstable": ["tsgo"],
   "nodeModulesDir": "manual",
   "tasks": {
-    "check": "deno fmt --check . && deno lint . && deno check",
+    "check": "export CI=1 && deno fmt --check . && deno lint . && deno check && deno test",
     "dev": "vite",
     "build": "vite build",
     "start": "deno serve -A _fresh/server.js",
@@ -41,7 +41,7 @@
   ],
   "imports": {
     "@/": "./",
-    "@phughesmcr/miski": "jsr:@phughesmcr/miski@^1.0.0-alpha.1",
+    "@phughesmcr/miski": "jsr:@phughesmcr/miski@^1.0.0-alpha.2",
     "@std/assert": "jsr:@std/assert@^1.0.13",
     "fresh": "jsr:@fresh/core@^2.3.3",
     "preact": "npm:preact@^10.29.1",

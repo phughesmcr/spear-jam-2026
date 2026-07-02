@@ -13,7 +13,6 @@ import {
   Locked,
   UplinkTerminal,
 } from "@/src/ecs/components.ts";
-import type { DrawablePartitions, GridPosPartitions } from "@/src/ecs/components.ts";
 import { drawableRenderQuery } from "@/src/ecs/queries.ts";
 import { keyColorForCode } from "@/src/map/map.ts";
 import type { KeyColor } from "@/src/map/map.ts";
@@ -93,20 +92,15 @@ type DrawableRenderContext = {
   readonly visit: DrawableEntityVisitor;
 };
 export type DrawableSystem = (context: DrawableRenderContext) => void;
-type DrawableComponents = {
-  readonly gridPos: { readonly partitions: GridPosPartitions };
-  readonly drawable: { readonly partitions: DrawablePartitions };
-};
 
 export const drawableSystem = new System({
   name: "drawableSystem",
   query: drawableRenderQuery,
   callback: (components, entities, context: DrawableRenderContext): void => {
-    const drawableComponents = components as unknown as DrawableComponents;
-    const positionX = drawableComponents.gridPos.partitions.x;
-    const positionY = drawableComponents.gridPos.partitions.y;
-    const kind = drawableComponents.drawable.partitions.kind;
-    const layer = drawableComponents.drawable.partitions.layer;
+    const positionX = components.gridPos.partitions.x;
+    const positionY = components.gridPos.partitions.y;
+    const kind = components.drawable.partitions.kind;
+    const layer = components.drawable.partitions.layer;
     const indices = entities.indices;
     const count = entities.count;
 
@@ -178,16 +172,16 @@ function doorDrawableEntityFor(
   entity: Entity,
   position: DrawableBase,
 ): DoorDrawableEntity | undefined {
-  if (!world.components.entityHas(Door, entity)) return undefined;
+  const door = world.components.readEntityData(Door, entity);
+  if (door === undefined) return undefined;
 
-  const door = world.components.getEntityData(Door, entity);
-  const locked = world.components.entityHas(Locked, entity);
+  const lock = world.components.readEntityData(Locked, entity);
   return {
     ...position,
     kind: DrawableKind.Door,
     open: door.open === 1,
-    locked,
-    color: locked ? keyColorForCode(world.components.getEntityData(Locked, entity).color) : undefined,
+    locked: lock !== undefined,
+    color: lock === undefined ? undefined : keyColorForCode(lock.color),
   };
 }
 
@@ -250,9 +244,9 @@ function itemDrawableEntityFor(
   entity: Entity,
   position: DrawableBase,
 ): ItemDrawableEntity | undefined {
-  if (!world.components.entityHas(Item, entity)) return undefined;
+  const item = world.components.readEntityData(Item, entity);
+  if (item === undefined) return undefined;
 
-  const item = world.components.getEntityData(Item, entity);
   const itemKind = consumableItemKindFor(itemKindForCode(item.kind));
   if (itemKind === undefined) return undefined;
   return {
@@ -281,8 +275,8 @@ function itemDataFor(
   entity: Entity,
   expectedKind: ItemKind,
 ): { readonly kind: number; readonly value: number } | undefined {
-  if (!world.components.entityHas(Item, entity)) return undefined;
+  const item = world.components.readEntityData(Item, entity);
+  if (item === undefined) return undefined;
 
-  const item = world.components.getEntityData(Item, entity);
   return itemKindForCode(item.kind) === expectedKind ? item : undefined;
 }
