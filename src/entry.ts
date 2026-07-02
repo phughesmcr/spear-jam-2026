@@ -1,7 +1,7 @@
-import { createGameSession, type GameSession } from "@/src/ecs/session.ts";
+import { createGameSession as createRealGameSession, type GameSession } from "@/src/ecs/session.ts";
 import { isPlayerCommand } from "@/src/game/commands.ts";
 import type { GameCommand } from "@/src/game/commands.ts";
-import type { PlayerCommand } from "@/src/game/commands.ts";
+import type { PlayerCommand, PlayerCommandResult } from "@/src/game/commands.ts";
 import { combatFeedbackForEvents } from "@/src/game/combat_feedback.ts";
 import type { CombatFeedback } from "@/src/game/combat_feedback.ts";
 import type { GameEvent } from "@/src/game/events.ts";
@@ -9,12 +9,15 @@ import { createPlayerState } from "@/src/game/state.ts";
 import type { DialogueState, GameMode, PlayerState } from "@/src/game/state.ts";
 import { messageForEvent } from "@/src/game/messages.ts";
 import { SplitMix32 } from "@/src/game/rng.ts";
-import { setupInput } from "@/src/input/input.ts";
+import { setupInput as setupRealInput } from "@/src/input/input.ts";
 import type { CanvasPointerInput } from "@/src/input/pointer.ts";
-import { getMap, START_MAP_NAME } from "@/src/map/maps.ts";
-import { configureCanvasDpi, DEFAULT_GAME_CANVAS_SIZE } from "@/src/render/canvas.ts";
+import { getMap as getRealMap, START_MAP_NAME } from "@/src/map/maps.ts";
+import { configureCanvasDpi as configureRealCanvasDpi, DEFAULT_GAME_CANVAS_SIZE } from "@/src/render/canvas.ts";
 import type { GameCanvasSize } from "@/src/render/canvas.ts";
-import { preloadGameAssets, renderGameFrame } from "@/src/render/game.ts";
+import {
+  preloadGameAssets as preloadRealGameAssets,
+  renderGameFrame as renderRealGameFrame,
+} from "@/src/render/game.ts";
 import { verbMenuHotspotIndexAt } from "@/src/render/verb_menu.ts";
 import { VERBS, verbToCommand } from "@/src/game/verbs.ts";
 
@@ -24,11 +27,44 @@ type IntermissionMode = Extract<GameMode, { readonly type: "intermission" }>;
 type DialogueMode = Extract<GameMode, { readonly type: "dialogue" }>;
 type VerbMenuMode = Extract<GameMode, { readonly type: "verbMenu" }>;
 
+interface GameSessionHandle extends Disposable {
+  readonly map: GameSession["map"];
+  readonly player: Pick<GameSession["player"], "getEntity">;
+  getPlayerState(): PlayerState;
+  handlePlayerCommand(command: PlayerCommand): PlayerCommandResult;
+}
+
+type GameSessionFactory = (
+  map: Parameters<typeof createRealGameSession>[0],
+  random: Parameters<typeof createRealGameSession>[1],
+  playerState?: Parameters<typeof createRealGameSession>[2],
+) => Promise<GameSessionHandle>;
+
+type GameFrameRenderer = (
+  ctx: CanvasRenderingContext2D,
+  canvasSize: GameCanvasSize,
+  session: GameSessionHandle | undefined,
+  mode: GameMode,
+  messages: readonly string[],
+  combatFeedback: readonly CombatFeedback[],
+  onAssetLoad?: () => void,
+) => void;
+
+export interface GameRuntime {
+  readonly configureCanvasDpi: typeof configureRealCanvasDpi;
+  readonly createGameSession: GameSessionFactory;
+  readonly getMap: typeof getRealMap;
+  readonly preloadGameAssets: typeof preloadRealGameAssets;
+  readonly renderGameFrame: GameFrameRenderer;
+  readonly setupInput: typeof setupRealInput;
+}
+
 export interface GameSpec {
   ctx: CanvasRenderingContext2D;
   canvas: HTMLCanvasElement;
   seed: number;
   window: Window;
+  runtime?: GameRuntime;
 }
 
 export function startGame(spec: GameSpec): Disposable {
@@ -41,11 +77,12 @@ export function startGame(spec: GameSpec): Disposable {
 class Game implements Disposable {
   private readonly spec: GameSpec;
   private readonly controller: AbortController;
+  private readonly runtime: GameRuntime;
   private readonly rng: SplitMix32;
   private canvasController: Disposable;
   private canvasSize: GameCanvasSize = DEFAULT_GAME_CANVAS_SIZE;
   private inputController?: Disposable;
-  private session?: GameSession;
+  private session?: GameSessionHandle;
   private currentMapName = START_MAP_NAME;
   private currentLevelEntryState?: PlayerState;
   private recentMessages: string[] = [];
@@ -61,8 +98,14 @@ class Game implements Disposable {
   constructor(spec: GameSpec, controller: AbortController) {
     this.spec = spec;
     this.controller = controller;
+    this.runtime = spec.runtime ?? gameRuntime();
     this.rng = new SplitMix32(spec.seed);
-    this.canvasController = configureCanvasDpi(spec.window, spec.canvas, spec.ctx, (size) => this.resize(size));
+    this.canvasController = this.runtime.configureCanvasDpi(
+      spec.window,
+      spec.canvas,
+      spec.ctx,
+      (size) => this.resize(size),
+    );
   }
 
   start(): void {
@@ -79,7 +122,7 @@ class Game implements Disposable {
   }
 
   private render(): void {
-    renderGameFrame(
+    this.runtime.renderGameFrame(
       this.spec.ctx,
       this.canvasSize,
       this.session,
@@ -95,8 +138,8 @@ class Game implements Disposable {
     this.render();
 
     const [session] = await Promise.all([
-      createGameSession(getMap(mapName), () => this.rng.nextFloat(), playerState),
-      preloadGameAssets(this.spec.canvas.ownerDocument, this.renderLoadedAssets),
+      this.runtime.createGameSession(this.runtime.getMap(mapName), () => this.rng.nextFloat(), playerState),
+      this.runtime.preloadGameAssets(this.spec.canvas.ownerDocument, this.renderLoadedAssets),
     ]);
     if (this.controller.signal.aborted) {
       session[Symbol.dispose]();
@@ -109,7 +152,7 @@ class Game implements Disposable {
     this.currentMapName = mapName;
     this.currentLevelEntryState = playerState === undefined ? undefined : createPlayerState(playerState);
     this.mode = { type: "playing" };
-    this.inputController ??= setupInput(
+    this.inputController ??= this.runtime.setupInput(
       this.spec.window,
       this.spec.canvas,
       () => this.canvasSize,
@@ -378,4 +421,43 @@ class Game implements Disposable {
     this.session?.[Symbol.dispose]();
     this.canvasController?.[Symbol.dispose]();
   }
+}
+
+function gameRuntime(): GameRuntime {
+  return {
+    configureCanvasDpi: configureRealCanvasDpi,
+    createGameSession: createRuntimeGameSession,
+    getMap: getRealMap,
+    preloadGameAssets: preloadRealGameAssets,
+    renderGameFrame: renderRuntimeGameFrame,
+    setupInput: setupRealInput,
+  };
+}
+
+function createRuntimeGameSession(
+  map: Parameters<typeof createRealGameSession>[0],
+  random: Parameters<typeof createRealGameSession>[1],
+  playerState?: Parameters<typeof createRealGameSession>[2],
+): Promise<GameSessionHandle> {
+  return createRealGameSession(map, random, playerState);
+}
+
+function renderRuntimeGameFrame(
+  ctx: CanvasRenderingContext2D,
+  canvasSize: GameCanvasSize,
+  session: GameSessionHandle | undefined,
+  mode: GameMode,
+  messages: readonly string[],
+  combatFeedback: readonly CombatFeedback[],
+  onAssetLoad?: () => void,
+): void {
+  renderRealGameFrame(
+    ctx,
+    canvasSize,
+    session as GameSession | undefined,
+    mode,
+    messages,
+    combatFeedback,
+    onAssetLoad,
+  );
 }
