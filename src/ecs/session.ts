@@ -1,10 +1,10 @@
 import type { Entity, World } from "@phughesmcr/miski";
-import { Health } from "@/src/ecs/components.ts";
+import { Door, Health } from "@/src/ecs/components.ts";
 import { directionDelta } from "@/src/grid/direction.ts";
 import type { GridDelta } from "@/src/grid/direction.ts";
 import { attackWithSelectedWeapon, weaponAmmoKind, weaponLabel } from "@/src/ecs/combat.ts";
-import { drawableSystem } from "@/src/ecs/drawables.ts";
-import type { DrawableEntityVisitor, DrawableSystem } from "@/src/ecs/drawables.ts";
+import { DrawableKind, drawableSystem } from "@/src/ecs/drawables.ts";
+import type { DrawableEntity, DrawableEntityVisitor, DrawableSystem } from "@/src/ecs/drawables.ts";
 import { enemyTurnSystem } from "@/src/ecs/enemy.ts";
 import type { EnemyTurnSystem } from "@/src/ecs/enemy.ts";
 import { collectItemAt, interactWithEntity } from "@/src/ecs/interactions.ts";
@@ -22,13 +22,16 @@ import type { GameEvent } from "@/src/game/events.ts";
 import type { RandomSource } from "@/src/game/rng.ts";
 import { createPlayerState, DEFAULT_PLAYER_STATE } from "@/src/game/state.ts";
 import type { CommandSlot, PlayerState, PlayerStateInput } from "@/src/game/state.ts";
-import { VICTORY_GOTO } from "@/src/map/map.ts";
+import { VisibilityMap } from "@/src/game/visibility.ts";
+import type { TileVisibility } from "@/src/game/visibility.ts";
+import { mapDimensions, VICTORY_GOTO } from "@/src/map/map.ts";
 import type { GameMap } from "@/src/map/map.ts";
 
 const UNCHANGED_PLAYER_COMMAND: PlayerCommandResult = Object.freeze({
   events: [],
 });
 const ENEMY_DEFEAT_CREDITS = 10;
+const PLAYER_VISIBILITY_RADIUS = 6;
 
 type MoveResult =
   | { readonly moved: false }
@@ -79,6 +82,7 @@ export class GameSession implements Disposable {
   private readonly drawableSystem: DrawableSystem;
   private readonly enemyTurnSystem: EnemyTurnSystem;
   private readonly spatial: SpatialIndex;
+  private readonly visibility: VisibilityMap;
   private readonly terminalDestinations: ReadonlyMap<Entity, string>;
   private readonly status: PlayerStatus;
   private disposed = false;
@@ -98,8 +102,10 @@ export class GameSession implements Disposable {
     this.drawableSystem = world.systems.create(drawableSystem);
     this.enemyTurnSystem = world.systems.create(enemyTurnSystem);
     this.spatial = new SpatialIndex(world, map);
+    this.visibility = new VisibilityMap(mapDimensions(map));
     this.terminalDestinations = new Map(terminalDestinations);
     this.status = new PlayerStatus(playerState);
+    this.refreshVisibility();
   }
 
   getPlayerState(): PlayerState {
@@ -111,7 +117,16 @@ export class GameSession implements Disposable {
   }
 
   forEachDrawable(visit: DrawableEntityVisitor): void {
-    this.drawableSystem({ world: this.world, visit });
+    this.drawableSystem({
+      world: this.world,
+      visit: (drawable) => {
+        if (this.drawableIsVisible(drawable)) visit(drawable);
+      },
+    });
+  }
+
+  getVisibility(): TileVisibility {
+    return this.visibility;
   }
 
   handlePlayerCommand(command: PlayerCommand): PlayerCommandResult {
@@ -162,6 +177,7 @@ export class GameSession implements Disposable {
 
   private turnPlayer(delta: number): void {
     this.player.turnBy(delta);
+    this.refreshVisibility();
   }
 
   private handlePlayerInteractCommand(verb?: InteractVerb): PlayerCommandResult {
@@ -255,8 +271,30 @@ export class GameSession implements Disposable {
       random: this.random,
     });
     this.world.refresh();
+    this.refreshVisibility();
     const allEvents = [...events, ...enemyEvents];
     return this.isPlayerDefeated() ? { events: allEvents, outcome: "defeat" } : { events: allEvents };
+  }
+
+  private refreshVisibility(): void {
+    this.visibility.revealFrom(this.player.getPosition(), {
+      radius: PLAYER_VISIBILITY_RADIUS,
+      facing: this.player.getFacing().dir,
+      blocksSight: (x, y) => this.tileBlocksSight(x, y),
+    });
+  }
+
+  private tileBlocksSight(x: number, y: number): boolean {
+    if (this.spatial.tileBlocks(x, y)) return true;
+
+    const blockingEntity = this.spatial.blockingEntityAt(x, y);
+    if (blockingEntity === undefined) return false;
+    return this.world.components.entityHas(Door, blockingEntity) &&
+      this.world.components.getEntityData(Door, blockingEntity).open === 0;
+  }
+
+  private drawableIsVisible(drawable: DrawableEntity): boolean {
+    return drawable.kind === DrawableKind.Player || this.visibility.isVisible(drawable.x, drawable.y);
   }
 
   private isPlayerDefeated(): boolean {

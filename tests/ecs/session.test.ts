@@ -5,6 +5,9 @@ import {
   AttackPattern,
   AttackTargetMode,
   Blocking,
+  Drawable,
+  DrawableKind,
+  DrawableLayer,
   GridPos,
   Health,
   Interactable,
@@ -13,7 +16,9 @@ import {
 } from "@/src/ecs/components.ts";
 import { ExamineTextId } from "@/src/game/examine.ts";
 import { DisplayName } from "@/src/game/names.ts";
+import { Direction } from "@/src/grid/direction.ts";
 import { createGameSession } from "@/src/ecs/session.ts";
+import type { GameSession } from "@/src/ecs/session.ts";
 import { createWorld } from "@/src/ecs/world.ts";
 import { KeyColor, VICTORY_GOTO } from "@/src/map/map.ts";
 import {
@@ -243,6 +248,56 @@ Deno.test("opening an already-open door reports that it is open", async () => {
     type: "doorAlreadyOpen",
     entity: door,
   }]);
+});
+
+Deno.test("visibility refreshes after player movement", async () => {
+  const world = await createWorld();
+  const playerEntity = createTestPlayer(world, { x: 0, y: 0, dir: Direction.East });
+  const session = createTestSession(world, playerEntity, flatTestMap(10, 1));
+
+  assertEquals(session.getVisibility().isVisible(6, 0), true);
+  assertEquals(session.getVisibility().isVisible(7, 0), false);
+
+  session.handlePlayerCommand({ type: "move", direction: "forward" });
+
+  assertEquals(session.getVisibility().isVisible(7, 0), true);
+  assertEquals(session.getVisibility().isVisible(8, 0), false);
+});
+
+Deno.test("visibility follows player facing after turning", async () => {
+  const world = await createWorld();
+  const playerEntity = createTestPlayer(world, { x: 2, y: 2, dir: Direction.East });
+  const session = createTestSession(world, playerEntity, flatTestMap(5, 5));
+
+  assertEquals(session.getVisibility().isVisible(3, 2), true);
+  assertEquals(session.getVisibility().isVisible(2, 1), false);
+
+  session.handlePlayerCommand({ type: "turn", direction: "left" });
+
+  assertEquals(session.getVisibility().isVisible(2, 1), true);
+  assertEquals(session.getVisibility().isVisible(3, 2), false);
+  assertEquals(session.getVisibility().isExplored(3, 2), true);
+});
+
+Deno.test("visibility treats closed doors as opaque and reveals behind them after opening", async () => {
+  const world = await createWorld();
+  const playerEntity = createTestPlayer(world, { x: 0, y: 0, dir: Direction.East });
+  const door = createTestDoor(world, { x: 1, y: 0, blocking: true, interactable: true });
+  const item = createTestItem(world, { x: 2, y: 0, kind: ItemKind.HealthPatch, amount: 1 });
+  world.components.addToEntity(Drawable, item, { kind: DrawableKind.Item, layer: DrawableLayer.Item });
+  const session = createTestSession(world, playerEntity, flatTestMap(4, 1));
+
+  assertEquals(session.getVisibility().isVisible(1, 0), true);
+  assertEquals(session.getVisibility().isVisible(2, 0), false);
+  assertEquals(drawableTiles(session), []);
+
+  assertEquals(session.handlePlayerCommand({ type: "interact" }).events, [{
+    type: "doorOpened",
+    entity: door,
+  }]);
+
+  assertEquals(session.getVisibility().isVisible(2, 0), true);
+  assertEquals(drawableTiles(session), [`${DrawableKind.Item}:2,0`]);
 });
 
 Deno.test("explicit open, use, and talk verbs resolve their matching targets", async () => {
@@ -880,6 +935,14 @@ const TEST_ATTACK = {
 } as const;
 
 const TEST_MAP = flatTestMap(3, 2);
+
+function drawableTiles(session: GameSession): readonly string[] {
+  const tiles: string[] = [];
+  session.forEachDrawable((drawable) => {
+    tiles.push(`${drawable.kind}:${drawable.x},${drawable.y}`);
+  });
+  return tiles;
+}
 
 Deno.test("createGameSession applies carried-over player health", async () => {
   const map = flatTestMap(3, 2, [{ prefab: "player", x: 1, y: 1, dir: 1 }]);

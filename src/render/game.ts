@@ -25,7 +25,7 @@ export function renderGameFrame(
   ctx.fillRect(0, 0, canvasSize.width, canvasSize.height);
   if (session) {
     const { map } = session;
-    const metrics = renderMap(ctx, canvasSize, map);
+    const metrics = renderMap(ctx, canvasSize, map, session.getVisibility());
     renderDrawableEntities(ctx, session, metrics);
     renderCombatFeedback(ctx, metrics, combatFeedback);
     renderHud(ctx, canvasSize, session);

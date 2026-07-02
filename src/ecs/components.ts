@@ -27,7 +27,7 @@ export type FacingPartitions = {
   readonly dir: Uint8Array;
 };
 
-/** Cardinal heading: 0=N, 1=E, 2=S, 3=W. Drives the directional FOV cone. */
+/** Cardinal heading: 0=N, 1=E, 2=S, 3=W. */
 export const Facing: Component<FacingSchema> = new Component<FacingSchema>({
   name: "facing",
   schema: { dir: Uint8Array },
