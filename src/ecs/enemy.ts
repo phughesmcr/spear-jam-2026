@@ -20,6 +20,46 @@ type EnemyTurnComponents = {
   readonly facing: { readonly partitions: FacingPartitions };
 };
 
+type TurnPolicy = {
+  readonly moveSteps: 0 | 1 | 2;
+  readonly attackAfterStep: boolean;
+  readonly retreatWhenAdjacent: boolean;
+};
+
+const DEFAULT_TURN_POLICY: TurnPolicy = {
+  moveSteps: 1,
+  attackAfterStep: false,
+  retreatWhenAdjacent: false,
+};
+
+const TURN_POLICIES: Readonly<Record<EnemyArchetype, TurnPolicy>> = {
+  [EnemyArchetype.MeleeDog]: {
+    moveSteps: 2,
+    attackAfterStep: true,
+    retreatWhenAdjacent: false,
+  },
+  [EnemyArchetype.Gunslinger]: {
+    moveSteps: 1,
+    attackAfterStep: false,
+    retreatWhenAdjacent: true,
+  },
+  [EnemyArchetype.NetworkNeophyte]: {
+    moveSteps: 1,
+    attackAfterStep: false,
+    retreatWhenAdjacent: false,
+  },
+  [EnemyArchetype.SystemSentinel]: {
+    moveSteps: 0,
+    attackAfterStep: false,
+    retreatWhenAdjacent: false,
+  },
+  [EnemyArchetype.AgenticAcolyte]: {
+    moveSteps: 1,
+    attackAfterStep: false,
+    retreatWhenAdjacent: false,
+  },
+};
+
 const CARDINAL_STEPS = [
   { dx: 0, dy: -1 },
   { dx: 1, dy: 0 },
@@ -64,52 +104,19 @@ function advanceEnemyTurn(
   const { world } = context;
   if (!world.entities.isActive(entity)) return [];
 
-  const archetype = enemyArchetype(world, entity);
-  switch (archetype) {
-    case EnemyArchetype.MeleeDog:
-      return advanceMeleeDogTurn(context, entity, gridPos, facing);
-    case EnemyArchetype.Gunslinger:
-      return advanceGunslingerTurn(context, entity, gridPos, facing);
-    case EnemyArchetype.NetworkNeophyte:
-      return advanceNetworkNeophyteTurn(context, entity, gridPos, facing);
-    case EnemyArchetype.SystemSentinel:
-      return advanceSystemSentinelTurn(context, entity, gridPos, facing);
-    case EnemyArchetype.AgenticAcolyte:
-      return advanceAgenticAcolyteTurn(context, entity, gridPos, facing);
-    case undefined:
-      return advanceGenericEnemyTurn(context, entity, gridPos, facing);
+  const policy = turnPolicyFor(world, entity);
+  if (
+    policy.retreatWhenAdjacent &&
+    distanceToPlayer(context.player, entity, gridPos) <= 1 &&
+    tryMoveEnemyAwayFromPlayer(context.player, entity, gridPos, facing, context.spatial)
+  ) {
+    return [];
   }
-}
 
-function advanceGenericEnemyTurn(
-  context: EnemyTurnContext,
-  entity: Entity,
-  gridPos: GridPosPartitions,
-  facing: FacingPartitions,
-): readonly GameEvent[] {
   const attackEvents = attackPlayerIfPossible(context, entity, gridPos, facing);
   if (attackEvents !== undefined) return attackEvents;
 
-  tryMoveEnemyTowardPlayer(
-    context.player,
-    entity,
-    gridPos,
-    facing,
-    context.spatial,
-  );
-  return [];
-}
-
-function advanceMeleeDogTurn(
-  context: EnemyTurnContext,
-  entity: Entity,
-  gridPos: GridPosPartitions,
-  facing: FacingPartitions,
-): readonly GameEvent[] {
-  const attackEvents = attackPlayerIfPossible(context, entity, gridPos, facing);
-  if (attackEvents !== undefined) return attackEvents;
-
-  for (let step = 0; step < 2; step++) {
+  for (let step = 0; step < policy.moveSteps; step++) {
     if (
       !tryMoveEnemyTowardPlayer(
         context.player,
@@ -122,78 +129,22 @@ function advanceMeleeDogTurn(
       break;
     }
 
-    const biteEvents = attackPlayerIfPossible(context, entity, gridPos, facing);
-    if (biteEvents !== undefined) return biteEvents;
+    if (policy.attackAfterStep) {
+      const stepAttackEvents = attackPlayerIfPossible(context, entity, gridPos, facing);
+      if (stepAttackEvents !== undefined) return stepAttackEvents;
+    }
+  }
+
+  if (policy.moveSteps === 0) {
+    faceEntityToward(entity, context.player.getPosition(), gridPos, facing);
   }
 
   return [];
 }
 
-function advanceNetworkNeophyteTurn(
-  context: EnemyTurnContext,
-  entity: Entity,
-  gridPos: GridPosPartitions,
-  facing: FacingPartitions,
-): readonly GameEvent[] {
-  return advanceGenericEnemyTurn(context, entity, gridPos, facing);
-}
-
-function advanceGunslingerTurn(
-  context: EnemyTurnContext,
-  entity: Entity,
-  gridPos: GridPosPartitions,
-  facing: FacingPartitions,
-): readonly GameEvent[] {
-  if (
-    distanceToPlayer(context.player, entity, gridPos) <= 1 &&
-    tryMoveEnemyAwayFromPlayer(context.player, entity, gridPos, facing, context.spatial)
-  ) {
-    return [];
-  }
-
-  const attackEvents = attackPlayerIfPossible(context, entity, gridPos, facing);
-  if (attackEvents !== undefined) return attackEvents;
-
-  tryMoveEnemyTowardPlayer(
-    context.player,
-    entity,
-    gridPos,
-    facing,
-    context.spatial,
-  );
-  return [];
-}
-
-function advanceSystemSentinelTurn(
-  context: EnemyTurnContext,
-  entity: Entity,
-  gridPos: GridPosPartitions,
-  facing: FacingPartitions,
-): readonly GameEvent[] {
-  const attackEvents = attackPlayerIfPossible(context, entity, gridPos, facing);
-  if (attackEvents !== undefined) return attackEvents;
-
-  faceEntityToward(entity, context.player.getPosition(), gridPos, facing);
-  return [];
-}
-
-function advanceAgenticAcolyteTurn(
-  context: EnemyTurnContext,
-  entity: Entity,
-  gridPos: GridPosPartitions,
-  facing: FacingPartitions,
-): readonly GameEvent[] {
-  const attackEvents = attackPlayerIfPossible(context, entity, gridPos, facing);
-  if (attackEvents !== undefined) return attackEvents;
-
-  tryMoveEnemyTowardPlayer(
-    context.player,
-    entity,
-    gridPos,
-    facing,
-    context.spatial,
-  );
-  return [];
+function turnPolicyFor(world: World, entity: Entity): TurnPolicy {
+  const archetype = enemyArchetype(world, entity);
+  return archetype === undefined ? DEFAULT_TURN_POLICY : TURN_POLICIES[archetype];
 }
 
 function attackPlayerIfPossible(
