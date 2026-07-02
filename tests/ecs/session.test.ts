@@ -244,21 +244,6 @@ Deno.test("opening a locked door keeps the key color until level exit", async ()
   assertEquals(world.components.getEntityData(GridPos, playerEntity), { x: 2, y: 1 });
 });
 
-Deno.test("moving onto a legacy level exit no longer changes maps or clears keys", async () => {
-  const world = await createWorld();
-  const playerEntity = createTestPlayer(world);
-  const map = flatTestMap(3, 2, [{ prefab: "exit", x: 2, y: 1, goto: "Next Map" }]);
-  const session = createTestSession(world, playerEntity, map, {
-    playerState: { heldKeys: [KeyColor.Red, KeyColor.Blue], selectedWeapon: 1 },
-  });
-
-  const result = session.handlePlayerCommand({ type: "move", direction: "forward" });
-
-  assertEquals(result, { events: [] });
-  assertEquals(world.components.getEntityData(GridPos, playerEntity), { x: 2, y: 1 });
-  assertEquals(session.getPlayerState().heldKeys, [KeyColor.Red, KeyColor.Blue]);
-});
-
 Deno.test("interacting with an uplink terminal without a code emits an event without consuming a turn", async () => {
   const world = await createWorld();
   const playerEntity = createTestPlayer(world);

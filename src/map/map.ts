@@ -127,14 +127,7 @@ export type ItemDef = {
   amount: number;
 };
 
-export type ExitDef = {
-  prefab: "exit";
-  x: number;
-  y: number;
-  goto: string;
-};
-
-export type MapEntityDef =
+export type EntityDef =
   | PlayerDef
   | NpcDef
   | EnemyDef
@@ -144,8 +137,6 @@ export type MapEntityDef =
   | UplinkTerminalDef
   | WeaponPickupDef
   | ItemDef;
-
-export type EntityDef = MapEntityDef | ExitDef;
 
 export type GameMap = {
   readonly name: string;

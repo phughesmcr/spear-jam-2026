@@ -6,7 +6,7 @@ import { createWorld } from "@/src/ecs/world.ts";
 import { KeyColor, keyColorCode } from "@/src/map/map.ts";
 import { createEntity, flatTestMap } from "@/tests/ecs/helpers.ts";
 
-Deno.test("SpatialIndex indexes blocking entities, items, faced entities, and exits", async () => {
+Deno.test("SpatialIndex indexes blocking entities, items, and faced entities", async () => {
   const world = await createWorld();
   const player = createEntity(world);
   const door = createEntity(world);
@@ -29,7 +29,6 @@ Deno.test("SpatialIndex indexes blocking entities, items, faced entities, and ex
   assertEquals(spatial.blockingEntityAt(2, 1), door);
   assertEquals(spatial.positionBlocks(2, 1), true);
   assertEquals(spatial.itemAt(3, 1), key);
-  assertEquals(spatial.exitAt(4, 1), { prefab: "exit", x: 4, y: 1, goto: "next" });
   assertEquals(spatial.facedEntity(new Player(world, player)), door);
 });
 
@@ -125,4 +124,4 @@ Deno.test("SpatialIndex updates blocking ownership through the gateway", async (
   assertEquals(spatial.blockingEntityAt(2, 1), door);
 });
 
-const TEST_MAP = flatTestMap(5, 2, [{ prefab: "exit", x: 4, y: 1, goto: "next" }]);
+const TEST_MAP = flatTestMap(5, 2);

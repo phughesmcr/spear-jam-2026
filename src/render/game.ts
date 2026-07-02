@@ -5,7 +5,7 @@ import type { GameCanvasSize } from "@/src/render/canvas.ts";
 import { renderCombatFeedback } from "@/src/render/combat_feedback.ts";
 import { renderDrawableEntities } from "@/src/render/drawables.ts";
 import { renderHud } from "@/src/render/hud.ts";
-import { renderExits, renderMap } from "@/src/render/map.ts";
+import { renderMap } from "@/src/render/map.ts";
 import { renderMessageLog } from "@/src/render/messages.ts";
 import { renderOverlay } from "@/src/render/overlay.ts";
 
@@ -24,7 +24,6 @@ export function renderGameFrame(
   if (session) {
     const { map } = session;
     const metrics = renderMap(ctx, canvasSize, map);
-    renderExits(ctx, map, metrics);
     renderDrawableEntities(ctx, session.world, metrics);
     renderCombatFeedback(ctx, metrics, combatFeedback);
     renderHud(ctx, canvasSize, session);

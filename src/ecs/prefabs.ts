@@ -33,9 +33,9 @@ import { keyColorCode } from "@/src/map/map.ts";
 import type {
   DoorDef,
   EnemyDef,
+  EntityDef,
   ItemDef,
   KeyDef,
-  MapEntityDef,
   NpcDef,
   PlayerDef,
   UplinkCodeDef,
@@ -286,7 +286,7 @@ function addItem(world: World, entity: Entity, kind: ItemKind, value: number): v
   world.components.addToEntity(Item, entity, { kind, value });
 }
 
-export function createMapEntity(world: World, prefab: MapEntityDef): Entity {
+export function createMapEntity(world: World, prefab: EntityDef): Entity {
   switch (prefab.prefab) {
     case "player":
       return createPlayer(world, prefab);

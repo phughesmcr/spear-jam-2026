@@ -172,7 +172,6 @@ function reachabilityIndexes(map: GameMap): ReachabilityIndexes {
         break;
       }
       case "enemy":
-      case "exit":
       case "item":
       case "npc":
       case "player":

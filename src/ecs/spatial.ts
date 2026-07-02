@@ -4,7 +4,7 @@ import { positionedQuery } from "@/src/ecs/queries.ts";
 import type { Player } from "@/src/ecs/player.ts";
 import { directionDelta } from "@/src/grid/direction.ts";
 import { mapDimensions, terrainAt } from "@/src/map/map.ts";
-import type { ExitDef, GameMap } from "@/src/map/map.ts";
+import type { GameMap } from "@/src/map/map.ts";
 
 export interface SpatialLookup {
   tileBlocks(x: number, y: number): boolean;
@@ -39,7 +39,6 @@ export class SpatialIndex implements SpatialLookup, SpatialMutations {
   private readonly height: number;
   private readonly terrainBlocking: Uint8Array;
   private readonly occupants: Array<Set<Entity> | undefined>;
-  private readonly exits: Array<ExitDef | undefined>;
   private readonly entityTiles = new Map<Entity, number>();
 
   constructor(world: World, map: GameMap) {
@@ -52,10 +51,9 @@ export class SpatialIndex implements SpatialLookup, SpatialMutations {
     const tileCount = width * height;
     this.terrainBlocking = new Uint8Array(tileCount);
     this.occupants = new Array<Set<Entity> | undefined>(tileCount);
-    this.exits = new Array<ExitDef | undefined>(tileCount);
 
     this.indexTerrain(map);
-    this.indexEntities(map);
+    this.indexEntities();
   }
 
   tileBlocks(x: number, y: number): boolean {
@@ -73,11 +71,6 @@ export class SpatialIndex implements SpatialLookup, SpatialMutations {
 
   itemAt(x: number, y: number): Entity | undefined {
     return this.occupantWith(Item, x, y);
-  }
-
-  exitAt(x: number, y: number): ExitDef | undefined {
-    const tile = this.tileIndex(x, y);
-    return tile === undefined ? undefined : this.exits[tile];
   }
 
   facedEntity(player: Player): Entity | undefined {
@@ -129,7 +122,7 @@ export class SpatialIndex implements SpatialLookup, SpatialMutations {
     }
   }
 
-  private indexEntities(map: GameMap): void {
+  private indexEntities(): void {
     for (const entity of this.world.entities.query(positionedQuery)) {
       const { x, y } = this.world.components.getEntityData(GridPos, entity);
       const tile = this.tileIndex(x, y);
@@ -138,12 +131,6 @@ export class SpatialIndex implements SpatialLookup, SpatialMutations {
       }
       this.entityTiles.set(entity, tile);
       this.addToTile(entity, tile);
-    }
-
-    for (const entity of map.entities) {
-      if (entity.prefab !== "exit") continue;
-      const tile = this.tileIndex(entity.x, entity.y);
-      if (tile !== undefined) this.exits[tile] = entity;
     }
   }
 

@@ -14,7 +14,6 @@ const MIN_TILE_SIZE = 8;
 const FLOOR_COLOR = "#232832";
 const WALL_COLOR = "#5a5f68";
 const GRID_LINE_COLOR = "#151922";
-const EXIT_COLOR = "#4ea1ff";
 
 export function renderMap(ctx: CanvasRenderingContext2D, canvasSize: GameCanvasSize, map: GameMap): MapRenderMetrics {
   const metrics = mapRenderMetrics(canvasSize, map);
@@ -24,14 +23,6 @@ export function renderMap(ctx: CanvasRenderingContext2D, canvasSize: GameCanvasS
     }
   }
   return metrics;
-}
-
-export function renderExits(ctx: CanvasRenderingContext2D, map: GameMap, metrics: MapRenderMetrics): void {
-  for (const entity of map.entities) {
-    if (entity.prefab === "exit") {
-      renderExit(ctx, entity.x, entity.y, metrics);
-    }
-  }
 }
 
 function mapRenderMetrics(canvasSize: GameCanvasSize, map: GameMap): MapRenderMetrics {
@@ -65,15 +56,4 @@ function renderTile(
   ctx.fillRect(tileX, tileY, tileSize, tileSize);
   ctx.strokeStyle = GRID_LINE_COLOR;
   ctx.strokeRect(tileX + 0.5, tileY + 0.5, tileSize - 1, tileSize - 1);
-}
-
-function renderExit(ctx: CanvasRenderingContext2D, x: number, y: number, metrics: MapRenderMetrics): void {
-  const { offsetX, offsetY, tileSize } = metrics;
-  const tileX = offsetX + x * tileSize;
-  const tileY = offsetY + y * tileSize;
-  const inset = Math.max(3, tileSize * 0.22);
-  ctx.strokeStyle = EXIT_COLOR;
-  ctx.lineWidth = Math.max(2, tileSize * 0.08);
-  ctx.strokeRect(tileX + inset, tileY + inset, tileSize - inset * 2, tileSize - inset * 2);
-  ctx.lineWidth = 1;
 }

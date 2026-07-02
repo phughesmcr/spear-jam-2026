@@ -42,8 +42,6 @@ export async function createGameSession(
     let playerEntity: Entity | undefined;
 
     for (const entityDef of map.entities) {
-      if (entityDef.prefab === "exit") continue;
-
       const entity = createMapEntity(world, entityDef);
       if (entityDef.prefab === "player") {
         playerEntity = entity;
