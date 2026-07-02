@@ -23,6 +23,7 @@ import type { AmmoKind, CommandSlot } from "@/src/game/state.ts";
 
 type WeaponSpec = AttackSchema & {
   readonly label: string;
+  readonly ammo?: AmmoKind;
 };
 
 type EntityPredicate = (entity: Entity) => boolean;
@@ -62,6 +63,7 @@ const PLAYER_WEAPONS: Readonly<Record<CommandSlot, WeaponSpec>> = {
   },
   2: {
     label: "Pistol",
+    ammo: "pistol",
     minDamage: 2,
     maxDamage: 3,
     range: 2,
@@ -74,6 +76,7 @@ const PLAYER_WEAPONS: Readonly<Record<CommandSlot, WeaponSpec>> = {
   },
   3: {
     label: "Current Cannon",
+    ammo: "cannon",
     minDamage: 2,
     maxDamage: 4,
     range: 6,
@@ -91,14 +94,7 @@ export function weaponLabel(slot: CommandSlot): string {
 }
 
 export function weaponAmmoKind(slot: CommandSlot): AmmoKind | undefined {
-  switch (slot) {
-    case 1:
-      return undefined;
-    case 2:
-      return "pistol";
-    case 3:
-      return "cannon";
-  }
+  return PLAYER_WEAPONS[slot].ammo;
 }
 
 export function attackWithSelectedWeapon(

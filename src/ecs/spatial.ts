@@ -1,5 +1,5 @@
 import type { DynamicComponent, Entity, World } from "@phughesmcr/miski";
-import { Blocking, GridPos, Item, Key, UplinkCode, WeaponPickup } from "@/src/ecs/components.ts";
+import { Blocking, GridPos, Item } from "@/src/ecs/components.ts";
 import { positionedQuery } from "@/src/ecs/queries.ts";
 import type { Player } from "@/src/ecs/player.ts";
 import { directionDelta } from "@/src/grid/direction.ts";
@@ -69,18 +69,6 @@ export class SpatialIndex implements SpatialLookup, SpatialMutations {
 
   positionBlocks(x: number, y: number): boolean {
     return this.tileBlocks(x, y) || this.blockingEntityAt(x, y) !== undefined;
-  }
-
-  keyAt(x: number, y: number): Entity | undefined {
-    return this.occupantWith(Key, x, y);
-  }
-
-  uplinkCodeAt(x: number, y: number): Entity | undefined {
-    return this.occupantWith(UplinkCode, x, y);
-  }
-
-  weaponPickupAt(x: number, y: number): Entity | undefined {
-    return this.occupantWith(WeaponPickup, x, y);
   }
 
   itemAt(x: number, y: number): Entity | undefined {

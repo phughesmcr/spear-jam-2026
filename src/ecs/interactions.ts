@@ -1,21 +1,22 @@
 import type { Entity, World } from "@phughesmcr/miski";
 import { dialogueTreeText } from "@/src/dialogue/dialogue.ts";
 import {
+  commandSlotForCode,
   Dialogue,
   DisplayNameComponent,
   Door,
   Interactable,
-  Key,
+  Item,
+  ItemKind,
+  itemKindForCode,
   Locked,
   Npc,
   UplinkTerminal,
-  WeaponPickup,
 } from "@/src/ecs/components.ts";
-import { weaponLabel } from "@/src/ecs/combat.ts";
 import { displayNameText } from "@/src/game/names.ts";
 import type { SpatialIndex } from "@/src/ecs/spatial.ts";
 import type { GameEvent } from "@/src/game/events.ts";
-import type { CommandSlot, DialogueState } from "@/src/game/state.ts";
+import type { AmmoKind, CommandSlot, DialogueState } from "@/src/game/state.ts";
 import { keyColorForCode } from "@/src/map/map.ts";
 import type { KeyColor } from "@/src/map/map.ts";
 
@@ -27,81 +28,33 @@ export type PlayerInteractionResult =
 
 const UNCHANGED_INTERACTION: PlayerInteractionResult = Object.freeze({ type: "unchanged", events: [] });
 
-export function collectKeyAt(
-  world: World,
-  spatial: SpatialIndex,
-  heldKeys: Set<KeyColor>,
-  x: number,
-  y: number,
-): readonly GameEvent[] {
-  const key = spatial.keyAt(x, y);
-  if (key === undefined) return [];
+export type ItemPickup =
+  | { readonly type: "key"; readonly entity: Entity; readonly color: KeyColor }
+  | { readonly type: "uplinkCode"; readonly entity: Entity }
+  | { readonly type: "weapon"; readonly entity: Entity; readonly slot: CommandSlot }
+  | { readonly type: "health"; readonly entity: Entity; readonly amount: number }
+  | { readonly type: "ammo"; readonly entity: Entity; readonly ammo: AmmoKind; readonly amount: number };
 
-  const { color } = world.components.getEntityData(Key, key);
-  heldKeys.add(keyColorForCode(color));
-  spatial.removeEntity(key);
-  return [{
-    type: "keyPickedUp",
-    entity: key,
-  }];
-}
-
-export type UplinkCodePickupResult = {
-  readonly collected: boolean;
-  readonly events: readonly GameEvent[];
-};
-
-export function collectUplinkCodeAt(
-  spatial: SpatialIndex,
-  x: number,
-  y: number,
-): UplinkCodePickupResult {
-  const code = spatial.uplinkCodeAt(x, y);
-  if (code === undefined) return { collected: false, events: [] };
-
-  spatial.removeEntity(code);
-  return {
-    collected: true,
-    events: [{
-      type: "uplinkCodePickedUp",
-      entity: code,
-    }],
-  };
-}
-
-export type WeaponPickupResult = {
-  readonly slot?: CommandSlot;
-  readonly events: readonly GameEvent[];
-};
-
-export function collectWeaponPickupAt(
+export function collectItemAt(
   world: World,
   spatial: SpatialIndex,
   x: number,
   y: number,
-): WeaponPickupResult {
-  const weapon = spatial.weaponPickupAt(x, y);
-  if (weapon === undefined) return { events: [] };
+): ItemPickup | undefined {
+  const item = spatial.itemAt(x, y);
+  if (item === undefined) return undefined;
 
-  const { slot } = world.components.getEntityData(WeaponPickup, weapon);
-  const commandSlot = commandSlotForCode(slot);
-  spatial.removeEntity(weapon);
-  return {
-    slot: commandSlot,
-    events: [{
-      type: "weaponPickedUp",
-      entity: weapon,
-      slot: commandSlot,
-      label: weaponLabel(commandSlot),
-    }],
-  };
+  const { kind, value } = world.components.getEntityData(Item, item);
+  const pickup = itemPickupFor(item, itemKindForCode(kind), value);
+  spatial.removeEntity(item);
+  return pickup;
 }
 
 export function interactWithEntity(
   world: World,
   spatial: SpatialIndex,
   target: Entity | undefined,
-  heldKeys: Set<KeyColor>,
+  heldKeys: ReadonlySet<KeyColor>,
   hasUplinkCode: boolean,
 ): PlayerInteractionResult {
   if (target === undefined || !world.components.entityHas(Interactable, target)) {
@@ -123,22 +76,11 @@ export function interactWithEntity(
   return { type: "consumeTurn", events: [] };
 }
 
-function commandSlotForCode(slot: number): CommandSlot {
-  switch (slot) {
-    case 1:
-    case 2:
-    case 3:
-      return slot;
-    default:
-      throw new Error(`Unknown weapon slot: ${slot}`);
-  }
-}
-
 function interactWithDoor(
   world: World,
   spatial: SpatialIndex,
   door: Entity,
-  heldKeys: Set<KeyColor>,
+  heldKeys: ReadonlySet<KeyColor>,
 ): PlayerInteractionResult {
   const state = world.components.getEntityData(Door, door);
   if (state.open === 1) return UNCHANGED_INTERACTION;
@@ -209,4 +151,21 @@ function dialogueTextFor(world: World, entity: Entity): string | undefined {
 
   const { dialogueTreeId } = world.components.getEntityData(Dialogue, entity);
   return dialogueTreeText(dialogueTreeId);
+}
+
+function itemPickupFor(entity: Entity, kind: ItemKind, value: number): ItemPickup {
+  switch (kind) {
+    case ItemKind.HealthPatch:
+      return { type: "health", entity, amount: value };
+    case ItemKind.PistolAmmo:
+      return { type: "ammo", entity, ammo: "pistol", amount: value };
+    case ItemKind.CannonAmmo:
+      return { type: "ammo", entity, ammo: "cannon", amount: value };
+    case ItemKind.Key:
+      return { type: "key", entity, color: keyColorForCode(value) };
+    case ItemKind.UplinkCode:
+      return { type: "uplinkCode", entity };
+    case ItemKind.Weapon:
+      return { type: "weapon", entity, slot: commandSlotForCode(value) };
+  }
 }

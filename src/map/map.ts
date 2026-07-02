@@ -1,6 +1,7 @@
 import type { DisplayName } from "@/src/game/names.ts";
 import type { AttackDef } from "@/src/game/attack.ts";
 import type { DialogueTreeId } from "@/src/dialogue/dialogue.ts";
+import type { EnemyArchetype, ItemKind } from "@/src/ecs/components.ts";
 
 export type WallTile = {
   id: number;
@@ -77,7 +78,7 @@ export type EnemyDef = {
   y: number;
   dir: number;
   displayName: DisplayName;
-  archetype?: "meleeDog" | "gunslinger" | "networkNeophyte" | "systemSentinel" | "agenticAcolyte";
+  archetype?: EnemyArchetype;
   health?: number;
   damage?: number;
   attack?: Partial<AttackDef>;
@@ -122,7 +123,7 @@ export type ItemDef = {
   prefab: "item";
   x: number;
   y: number;
-  item: "healthPatch" | "pistolAmmo" | "cannonAmmo";
+  item: ItemKind;
   amount: number;
 };
 

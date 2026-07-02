@@ -2,6 +2,7 @@ import { Component, type DynamicComponent } from "@phughesmcr/miski";
 import type { CardinalDirection } from "@/src/grid/direction.ts";
 import type { DisplayName } from "@/src/game/names.ts";
 import { type AttackDef, AttackFacingRequirement, AttackPattern, AttackTargetMode } from "@/src/game/attack.ts";
+import type { CommandSlot } from "@/src/game/state.ts";
 
 export { AttackFacingRequirement, AttackPattern, AttackTargetMode };
 
@@ -99,34 +100,37 @@ export const Locked: Component<LockedSchema> = new Component<LockedSchema>({
   schema: { color: Uint8Array },
 });
 
-export type KeySchema = { color: number };
-export const Key: Component<KeySchema> = new Component<KeySchema>({
-  name: "key",
-  schema: { color: Uint8Array },
-});
-
-export const UplinkCode: Component<null> = new Component<null>({ name: "uplinkCode" });
-
 export const UplinkTerminal: Component<null> = new Component<null>({ name: "uplinkTerminal" });
-
-export type WeaponPickupSchema = { slot: number };
-export const WeaponPickup: Component<WeaponPickupSchema> = new Component<WeaponPickupSchema>({
-  name: "weaponPickup",
-  schema: { slot: Uint8Array },
-});
 
 export const ItemKind = {
   HealthPatch: 1,
   PistolAmmo: 2,
   CannonAmmo: 3,
+  Key: 4,
+  UplinkCode: 5,
+  Weapon: 6,
 } as const;
 export type ItemKind = (typeof ItemKind)[keyof typeof ItemKind];
 
-export type ItemSchema = { kind: number; amount: number };
+export type ItemSchema = { kind: number; value: number };
 export const Item: Component<ItemSchema> = new Component<ItemSchema>({
   name: "item",
-  schema: { kind: Uint8Array, amount: Uint8Array },
+  schema: { kind: Uint8Array, value: Uint8Array },
 });
+
+export function itemKindForCode(kind: number): ItemKind {
+  switch (kind) {
+    case ItemKind.HealthPatch:
+    case ItemKind.PistolAmmo:
+    case ItemKind.CannonAmmo:
+    case ItemKind.Key:
+    case ItemKind.UplinkCode:
+    case ItemKind.Weapon:
+      return kind;
+    default:
+      throw new Error(`Unknown item kind: ${kind}`);
+  }
+}
 
 export const TurnTaker: Component<null> = new Component<null>({ name: "turnTaker" });
 
@@ -146,6 +150,30 @@ export const EnemyArchetypeComponent: Component<EnemyArchetypeSchema> = new Comp
   name: "enemyArchetype",
   schema: { archetype: Uint8Array },
 });
+
+export function enemyArchetypeForCode(archetype: number): EnemyArchetype {
+  switch (archetype) {
+    case EnemyArchetype.MeleeDog:
+    case EnemyArchetype.Gunslinger:
+    case EnemyArchetype.NetworkNeophyte:
+    case EnemyArchetype.SystemSentinel:
+    case EnemyArchetype.AgenticAcolyte:
+      return archetype;
+    default:
+      throw new Error(`Unknown enemy archetype: ${archetype}`);
+  }
+}
+
+export function commandSlotForCode(slot: number): CommandSlot {
+  switch (slot) {
+    case 1:
+    case 2:
+    case 3:
+      return slot;
+    default:
+      throw new Error(`Unknown weapon slot: ${slot}`);
+  }
+}
 
 export type HealthSchema = { current: number; max: number };
 export const Health: Component<HealthSchema> = new Component<HealthSchema>({
@@ -181,10 +209,7 @@ export const ALL_COMPONENTS: DynamicComponent[] = [
   Drawable,
   Door,
   Locked,
-  Key,
-  UplinkCode,
   UplinkTerminal,
-  WeaponPickup,
   Item,
   TurnTaker,
   Enemy,

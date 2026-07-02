@@ -1,18 +1,18 @@
 import { type Entity, System, type World } from "@phughesmcr/miski";
 import {
+  commandSlotForCode,
   Door,
   DrawableKind,
   EnemyArchetype,
   EnemyArchetypeComponent,
+  enemyArchetypeForCode,
   Facing,
   Health,
   Item,
   ItemKind,
-  Key,
+  itemKindForCode,
   Locked,
-  UplinkCode,
   UplinkTerminal,
-  WeaponPickup,
 } from "@/src/ecs/components.ts";
 import type { DrawablePartitions, GridPosPartitions } from "@/src/ecs/components.ts";
 import { drawableRenderQuery } from "@/src/ecs/queries.ts";
@@ -35,7 +35,7 @@ export type ActorDrawableKind =
 export type ActorDrawableEntity = DrawableBase & {
   readonly kind: ActorDrawableKind;
   readonly dir: number;
-  readonly enemyArchetype?: EnemyArchetype;
+  readonly enemyArchetype: EnemyArchetype | undefined;
   readonly health?: {
     readonly current: number;
     readonly max: number;
@@ -67,9 +67,14 @@ export type WeaponPickupDrawableEntity = DrawableBase & {
   readonly slot: CommandSlot;
 };
 
+export type ConsumableItemKind =
+  | typeof ItemKind.HealthPatch
+  | typeof ItemKind.PistolAmmo
+  | typeof ItemKind.CannonAmmo;
+
 export type ItemDrawableEntity = DrawableBase & {
   readonly kind: typeof DrawableKind.Item;
-  readonly itemKind: ItemKind;
+  readonly itemKind: ConsumableItemKind;
   readonly amount: number;
 };
 
@@ -178,7 +183,7 @@ function actorDrawableEntityFor(
     ...position,
     kind,
     dir,
-    ...(enemyArchetype === undefined ? {} : { enemyArchetype }),
+    enemyArchetype,
     ...(health === undefined ? {} : { health }),
   };
 }
@@ -200,16 +205,7 @@ function enemyArchetypeFor(world: World, entity: Entity): EnemyArchetype | undef
   if (!world.components.entityHas(EnemyArchetypeComponent, entity)) return undefined;
 
   const archetype = world.components.getEntityData(EnemyArchetypeComponent, entity).archetype;
-  switch (archetype) {
-    case EnemyArchetype.MeleeDog:
-    case EnemyArchetype.Gunslinger:
-    case EnemyArchetype.NetworkNeophyte:
-    case EnemyArchetype.SystemSentinel:
-    case EnemyArchetype.AgenticAcolyte:
-      return archetype;
-    default:
-      throw new Error(`Unknown enemy archetype: ${archetype}`);
-  }
+  return enemyArchetypeForCode(archetype);
 }
 
 function doorDrawableEntityFor(
@@ -235,13 +231,13 @@ function keyDrawableEntityFor(
   entity: Entity,
   position: DrawableBase,
 ): KeyDrawableEntity | undefined {
-  if (!world.components.entityHas(Key, entity)) return undefined;
+  const item = itemDataFor(world, entity, ItemKind.Key);
+  if (item === undefined) return undefined;
 
-  const key = world.components.getEntityData(Key, entity);
   return {
     ...position,
     kind: DrawableKind.Key,
-    color: keyColorForCode(key.color),
+    color: keyColorForCode(item.value),
   };
 }
 
@@ -250,7 +246,7 @@ function uplinkCodeDrawableEntityFor(
   entity: Entity,
   position: DrawableBase,
 ): UplinkCodeDrawableEntity | undefined {
-  if (!world.components.entityHas(UplinkCode, entity)) return undefined;
+  if (itemDataFor(world, entity, ItemKind.UplinkCode) === undefined) return undefined;
   return {
     ...position,
     kind: DrawableKind.UplinkCode,
@@ -274,13 +270,13 @@ function weaponPickupDrawableEntityFor(
   entity: Entity,
   position: DrawableBase,
 ): WeaponPickupDrawableEntity | undefined {
-  if (!world.components.entityHas(WeaponPickup, entity)) return undefined;
+  const item = itemDataFor(world, entity, ItemKind.Weapon);
+  if (item === undefined) return undefined;
 
-  const { slot } = world.components.getEntityData(WeaponPickup, entity);
   return {
     ...position,
     kind: DrawableKind.WeaponPickup,
-    slot: commandSlotForCode(slot),
+    slot: commandSlotForCode(item.value),
   };
 }
 
@@ -292,32 +288,36 @@ function itemDrawableEntityFor(
   if (!world.components.entityHas(Item, entity)) return undefined;
 
   const item = world.components.getEntityData(Item, entity);
+  const itemKind = consumableItemKindFor(itemKindForCode(item.kind));
+  if (itemKind === undefined) return undefined;
   return {
     ...position,
     kind: DrawableKind.Item,
-    itemKind: itemKindForCode(item.kind),
-    amount: item.amount,
+    itemKind,
+    amount: item.value,
   };
 }
 
-function itemKindForCode(kind: number): ItemKind {
-  switch (kind) {
+function consumableItemKindFor(itemKind: ItemKind): ConsumableItemKind | undefined {
+  switch (itemKind) {
     case ItemKind.HealthPatch:
     case ItemKind.PistolAmmo:
     case ItemKind.CannonAmmo:
-      return kind;
-    default:
-      throw new Error(`Unknown item kind: ${kind}`);
+      return itemKind;
+    case ItemKind.Key:
+    case ItemKind.UplinkCode:
+    case ItemKind.Weapon:
+      return undefined;
   }
 }
 
-function commandSlotForCode(slot: number): CommandSlot {
-  switch (slot) {
-    case 1:
-    case 2:
-    case 3:
-      return slot;
-    default:
-      throw new Error(`Unknown weapon slot: ${slot}`);
-  }
+function itemDataFor(
+  world: World,
+  entity: Entity,
+  expectedKind: ItemKind,
+): { readonly kind: number; readonly value: number } | undefined {
+  if (!world.components.entityHas(Item, entity)) return undefined;
+
+  const item = world.components.getEntityData(Item, entity);
+  return itemKindForCode(item.kind) === expectedKind ? item : undefined;
 }

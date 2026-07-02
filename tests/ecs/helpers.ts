@@ -18,14 +18,11 @@ import {
   Interactable,
   Item,
   ItemKind,
-  Key,
   Locked,
   Npc,
   Player as PlayerComponent,
   TurnTaker,
-  UplinkCode,
   UplinkTerminal,
-  WeaponPickup,
 } from "@/src/ecs/components.ts";
 import type { CardinalDirection } from "@/src/grid/direction.ts";
 import type { DialogueTreeId } from "@/src/dialogue/dialogue.ts";
@@ -135,7 +132,7 @@ export type TestKeyOptions = {
 export function createTestKey(world: World, opts: TestKeyOptions): Entity {
   const entity = createEntity(world);
   world.components.addToEntity(GridPos, entity, { x: opts.x, y: opts.y });
-  world.components.addToEntity(Key, entity, { color: keyColorCode(opts.color) });
+  world.components.addToEntity(Item, entity, { kind: ItemKind.Key, value: keyColorCode(opts.color) });
   return entity;
 }
 
@@ -147,7 +144,7 @@ export type TestUplinkCodeOptions = {
 export function createTestUplinkCode(world: World, opts: TestUplinkCodeOptions): Entity {
   const entity = createEntity(world);
   world.components.addToEntity(GridPos, entity, { x: opts.x, y: opts.y });
-  world.components.addToEntity(UplinkCode, entity);
+  world.components.addToEntity(Item, entity, { kind: ItemKind.UplinkCode, value: 0 });
   return entity;
 }
 
@@ -176,7 +173,7 @@ export type TestWeaponPickupOptions = {
 export function createTestWeaponPickup(world: World, opts: TestWeaponPickupOptions): Entity {
   const entity = createEntity(world);
   world.components.addToEntity(GridPos, entity, { x: opts.x, y: opts.y });
-  world.components.addToEntity(WeaponPickup, entity, { slot: opts.slot });
+  world.components.addToEntity(Item, entity, { kind: ItemKind.Weapon, value: opts.slot });
   return entity;
 }
 
@@ -190,7 +187,7 @@ export type TestItemOptions = {
 export function createTestItem(world: World, opts: TestItemOptions): Entity {
   const entity = createEntity(world);
   world.components.addToEntity(GridPos, entity, { x: opts.x, y: opts.y });
-  world.components.addToEntity(Item, entity, { kind: opts.kind, amount: opts.amount });
+  world.components.addToEntity(Item, entity, { kind: opts.kind, value: opts.amount });
   return entity;
 }
 

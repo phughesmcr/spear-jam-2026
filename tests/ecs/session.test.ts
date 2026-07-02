@@ -487,6 +487,31 @@ Deno.test("attacking with a ranged weapon spends ammo before resolving combat", 
   assertEquals(session.getPlayerState().progress, { credits: 10, score: 10, xp: 0, levelCredits: 10 });
 });
 
+Deno.test("attacking empty space with a ranged weapon still spends ammo", async () => {
+  const world = await createWorld();
+  const playerEntity = createTestPlayer(world, { blocking: true, tag: true });
+  const session = createTestSession(world, playerEntity, TEST_MAP, {
+    playerState: {
+      heldKeys: [],
+      selectedWeapon: 2,
+      unlockedWeapons: [1, 2],
+      ammo: { pistol: 1, cannon: 0 },
+    },
+  });
+
+  const result = session.handlePlayerCommand({ type: "attack" });
+
+  assertEquals(result.events, [
+    { type: "ammoSpent", ammo: "pistol", amount: 1 },
+    {
+      type: "attackMissed",
+      actor: playerEntity,
+      actorName: "You",
+    },
+  ]);
+  assertEquals(session.getPlayerState().ammo, { pistol: 0, cannon: 0 });
+});
+
 Deno.test("turning changes facing without consuming a turn", async () => {
   const world = await createWorld();
   const playerEntity = createTestPlayer(world, {

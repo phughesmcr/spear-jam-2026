@@ -1,7 +1,7 @@
 import type { World } from "@phughesmcr/miski";
 import { EnemyArchetype, ItemKind } from "@/src/ecs/components.ts";
 import { DrawableKind, forEachDrawableEntity } from "@/src/ecs/drawables.ts";
-import type { DrawableEntity } from "@/src/ecs/drawables.ts";
+import type { ConsumableItemKind, DrawableEntity } from "@/src/ecs/drawables.ts";
 import { directionDelta } from "@/src/grid/direction.ts";
 import { KeyColor } from "@/src/map/map.ts";
 import type { KeyColor as KeyColorType } from "@/src/map/map.ts";
@@ -210,7 +210,7 @@ function renderItem(
   ctx: CanvasRenderingContext2D,
   x: number,
   y: number,
-  itemKind: ItemKind,
+  itemKind: ConsumableItemKind,
   metrics: MapRenderMetrics,
 ): void {
   const { offsetX, offsetY, tileSize } = metrics;
@@ -227,7 +227,7 @@ function renderItem(
   ctx.fillText(itemLabel(itemKind), centerX, centerY + 0.5);
 }
 
-function itemColor(itemKind: ItemKind): string {
+function itemColor(itemKind: ConsumableItemKind): string {
   switch (itemKind) {
     case ItemKind.HealthPatch:
       return HEALTH_PICKUP_COLOR;
@@ -238,7 +238,7 @@ function itemColor(itemKind: ItemKind): string {
   }
 }
 
-function itemLabel(itemKind: ItemKind): string {
+function itemLabel(itemKind: ConsumableItemKind): string {
   switch (itemKind) {
     case ItemKind.HealthPatch:
       return "+";

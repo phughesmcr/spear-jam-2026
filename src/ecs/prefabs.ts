@@ -21,14 +21,11 @@ import {
   Interactable,
   Item,
   ItemKind,
-  Key,
   Locked,
   Npc,
   Player,
   TurnTaker,
-  UplinkCode,
   UplinkTerminal,
-  WeaponPickup,
 } from "@/src/ecs/components.ts";
 import type { AttackSchema } from "@/src/ecs/components.ts";
 import { normalizeDirection } from "@/src/grid/direction.ts";
@@ -151,7 +148,7 @@ export type EnemyPrefab = Omit<EnemyDef, "prefab">;
 export function createEnemy(world: World, prefab: EnemyPrefab): Entity {
   const entity = createEntity(world, "enemy");
 
-  const archetype = enemyArchetypeCode(prefab.archetype);
+  const archetype = prefab.archetype ?? EnemyArchetype.MeleeDog;
   const defaults = ENEMY_ARCHETYPE_DEFAULTS[archetype];
   const health = prefab.health ?? defaults.health;
   addGridActor(world, entity, prefab, DrawableKind.Enemy, DrawableLayer.Enemy);
@@ -172,21 +169,6 @@ function createAttackSpec(prefab: EnemyPrefab, defaults: EnemyArchetypeDefaults)
     maxDamage: fixedDamage,
     ...prefab.attack,
   };
-}
-
-function enemyArchetypeCode(archetype: EnemyPrefab["archetype"]): EnemyArchetype {
-  switch (archetype ?? "meleeDog") {
-    case "meleeDog":
-      return EnemyArchetype.MeleeDog;
-    case "gunslinger":
-      return EnemyArchetype.Gunslinger;
-    case "networkNeophyte":
-      return EnemyArchetype.NetworkNeophyte;
-    case "systemSentinel":
-      return EnemyArchetype.SystemSentinel;
-    case "agenticAcolyte":
-      return EnemyArchetype.AgenticAcolyte;
-  }
 }
 
 export type DoorPrefab = Omit<DoorDef, "prefab">;
@@ -214,7 +196,7 @@ export function createKey(world: World, prefab: KeyPrefab): Entity {
   const entity = createEntity(world, "key");
   addPosition(world, entity, prefab);
   addDrawable(world, entity, DrawableKind.Key, DrawableLayer.Item);
-  world.components.addToEntity(Key, entity, { color: keyColorCode(prefab.color) });
+  addItem(world, entity, ItemKind.Key, keyColorCode(prefab.color));
   return entity;
 }
 
@@ -224,7 +206,7 @@ export function createUplinkCode(world: World, prefab: UplinkCodePrefab): Entity
   const entity = createEntity(world, "uplinkCode");
   addPosition(world, entity, prefab);
   addDrawable(world, entity, DrawableKind.UplinkCode, DrawableLayer.Item);
-  world.components.addToEntity(UplinkCode, entity);
+  addItem(world, entity, ItemKind.UplinkCode, 0);
   return entity;
 }
 
@@ -246,7 +228,7 @@ export function createWeaponPickup(world: World, prefab: WeaponPickupPrefab): En
   const entity = createEntity(world, "weaponPickup");
   addPosition(world, entity, prefab);
   addDrawable(world, entity, DrawableKind.WeaponPickup, DrawableLayer.Item);
-  world.components.addToEntity(WeaponPickup, entity, { slot: prefab.slot });
+  addItem(world, entity, ItemKind.Weapon, prefab.slot);
   return entity;
 }
 
@@ -256,19 +238,8 @@ export function createItem(world: World, prefab: ItemPrefab): Entity {
   const entity = createEntity(world, "item");
   addPosition(world, entity, prefab);
   addDrawable(world, entity, DrawableKind.Item, DrawableLayer.Item);
-  world.components.addToEntity(Item, entity, { kind: itemKindCode(prefab.item), amount: prefab.amount });
+  addItem(world, entity, prefab.item, prefab.amount);
   return entity;
-}
-
-function itemKindCode(item: ItemPrefab["item"]): number {
-  switch (item) {
-    case "healthPatch":
-      return ItemKind.HealthPatch;
-    case "pistolAmmo":
-      return ItemKind.PistolAmmo;
-    case "cannonAmmo":
-      return ItemKind.CannonAmmo;
-  }
 }
 
 function createEntity(world: World, prefabName: string): Entity {
@@ -309,6 +280,10 @@ function addDisplayName(world: World, entity: Entity, displayName: DisplayName):
 
 function addHealth(world: World, entity: Entity, health: number): void {
   world.components.addToEntity(Health, entity, { current: health, max: health });
+}
+
+function addItem(world: World, entity: Entity, kind: ItemKind, value: number): void {
+  world.components.addToEntity(Item, entity, { kind, value });
 }
 
 export function createMapEntity(world: World, prefab: MapEntityDef): Entity {

@@ -1,5 +1,10 @@
 import { type Entity, System, type World } from "@phughesmcr/miski";
-import { AttackFacingRequirement, EnemyArchetype, EnemyArchetypeComponent } from "@/src/ecs/components.ts";
+import {
+  AttackFacingRequirement,
+  EnemyArchetype,
+  EnemyArchetypeComponent,
+  enemyArchetypeForCode,
+} from "@/src/ecs/components.ts";
 import type { FacingPartitions, GridPosPartitions } from "@/src/ecs/components.ts";
 import { attackEntity, attackTargets, entityAttack } from "@/src/ecs/combat.ts";
 import type { Player } from "@/src/ecs/player.ts";
@@ -14,6 +19,13 @@ type EnemyTurnComponents = {
   readonly gridPos: { readonly partitions: GridPosPartitions };
   readonly facing: { readonly partitions: FacingPartitions };
 };
+
+const CARDINAL_STEPS = [
+  { dx: 0, dy: -1 },
+  { dx: 1, dy: 0 },
+  { dx: 0, dy: 1 },
+  { dx: -1, dy: 0 },
+] as const satisfies readonly GridDelta[];
 
 export type EnemyTurnContext = {
   readonly world: World;
@@ -224,20 +236,19 @@ function tryMoveEnemyTowardPlayer(
   spatial: SpatialLookup & Pick<SpatialMutations, "moveEntity">,
 ): boolean {
   const playerPosition = player.getPosition();
-  const x = gridPos.x[entity]!;
-  const y = gridPos.y[entity]!;
-  const stepX = Math.sign(playerPosition.x - x);
-  const stepY = Math.sign(playerPosition.y - y);
+  const current = entityPosition(entity, gridPos);
+  const stepX = Math.sign(playerPosition.x - current.x);
+  const stepY = Math.sign(playerPosition.y - current.y);
   const candidates = enemyMoveCandidates(
     { dx: stepX, dy: 0 },
     { dx: 0, dy: stepY },
-    Math.abs(playerPosition.x - x),
-    Math.abs(playerPosition.y - y),
+    Math.abs(playerPosition.x - current.x),
+    Math.abs(playerPosition.y - current.y),
   );
 
   for (const delta of candidates) {
-    const nextX = x + delta.dx;
-    const nextY = y + delta.dy;
+    const nextX = current.x + delta.dx;
+    const nextY = current.y + delta.dy;
     if (spatial.positionBlocks(nextX, nextY)) continue;
 
     spatial.moveEntity(entity, { x: nextX, y: nextY });
@@ -261,31 +272,38 @@ function tryMoveEnemyAwayFromPlayer(
   const currentDistance = manhattanDistance(current, playerPosition);
   const awayX = Math.sign(current.x - playerPosition.x);
   const awayY = Math.sign(current.y - playerPosition.y);
-  const candidates = [
-    ...enemyMoveCandidates(
-      { dx: awayX, dy: 0 },
-      { dx: 0, dy: awayY },
-      Math.abs(current.x - playerPosition.x),
-      Math.abs(current.y - playerPosition.y),
-    ),
-    { dx: 0, dy: -1 },
-    { dx: 1, dy: 0 },
-    { dx: 0, dy: 1 },
-    { dx: -1, dy: 0 },
-  ];
+  const preferred = enemyMoveCandidates(
+    { dx: awayX, dy: 0 },
+    { dx: 0, dy: awayY },
+    Math.abs(current.x - playerPosition.x),
+    Math.abs(current.y - playerPosition.y),
+  );
   let best:
-    | { readonly delta: GridDelta; readonly x: number; readonly y: number; readonly distance: number }
+    | {
+      readonly delta: GridDelta;
+      readonly x: number;
+      readonly y: number;
+      readonly distance: number;
+      readonly priority: number;
+    }
     | undefined;
 
-  for (const delta of candidates) {
-    if (delta.dx === 0 && delta.dy === 0) continue;
+  for (let index = 0; index < CARDINAL_STEPS.length; index++) {
+    const delta = CARDINAL_STEPS[index]!;
     const x = current.x + delta.dx;
     const y = current.y + delta.dy;
     if (spatial.positionBlocks(x, y)) continue;
 
     const distance = manhattanDistance({ x, y }, playerPosition);
     if (distance <= currentDistance) continue;
-    if (best === undefined || distance > best.distance) best = { delta, x, y, distance };
+    const priority = movePriority(delta, preferred, index);
+    if (
+      best === undefined ||
+      distance > best.distance ||
+      (distance === best.distance && priority < best.priority)
+    ) {
+      best = { delta, x, y, distance, priority };
+    }
   }
 
   if (best === undefined) return false;
@@ -309,6 +327,15 @@ function enemyMoveCandidates(
     if (horizontal.dx !== 0) candidates.push(horizontal);
   }
   return candidates;
+}
+
+function movePriority(delta: GridDelta, preferred: readonly GridDelta[], cardinalIndex: number): number {
+  const preferredIndex = preferred.findIndex((candidate) => sameDelta(candidate, delta));
+  return preferredIndex === -1 ? preferred.length + cardinalIndex : preferredIndex;
+}
+
+function sameDelta(a: GridDelta, b: GridDelta): boolean {
+  return a.dx === b.dx && a.dy === b.dy;
 }
 
 function faceEntityToward(
@@ -358,14 +385,5 @@ function enemyArchetype(world: World, entity: Entity): EnemyArchetype | undefine
   if (!world.components.entityHas(EnemyArchetypeComponent, entity)) return undefined;
 
   const archetype = world.components.getEntityData(EnemyArchetypeComponent, entity).archetype;
-  switch (archetype) {
-    case EnemyArchetype.MeleeDog:
-    case EnemyArchetype.Gunslinger:
-    case EnemyArchetype.NetworkNeophyte:
-    case EnemyArchetype.SystemSentinel:
-    case EnemyArchetype.AgenticAcolyte:
-      return archetype;
-    default:
-      throw new Error(`Unknown enemy archetype: ${archetype}`);
-  }
+  return enemyArchetypeForCode(archetype);
 }

@@ -1,16 +1,13 @@
 import type { Entity, World } from "@phughesmcr/miski";
-import { GridPos, Health, Item, ItemKind, UplinkTerminal } from "@/src/ecs/components.ts";
+import { GridPos, Health, UplinkTerminal } from "@/src/ecs/components.ts";
 import { directionDelta } from "@/src/grid/direction.ts";
 import type { GridDelta } from "@/src/grid/direction.ts";
-import { attackWithSelectedWeapon, DEFAULT_SELECTED_WEAPON, weaponAmmoKind, weaponLabel } from "@/src/ecs/combat.ts";
+import { attackWithSelectedWeapon, weaponAmmoKind, weaponLabel } from "@/src/ecs/combat.ts";
 import { enemyTurnSystem } from "@/src/ecs/enemy.ts";
 import type { EnemyTurnSystem } from "@/src/ecs/enemy.ts";
-import {
-  collectKeyAt,
-  collectUplinkCodeAt,
-  collectWeaponPickupAt,
-  interactWithEntity,
-} from "@/src/ecs/interactions.ts";
+import { collectItemAt, interactWithEntity } from "@/src/ecs/interactions.ts";
+import type { ItemPickup } from "@/src/ecs/interactions.ts";
+import { PlayerInventory } from "@/src/ecs/player_inventory.ts";
 import { createMapEntity } from "@/src/ecs/prefabs.ts";
 import { Player } from "@/src/ecs/player.ts";
 import { positionedQuery } from "@/src/ecs/queries.ts";
@@ -20,15 +17,13 @@ import { relativeMoveDirectionOffset, turnDirectionDelta } from "@/src/game/comm
 import type { PlayerCommand, PlayerCommandResult } from "@/src/game/commands.ts";
 import type { GameEvent } from "@/src/game/events.ts";
 import type { RandomSource } from "@/src/game/rng.ts";
-import type { AmmoKind, CommandSlot, PlayerAmmoState, PlayerProgressState, PlayerState } from "@/src/game/state.ts";
+import type { AmmoKind, CommandSlot, PlayerProgressState, PlayerState } from "@/src/game/state.ts";
 import { VICTORY_GOTO } from "@/src/map/map.ts";
-import type { GameMap, KeyColor } from "@/src/map/map.ts";
+import type { GameMap } from "@/src/map/map.ts";
 
 const UNCHANGED_PLAYER_COMMAND: PlayerCommandResult = Object.freeze({
   events: [],
 });
-const DEFAULT_UNLOCKED_WEAPONS: readonly CommandSlot[] = Object.freeze([DEFAULT_SELECTED_WEAPON]);
-const DEFAULT_AMMO: PlayerAmmoState = Object.freeze({ pistol: 0, cannon: 0 });
 const DEFAULT_PROGRESS: PlayerProgressState = Object.freeze({ credits: 0, score: 0, xp: 0, levelCredits: 0 });
 const ENEMY_DEFEAT_CREDITS = 10;
 
@@ -75,16 +70,12 @@ export class GameSession implements Disposable {
   readonly world: World;
   readonly player: Player;
   readonly map: GameMap;
-  private readonly heldKeys: Set<KeyColor>;
   private readonly random: RandomSource;
   private readonly enemyTurnSystem: EnemyTurnSystem;
   private readonly spatial: SpatialIndex;
   private readonly terminalDestinations: ReadonlyMap<Entity, string>;
-  private readonly unlockedWeapons: Set<CommandSlot>;
-  private readonly ammo: { pistol: number; cannon: number };
+  private readonly inventory: PlayerInventory;
   private readonly progress: { credits: number; score: number; xp: number; levelCredits: number };
-  private selectedWeapon: CommandSlot;
-  private hasUplinkCode: boolean;
   private disposed = false;
 
   constructor(
@@ -97,27 +88,19 @@ export class GameSession implements Disposable {
     this.world = world;
     this.player = player;
     this.map = map;
-    this.heldKeys = new Set(playerState?.heldKeys ?? []);
     this.random = random;
     this.enemyTurnSystem = world.systems.create(enemyTurnSystem);
     this.spatial = new SpatialIndex(world, map);
     this.terminalDestinations = terminalDestinationsFor(world, map);
-    this.unlockedWeapons = unlockedWeaponsFor(playerState);
-    this.ammo = ammoFor(playerState);
+    this.inventory = new PlayerInventory(playerState);
     this.progress = progressFor(playerState);
-    this.selectedWeapon = selectedWeaponFor(playerState?.selectedWeapon, this.unlockedWeapons);
-    this.hasUplinkCode = playerState?.hasUplinkCode ?? false;
   }
 
   getPlayerState(): PlayerState {
     const progress = playerProgressState(this.progress);
     const state: PlayerState = {
-      heldKeys: [...this.heldKeys],
-      selectedWeapon: this.selectedWeapon,
-      unlockedWeapons: sortedWeaponSlots(this.unlockedWeapons),
-      ammo: { ...this.ammo },
+      ...this.inventory.getState(),
       health: this.getPlayerHealth(),
-      hasUplinkCode: this.hasUplinkCode,
     };
     return progress === undefined ? state : { ...state, progress };
   }
@@ -155,15 +138,11 @@ export class GameSession implements Disposable {
     if (this.spatial.positionBlocks(next.x, next.y)) return { moved: false };
 
     this.spatial.moveEntity(this.player.getEntity(), next);
-    const keyEvents = collectKeyAt(this.world, this.spatial, this.heldKeys, next.x, next.y);
-    const codePickup = collectUplinkCodeAt(this.spatial, next.x, next.y);
-    const weaponPickup = collectWeaponPickupAt(this.world, this.spatial, next.x, next.y);
-    const itemEvents = this.collectItemAt(next.x, next.y);
-    if (codePickup.collected) this.hasUplinkCode = true;
-    if (weaponPickup.slot !== undefined) this.unlockedWeapons.add(weaponPickup.slot);
+    const pickup = collectItemAt(this.world, this.spatial, next.x, next.y);
+    const pickupEvents = pickup === undefined ? [] : this.applyItemPickup(pickup);
     return {
       moved: true,
-      events: [...keyEvents, ...codePickup.events, ...weaponPickup.events, ...itemEvents],
+      events: pickupEvents,
     };
   }
 
@@ -181,8 +160,8 @@ export class GameSession implements Disposable {
       this.world,
       this.spatial,
       this.spatial.facedEntity(this.player),
-      this.heldKeys,
-      this.hasUplinkCode,
+      this.inventory.heldKeys,
+      this.inventory.hasUplinkCode,
     );
     switch (interaction.type) {
       case "unchanged":
@@ -206,7 +185,7 @@ export class GameSession implements Disposable {
     }
 
     const levelCompleteEvents = this.completeLevel(events);
-    this.clearTransientInventory();
+    this.inventory.clearTransient();
     this.world.refresh();
     if (goto === VICTORY_GOTO) {
       return { events: levelCompleteEvents, outcome: "victory" };
@@ -218,23 +197,24 @@ export class GameSession implements Disposable {
   }
 
   private handlePlayerAttackCommand(): PlayerCommandResult {
-    const ammoKind = weaponAmmoKind(this.selectedWeapon);
+    const selectedWeapon = this.inventory.selectedWeapon;
+    const ammoKind = weaponAmmoKind(selectedWeapon);
     const ammoEvents = this.spendAmmo(ammoKind);
-    if (ammoEvents.type === "blocked") return { events: ammoEvents.events };
+    if (ammoEvents === undefined) return { events: [{ type: "noAmmo", ammo: ammoKind! }] };
 
     const events = attackWithSelectedWeapon(
       this.world,
       this.player,
-      this.selectedWeapon,
+      selectedWeapon,
       this.spatial,
       this.random,
     );
-    return this.consumePlayerTurn([...ammoEvents.events, ...this.awardCreditsForDefeats(events)]);
+    return this.consumePlayerTurn([...ammoEvents, ...this.awardCreditsForDefeats(events)]);
   }
 
   private handlePlayerSelectWeaponCommand(slot: CommandSlot): PlayerCommandResult {
     const label = weaponLabel(slot);
-    if (!this.unlockedWeapons.has(slot)) {
+    if (!this.inventory.hasWeapon(slot)) {
       return {
         events: [{
           type: "weaponUnavailable",
@@ -244,7 +224,7 @@ export class GameSession implements Disposable {
       };
     }
 
-    this.selectedWeapon = slot;
+    this.inventory.selectWeapon(slot);
     return {
       events: [{
         type: "weaponSelected",
@@ -276,24 +256,42 @@ export class GameSession implements Disposable {
     return this.world.components.getEntityData(Health, entity);
   }
 
-  private collectItemAt(x: number, y: number): readonly GameEvent[] {
-    const item = this.spatial.itemAt(x, y);
-    if (item === undefined) return [];
-
-    const { kind, amount } = this.world.components.getEntityData(Item, item);
-    switch (kind) {
-      case ItemKind.HealthPatch:
-        return this.collectHealthPatch(item, amount);
-      case ItemKind.PistolAmmo:
-        return this.collectAmmo(item, "pistol", amount);
-      case ItemKind.CannonAmmo:
-        return this.collectAmmo(item, "cannon", amount);
-      default:
-        throw new Error(`Unknown item kind: ${kind}`);
+  private applyItemPickup(pickup: ItemPickup): readonly GameEvent[] {
+    switch (pickup.type) {
+      case "key":
+        this.inventory.addKey(pickup.color);
+        return [{
+          type: "keyPickedUp",
+          entity: pickup.entity,
+        }];
+      case "uplinkCode":
+        this.inventory.addUplinkCode();
+        return [{
+          type: "uplinkCodePickedUp",
+          entity: pickup.entity,
+        }];
+      case "weapon":
+        this.inventory.unlockWeapon(pickup.slot);
+        return [{
+          type: "weaponPickedUp",
+          entity: pickup.entity,
+          slot: pickup.slot,
+          label: weaponLabel(pickup.slot),
+        }];
+      case "health":
+        return this.applyHealthPatch(pickup.entity, pickup.amount);
+      case "ammo":
+        this.inventory.addAmmo(pickup.ammo, pickup.amount);
+        return [{
+          type: "ammoPickedUp",
+          entity: pickup.entity,
+          ammo: pickup.ammo,
+          amount: pickup.amount,
+        }];
     }
   }
 
-  private collectHealthPatch(item: Entity, amount: number): readonly GameEvent[] {
+  private applyHealthPatch(item: Entity, amount: number): readonly GameEvent[] {
     const health = this.getPlayerHealth();
     const healed = health === undefined ? 0 : Math.min(amount, health.max - health.current);
     if (health !== undefined && healed > 0) {
@@ -302,7 +300,6 @@ export class GameSession implements Disposable {
         max: health.max,
       });
     }
-    this.spatial.removeEntity(item);
     return [{
       type: "healthPickedUp",
       entity: item,
@@ -311,33 +308,9 @@ export class GameSession implements Disposable {
     }];
   }
 
-  private collectAmmo(item: Entity, ammo: AmmoKind, amount: number): readonly GameEvent[] {
-    this.ammo[ammo] += amount;
-    this.spatial.removeEntity(item);
-    return [{
-      type: "ammoPickedUp",
-      entity: item,
-      ammo,
-      amount,
-    }];
-  }
-
-  private spendAmmo(ammo: AmmoKind | undefined):
-    | { readonly type: "spent"; readonly events: readonly GameEvent[] }
-    | { readonly type: "blocked"; readonly events: readonly GameEvent[] } {
-    if (ammo === undefined) return { type: "spent", events: [] };
-    if (this.ammo[ammo] <= 0) {
-      return {
-        type: "blocked",
-        events: [{ type: "noAmmo", ammo }],
-      };
-    }
-
-    this.ammo[ammo] -= 1;
-    return {
-      type: "spent",
-      events: [{ type: "ammoSpent", ammo, amount: 1 }],
-    };
+  private spendAmmo(ammo: AmmoKind | undefined): readonly GameEvent[] | undefined {
+    if (!this.inventory.spendAmmo(ammo)) return undefined;
+    return ammo === undefined ? [] : [{ type: "ammoSpent", ammo, amount: 1 }];
   }
 
   private awardCreditsForDefeats(events: readonly GameEvent[]): readonly GameEvent[] {
@@ -369,11 +342,6 @@ export class GameSession implements Disposable {
     return [...events, { type: "xpGained", amount: xpGain, xp: this.progress.xp }];
   }
 
-  private clearTransientInventory(): void {
-    this.heldKeys.clear();
-    this.hasUplinkCode = false;
-  }
-
   [Symbol.dispose](): void {
     if (this.disposed) return;
     this.disposed = true;
@@ -403,21 +371,6 @@ function positionKey(x: number, y: number): string {
   return `${x},${y}`;
 }
 
-function unlockedWeaponsFor(playerState: PlayerState | undefined): Set<CommandSlot> {
-  const slots = new Set<CommandSlot>(DEFAULT_UNLOCKED_WEAPONS);
-  for (const slot of playerState?.unlockedWeapons ?? []) {
-    slots.add(slot);
-  }
-  return slots;
-}
-
-function ammoFor(playerState: PlayerState | undefined): { pistol: number; cannon: number } {
-  return {
-    pistol: playerState?.ammo?.pistol ?? DEFAULT_AMMO.pistol,
-    cannon: playerState?.ammo?.cannon ?? DEFAULT_AMMO.cannon,
-  };
-}
-
 function progressFor(
   playerState: PlayerState | undefined,
 ): { credits: number; score: number; xp: number; levelCredits: number } {
@@ -441,16 +394,4 @@ function playerProgressState(
     return undefined;
   }
   return { ...progress };
-}
-
-function selectedWeaponFor(
-  selectedWeapon: CommandSlot | undefined,
-  unlockedWeapons: ReadonlySet<CommandSlot>,
-): CommandSlot {
-  if (selectedWeapon !== undefined && unlockedWeapons.has(selectedWeapon)) return selectedWeapon;
-  return DEFAULT_SELECTED_WEAPON;
-}
-
-function sortedWeaponSlots(slots: ReadonlySet<CommandSlot>): readonly CommandSlot[] {
-  return [...slots].sort((a, b) => a - b);
 }

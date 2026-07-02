@@ -50,7 +50,7 @@ Deno.test("enemy archetypes apply top-down tuning defaults", async () => {
 
   const cases = [
     {
-      archetype: "meleeDog",
+      archetype: EnemyArchetype.MeleeDog,
       displayName: DisplayName.DigitalDog,
       code: EnemyArchetype.MeleeDog,
       health: 2,
@@ -60,7 +60,7 @@ Deno.test("enemy archetypes apply top-down tuning defaults", async () => {
       requiresFacing: AttackFacingRequirement.Required,
     },
     {
-      archetype: "gunslinger",
+      archetype: EnemyArchetype.Gunslinger,
       displayName: DisplayName.GigabitGunslinger,
       code: EnemyArchetype.Gunslinger,
       health: 2,
@@ -70,7 +70,7 @@ Deno.test("enemy archetypes apply top-down tuning defaults", async () => {
       requiresFacing: AttackFacingRequirement.Required,
     },
     {
-      archetype: "networkNeophyte",
+      archetype: EnemyArchetype.NetworkNeophyte,
       displayName: DisplayName.NetworkNeophyte,
       code: EnemyArchetype.NetworkNeophyte,
       health: 3,
@@ -80,7 +80,7 @@ Deno.test("enemy archetypes apply top-down tuning defaults", async () => {
       requiresFacing: AttackFacingRequirement.Required,
     },
     {
-      archetype: "systemSentinel",
+      archetype: EnemyArchetype.SystemSentinel,
       displayName: DisplayName.SystemSentinel,
       code: EnemyArchetype.SystemSentinel,
       health: 7,
@@ -90,7 +90,7 @@ Deno.test("enemy archetypes apply top-down tuning defaults", async () => {
       requiresFacing: AttackFacingRequirement.Required,
     },
     {
-      archetype: "agenticAcolyte",
+      archetype: EnemyArchetype.AgenticAcolyte,
       displayName: DisplayName.AgenticAcolyte,
       code: EnemyArchetype.AgenticAcolyte,
       health: 4,

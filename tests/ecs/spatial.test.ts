@@ -1,12 +1,12 @@
 import { assertEquals, assertThrows } from "@std/assert";
-import { Blocking, Door, Facing, GridPos, Interactable, Key } from "@/src/ecs/components.ts";
+import { Blocking, Door, Facing, GridPos, Interactable, Item, ItemKind } from "@/src/ecs/components.ts";
 import { Player } from "@/src/ecs/player.ts";
 import { SpatialIndex } from "@/src/ecs/spatial.ts";
 import { createWorld } from "@/src/ecs/world.ts";
 import { KeyColor, keyColorCode } from "@/src/map/map.ts";
 import { createEntity, flatTestMap } from "@/tests/ecs/helpers.ts";
 
-Deno.test("SpatialIndex indexes blocking entities, keys, faced entities, and exits", async () => {
+Deno.test("SpatialIndex indexes blocking entities, items, faced entities, and exits", async () => {
   const world = await createWorld();
   const player = createEntity(world);
   const door = createEntity(world);
@@ -21,14 +21,14 @@ Deno.test("SpatialIndex indexes blocking entities, keys, faced entities, and exi
   world.components.addToEntity(Blocking, door);
 
   world.components.addToEntity(GridPos, key, { x: 3, y: 1 });
-  world.components.addToEntity(Key, key, { color: keyColorCode(KeyColor.Red) });
+  world.components.addToEntity(Item, key, { kind: ItemKind.Key, value: keyColorCode(KeyColor.Red) });
   world.refresh();
 
   const spatial = new SpatialIndex(world, TEST_MAP);
 
   assertEquals(spatial.blockingEntityAt(2, 1), door);
   assertEquals(spatial.positionBlocks(2, 1), true);
-  assertEquals(spatial.keyAt(3, 1), key);
+  assertEquals(spatial.itemAt(3, 1), key);
   assertEquals(spatial.exitAt(4, 1), { prefab: "exit", x: 4, y: 1, goto: "next" });
   assertEquals(spatial.facedEntity(new Player(world, player)), door);
 });
@@ -41,7 +41,7 @@ Deno.test("SpatialIndex keeps its index current when entities move or are remove
   world.components.addToEntity(GridPos, actor, { x: 1, y: 1 });
   world.components.addToEntity(Blocking, actor);
   world.components.addToEntity(GridPos, key, { x: 2, y: 1 });
-  world.components.addToEntity(Key, key, { color: keyColorCode(KeyColor.Red) });
+  world.components.addToEntity(Item, key, { kind: ItemKind.Key, value: keyColorCode(KeyColor.Red) });
   world.refresh();
 
   const spatial = new SpatialIndex(world, TEST_MAP);
@@ -53,7 +53,7 @@ Deno.test("SpatialIndex keeps its index current when entities move or are remove
 
   spatial.removeEntity(key);
   assertEquals(world.entities.isActive(key), false);
-  assertEquals(spatial.keyAt(2, 1), undefined);
+  assertEquals(spatial.itemAt(2, 1), undefined);
 });
 
 Deno.test("SpatialIndex tracks co-located blocking entities individually", async () => {
