@@ -1,4 +1,4 @@
-import { directionDelta, manhattanDistance } from "@/src/grid/direction.ts";
+import { directionDelta, distanceSquared, manhattanDistance } from "@/src/grid/direction.ts";
 import type { CardinalDirection, GridPoint } from "@/src/grid/direction.ts";
 
 export type BlocksSight = (x: number, y: number) => boolean;
@@ -62,8 +62,4 @@ function isWithinFacingCone(origin: GridPoint, target: GridPoint, facing: Cardin
   const sideDistance = dx * side.dx + dy * side.dy;
 
   return forwardDistance >= 0 && Math.abs(sideDistance) <= forwardDistance;
-}
-
-function distanceSquared(a: GridPoint, b: GridPoint): number {
-  return (a.x - b.x) ** 2 + (a.y - b.y) ** 2;
 }

@@ -1,7 +1,7 @@
 import type { GameSession } from "@/src/ecs/session.ts";
 import type { PlayerState } from "@/src/game/state.ts";
 import type { GameCanvasSize } from "@/src/render/canvas.ts";
-import { fitText } from "@/src/render/text.ts";
+import { fitText, monoFont } from "@/src/render/text.ts";
 
 const HUD_MARGIN = 12;
 const HUD_PADDING = 10;
@@ -26,7 +26,7 @@ export function renderHud(ctx: CanvasRenderingContext2D, canvasSize: GameCanvasS
   ctx.save();
   ctx.fillStyle = HUD_BACKGROUND;
   ctx.fillRect(x, y, width, height);
-  ctx.font = "400 14px ui-monospace, SFMono-Regular, Menlo, monospace";
+  ctx.font = monoFont(400, 14);
   ctx.textAlign = "left";
   ctx.textBaseline = "middle";
 

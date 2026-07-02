@@ -1,8 +1,8 @@
 import type { Entity, World } from "@phughesmcr/miski";
-import { Door, Health } from "@/src/ecs/components.ts";
+import { Door, Health, healthFor } from "@/src/ecs/components.ts";
 import { directionDelta } from "@/src/grid/direction.ts";
 import type { GridDelta } from "@/src/grid/direction.ts";
-import { attackWithSelectedWeapon, weaponAmmoKind, weaponLabel } from "@/src/ecs/combat.ts";
+import { attackWithSelectedWeapon, weaponAmmoKind, weaponLabel, weaponNoiseRadius } from "@/src/ecs/combat.ts";
 import { DrawableKind, drawableSystem } from "@/src/ecs/drawables.ts";
 import type { DrawableEntity, DrawableEntityVisitor, DrawableSystem } from "@/src/ecs/drawables.ts";
 import { enemyTurnSystem } from "@/src/ecs/enemy.ts";
@@ -35,8 +35,6 @@ const ENEMY_DEFEAT_CREDITS = 10;
 const PLAYER_VISIBILITY_RADIUS = 6;
 const MOVE_NOISE_RADIUS = 2;
 const DOOR_NOISE_RADIUS = 4;
-const MELEE_ATTACK_NOISE_RADIUS = 4;
-const RANGED_ATTACK_NOISE_RADIUS = 8;
 
 type MoveResult =
   | { readonly moved: false }
@@ -114,7 +112,7 @@ export class GameSession implements Disposable {
   }
 
   getPlayerState(): PlayerState {
-    const health = this.getPlayerHealth() ?? DEFAULT_PLAYER_STATE.health;
+    const health = healthFor(this.world, this.player.getEntity()) ?? DEFAULT_PLAYER_STATE.health;
     return {
       ...this.status.getState(),
       health: { ...health },
@@ -245,7 +243,7 @@ export class GameSession implements Disposable {
     );
     return this.consumePlayerTurn(
       [...ammoEvents, ...this.awardCreditsForDefeats(events)],
-      this.playerNoise(attackNoiseRadius(selectedWeapon)),
+      this.playerNoise(weaponNoiseRadius(selectedWeapon)),
     );
   }
 
@@ -324,13 +322,7 @@ export class GameSession implements Disposable {
   }
 
   private isPlayerDefeated(): boolean {
-    return (this.getPlayerHealth()?.current ?? 1) <= 0;
-  }
-
-  private getPlayerHealth(): { current: number; max: number } | undefined {
-    const entity = this.player.getEntity();
-    if (!this.world.components.entityHas(Health, entity)) return undefined;
-    return this.world.components.getEntityData(Health, entity);
+    return (healthFor(this.world, this.player.getEntity())?.current ?? 1) <= 0;
   }
 
   private applyItemPickup(pickup: ItemPickup): readonly GameEvent[] {
@@ -369,10 +361,11 @@ export class GameSession implements Disposable {
   }
 
   private applyHealthPatch(item: Entity, amount: number): readonly GameEvent[] {
-    const health = this.getPlayerHealth();
+    const playerEntity = this.player.getEntity();
+    const health = healthFor(this.world, playerEntity);
     const healed = health === undefined ? 0 : Math.min(amount, health.max - health.current);
     if (health !== undefined && healed > 0) {
-      this.world.components.setEntityData(Health, this.player.getEntity(), {
+      this.world.components.setEntityData(Health, playerEntity, {
         current: health.current + healed,
         max: health.max,
       });
@@ -415,8 +408,4 @@ export class GameSession implements Disposable {
     this.disposed = true;
     void this.world.destroy();
   }
-}
-
-function attackNoiseRadius(slot: CommandSlot): number {
-  return slot === 1 ? MELEE_ATTACK_NOISE_RADIUS : RANGED_ATTACK_NOISE_RADIUS;
 }

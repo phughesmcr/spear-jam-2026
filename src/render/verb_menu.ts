@@ -1,6 +1,7 @@
 import { VERBS } from "@/src/game/verbs.ts";
 import type { VerbId } from "@/src/game/verbs.ts";
 import type { GameCanvasSize } from "@/src/render/canvas.ts";
+import { monoFont } from "@/src/render/text.ts";
 
 export type VerbMenuPoint = {
   readonly x: number;
@@ -170,13 +171,13 @@ function renderTextVerbMenu(
   ctx.fillRect(x, y, width, height);
   ctx.strokeRect(x + 0.5, y + 0.5, width - 1, height - 1);
 
-  ctx.font = "700 12px ui-monospace, SFMono-Regular, Menlo, monospace";
+  ctx.font = monoFont(700, 12);
   ctx.textAlign = "left";
   ctx.textBaseline = "middle";
   ctx.fillStyle = MUTED_TEXT_COLOR;
   ctx.fillText("VERB", x + PANEL_PADDING, y + PANEL_PADDING + TITLE_HEIGHT / 2);
 
-  ctx.font = "700 14px ui-monospace, SFMono-Regular, Menlo, monospace";
+  ctx.font = monoFont(700, 14);
   for (let i = 0; i < VERBS.length; i++) {
     const itemY = y + PANEL_PADDING + TITLE_HEIGHT + i * ITEM_HEIGHT;
     const selected = i === selectedIndex;
@@ -279,7 +280,7 @@ function drawHotspotLabel(
   selected: boolean,
 ): void {
   const fontSize = Math.min(18, Math.max(12, Math.round(rect.size * 0.036)));
-  ctx.font = `700 ${fontSize}px ui-monospace, SFMono-Regular, Menlo, monospace`;
+  ctx.font = monoFont(700, fontSize);
   ctx.textAlign = "left";
   ctx.textBaseline = "middle";
   const width = ctx.measureText(hotspot.label).width + fontSize;

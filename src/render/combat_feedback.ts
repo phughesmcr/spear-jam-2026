@@ -1,5 +1,6 @@
 import type { CombatFeedback, CombatFeedbackTone } from "@/src/game/combat_feedback.ts";
 import type { MapRenderMetrics } from "@/src/render/map.ts";
+import { monoFont } from "@/src/render/text.ts";
 
 const MAX_FEEDBACK = 4;
 const FEEDBACK_FONT_SIZE = 13;
@@ -28,7 +29,7 @@ export function renderCombatFeedback(
   const y = metrics.offsetY + metrics.mapHeight * metrics.tileSize + FEEDBACK_GAP;
 
   ctx.save();
-  ctx.font = `700 ${FEEDBACK_FONT_SIZE}px ui-monospace, SFMono-Regular, Menlo, monospace`;
+  ctx.font = monoFont(700, FEEDBACK_FONT_SIZE);
   ctx.textAlign = "center";
   ctx.textBaseline = "middle";
 

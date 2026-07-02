@@ -24,6 +24,7 @@ import type { AmmoKind, CommandSlot } from "@/src/game/state.ts";
 type WeaponSpec = AttackSchema & {
   readonly label: string;
   readonly ammo?: AmmoKind;
+  readonly noiseRadius: number;
 };
 
 type EntityPredicate = (entity: Entity) => boolean;
@@ -39,17 +40,21 @@ export type AttackOutcome =
   };
 
 const DEFAULT_DEFENSE = 10;
+const MELEE_ATTACK_NOISE_RADIUS = 4;
+const RANGED_ATTACK_NOISE_RADIUS = 8;
 const PLAYER_WEAPONS: Readonly<Record<CommandSlot, WeaponSpec>> = {
   1: {
     ...DEFAULT_ATTACK,
-    label: "Melee",
+    label: "Bit Shifter",
+    noiseRadius: MELEE_ATTACK_NOISE_RADIUS,
     maxDamage: 2,
     attackBonus: 4,
   },
   2: {
     ...DEFAULT_ATTACK,
-    label: "Pistol",
+    label: "Pulse Pistol",
     ammo: "pistol",
+    noiseRadius: RANGED_ATTACK_NOISE_RADIUS,
     minDamage: 2,
     maxDamage: 3,
     range: 2,
@@ -58,6 +63,7 @@ const PLAYER_WEAPONS: Readonly<Record<CommandSlot, WeaponSpec>> = {
     ...DEFAULT_ATTACK,
     label: "Current Cannon",
     ammo: "cannon",
+    noiseRadius: RANGED_ATTACK_NOISE_RADIUS,
     minDamage: 2,
     maxDamage: 4,
     range: 6,
@@ -71,6 +77,10 @@ export function weaponLabel(slot: CommandSlot): string {
 
 export function weaponAmmoKind(slot: CommandSlot): AmmoKind | undefined {
   return PLAYER_WEAPONS[slot].ammo;
+}
+
+export function weaponNoiseRadius(slot: CommandSlot): number {
+  return PLAYER_WEAPONS[slot].noiseRadius;
 }
 
 export function attackWithSelectedWeapon(

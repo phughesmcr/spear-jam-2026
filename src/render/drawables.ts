@@ -6,6 +6,7 @@ import { directionDelta } from "@/src/grid/direction.ts";
 import { KeyColor } from "@/src/map/map.ts";
 import type { KeyColor as KeyColorType } from "@/src/map/map.ts";
 import type { MapRenderMetrics } from "@/src/render/map.ts";
+import { monoFont } from "@/src/render/text.ts";
 
 type Point = { readonly x: number; readonly y: number };
 type Triangle = readonly [Point, Point, Point];
@@ -105,16 +106,15 @@ function renderKey(
   color: KeyColorType,
   metrics: MapRenderMetrics,
 ): void {
-  const { offsetX, offsetY, tileSize } = metrics;
-  const centerX = offsetX + x * tileSize + tileSize / 2;
-  const centerY = offsetY + y * tileSize + tileSize / 2;
+  const { tileSize } = metrics;
+  const center = tileCenter(metrics, x, y);
   const radius = tileSize * 0.18;
   ctx.fillStyle = KEY_COLORS[color];
   ctx.beginPath();
-  ctx.moveTo(centerX, centerY - radius);
-  ctx.lineTo(centerX + radius, centerY);
-  ctx.lineTo(centerX, centerY + radius);
-  ctx.lineTo(centerX - radius, centerY);
+  ctx.moveTo(center.x, center.y - radius);
+  ctx.lineTo(center.x + radius, center.y);
+  ctx.lineTo(center.x, center.y + radius);
+  ctx.lineTo(center.x - radius, center.y);
   ctx.closePath();
   ctx.fill();
 }
@@ -147,17 +147,16 @@ function renderUplinkCode(
   y: number,
   metrics: MapRenderMetrics,
 ): void {
-  const { offsetX, offsetY, tileSize } = metrics;
-  const centerX = offsetX + x * tileSize + tileSize / 2;
-  const centerY = offsetY + y * tileSize + tileSize / 2;
+  const { tileSize } = metrics;
+  const center = tileCenter(metrics, x, y);
   const width = tileSize * 0.46;
   const height = tileSize * 0.28;
   const notch = Math.max(2, tileSize * 0.08);
 
   ctx.fillStyle = UPLINK_CODE_COLOR;
-  ctx.fillRect(centerX - width / 2, centerY - height / 2, width, height);
+  ctx.fillRect(center.x - width / 2, center.y - height / 2, width, height);
   ctx.fillStyle = ACTOR_STROKE_COLOR;
-  ctx.fillRect(centerX + width / 2 - notch, centerY - height / 4, notch, height / 2);
+  ctx.fillRect(center.x + width / 2 - notch, center.y - height / 4, notch, height / 2);
 }
 
 function renderUplinkTerminal(
@@ -167,6 +166,7 @@ function renderUplinkTerminal(
   metrics: MapRenderMetrics,
 ): void {
   const { offsetX, offsetY, tileSize } = metrics;
+  const center = tileCenter(metrics, x, y);
   const tileX = offsetX + x * tileSize;
   const tileY = offsetY + y * tileSize;
   const inset = Math.max(3, tileSize * 0.16);
@@ -185,12 +185,12 @@ function renderUplinkTerminal(
   );
   ctx.strokeStyle = UPLINK_TERMINAL_SCREEN;
   ctx.beginPath();
-  ctx.moveTo(tileX + tileSize / 2, tileY + inset);
-  ctx.lineTo(tileX + tileSize / 2, tileY + inset / 2);
-  ctx.moveTo(tileX + tileSize / 2, tileY + inset / 2);
-  ctx.lineTo(tileX + tileSize / 2 - inset, tileY);
-  ctx.moveTo(tileX + tileSize / 2, tileY + inset / 2);
-  ctx.lineTo(tileX + tileSize / 2 + inset, tileY);
+  ctx.moveTo(center.x, tileY + inset);
+  ctx.lineTo(center.x, tileY + inset / 2);
+  ctx.moveTo(center.x, tileY + inset / 2);
+  ctx.lineTo(center.x - inset, tileY);
+  ctx.moveTo(center.x, tileY + inset / 2);
+  ctx.lineTo(center.x + inset, tileY);
   ctx.stroke();
 }
 
@@ -201,21 +201,20 @@ function renderWeaponPickup(
   slot: number,
   metrics: MapRenderMetrics,
 ): void {
-  const { offsetX, offsetY, tileSize } = metrics;
-  const centerX = offsetX + x * tileSize + tileSize / 2;
-  const centerY = offsetY + y * tileSize + tileSize / 2;
+  const { tileSize } = metrics;
+  const center = tileCenter(metrics, x, y);
   const radius = tileSize * 0.22;
 
   ctx.fillStyle = WEAPON_PICKUP_COLOR;
   ctx.beginPath();
-  ctx.arc(centerX, centerY, radius, 0, Math.PI * 2);
+  ctx.arc(center.x, center.y, radius, 0, Math.PI * 2);
   ctx.fill();
 
   ctx.fillStyle = WEAPON_PICKUP_TEXT;
-  ctx.font = `700 ${Math.max(8, Math.floor(tileSize * 0.32))}px ui-monospace, SFMono-Regular, Menlo, monospace`;
+  ctx.font = monoFont(700, Math.max(8, Math.floor(tileSize * 0.32)));
   ctx.textAlign = "center";
   ctx.textBaseline = "middle";
-  ctx.fillText(String(slot), centerX, centerY + 0.5);
+  ctx.fillText(String(slot), center.x, center.y + 0.5);
 }
 
 function renderItem(
@@ -225,18 +224,17 @@ function renderItem(
   itemKind: ConsumableItemKind,
   metrics: MapRenderMetrics,
 ): void {
-  const { offsetX, offsetY, tileSize } = metrics;
-  const centerX = offsetX + x * tileSize + tileSize / 2;
-  const centerY = offsetY + y * tileSize + tileSize / 2;
+  const { tileSize } = metrics;
+  const center = tileCenter(metrics, x, y);
   const radius = tileSize * 0.2;
 
   ctx.fillStyle = itemColor(itemKind);
-  ctx.fillRect(centerX - radius, centerY - radius, radius * 2, radius * 2);
+  ctx.fillRect(center.x - radius, center.y - radius, radius * 2, radius * 2);
   ctx.fillStyle = ITEM_TEXT;
-  ctx.font = `700 ${Math.max(8, Math.floor(tileSize * 0.28))}px ui-monospace, SFMono-Regular, Menlo, monospace`;
+  ctx.font = monoFont(700, Math.max(8, Math.floor(tileSize * 0.28)));
   ctx.textAlign = "center";
   ctx.textBaseline = "middle";
-  ctx.fillText(itemLabel(itemKind), centerX, centerY + 0.5);
+  ctx.fillText(itemLabel(itemKind), center.x, center.y + 0.5);
 }
 
 function itemColor(itemKind: ConsumableItemKind): string {
@@ -288,13 +286,13 @@ function renderEnemyHealth(
 ): void {
   if (health === undefined || health.max <= 0) return;
 
-  const { offsetX, offsetY, tileSize } = metrics;
+  const { offsetY, tileSize } = metrics;
   const ratio = Math.max(0, Math.min(1, health.current / health.max));
   const barWidth = tileSize * 0.52;
   const barHeight = Math.max(3, Math.floor(tileSize * 0.08));
-  const centerX = offsetX + x * tileSize + tileSize / 2;
+  const center = tileCenter(metrics, x, y);
   const topY = offsetY + y * tileSize + Math.max(2, tileSize * 0.08);
-  const leftX = centerX - barWidth / 2;
+  const leftX = center.x - barWidth / 2;
 
   ctx.fillStyle = ENEMY_HP_BACK;
   ctx.fillRect(leftX, topY, barWidth, barHeight);
@@ -330,27 +328,26 @@ function renderActorSymbol(
   symbol: string | undefined,
   metrics: MapRenderMetrics,
 ): void {
-  const { offsetX, offsetY, tileSize } = metrics;
-  const centerX = offsetX + x * tileSize + tileSize / 2;
-  const centerY = offsetY + y * tileSize + tileSize / 2;
+  const { tileSize } = metrics;
+  const center = tileCenter(metrics, x, y);
   const radius = tileSize * NPC_RADIUS_RATIO;
   const forward = directionDelta(dir);
   ctx.fillStyle = color;
   ctx.beginPath();
-  ctx.arc(centerX, centerY, radius, 0, Math.PI * 2);
+  ctx.arc(center.x, center.y, radius, 0, Math.PI * 2);
   ctx.fill();
   ctx.strokeStyle = ACTOR_STROKE_COLOR;
   ctx.beginPath();
-  ctx.moveTo(centerX, centerY);
-  ctx.lineTo(centerX + forward.dx * radius, centerY + forward.dy * radius);
+  ctx.moveTo(center.x, center.y);
+  ctx.lineTo(center.x + forward.dx * radius, center.y + forward.dy * radius);
   ctx.stroke();
   if (symbol === undefined) return;
 
   ctx.fillStyle = ENEMY_SYMBOL_COLOR;
-  ctx.font = `700 ${Math.max(8, Math.floor(tileSize * 0.25))}px ui-monospace, SFMono-Regular, Menlo, monospace`;
+  ctx.font = monoFont(700, Math.max(8, Math.floor(tileSize * 0.25)));
   ctx.textAlign = "center";
   ctx.textBaseline = "middle";
-  ctx.fillText(symbol, centerX, centerY + 0.5);
+  ctx.fillText(symbol, center.x, center.y + 0.5);
 }
 
 function renderPlayer(
@@ -360,11 +357,10 @@ function renderPlayer(
   dir: number,
   metrics: MapRenderMetrics,
 ): void {
-  const { offsetX, offsetY, tileSize } = metrics;
-  const centerX = offsetX + x * tileSize + tileSize / 2;
-  const centerY = offsetY + y * tileSize + tileSize / 2;
+  const { tileSize } = metrics;
+  const center = tileCenter(metrics, x, y);
   const radius = tileSize * PLAYER_RADIUS_RATIO;
-  const [tip, left, right] = playerTriangle(centerX, centerY, radius, dir);
+  const [tip, left, right] = playerTriangle(center.x, center.y, radius, dir);
   ctx.fillStyle = PLAYER_COLOR;
   ctx.beginPath();
   ctx.moveTo(tip.x, tip.y);
@@ -372,6 +368,13 @@ function renderPlayer(
   ctx.lineTo(right.x, right.y);
   ctx.closePath();
   ctx.fill();
+}
+
+function tileCenter(metrics: MapRenderMetrics, x: number, y: number): Point {
+  return {
+    x: metrics.offsetX + x * metrics.tileSize + metrics.tileSize / 2,
+    y: metrics.offsetY + y * metrics.tileSize + metrics.tileSize / 2,
+  };
 }
 
 function playerTriangle(

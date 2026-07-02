@@ -1,4 +1,5 @@
 import type { GameCanvasSize } from "@/src/render/canvas.ts";
+import { monoFont } from "@/src/render/text.ts";
 
 const OVERLAY_COLOR = "rgba(0, 0, 0, 0.6)";
 const OVERLAY_TITLE_COLOR = "#f3f4f6";
@@ -20,12 +21,12 @@ export function renderOverlay(
   ctx.fillRect(0, 0, canvasSize.width, canvasSize.height);
   ctx.textAlign = "center";
   ctx.textBaseline = "middle";
-  ctx.font = `700 ${titleSize}px ui-monospace, SFMono-Regular, Menlo, monospace`;
+  ctx.font = monoFont(700, titleSize);
   ctx.fillStyle = OVERLAY_TITLE_COLOR;
   ctx.fillText(title, centerX, centerY - subtitleSize);
 
   if (subtitle) {
-    ctx.font = `400 ${subtitleSize}px ui-monospace, SFMono-Regular, Menlo, monospace`;
+    ctx.font = monoFont(400, subtitleSize);
     ctx.fillStyle = OVERLAY_SUBTITLE_COLOR;
     ctx.fillText(subtitle, centerX, centerY + titleSize * 0.75);
   }

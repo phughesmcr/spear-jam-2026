@@ -1,4 +1,5 @@
 import { canSeePoint } from "@/src/game/perception.ts";
+import { distanceSquared } from "@/src/grid/direction.ts";
 import type { CardinalDirection, GridPoint } from "@/src/grid/direction.ts";
 
 export interface TileVisibility {
@@ -71,8 +72,4 @@ export class VisibilityMap implements TileVisibility {
     if (x < 0 || y < 0 || x >= this.width || y >= this.height) return undefined;
     return y * this.width + x;
   }
-}
-
-function distanceSquared(a: GridPoint, b: GridPoint): number {
-  return (a.x - b.x) ** 2 + (a.y - b.y) ** 2;
 }

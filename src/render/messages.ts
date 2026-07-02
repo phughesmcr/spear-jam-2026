@@ -1,5 +1,5 @@
 import type { GameCanvasSize } from "@/src/render/canvas.ts";
-import { fitText } from "@/src/render/text.ts";
+import { fitText, monoFont } from "@/src/render/text.ts";
 
 const LOG_MARGIN = 12;
 const LOG_PADDING = 10;
@@ -26,7 +26,7 @@ export function renderMessageLog(
   ctx.save();
   ctx.fillStyle = LOG_BACKGROUND;
   ctx.fillRect(x, y, width, height);
-  ctx.font = `400 ${LOG_FONT_SIZE}px ui-monospace, SFMono-Regular, Menlo, monospace`;
+  ctx.font = monoFont(400, LOG_FONT_SIZE);
   ctx.textAlign = "left";
   ctx.textBaseline = "middle";
   ctx.fillStyle = LOG_TEXT;

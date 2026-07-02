@@ -1,3 +1,7 @@
+export function monoFont(weight: number, px: number): string {
+  return `${weight} ${px}px ui-monospace, SFMono-Regular, Menlo, monospace`;
+}
+
 export function fitText(ctx: CanvasRenderingContext2D, text: string, maxWidth: number): string {
   if (ctx.measureText(text).width <= maxWidth) return text;
 

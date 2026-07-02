@@ -68,7 +68,7 @@ class Game implements Disposable {
   start(): void {
     this.started = true;
     this.render();
-    void this.loadMap(START_MAP_NAME).catch((error: unknown) => this.handleLoadError(error));
+    this.startLoad(START_MAP_NAME);
   }
 
   resize(size: GameCanvasSize): void {
@@ -104,7 +104,7 @@ class Game implements Disposable {
     this.session = session;
     previousSession?.[Symbol.dispose]();
     this.currentMapName = mapName;
-    this.currentLevelEntryState = snapshotPlayerState(playerState);
+    this.currentLevelEntryState = playerState === undefined ? undefined : createPlayerState(playerState);
     this.mode = { type: "playing" };
     this.inputController ??= setupInput(
       this.spec.window,
@@ -114,6 +114,10 @@ class Game implements Disposable {
       (input) => this.handlePointerInput(input),
     );
     this.render();
+  }
+
+  private startLoad(mapName: string, playerState?: PlayerState): void {
+    void this.loadMap(mapName, playerState).catch((error: unknown) => this.handleLoadError(error));
   }
 
   private handleLoadError(error: unknown): void {
@@ -150,7 +154,7 @@ class Game implements Disposable {
 
     if (isPlayerCommand(command)) {
       if (mode.type !== "playing") return;
-      this.handlePlayerCommands([command]);
+      this.handlePlayerCommand(command);
       return;
     }
 
@@ -174,7 +178,7 @@ class Game implements Disposable {
   private handleIntermissionCommand(mode: IntermissionMode, command: GameCommand): void {
     if (command.type !== "wait") return;
     const { goto, playerState } = mode;
-    void this.loadMap(goto, playerState).catch((error: unknown) => this.handleLoadError(error));
+    this.startLoad(goto, playerState);
   }
 
   private handleDialogueCommand(_mode: DialogueMode, command: GameCommand): void {
@@ -187,12 +191,12 @@ class Game implements Disposable {
     switch (command.type) {
       case "move":
         if (command.direction === "forward") {
-          this.moveVerbSelection(mode, -1);
+          this.selectVerb((mode.selectedIndex - 1 + VERBS.length) % VERBS.length);
           this.render();
           return;
         }
         if (command.direction === "backward") {
-          this.moveVerbSelection(mode, 1);
+          this.selectVerb((mode.selectedIndex + 1) % VERBS.length);
           this.render();
           return;
         }
@@ -224,14 +228,14 @@ class Game implements Disposable {
     switch (input.phase) {
       case "move":
         if (hotspotIndex !== undefined && hotspotIndex !== mode.selectedIndex) {
-          this.selectVerbSelection(mode, hotspotIndex);
+          this.selectVerb(hotspotIndex);
           this.render();
         }
         return;
       case "down":
         this.verbPointerDownIndex = hotspotIndex;
         if (hotspotIndex !== undefined && hotspotIndex !== mode.selectedIndex) {
-          this.selectVerbSelection(mode, hotspotIndex);
+          this.selectVerb(hotspotIndex);
           this.render();
         }
         return;
@@ -239,7 +243,7 @@ class Game implements Disposable {
         const downIndex = this.verbPointerDownIndex;
         this.verbPointerDownIndex = undefined;
         if (hotspotIndex === undefined) return;
-        const selectedMode = this.selectVerbSelection(mode, hotspotIndex);
+        const selectedMode = this.selectVerb(hotspotIndex);
         if (downIndex === hotspotIndex) {
           this.confirmVerbSelection(selectedMode);
         } else {
@@ -257,13 +261,14 @@ class Game implements Disposable {
     this.recentMessages = [];
     this.combatFeedback = [];
     if (outcome === "defeat") {
-      void this.loadMap(this.currentMapName, snapshotPlayerState(this.currentLevelEntryState)).catch((error: unknown) =>
-        this.handleLoadError(error)
-      );
+      const playerState = this.currentLevelEntryState === undefined ?
+        undefined :
+        createPlayerState(this.currentLevelEntryState);
+      this.startLoad(this.currentMapName, playerState);
       return;
     }
 
-    void this.loadMap(START_MAP_NAME).catch((error: unknown) => this.handleLoadError(error));
+    this.startLoad(START_MAP_NAME);
   }
 
   private toggleMenu(): void {
@@ -293,15 +298,9 @@ class Game implements Disposable {
     this.mode = { type: "verbMenu", selectedIndex: this.lastVerbIndex };
   }
 
-  private moveVerbSelection(mode: VerbMenuMode, delta: number): VerbMenuMode {
-    const selectedIndex = (mode.selectedIndex + delta + VERBS.length) % VERBS.length;
-    const nextMode = { type: "verbMenu", selectedIndex } satisfies VerbMenuMode;
-    this.mode = nextMode;
-    return nextMode;
-  }
-
-  private selectVerbSelection(mode: VerbMenuMode, selectedIndex: number): VerbMenuMode {
-    if (selectedIndex === mode.selectedIndex) return mode;
+  private selectVerb(selectedIndex: number): VerbMenuMode {
+    const mode = this.mode;
+    if (mode.type === "verbMenu" && selectedIndex === mode.selectedIndex) return mode;
 
     const nextMode = { type: "verbMenu", selectedIndex } satisfies VerbMenuMode;
     this.mode = nextMode;
@@ -313,30 +312,28 @@ class Game implements Disposable {
     this.verbPointerDownIndex = undefined;
     this.lastVerbIndex = selectedIndex;
     this.mode = { type: "playing" };
-    this.handlePlayerCommands([verbToCommand(selectedIndex)]);
+    this.handlePlayerCommand(verbToCommand(selectedIndex));
   }
 
-  private handlePlayerCommands(commands: readonly PlayerCommand[]): void {
+  private handlePlayerCommand(command: PlayerCommand): void {
     if (!this.session) return;
 
-    for (const command of commands) {
-      const result = this.session.handlePlayerCommand(command);
-      this.appendEventMessages(result.events);
-      if (result.outcome) {
-        this.mode = { type: result.outcome };
-        this.render();
-        return;
-      }
-      if (result.mapChange) {
-        this.enterIntermission(result.mapChange.goto);
-        this.render();
-        return;
-      }
-      if (result.dialogue) {
-        this.enterDialogue(result.dialogue);
-        this.render();
-        return;
-      }
+    const result = this.session.handlePlayerCommand(command);
+    this.appendEventMessages(result.events);
+    if (result.outcome) {
+      this.mode = { type: result.outcome };
+      this.render();
+      return;
+    }
+    if (result.mapChange) {
+      this.enterIntermission(result.mapChange.goto);
+      this.render();
+      return;
+    }
+    if (result.dialogue) {
+      this.enterDialogue(result.dialogue);
+      this.render();
+      return;
     }
 
     this.render();
@@ -378,9 +375,4 @@ class Game implements Disposable {
     this.session?.[Symbol.dispose]();
     this.canvasController?.[Symbol.dispose]();
   }
-}
-
-function snapshotPlayerState(playerState: PlayerState | undefined): PlayerState | undefined {
-  if (playerState === undefined) return undefined;
-  return createPlayerState(playerState);
 }

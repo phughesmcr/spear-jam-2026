@@ -422,7 +422,7 @@ Deno.test("moving onto a weapon pickup unlocks that weapon", async () => {
       type: "weaponPickedUp",
       entity: weapon,
       slot: 2,
-      label: "Pistol",
+      label: "Pulse Pistol",
     },
   ]);
   assertEquals(world.entities.isActive(weapon), false);
@@ -646,7 +646,7 @@ Deno.test("selecting a locked weapon emits a player-facing event without consumi
       {
         type: "weaponUnavailable",
         slot: 2,
-        label: "Pistol",
+        label: "Pulse Pistol",
       },
     ],
   });
@@ -667,7 +667,7 @@ Deno.test("selecting an unlocked weapon emits a player-facing event without cons
       {
         type: "weaponSelected",
         slot: 2,
-        label: "Pistol",
+        label: "Pulse Pistol",
       },
     ],
   });

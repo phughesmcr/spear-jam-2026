@@ -64,8 +64,8 @@ Deno.test("messageForEvent covers interaction events", () => {
   assertEquals(messageForEvent(PLAYER, { type: "keyPickedUp", entity: DOOR }), "Picked up a key.");
   assertEquals(messageForEvent(PLAYER, { type: "uplinkCodePickedUp", entity: DOOR }), "Picked up an uplink code.");
   assertEquals(
-    messageForEvent(PLAYER, { type: "weaponPickedUp", entity: DOOR, slot: 2, label: "Pistol" }),
-    "Picked up weapon 2: Pistol.",
+    messageForEvent(PLAYER, { type: "weaponPickedUp", entity: DOOR, slot: 2, label: "Pulse Pistol" }),
+    "Picked up weapon 2: Pulse Pistol.",
   );
   assertEquals(
     messageForEvent(PLAYER, { type: "healthPickedUp", entity: DOOR, amount: 4, healed: 3 }),
@@ -81,8 +81,8 @@ Deno.test("messageForEvent covers interaction events", () => {
   assertEquals(messageForEvent(PLAYER, { type: "uplinkTerminalLocked", entity: DOOR }), "The uplink needs a code.");
   assertEquals(messageForEvent(PLAYER, { type: "uplinkTerminalActivated", entity: DOOR }), "Uplink accepted.");
   assertEquals(
-    messageForEvent(PLAYER, { type: "weaponSelected", slot: 2, label: "Pistol" }),
-    "Selected weapon 2: Pistol.",
+    messageForEvent(PLAYER, { type: "weaponSelected", slot: 2, label: "Pulse Pistol" }),
+    "Selected weapon 2: Pulse Pistol.",
   );
   assertEquals(
     messageForEvent(PLAYER, { type: "weaponUnavailable", slot: 3, label: "Current Cannon" }),

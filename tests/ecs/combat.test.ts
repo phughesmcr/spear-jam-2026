@@ -12,7 +12,14 @@ import {
   Player as PlayerTag,
 } from "@/src/ecs/components.ts";
 import type { AttackSchema } from "@/src/ecs/components.ts";
-import { attackEntity, attackTargets, resolveAttack } from "@/src/ecs/combat.ts";
+import {
+  attackEntity,
+  attackTargets,
+  resolveAttack,
+  weaponAmmoKind,
+  weaponLabel,
+  weaponNoiseRadius,
+} from "@/src/ecs/combat.ts";
 import { DisplayName } from "@/src/game/names.ts";
 import { SpatialIndex } from "@/src/ecs/spatial.ts";
 import type { SpatialLookup } from "@/src/ecs/spatial.ts";
@@ -30,6 +37,20 @@ const BASE_ATTACK: AttackSchema = {
   pattern: AttackPattern.Line,
   targets: AttackTargetMode.First,
 };
+
+Deno.test("weapon metadata exposes labels, ammo, and attack noise from the combat table", () => {
+  assertEquals(weaponLabel(1), "Bit Shifter");
+  assertEquals(weaponAmmoKind(1), undefined);
+  assertEquals(weaponNoiseRadius(1), 4);
+
+  assertEquals(weaponLabel(2), "Pulse Pistol");
+  assertEquals(weaponAmmoKind(2), "pistol");
+  assertEquals(weaponNoiseRadius(2), 8);
+
+  assertEquals(weaponLabel(3), "Current Cannon");
+  assertEquals(weaponAmmoKind(3), "cannon");
+  assertEquals(weaponNoiseRadius(3), 8);
+});
 
 Deno.test("resolveAttack misses when the d20 total is below defense", () => {
   const outcome = resolveAttack(BASE_ATTACK, sequenceRandom([0]));
