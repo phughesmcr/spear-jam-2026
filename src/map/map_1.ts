@@ -1,5 +1,6 @@
 import { DialogueTreeId } from "@/src/dialogue/dialogue.ts";
-import { EnemyArchetype, ItemKind } from "@/src/ecs/components.ts";
+import { EnemyArchetype } from "@/src/ecs/components.ts";
+import { ItemKind } from "@/src/game/items.ts";
 import { ExamineTextId } from "@/src/game/examine.ts";
 import { DisplayName } from "@/src/game/names.ts";
 import { createGameMap, KeyColor } from "@/src/map/map.ts";

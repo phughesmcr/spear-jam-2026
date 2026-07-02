@@ -23,7 +23,6 @@ import {
   IDLE_AWARENESS,
   Interactable,
   Item,
-  ItemKind,
   Locked,
   Npc,
   Player,
@@ -35,6 +34,7 @@ import { DEFAULT_ATTACK } from "@/src/game/attack.ts";
 import { normalizeDirection } from "@/src/grid/direction.ts";
 import { keyColorCode } from "@/src/map/map.ts";
 import { DEFAULT_PLAYER_STATE } from "@/src/game/state.ts";
+import { ItemKind } from "@/src/game/items.ts";
 import type {
   DoorDef,
   EnemyDef,
@@ -193,21 +193,13 @@ export function createDoor(world: World, prefab: DoorPrefab): Entity {
 export type KeyPrefab = Omit<KeyDef, "prefab">;
 
 export function createKey(world: World, prefab: KeyPrefab): Entity {
-  const entity = createEntity(world);
-  addPosition(world, entity, prefab);
-  addDrawable(world, entity, DrawableKind.Key, DrawableLayer.Item);
-  addItem(world, entity, ItemKind.Key, keyColorCode(prefab.color));
-  return entity;
+  return createPickup(world, prefab, ItemKind.Key, keyColorCode(prefab.color));
 }
 
 export type UplinkCodePrefab = Omit<UplinkCodeDef, "prefab">;
 
 export function createUplinkCode(world: World, prefab: UplinkCodePrefab): Entity {
-  const entity = createEntity(world);
-  addPosition(world, entity, prefab);
-  addDrawable(world, entity, DrawableKind.UplinkCode, DrawableLayer.Item);
-  addItem(world, entity, ItemKind.UplinkCode, 0);
-  return entity;
+  return createPickup(world, prefab, ItemKind.UplinkCode, 0);
 }
 
 export type UplinkTerminalPrefab = Omit<UplinkTerminalDef, "prefab">;
@@ -226,20 +218,20 @@ export function createUplinkTerminal(world: World, prefab: UplinkTerminalPrefab)
 export type WeaponPickupPrefab = Omit<WeaponPickupDef, "prefab">;
 
 export function createWeaponPickup(world: World, prefab: WeaponPickupPrefab): Entity {
-  const entity = createEntity(world);
-  addPosition(world, entity, prefab);
-  addDrawable(world, entity, DrawableKind.WeaponPickup, DrawableLayer.Item);
-  addItem(world, entity, ItemKind.Weapon, prefab.slot);
-  return entity;
+  return createPickup(world, prefab, ItemKind.Weapon, prefab.slot);
 }
 
 export type ItemPrefab = Omit<ItemDef, "prefab">;
 
 export function createItem(world: World, prefab: ItemPrefab): Entity {
+  return createPickup(world, prefab, prefab.item, prefab.amount);
+}
+
+function createPickup(world: World, prefab: PositionedPrefab, item: ItemKind, value: number): Entity {
   const entity = createEntity(world);
   addPosition(world, entity, prefab);
   addDrawable(world, entity, DrawableKind.Item, DrawableLayer.Item);
-  addItem(world, entity, prefab.item, prefab.amount);
+  addItem(world, entity, item, value);
   return entity;
 }
 

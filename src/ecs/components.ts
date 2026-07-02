@@ -2,7 +2,6 @@ import { Component, type ComponentPartitions, type DynamicComponent, type Entity
 import type { CardinalDirection } from "@/src/grid/direction.ts";
 import type { DisplayName } from "@/src/game/names.ts";
 import { type AttackDef, AttackFacingRequirement, AttackPattern, AttackTargetMode } from "@/src/game/attack.ts";
-import type { CommandSlot } from "@/src/game/state.ts";
 
 export { AttackFacingRequirement, AttackPattern, AttackTargetMode };
 
@@ -61,10 +60,7 @@ export const DrawableKind = {
   Npc: 2,
   Enemy: 3,
   Door: 4,
-  Key: 5,
-  UplinkCode: 6,
   UplinkTerminal: 7,
-  WeaponPickup: 8,
   Item: 9,
 } as const;
 export type DrawableKind = (typeof DrawableKind)[keyof typeof DrawableKind];
@@ -98,35 +94,11 @@ export const Locked: Component<LockedSchema> = new Component<LockedSchema>({
 
 export const UplinkTerminal: Component<null> = new Component<null>({ name: "uplinkTerminal" });
 
-export const ItemKind = {
-  HealthPatch: 1,
-  PistolAmmo: 2,
-  CannonAmmo: 3,
-  Key: 4,
-  UplinkCode: 5,
-  Weapon: 6,
-} as const;
-export type ItemKind = (typeof ItemKind)[keyof typeof ItemKind];
-
 export type ItemSchema = { kind: number; value: number };
 export const Item: Component<ItemSchema> = new Component<ItemSchema>({
   name: "item",
   schema: { kind: Uint8Array, value: Uint8Array },
 });
-
-export function itemKindForCode(kind: number): ItemKind {
-  switch (kind) {
-    case ItemKind.HealthPatch:
-    case ItemKind.PistolAmmo:
-    case ItemKind.CannonAmmo:
-    case ItemKind.Key:
-    case ItemKind.UplinkCode:
-    case ItemKind.Weapon:
-      return kind;
-    default:
-      throw new Error(`Unknown item kind: ${kind}`);
-  }
-}
 
 export const TurnTaker: Component<null> = new Component<null>({ name: "turnTaker" });
 
@@ -197,17 +169,6 @@ export function enemyArchetypeForCode(archetype: number): EnemyArchetype {
 export function enemyArchetypeFor(world: World, entity: Entity): EnemyArchetype | undefined {
   const archetype = world.components.readEntityData(EnemyArchetypeComponent, entity)?.archetype;
   return archetype === undefined ? undefined : enemyArchetypeForCode(archetype);
-}
-
-export function commandSlotForCode(slot: number): CommandSlot {
-  switch (slot) {
-    case 1:
-    case 2:
-    case 3:
-      return slot;
-    default:
-      throw new Error(`Unknown weapon slot: ${slot}`);
-  }
 }
 
 export type HealthSchema = { current: number; max: number };

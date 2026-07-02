@@ -20,7 +20,6 @@ import {
   IDLE_AWARENESS,
   Interactable,
   Item,
-  ItemKind,
   Locked,
   Npc,
   Player as PlayerComponent,
@@ -30,6 +29,7 @@ import {
 import type { CardinalDirection } from "@/src/grid/direction.ts";
 import type { DialogueTreeId } from "@/src/dialogue/dialogue.ts";
 import type { DisplayName } from "@/src/game/names.ts";
+import { ItemKind } from "@/src/game/items.ts";
 import { Player } from "@/src/ecs/player.ts";
 import { GameSession } from "@/src/ecs/session.ts";
 import type { RandomSource } from "@/src/game/rng.ts";

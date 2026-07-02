@@ -12,10 +12,10 @@ import {
   GridPos,
   Health,
   Interactable,
-  ItemKind,
   Locked,
 } from "@/src/ecs/components.ts";
 import { ExamineTextId } from "@/src/game/examine.ts";
+import { ItemKind } from "@/src/game/items.ts";
 import { DisplayName } from "@/src/game/names.ts";
 import { Direction } from "@/src/grid/direction.ts";
 import { createGameSession } from "@/src/ecs/session.ts";

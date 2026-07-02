@@ -1,7 +1,8 @@
 import type { DisplayName } from "@/src/game/names.ts";
 import type { AttackDef } from "@/src/game/attack.ts";
 import type { DialogueTreeId } from "@/src/dialogue/dialogue.ts";
-import type { EnemyArchetype, ItemKind } from "@/src/ecs/components.ts";
+import type { EnemyArchetype } from "@/src/ecs/components.ts";
+import type { ItemKind } from "@/src/game/items.ts";
 
 export type WallTile = {
   id: number;

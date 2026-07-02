@@ -1,4 +1,5 @@
-import { EnemyArchetype, ItemKind } from "@/src/ecs/components.ts";
+import { EnemyArchetype } from "@/src/ecs/components.ts";
+import { ItemKind } from "@/src/game/items.ts";
 import { DisplayName } from "@/src/game/names.ts";
 import { createGameMap, KeyColor, VICTORY_GOTO } from "@/src/map/map.ts";
 import type { GameMap } from "@/src/map/map.ts";

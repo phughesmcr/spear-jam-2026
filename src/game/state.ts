@@ -6,6 +6,17 @@ export type CommandSlot = 1 | 2 | 3;
 
 export type AmmoKind = "pistol" | "cannon";
 
+export function commandSlotForCode(slot: number): CommandSlot {
+  switch (slot) {
+    case 1:
+    case 2:
+    case 3:
+      return slot;
+    default:
+      throw new Error(`Unknown weapon slot: ${slot}`);
+  }
+}
+
 export type PlayerAmmoState = {
   readonly pistol: number;
   readonly cannon: number;

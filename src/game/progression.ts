@@ -1,8 +1,8 @@
 import type { Entity, World } from "@phughesmcr/miski";
 import { Health, healthFor } from "@/src/ecs/components.ts";
 import { weaponLabel } from "@/src/ecs/combat.ts";
-import type { ItemPickup } from "@/src/ecs/interactions.ts";
 import type { GameEvent } from "@/src/game/events.ts";
+import type { ItemPickup } from "@/src/game/items.ts";
 import type { AmmoKind, CommandSlot, PlayerProgressState, PlayerState } from "@/src/game/state.ts";
 import { TurnEffects } from "@/src/game/turn_effects.ts";
 import type { KeyColor } from "@/src/map/map.ts";

@@ -1,10 +1,11 @@
-import { EnemyArchetype, ItemKind } from "@/src/ecs/components.ts";
+import { EnemyArchetype } from "@/src/ecs/components.ts";
 import { DrawableKind } from "@/src/ecs/drawables.ts";
-import type { ConsumableItemKind, DrawableEntity } from "@/src/ecs/drawables.ts";
+import type { DrawableEntity } from "@/src/ecs/drawables.ts";
 import type { GameSession } from "@/src/ecs/session.ts";
 import { directionDelta } from "@/src/grid/direction.ts";
 import { KeyColor } from "@/src/map/map.ts";
 import type { KeyColor as KeyColorType } from "@/src/map/map.ts";
+import type { ItemIcon } from "@/src/game/items.ts";
 import type { MapRenderMetrics } from "@/src/render/map.ts";
 import { monoFont } from "@/src/render/text.ts";
 
@@ -33,9 +34,6 @@ const UPLINK_TERMINAL_COLOR = "#22c55e";
 const UPLINK_TERMINAL_SCREEN = "#0f172a";
 const WEAPON_PICKUP_COLOR = "#c084fc";
 const WEAPON_PICKUP_TEXT = "#101217";
-const HEALTH_PICKUP_COLOR = "#ef4444";
-const PISTOL_AMMO_COLOR = "#38bdf8";
-const CANNON_AMMO_COLOR = "#f97316";
 const ITEM_TEXT = "#101217";
 const KEY_COLORS: Record<KeyColorType, string> = {
   [KeyColor.Red]: "#df4f45",
@@ -81,20 +79,11 @@ function renderDrawableEntity(
     case DrawableKind.Door:
       renderDoor(ctx, drawable.x, drawable.y, drawable.open, drawable.locked, drawable.color, metrics);
       return;
-    case DrawableKind.Key:
-      renderKey(ctx, drawable.x, drawable.y, drawable.color, metrics);
-      return;
-    case DrawableKind.UplinkCode:
-      renderUplinkCode(ctx, drawable.x, drawable.y, metrics);
-      return;
     case DrawableKind.UplinkTerminal:
       renderUplinkTerminal(ctx, drawable.x, drawable.y, metrics);
       return;
-    case DrawableKind.WeaponPickup:
-      renderWeaponPickup(ctx, drawable.x, drawable.y, drawable.slot, metrics);
-      return;
     case DrawableKind.Item:
-      renderItem(ctx, drawable.x, drawable.y, drawable.itemKind, metrics);
+      renderItem(ctx, drawable.x, drawable.y, drawable.icon, metrics);
       return;
   }
 }
@@ -221,42 +210,44 @@ function renderItem(
   ctx: CanvasRenderingContext2D,
   x: number,
   y: number,
-  itemKind: ConsumableItemKind,
+  icon: ItemIcon,
+  metrics: MapRenderMetrics,
+): void {
+  switch (icon.type) {
+    case "badge":
+      renderBadge(ctx, x, y, icon.color, icon.label, metrics);
+      return;
+    case "key":
+      renderKey(ctx, x, y, icon.color, metrics);
+      return;
+    case "uplinkCode":
+      renderUplinkCode(ctx, x, y, metrics);
+      return;
+    case "weapon":
+      renderWeaponPickup(ctx, x, y, icon.slot, metrics);
+      return;
+  }
+}
+
+function renderBadge(
+  ctx: CanvasRenderingContext2D,
+  x: number,
+  y: number,
+  color: string,
+  label: string,
   metrics: MapRenderMetrics,
 ): void {
   const { tileSize } = metrics;
   const center = tileCenter(metrics, x, y);
   const radius = tileSize * 0.2;
 
-  ctx.fillStyle = itemColor(itemKind);
+  ctx.fillStyle = color;
   ctx.fillRect(center.x - radius, center.y - radius, radius * 2, radius * 2);
   ctx.fillStyle = ITEM_TEXT;
   ctx.font = monoFont(700, Math.max(8, Math.floor(tileSize * 0.28)));
   ctx.textAlign = "center";
   ctx.textBaseline = "middle";
-  ctx.fillText(itemLabel(itemKind), center.x, center.y + 0.5);
-}
-
-function itemColor(itemKind: ConsumableItemKind): string {
-  switch (itemKind) {
-    case ItemKind.HealthPatch:
-      return HEALTH_PICKUP_COLOR;
-    case ItemKind.PistolAmmo:
-      return PISTOL_AMMO_COLOR;
-    case ItemKind.CannonAmmo:
-      return CANNON_AMMO_COLOR;
-  }
-}
-
-function itemLabel(itemKind: ConsumableItemKind): string {
-  switch (itemKind) {
-    case ItemKind.HealthPatch:
-      return "+";
-    case ItemKind.PistolAmmo:
-      return "P";
-    case ItemKind.CannonAmmo:
-      return "C";
-  }
+  ctx.fillText(label, center.x, center.y + 0.5);
 }
 
 function renderEnemy(

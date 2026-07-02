@@ -1,14 +1,11 @@
 import type { Entity, World } from "@phughesmcr/miski";
 import { dialogueTreeText } from "@/src/dialogue/dialogue.ts";
 import {
-  commandSlotForCode,
   Dialogue,
   DisplayNameComponent,
   Door,
   Interactable,
   Item,
-  ItemKind,
-  itemKindForCode,
   Locked,
   Npc,
   UplinkTerminal,
@@ -17,7 +14,9 @@ import { displayNameText } from "@/src/game/names.ts";
 import type { SpatialIndex } from "@/src/ecs/spatial.ts";
 import type { InteractVerb } from "@/src/game/commands.ts";
 import type { GameEvent } from "@/src/game/events.ts";
-import type { AmmoKind, CommandSlot, DialogueState } from "@/src/game/state.ts";
+import type { DialogueState } from "@/src/game/state.ts";
+import { itemKindForCode, itemPickupFor } from "@/src/game/items.ts";
+import type { ItemPickup } from "@/src/game/items.ts";
 import { keyColorForCode } from "@/src/map/map.ts";
 import type { KeyColor } from "@/src/map/map.ts";
 
@@ -43,13 +42,6 @@ const VERB_PERMISSIONS: Readonly<Record<InteractVerb, readonly InteractionKind[]
   talk: ["npc"],
   use: ["terminal"],
 };
-
-export type ItemPickup =
-  | { readonly type: "key"; readonly entity: Entity; readonly color: KeyColor }
-  | { readonly type: "uplinkCode"; readonly entity: Entity }
-  | { readonly type: "weapon"; readonly entity: Entity; readonly slot: CommandSlot }
-  | { readonly type: "health"; readonly entity: Entity; readonly amount: number }
-  | { readonly type: "ammo"; readonly entity: Entity; readonly ammo: AmmoKind; readonly amount: number };
 
 export function collectItemAt(
   world: World,
@@ -211,21 +203,4 @@ function dialogueTextFor(world: World, entity: Entity): string | undefined {
 
   const { dialogueTreeId } = world.components.getEntityData(Dialogue, entity);
   return dialogueTreeText(dialogueTreeId);
-}
-
-function itemPickupFor(entity: Entity, kind: ItemKind, value: number): ItemPickup {
-  switch (kind) {
-    case ItemKind.HealthPatch:
-      return { type: "health", entity, amount: value };
-    case ItemKind.PistolAmmo:
-      return { type: "ammo", entity, ammo: "pistol", amount: value };
-    case ItemKind.CannonAmmo:
-      return { type: "ammo", entity, ammo: "cannon", amount: value };
-    case ItemKind.Key:
-      return { type: "key", entity, color: keyColorForCode(value) };
-    case ItemKind.UplinkCode:
-      return { type: "uplinkCode", entity };
-    case ItemKind.Weapon:
-      return { type: "weapon", entity, slot: commandSlotForCode(value) };
-  }
 }

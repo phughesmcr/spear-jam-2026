@@ -1,5 +1,6 @@
 import { assertEquals, assertThrows } from "@std/assert";
-import { Blocking, Door, Facing, GridPos, Interactable, Item, ItemKind } from "@/src/ecs/components.ts";
+import { Blocking, Door, Facing, GridPos, Interactable, Item } from "@/src/ecs/components.ts";
+import { ItemKind } from "@/src/game/items.ts";
 import { Player } from "@/src/ecs/player.ts";
 import { SpatialIndex } from "@/src/ecs/spatial.ts";
 import { createWorld } from "@/src/ecs/world.ts";
