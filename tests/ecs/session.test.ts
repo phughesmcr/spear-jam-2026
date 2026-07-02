@@ -280,6 +280,7 @@ Deno.test("interacting with an uplink terminal after collecting a code advances 
   });
   const map = flatTestMap(3, 2, [{ prefab: "uplinkTerminal", x: 2, y: 1, goto: "Next Map" }]);
   const session = createTestSession(world, playerEntity, map, {
+    terminalDestinations: new Map([[terminal, "Next Map"]]),
     playerState: {
       heldKeys: [KeyColor.Red],
       selectedWeapon: 2,
@@ -542,6 +543,7 @@ Deno.test("interacting with an uplink terminal linked to victory reports a victo
 
   const map = flatTestMap(3, 2, [{ prefab: "uplinkTerminal", x: 2, y: 1, goto: VICTORY_GOTO }]);
   const session = createTestSession(world, playerEntity, map, {
+    terminalDestinations: new Map([[terminal, VICTORY_GOTO]]),
     playerState: { heldKeys: [], selectedWeapon: 1, unlockedWeapons: [1], hasUplinkCode: true },
   });
   const result = session.handlePlayerCommand({ type: "interact" });
@@ -568,6 +570,7 @@ Deno.test("activating an uplink terminal converts level credits to XP", async ()
   });
   const map = flatTestMap(3, 2, [{ prefab: "uplinkTerminal", x: 2, y: 1, goto: "Next Map" }]);
   const session = createTestSession(world, playerEntity, map, {
+    terminalDestinations: new Map([[terminal, "Next Map"]]),
     playerState: {
       heldKeys: [KeyColor.Red],
       selectedWeapon: 1,

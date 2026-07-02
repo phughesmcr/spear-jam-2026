@@ -220,7 +220,11 @@ export function createTestSession(
   world: World,
   playerEntity: Entity,
   map: GameMap = flatTestMap(3, 2),
-  opts: { random?: RandomSource; playerState?: PlayerStateInput } = {},
+  opts: {
+    random?: RandomSource;
+    terminalDestinations?: ReadonlyMap<Entity, string>;
+    playerState?: PlayerStateInput;
+  } = {},
 ): GameSession {
   world.refresh();
   return new GameSession(
@@ -228,6 +232,7 @@ export function createTestSession(
     new Player(world, playerEntity),
     map,
     opts.random ?? (() => 0),
+    opts.terminalDestinations ?? new Map(),
     opts.playerState,
   );
 }

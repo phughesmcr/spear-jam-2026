@@ -1,5 +1,5 @@
 import type { Entity, World } from "@phughesmcr/miski";
-import { GridPos, Health, UplinkTerminal } from "@/src/ecs/components.ts";
+import { Health } from "@/src/ecs/components.ts";
 import { directionDelta } from "@/src/grid/direction.ts";
 import type { GridDelta } from "@/src/grid/direction.ts";
 import { attackWithSelectedWeapon, weaponAmmoKind, weaponLabel } from "@/src/ecs/combat.ts";
@@ -10,7 +10,6 @@ import type { ItemPickup } from "@/src/ecs/interactions.ts";
 import { PlayerInventory } from "@/src/ecs/player_inventory.ts";
 import { createMapEntity } from "@/src/ecs/prefabs.ts";
 import { Player } from "@/src/ecs/player.ts";
-import { positionedQuery } from "@/src/ecs/queries.ts";
 import { SpatialIndex } from "@/src/ecs/spatial.ts";
 import { createWorld } from "@/src/ecs/world.ts";
 import { relativeMoveDirectionOffset, turnDirectionDelta } from "@/src/game/commands.ts";
@@ -48,11 +47,14 @@ export async function createGameSession(
   try {
     const state = createPlayerState(playerState);
     let playerEntity: Entity | undefined;
+    const terminalDestinations = new Map<Entity, string>();
 
     for (const entityDef of map.entities) {
       const entity = createMapEntity(world, entityDef);
       if (entityDef.prefab === "player") {
         playerEntity = entity;
+      } else if (entityDef.prefab === "uplinkTerminal") {
+        terminalDestinations.set(entity, entityDef.goto);
       }
     }
 
@@ -65,7 +67,7 @@ export async function createGameSession(
     const player = new Player(world, playerEntity);
     world.refresh();
 
-    return new GameSession(world, player, map, random, state);
+    return new GameSession(world, player, map, random, terminalDestinations, state);
   } catch (error) {
     await world.destroy();
     throw error;
@@ -89,6 +91,7 @@ export class GameSession implements Disposable {
     player: Player,
     map: GameMap,
     random: RandomSource,
+    terminalDestinations: ReadonlyMap<Entity, string>,
     playerState?: PlayerStateInput,
   ) {
     const state = createPlayerState(playerState);
@@ -98,7 +101,7 @@ export class GameSession implements Disposable {
     this.random = random;
     this.enemyTurnSystem = world.systems.create(enemyTurnSystem);
     this.spatial = new SpatialIndex(world, map);
-    this.terminalDestinations = terminalDestinationsFor(world, map);
+    this.terminalDestinations = new Map(terminalDestinations);
     this.inventory = new PlayerInventory(state);
     this.progress = { ...state.progress };
   }
@@ -353,26 +356,4 @@ export class GameSession implements Disposable {
     this.disposed = true;
     void this.world.destroy();
   }
-}
-
-function terminalDestinationsFor(world: World, map: GameMap): ReadonlyMap<Entity, string> {
-  const destinationsByPosition = new Map<string, string>();
-  for (const entityDef of map.entities) {
-    if (entityDef.prefab === "uplinkTerminal") {
-      destinationsByPosition.set(positionKey(entityDef.x, entityDef.y), entityDef.goto);
-    }
-  }
-
-  const destinations = new Map<Entity, string>();
-  for (const entity of world.entities.query(positionedQuery)) {
-    if (!world.components.entityHas(UplinkTerminal, entity)) continue;
-    const { x, y } = world.components.getEntityData(GridPos, entity);
-    const goto = destinationsByPosition.get(positionKey(x, y));
-    if (goto !== undefined) destinations.set(entity, goto);
-  }
-  return destinations;
-}
-
-function positionKey(x: number, y: number): string {
-  return `${x},${y}`;
 }
