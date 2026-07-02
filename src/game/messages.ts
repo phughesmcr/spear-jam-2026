@@ -1,4 +1,5 @@
 import type { Entity } from "@phughesmcr/miski";
+import type { InteractVerb } from "@/src/game/commands.ts";
 import type { GameEvent } from "@/src/game/events.ts";
 
 /** Derives the message-log line for an event. Events are pure facts; wording lives here. */
@@ -24,6 +25,8 @@ export function messageForEvent(playerEntity: Entity, event: GameEvent): string 
       return "The door is locked.";
     case "doorOpened":
       return "Opened the door.";
+    case "doorAlreadyOpen":
+      return "It's already open.";
     case "uplinkTerminalLocked":
       return "The uplink needs a code.";
     case "uplinkTerminalActivated":
@@ -36,9 +39,23 @@ export function messageForEvent(playerEntity: Entity, event: GameEvent): string 
       return `Spent ${event.amount} ${event.ammo} ammo.`;
     case "noAmmo":
       return `No ${event.ammo} ammo.`;
+    case "examined":
+      return event.text;
+    case "verbFailed":
+      return verbFailureMessage(event.verb);
     case "creditsEarned":
       return `Earned ${event.amount} credits.`;
     case "xpGained":
       return `Converted ${event.amount} credits to XP.`;
+  }
+}
+
+function verbFailureMessage(verb: InteractVerb): string {
+  switch (verb) {
+    case "open":
+      return "Nothing to open.";
+    case "use":
+    case "talk":
+      return "That didn't work.";
   }
 }

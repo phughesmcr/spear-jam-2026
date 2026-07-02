@@ -10,6 +10,7 @@ import {
   Locked,
 } from "@/src/ecs/components.ts";
 import { GridPos } from "@/src/ecs/components.ts";
+import { ExamineTextId } from "@/src/game/examine.ts";
 import { DisplayName } from "@/src/game/names.ts";
 import { createGameSession } from "@/src/ecs/session.ts";
 import { createWorld } from "@/src/ecs/world.ts";
@@ -69,6 +70,181 @@ Deno.test("interacting with an NPC without dialogue data falls back to silence",
     dialogue: {
       title: "John",
       message: "John stayed silent. Space to continue.",
+    },
+  });
+});
+
+Deno.test("examining an entity with authored text emits that text without consuming a turn", async () => {
+  const world = await createWorld();
+  const playerEntity = createTestPlayer(world, { health: { current: 5, max: 10 } });
+  const terminal = createTestUplinkTerminal(world, {
+    x: 2,
+    y: 1,
+    blocking: true,
+    interactable: true,
+    examineTextId: ExamineTextId.BootSectorUplinkTerminal,
+  });
+  createTestEnemy(world, {
+    x: 1,
+    y: 0,
+    dir: 2,
+    displayName: DisplayName.Imp,
+    attack: TEST_ATTACK,
+  });
+
+  const session = createTestSession(world, playerEntity);
+  const result = session.handlePlayerCommand({ type: "examine" });
+
+  assertEquals(result.events, [{
+    type: "examined",
+    entity: terminal,
+    text: "The uplink terminal hums, waiting for a valid code.",
+  }]);
+  assertEquals(session.getPlayerState().health, { current: 5, max: 10 });
+});
+
+Deno.test("examining a named entity falls back to its display name", async () => {
+  const world = await createWorld();
+  const playerEntity = createTestPlayer(world);
+  const enemy = createTestEnemy(world, {
+    x: 2,
+    y: 1,
+    dir: 3,
+    displayName: DisplayName.Imp,
+    attack: TEST_ATTACK,
+  });
+
+  const session = createTestSession(world, playerEntity);
+  const result = session.handlePlayerCommand({ type: "examine" });
+
+  assertEquals(result.events, [{
+    type: "examined",
+    entity: enemy,
+    text: "It's a Imp.",
+  }]);
+});
+
+Deno.test("examining empty space uses the generic fallback", async () => {
+  const world = await createWorld();
+  const playerEntity = createTestPlayer(world);
+
+  const session = createTestSession(world, playerEntity);
+  const result = session.handlePlayerCommand({ type: "examine" });
+
+  assertEquals(result.events, [{
+    type: "examined",
+    entity: undefined,
+    text: "Nothing of interest here.",
+  }]);
+});
+
+Deno.test("verb commands gate by target component", async () => {
+  const doorWorld = await createWorld();
+  const doorPlayer = createTestPlayer(doorWorld);
+  createTestDoor(doorWorld, { x: 2, y: 1, blocking: true, interactable: true });
+  const doorSession = createTestSession(doorWorld, doorPlayer);
+  assertEquals(doorSession.handlePlayerCommand({ type: "interact", verb: "use" }).events, [{
+    type: "verbFailed",
+    verb: "use",
+  }]);
+
+  const npcWorld = await createWorld();
+  const npcPlayer = createTestPlayer(npcWorld);
+  createTestNpc(npcWorld, { x: 2, y: 1, displayName: DisplayName.John, interactable: true });
+  const npcSession = createTestSession(npcWorld, npcPlayer);
+  assertEquals(npcSession.handlePlayerCommand({ type: "interact", verb: "open" }).events, [{
+    type: "verbFailed",
+    verb: "open",
+  }]);
+
+  const terminalWorld = await createWorld();
+  const terminalPlayer = createTestPlayer(terminalWorld);
+  createTestUplinkTerminal(terminalWorld, { x: 2, y: 1, blocking: true, interactable: true });
+  const terminalSession = createTestSession(terminalWorld, terminalPlayer);
+  assertEquals(terminalSession.handlePlayerCommand({ type: "interact", verb: "talk" }).events, [{
+    type: "verbFailed",
+    verb: "talk",
+  }]);
+
+  const wallWorld = await createWorld();
+  const wallPlayer = createTestPlayer(wallWorld);
+  const wallSession = createTestSession(wallWorld, wallPlayer);
+  assertEquals(wallSession.handlePlayerCommand({ type: "interact", verb: "talk" }).events, [{
+    type: "verbFailed",
+    verb: "talk",
+  }]);
+
+  const enemyWorld = await createWorld();
+  const enemyPlayer = createTestPlayer(enemyWorld);
+  createTestEnemy(enemyWorld, {
+    x: 2,
+    y: 1,
+    dir: 3,
+    displayName: DisplayName.Imp,
+    attack: TEST_ATTACK,
+  });
+  const enemySession = createTestSession(enemyWorld, enemyPlayer);
+  assertEquals(enemySession.handlePlayerCommand({ type: "interact", verb: "talk" }).events, [{
+    type: "verbFailed",
+    verb: "talk",
+  }]);
+});
+
+Deno.test("opening an already-open door reports that it is open", async () => {
+  const world = await createWorld();
+  const playerEntity = createTestPlayer(world);
+  const door = createTestDoor(world, { x: 2, y: 1, open: 1, interactable: true });
+
+  const session = createTestSession(world, playerEntity);
+  const result = session.handlePlayerCommand({ type: "interact", verb: "open" });
+
+  assertEquals(result.events, [{
+    type: "doorAlreadyOpen",
+    entity: door,
+  }]);
+});
+
+Deno.test("explicit open, use, and talk verbs resolve their matching targets", async () => {
+  const doorWorld = await createWorld();
+  const doorPlayer = createTestPlayer(doorWorld);
+  const door = createTestDoor(doorWorld, { x: 2, y: 1, blocking: true, interactable: true });
+  const doorSession = createTestSession(doorWorld, doorPlayer);
+  assertEquals(doorSession.handlePlayerCommand({ type: "interact", verb: "open" }).events, [{
+    type: "doorOpened",
+    entity: door,
+  }]);
+
+  const terminalWorld = await createWorld();
+  const terminalPlayer = createTestPlayer(terminalWorld);
+  const terminal = createTestUplinkTerminal(terminalWorld, { x: 2, y: 1, blocking: true, interactable: true });
+  const terminalMap = flatTestMap(3, 2, [{ prefab: "uplinkTerminal", x: 2, y: 1, goto: "Next Map" }]);
+  const terminalSession = createTestSession(terminalWorld, terminalPlayer, terminalMap, {
+    terminalDestinations: new Map([[terminal, "Next Map"]]),
+    playerState: { hasUplinkCode: true },
+  });
+  assertEquals(terminalSession.handlePlayerCommand({ type: "interact", verb: "use" }), {
+    events: [{
+      type: "uplinkTerminalActivated",
+      entity: terminal,
+    }],
+    mapChange: { goto: "Next Map" },
+  });
+
+  const npcWorld = await createWorld();
+  const npcPlayer = createTestPlayer(npcWorld);
+  createTestNpc(npcWorld, {
+    x: 2,
+    y: 1,
+    displayName: DisplayName.John,
+    dialogueTreeId: DialogueTreeId.JohnIntro,
+    interactable: true,
+  });
+  const npcSession = createTestSession(npcWorld, npcPlayer);
+  assertEquals(npcSession.handlePlayerCommand({ type: "interact", verb: "talk" }), {
+    events: [],
+    dialogue: {
+      title: "John",
+      message: "Stay sharp. Space to continue.",
     },
   });
 });
@@ -649,6 +825,18 @@ Deno.test("an enemy reducing the player to zero health reports a defeat outcome"
   assertEquals(world.entities.isActive(playerEntity), true);
   assertEquals(session.getPlayerState().health, { current: 0, max: 1 });
 });
+
+const TEST_ATTACK = {
+  minDamage: 1,
+  maxDamage: 1,
+  range: 1,
+  requiresFacing: AttackFacingRequirement.Required,
+  attackBonus: 20,
+  critThreshold: 0,
+  critMultiplier: 1,
+  pattern: AttackPattern.Line,
+  targets: AttackTargetMode.First,
+} as const;
 
 const TEST_MAP = flatTestMap(3, 2);
 

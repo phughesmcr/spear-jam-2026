@@ -8,6 +8,7 @@ import { renderHud } from "@/src/render/hud.ts";
 import { renderMap } from "@/src/render/map.ts";
 import { renderMessageLog } from "@/src/render/messages.ts";
 import { renderOverlay } from "@/src/render/overlay.ts";
+import { renderVerbMenu } from "@/src/render/verb_menu.ts";
 
 const BACKGROUND_COLOR = "#101217";
 
@@ -29,6 +30,9 @@ export function renderGameFrame(
     renderHud(ctx, canvasSize, session);
   }
   renderMessageLog(ctx, canvasSize, messages);
+  if (mode.type === "verbMenu") {
+    renderVerbMenu(ctx, canvasSize, mode.selectedIndex);
+  }
   switch (mode.type) {
     case "loading":
       renderOverlay(ctx, canvasSize, "LOADING");
@@ -55,6 +59,7 @@ export function renderGameFrame(
       renderOverlay(ctx, canvasSize, "LOAD FAILED", mode.message);
       return;
     case "playing":
+    case "verbMenu":
       return;
   }
 }

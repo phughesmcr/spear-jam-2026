@@ -47,6 +47,12 @@ export const Dialogue: Component<DialogueSchema> = new Component<DialogueSchema>
   schema: { dialogueTreeId: Uint8Array },
 });
 
+export type ExamineSchema = { examineTextId: number };
+export const Examine: Component<ExamineSchema> = new Component<ExamineSchema>({
+  name: "examine",
+  schema: { examineTextId: Uint8Array },
+});
+
 export const Player: Component<null> = new Component<null>({ name: "player", maxEntities: 1 });
 
 export const Blocking: Component<null> = new Component<null>({ name: "blocking" });
@@ -220,6 +226,7 @@ export const ALL_COMPONENTS: DynamicComponent[] = [
   DisplayNameComponent,
   Npc,
   Dialogue,
+  Examine,
   Player,
   Blocking,
   Interactable,

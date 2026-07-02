@@ -98,6 +98,7 @@ export type GameMode =
   | { readonly type: "playing" }
   | { readonly type: "paused" }
   | { readonly type: "menu" }
+  | { readonly type: "verbMenu"; readonly selectedIndex: number }
   | ({ readonly type: "dialogue" } & DialogueState)
   | {
     readonly type: "intermission";

@@ -13,6 +13,7 @@ import { getMap, START_MAP_NAME } from "@/src/map/maps.ts";
 import { configureCanvasDpi, DEFAULT_GAME_CANVAS_SIZE } from "@/src/render/canvas.ts";
 import type { GameCanvasSize } from "@/src/render/canvas.ts";
 import { renderGameFrame } from "@/src/render/game.ts";
+import { VERBS, verbToCommand } from "@/src/game/verbs.ts";
 
 const MESSAGE_LOG_LIMIT = 5;
 
@@ -43,6 +44,7 @@ class Game implements Disposable {
   private recentMessages: string[] = [];
   private combatFeedback: readonly CombatFeedback[] = [];
   private mode: GameMode = { type: "loading" };
+  private lastVerbIndex = 0;
   private started = false;
 
   constructor(spec: GameSpec, controller: AbortController) {
@@ -123,6 +125,11 @@ class Game implements Disposable {
       return;
     }
 
+    if (this.mode.type === "verbMenu") {
+      this.handleVerbMenuCommand(command);
+      return;
+    }
+
     if (this.mode.type === "victory" || this.mode.type === "defeat") {
       if (command.type === "wait") this.restartFromOutcome(this.mode.type);
       return;
@@ -135,6 +142,11 @@ class Game implements Disposable {
     }
 
     switch (command.type) {
+      case "action":
+        if (this.mode.type !== "playing") return;
+        this.openVerbMenu();
+        this.render();
+        return;
       case "menu":
         this.toggleMenu();
         this.render();
@@ -158,6 +170,40 @@ class Game implements Disposable {
     if (command.type !== "wait") return;
     this.mode = { type: "playing" };
     this.render();
+  }
+
+  private handleVerbMenuCommand(command: GameCommand): void {
+    if (this.mode.type !== "verbMenu") return;
+
+    switch (command.type) {
+      case "move":
+        if (command.direction === "forward") {
+          this.moveVerbSelection(-1);
+          this.render();
+          return;
+        }
+        if (command.direction === "backward") {
+          this.moveVerbSelection(1);
+          this.render();
+          return;
+        }
+        return;
+      case "wait":
+      case "action":
+        this.confirmVerbSelection();
+        return;
+      case "menu":
+        this.mode = { type: "playing" };
+        this.render();
+        return;
+      case "turn":
+      case "interact":
+      case "examine":
+      case "attack":
+      case "selectWeapon":
+      case "pause":
+        return;
+    }
   }
 
   private restartFromOutcome(outcome: "victory" | "defeat"): void {
@@ -193,6 +239,24 @@ class Game implements Disposable {
         this.mode = { type: "playing" };
         return;
     }
+  }
+
+  private openVerbMenu(): void {
+    this.mode = { type: "verbMenu", selectedIndex: this.lastVerbIndex };
+  }
+
+  private moveVerbSelection(delta: number): void {
+    if (this.mode.type !== "verbMenu") return;
+    const selectedIndex = (this.mode.selectedIndex + delta + VERBS.length) % VERBS.length;
+    this.mode = { type: "verbMenu", selectedIndex };
+  }
+
+  private confirmVerbSelection(): void {
+    if (this.mode.type !== "verbMenu") return;
+    const selectedIndex = this.mode.selectedIndex;
+    this.lastVerbIndex = selectedIndex;
+    this.mode = { type: "playing" };
+    this.handlePlayerCommands([verbToCommand(selectedIndex)]);
   }
 
   private handlePlayerCommands(commands: readonly PlayerCommand[]): void {

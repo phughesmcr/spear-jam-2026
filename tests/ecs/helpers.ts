@@ -11,6 +11,7 @@ import {
   Enemy,
   type EnemyArchetype,
   EnemyArchetypeComponent,
+  Examine,
   Facing,
   GridPos,
   Health,
@@ -87,6 +88,7 @@ export type TestNpcOptions = {
   displayName: DisplayName;
   dialogueTreeId?: DialogueTreeId;
   interactable?: boolean;
+  examineTextId?: number;
 };
 
 export function createTestNpc(world: World, opts: TestNpcOptions): Entity {
@@ -96,6 +98,9 @@ export function createTestNpc(world: World, opts: TestNpcOptions): Entity {
   world.components.addToEntity(Npc, entity);
   if (opts.dialogueTreeId !== undefined) {
     world.components.addToEntity(Dialogue, entity, { dialogueTreeId: opts.dialogueTreeId });
+  }
+  if (opts.examineTextId !== undefined) {
+    world.components.addToEntity(Examine, entity, { examineTextId: opts.examineTextId });
   }
   if (opts.interactable) world.components.addToEntity(Interactable, entity);
   return entity;
@@ -108,6 +113,7 @@ export type TestDoorOptions = {
   color?: KeyColor;
   blocking?: boolean;
   interactable?: boolean;
+  examineTextId?: number;
 };
 
 export function createTestDoor(world: World, opts: TestDoorOptions): Entity {
@@ -116,6 +122,9 @@ export function createTestDoor(world: World, opts: TestDoorOptions): Entity {
   world.components.addToEntity(Door, entity, { open: opts.open ?? 0 });
   if (opts.color !== undefined) {
     world.components.addToEntity(Locked, entity, { color: keyColorCode(opts.color) });
+  }
+  if (opts.examineTextId !== undefined) {
+    world.components.addToEntity(Examine, entity, { examineTextId: opts.examineTextId });
   }
   if (opts.blocking) world.components.addToEntity(Blocking, entity);
   if (opts.interactable) world.components.addToEntity(Interactable, entity);
@@ -152,12 +161,16 @@ export type TestUplinkTerminalOptions = {
   y: number;
   blocking?: boolean;
   interactable?: boolean;
+  examineTextId?: number;
 };
 
 export function createTestUplinkTerminal(world: World, opts: TestUplinkTerminalOptions): Entity {
   const entity = createEntity(world);
   world.components.addToEntity(GridPos, entity, { x: opts.x, y: opts.y });
   world.components.addToEntity(UplinkTerminal, entity);
+  if (opts.examineTextId !== undefined) {
+    world.components.addToEntity(Examine, entity, { examineTextId: opts.examineTextId });
+  }
   if (opts.blocking) world.components.addToEntity(Blocking, entity);
   if (opts.interactable) world.components.addToEntity(Interactable, entity);
   return entity;
@@ -198,6 +211,7 @@ export type TestEnemyOptions = {
   attack: AttackSchema;
   health?: HealthSchema;
   archetype?: EnemyArchetype;
+  examineTextId?: number;
 };
 
 export function createTestEnemy(world: World, opts: TestEnemyOptions): Entity {
@@ -209,6 +223,9 @@ export function createTestEnemy(world: World, opts: TestEnemyOptions): Entity {
   world.components.addToEntity(TurnTaker, entity);
   world.components.addToEntity(DisplayNameComponent, entity, { displayName: opts.displayName });
   world.components.addToEntity(Attack, entity, opts.attack);
+  if (opts.examineTextId !== undefined) {
+    world.components.addToEntity(Examine, entity, { examineTextId: opts.examineTextId });
+  }
   if (opts.health !== undefined) world.components.addToEntity(Health, entity, opts.health);
   if (opts.archetype !== undefined) {
     world.components.addToEntity(EnemyArchetypeComponent, entity, { archetype: opts.archetype });

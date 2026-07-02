@@ -14,8 +14,10 @@ import { createMapEntity } from "@/src/ecs/prefabs.ts";
 import { Player } from "@/src/ecs/player.ts";
 import { SpatialIndex } from "@/src/ecs/spatial.ts";
 import { createWorld } from "@/src/ecs/world.ts";
+import { examineEntity } from "@/src/game/examine.ts";
 import { relativeMoveDirectionOffset, turnDirectionDelta } from "@/src/game/commands.ts";
 import type { PlayerCommand, PlayerCommandResult } from "@/src/game/commands.ts";
+import type { InteractVerb } from "@/src/game/commands.ts";
 import type { GameEvent } from "@/src/game/events.ts";
 import type { RandomSource } from "@/src/game/rng.ts";
 import { createPlayerState } from "@/src/game/state.ts";
@@ -132,7 +134,9 @@ export class GameSession implements Disposable {
       case "wait":
         return this.consumePlayerTurn();
       case "interact":
-        return this.handlePlayerInteractCommand();
+        return this.handlePlayerInteractCommand(command.verb);
+      case "examine":
+        return { events: [examineEntity(this.world, this.spatial.facedEntity(this.player))] };
       case "attack":
         return this.handlePlayerAttackCommand();
       case "selectWeapon":
@@ -170,13 +174,14 @@ export class GameSession implements Disposable {
     this.player.turnBy(delta);
   }
 
-  private handlePlayerInteractCommand(): PlayerCommandResult {
+  private handlePlayerInteractCommand(verb?: InteractVerb): PlayerCommandResult {
     const interaction = interactWithEntity(
       this.world,
       this.spatial,
       this.spatial.facedEntity(this.player),
       this.inventory.heldKeys,
       this.inventory.hasUplinkCode,
+      verb,
     );
     switch (interaction.type) {
       case "unchanged":

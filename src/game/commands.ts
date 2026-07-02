@@ -4,17 +4,20 @@ import type { GameEvent } from "@/src/game/events.ts";
 export type RelativeMoveDirection = "forward" | "backward" | "left" | "right";
 export type TurnDirection = "left" | "right";
 export type TurnDelta = -1 | 1;
+export type InteractVerb = "use" | "open" | "talk";
 
 export type PlayerCommand =
   | { readonly type: "move"; readonly direction: RelativeMoveDirection }
   | { readonly type: "turn"; readonly direction: TurnDirection }
   | { readonly type: "wait" }
-  | { readonly type: "interact" }
+  | { readonly type: "interact"; readonly verb?: InteractVerb }
+  | { readonly type: "examine" }
   | { readonly type: "attack" }
   | { readonly type: "selectWeapon"; readonly slot: CommandSlot };
 
 export type GameCommand =
   | PlayerCommand
+  | { readonly type: "action" }
   | { readonly type: "menu" }
   | { readonly type: "pause" };
 
@@ -57,9 +60,11 @@ export function isPlayerCommand(command: GameCommand): command is PlayerCommand 
     case "turn":
     case "wait":
     case "interact":
+    case "examine":
     case "attack":
     case "selectWeapon":
       return true;
+    case "action":
     case "menu":
     case "pause":
       return false;

@@ -15,6 +15,7 @@ import {
 } from "@/src/ecs/components.ts";
 import { displayNameText } from "@/src/game/names.ts";
 import type { SpatialIndex } from "@/src/ecs/spatial.ts";
+import type { InteractVerb } from "@/src/game/commands.ts";
 import type { GameEvent } from "@/src/game/events.ts";
 import type { AmmoKind, CommandSlot, DialogueState } from "@/src/game/state.ts";
 import { keyColorForCode } from "@/src/map/map.ts";
@@ -56,13 +57,18 @@ export function interactWithEntity(
   target: Entity | undefined,
   heldKeys: ReadonlySet<KeyColor>,
   hasUplinkCode: boolean,
+  verb?: InteractVerb,
 ): PlayerInteractionResult {
   if (target === undefined || !world.components.entityHas(Interactable, target)) {
-    return UNCHANGED_INTERACTION;
+    return verb === undefined ? UNCHANGED_INTERACTION : failedVerb(verb);
+  }
+
+  if (verb !== undefined) {
+    return interactWithVerb(world, spatial, target, heldKeys, hasUplinkCode, verb);
   }
 
   if (world.components.entityHas(Door, target)) {
-    return interactWithDoor(world, spatial, target, heldKeys);
+    return interactWithDoor(world, spatial, target, heldKeys, false);
   }
 
   if (world.components.entityHas(Npc, target)) {
@@ -76,14 +82,47 @@ export function interactWithEntity(
   return { type: "consumeTurn", events: [] };
 }
 
+function interactWithVerb(
+  world: World,
+  spatial: SpatialIndex,
+  target: Entity,
+  heldKeys: ReadonlySet<KeyColor>,
+  hasUplinkCode: boolean,
+  verb: InteractVerb,
+): PlayerInteractionResult {
+  switch (verb) {
+    case "open":
+      return world.components.entityHas(Door, target) ?
+        interactWithDoor(world, spatial, target, heldKeys, true) :
+        failedVerb(verb);
+    case "talk":
+      return world.components.entityHas(Npc, target) ? interactWithNpc(world, target) : failedVerb(verb);
+    case "use":
+      if (world.components.entityHas(Door, target) || world.components.entityHas(Npc, target)) return failedVerb(verb);
+      if (world.components.entityHas(UplinkTerminal, target)) return interactWithUplinkTerminal(target, hasUplinkCode);
+      return { type: "consumeTurn", events: [] };
+  }
+}
+
 function interactWithDoor(
   world: World,
   spatial: SpatialIndex,
   door: Entity,
   heldKeys: ReadonlySet<KeyColor>,
+  reportAlreadyOpen: boolean,
 ): PlayerInteractionResult {
   const state = world.components.getEntityData(Door, door);
-  if (state.open === 1) return UNCHANGED_INTERACTION;
+  if (state.open === 1) {
+    return reportAlreadyOpen ?
+      {
+        type: "unchanged",
+        events: [{
+          type: "doorAlreadyOpen",
+          entity: door,
+        }],
+      } :
+      UNCHANGED_INTERACTION;
+  }
 
   if (world.components.entityHas(Locked, door)) {
     const lock = world.components.getEntityData(Locked, door);
@@ -142,6 +181,16 @@ function interactWithUplinkTerminal(terminal: Entity, hasUplinkCode: boolean): P
     events: [{
       type: "uplinkTerminalActivated",
       entity: terminal,
+    }],
+  };
+}
+
+function failedVerb(verb: InteractVerb): PlayerInteractionResult {
+  return {
+    type: "unchanged",
+    events: [{
+      type: "verbFailed",
+      verb,
     }],
   };
 }

@@ -77,6 +77,7 @@ Deno.test("messageForEvent covers interaction events", () => {
   );
   assertEquals(messageForEvent(PLAYER, { type: "doorLocked", entity: DOOR }), "The door is locked.");
   assertEquals(messageForEvent(PLAYER, { type: "doorOpened", entity: DOOR }), "Opened the door.");
+  assertEquals(messageForEvent(PLAYER, { type: "doorAlreadyOpen", entity: DOOR }), "It's already open.");
   assertEquals(messageForEvent(PLAYER, { type: "uplinkTerminalLocked", entity: DOOR }), "The uplink needs a code.");
   assertEquals(messageForEvent(PLAYER, { type: "uplinkTerminalActivated", entity: DOOR }), "Uplink accepted.");
   assertEquals(
@@ -89,6 +90,13 @@ Deno.test("messageForEvent covers interaction events", () => {
   );
   assertEquals(messageForEvent(PLAYER, { type: "ammoSpent", ammo: "pistol", amount: 1 }), "Spent 1 pistol ammo.");
   assertEquals(messageForEvent(PLAYER, { type: "noAmmo", ammo: "cannon" }), "No cannon ammo.");
+  assertEquals(
+    messageForEvent(PLAYER, { type: "examined", entity: DOOR, text: "The panel is warm." }),
+    "The panel is warm.",
+  );
+  assertEquals(messageForEvent(PLAYER, { type: "verbFailed", verb: "open" }), "Nothing to open.");
+  assertEquals(messageForEvent(PLAYER, { type: "verbFailed", verb: "use" }), "That didn't work.");
+  assertEquals(messageForEvent(PLAYER, { type: "verbFailed", verb: "talk" }), "That didn't work.");
   assertEquals(
     messageForEvent(PLAYER, { type: "creditsEarned", amount: 10, credits: 20, score: 30 }),
     "Earned 10 credits.",

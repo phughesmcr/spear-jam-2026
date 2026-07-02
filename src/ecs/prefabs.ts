@@ -15,6 +15,7 @@ import {
   Enemy,
   EnemyArchetype,
   EnemyArchetypeComponent,
+  Examine,
   Facing,
   GridPos,
   Health,
@@ -118,6 +119,9 @@ type FacingPrefab = {
 };
 
 type GridActorPrefab = PositionedPrefab & FacingPrefab;
+type ExaminePrefab = {
+  readonly examineTextId?: number;
+};
 
 export type PlayerPrefab = Omit<PlayerDef, "prefab">;
 
@@ -135,6 +139,7 @@ export function createNpc(world: World, prefab: NpcPrefab): Entity {
   const entity = createEntity(world, "npc");
   addGridActor(world, entity, prefab, DrawableKind.Npc, DrawableLayer.Npc);
   addDisplayName(world, entity, prefab.displayName);
+  addExamine(world, entity, prefab);
   world.components.addToEntity(Npc, entity);
   if (prefab.dialogueTreeId !== undefined && prefab.dialogueTreeId !== DialogueTreeId.None) {
     world.components.addToEntity(Dialogue, entity, { dialogueTreeId: prefab.dialogueTreeId });
@@ -153,6 +158,7 @@ export function createEnemy(world: World, prefab: EnemyPrefab): Entity {
   const health = prefab.health ?? defaults.health;
   addGridActor(world, entity, prefab, DrawableKind.Enemy, DrawableLayer.Enemy);
   addDisplayName(world, entity, prefab.displayName);
+  addExamine(world, entity, prefab);
   world.components.addToEntity(Enemy, entity);
   world.components.addToEntity(EnemyArchetypeComponent, entity, { archetype });
   addHealth(world, entity, health);
@@ -181,6 +187,7 @@ export function createDoor(world: World, prefab: DoorPrefab): Entity {
   const entity = createEntity(world, "door");
   addPosition(world, entity, prefab);
   addDrawable(world, entity, DrawableKind.Door, DrawableLayer.Structure);
+  addExamine(world, entity, prefab);
   world.components.addToEntity(Door, entity, { open: 0 });
   world.components.addToEntity(Interactable, entity);
   world.components.addToEntity(Blocking, entity);
@@ -216,6 +223,7 @@ export function createUplinkTerminal(world: World, prefab: UplinkTerminalPrefab)
   const entity = createEntity(world, "uplinkTerminal");
   addPosition(world, entity, prefab);
   addDrawable(world, entity, DrawableKind.UplinkTerminal, DrawableLayer.Structure);
+  addExamine(world, entity, prefab);
   world.components.addToEntity(UplinkTerminal, entity);
   world.components.addToEntity(Interactable, entity);
   world.components.addToEntity(Blocking, entity);
@@ -276,6 +284,12 @@ function addDrawable(world: World, entity: Entity, kind: DrawableKind, layer: Dr
 
 function addDisplayName(world: World, entity: Entity, displayName: DisplayName): void {
   world.components.addToEntity(DisplayNameComponent, entity, { displayName });
+}
+
+function addExamine(world: World, entity: Entity, prefab: ExaminePrefab): void {
+  if (prefab.examineTextId !== undefined) {
+    world.components.addToEntity(Examine, entity, { examineTextId: prefab.examineTextId });
+  }
 }
 
 function addHealth(world: World, entity: Entity, health: number): void {

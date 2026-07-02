@@ -70,6 +70,7 @@ export type NpcDef = {
   dir: number;
   displayName: DisplayName;
   dialogueTreeId?: DialogueTreeId;
+  examineTextId?: number;
 };
 
 export type EnemyDef = {
@@ -82,6 +83,7 @@ export type EnemyDef = {
   health?: number;
   damage?: number;
   attack?: Partial<AttackDef>;
+  examineTextId?: number;
 };
 
 export type DoorDef = {
@@ -90,6 +92,7 @@ export type DoorDef = {
   y: number;
   locked?: boolean;
   color?: KeyColor;
+  examineTextId?: number;
 };
 
 export type KeyDef = {
@@ -110,6 +113,7 @@ export type UplinkTerminalDef = {
   x: number;
   y: number;
   goto: string;
+  examineTextId?: number;
 };
 
 export type WeaponPickupDef = {

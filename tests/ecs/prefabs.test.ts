@@ -9,11 +9,13 @@ import {
   Enemy,
   EnemyArchetype,
   EnemyArchetypeComponent,
+  Examine,
   Health,
   Npc,
 } from "@/src/ecs/components.ts";
+import { ExamineTextId } from "@/src/game/examine.ts";
 import { DisplayName } from "@/src/game/names.ts";
-import { createDoor, createEnemy, createNpc } from "@/src/ecs/prefabs.ts";
+import { createDoor, createEnemy, createNpc, createUplinkTerminal } from "@/src/ecs/prefabs.ts";
 import { createWorld } from "@/src/ecs/world.ts";
 
 Deno.test("neutral NPCs and enemies share display names without sharing NPC identity", async () => {
@@ -43,6 +45,37 @@ Deno.test("a locked door without a key color is rejected", async () => {
   const world = await createWorld();
 
   assertThrows(() => createDoor(world, { x: 1, y: 1, locked: true }), Error, "key color");
+});
+
+Deno.test("prefabs attach authored examine text when provided", async () => {
+  const world = await createWorld();
+  const npc = createNpc(world, {
+    x: 1,
+    y: 1,
+    dir: 1,
+    displayName: DisplayName.John,
+    examineTextId: ExamineTextId.BootSectorUplinkTerminal,
+  });
+  const enemy = createEnemy(world, {
+    x: 2,
+    y: 1,
+    dir: 3,
+    displayName: DisplayName.Imp,
+    examineTextId: ExamineTextId.BootSectorUplinkTerminal,
+  });
+  const door = createDoor(world, { x: 3, y: 1, examineTextId: ExamineTextId.BootSectorUplinkTerminal });
+  const terminal = createUplinkTerminal(world, {
+    x: 4,
+    y: 1,
+    goto: "Next Map",
+    examineTextId: ExamineTextId.BootSectorUplinkTerminal,
+  });
+
+  for (const entity of [npc, enemy, door, terminal]) {
+    assertEquals(world.components.getEntityData(Examine, entity), {
+      examineTextId: ExamineTextId.BootSectorUplinkTerminal,
+    });
+  }
 });
 
 Deno.test("enemy archetypes apply top-down tuning defaults", async () => {
