@@ -4,7 +4,6 @@ import type { EntityDef, GameMap, KeyColor } from "@/src/map/map.ts";
 import {
   Attack,
   type AttackSchema,
-  AwarenessState,
   Blocking,
   Dialogue,
   DisplayNameComponent,
@@ -18,6 +17,7 @@ import {
   GridPos,
   Health,
   type HealthSchema,
+  IDLE_AWARENESS,
   Interactable,
   Item,
   ItemKind,
@@ -223,12 +223,7 @@ export function createTestEnemy(world: World, opts: TestEnemyOptions): Entity {
   world.components.addToEntity(Facing, entity, { dir: opts.dir ?? 1 });
   world.components.addToEntity(Blocking, entity);
   world.components.addToEntity(Enemy, entity);
-  world.components.addToEntity(EnemyAwareness, entity, {
-    state: AwarenessState.Idle,
-    lastKnownX: -1,
-    lastKnownY: -1,
-    turnsSinceSeen: 0,
-  });
+  world.components.addToEntity(EnemyAwareness, entity, IDLE_AWARENESS);
   world.components.addToEntity(TurnTaker, entity);
   world.components.addToEntity(DisplayNameComponent, entity, { displayName: opts.displayName });
   world.components.addToEntity(Attack, entity, opts.attack);

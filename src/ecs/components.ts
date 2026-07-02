@@ -155,6 +155,19 @@ export type EnemyAwarenessSchema = {
   lastKnownY: number;
   turnsSinceSeen: number;
 };
+export type EnemyAwarenessPartitions = {
+  readonly state: Uint8Array;
+  readonly lastKnownX: Int16Array;
+  readonly lastKnownY: Int16Array;
+  readonly turnsSinceSeen: Uint8Array;
+};
+const UNKNOWN_LAST_KNOWN_POSITION = -1;
+export const IDLE_AWARENESS = {
+  state: AwarenessState.Idle,
+  lastKnownX: UNKNOWN_LAST_KNOWN_POSITION,
+  lastKnownY: UNKNOWN_LAST_KNOWN_POSITION,
+  turnsSinceSeen: 0,
+} as const satisfies EnemyAwarenessSchema;
 export const EnemyAwareness: Component<EnemyAwarenessSchema> = new Component<EnemyAwarenessSchema>({
   name: "enemyAwareness",
   schema: { state: Uint8Array, lastKnownX: Int16Array, lastKnownY: Int16Array, turnsSinceSeen: Uint8Array },

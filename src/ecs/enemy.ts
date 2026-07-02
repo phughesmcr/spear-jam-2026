@@ -4,9 +4,14 @@ import {
   AwarenessState,
   EnemyArchetype,
   enemyArchetypeFor,
-  EnemyAwareness,
+  IDLE_AWARENESS,
 } from "@/src/ecs/components.ts";
-import type { EnemyAwarenessSchema, FacingPartitions, GridPosPartitions } from "@/src/ecs/components.ts";
+import type {
+  EnemyAwarenessPartitions,
+  EnemyAwarenessSchema,
+  FacingPartitions,
+  GridPosPartitions,
+} from "@/src/ecs/components.ts";
 import { attackEntity, attackTargets, entityAttack } from "@/src/ecs/combat.ts";
 import type { Player } from "@/src/ecs/player.ts";
 import { enemyTurnQuery } from "@/src/ecs/queries.ts";
@@ -21,6 +26,7 @@ import type { CardinalDirection, GridDelta, GridPoint } from "@/src/grid/directi
 type EnemyTurnComponents = {
   readonly gridPos: { readonly partitions: GridPosPartitions };
   readonly facing: { readonly partitions: FacingPartitions };
+  readonly enemyAwareness: { readonly partitions: EnemyAwarenessPartitions };
 };
 
 type TurnPolicy = {
@@ -36,7 +42,6 @@ const DEFAULT_TURN_POLICY: TurnPolicy = {
 };
 const DEFAULT_ENEMY_SIGHT_RADIUS = 6;
 const MAX_INVESTIGATION_TURNS = 6;
-const UNKNOWN_LAST_KNOWN_POSITION = -1;
 
 const TURN_POLICIES: Readonly<Record<EnemyArchetype, TurnPolicy>> = {
   [EnemyArchetype.MeleeDog]: {
@@ -85,12 +90,13 @@ export const enemyTurnSystem = new System({
     const enemyComponents = components as unknown as EnemyTurnComponents;
     const gridPos = enemyComponents.gridPos.partitions;
     const facing = enemyComponents.facing.partitions;
+    const enemyAwareness = enemyComponents.enemyAwareness.partitions;
     const indices = enemies.indices;
     const count = enemies.count;
     const events: GameEvent[] = [];
 
     for (let i = 0; i < count; i++) {
-      events.push(...advanceEnemyTurn(context, indices[i]!, gridPos, facing));
+      events.push(...advanceEnemyTurn(context, indices[i]!, gridPos, facing, enemyAwareness));
     }
     return events;
   },
@@ -101,16 +107,17 @@ function advanceEnemyTurn(
   entity: Entity,
   gridPos: GridPosPartitions,
   facing: FacingPartitions,
+  enemyAwareness: EnemyAwarenessPartitions,
 ): readonly GameEvent[] {
   const { world } = context;
   if (!world.entities.isActive(entity)) return [];
 
-  const awareness = updateEnemyAwareness(context, entity, gridPos, facing);
+  const awareness = updateEnemyAwareness(context, entity, gridPos, facing, enemyAwareness);
   if (awareness.state === AwarenessState.Idle) return [];
 
   const policy = turnPolicyFor(world, entity);
   if (awareness.state === AwarenessState.Investigating) {
-    return advanceInvestigatingEnemyTurn(context, entity, gridPos, facing, policy, awareness.position);
+    return advanceInvestigatingEnemyTurn(context, entity, gridPos, facing, enemyAwareness, policy, awareness.position);
   }
 
   if (
@@ -155,16 +162,12 @@ function advanceInvestigatingEnemyTurn(
   entity: Entity,
   gridPos: GridPosPartitions,
   facing: FacingPartitions,
+  enemyAwareness: EnemyAwarenessPartitions,
   policy: TurnPolicy,
   target: GridPoint,
 ): readonly GameEvent[] {
   if (samePosition(entityPosition(entity, gridPos), target)) {
-    setEnemyAwareness(context.world, entity, {
-      state: AwarenessState.Idle,
-      lastKnownX: UNKNOWN_LAST_KNOWN_POSITION,
-      lastKnownY: UNKNOWN_LAST_KNOWN_POSITION,
-      turnsSinceSeen: 0,
-    });
+    setEnemyAwareness(entity, enemyAwareness, IDLE_AWARENESS);
     return [];
   }
 
@@ -382,6 +385,7 @@ function updateEnemyAwareness(
   entity: Entity,
   gridPos: GridPosPartitions,
   facing: FacingPartitions,
+  enemyAwareness: EnemyAwarenessPartitions,
 ): AwarenessResult {
   const position = entityPosition(entity, gridPos);
   const playerPosition = context.player.getPosition();
@@ -390,11 +394,11 @@ function updateEnemyAwareness(
   if (
     canSeePoint(position, playerPosition, {
       radius: DEFAULT_ENEMY_SIGHT_RADIUS,
-      facing: directionForCode(facing.dir[entity]!),
+      facing: facing.dir[entity]! as CardinalDirection,
       blocksSight,
     })
   ) {
-    setEnemyAwareness(context.world, entity, {
+    setEnemyAwareness(entity, enemyAwareness, {
       state: AwarenessState.Alert,
       lastKnownX: playerPosition.x,
       lastKnownY: playerPosition.y,
@@ -405,7 +409,7 @@ function updateEnemyAwareness(
 
   const heardNoise = nearestHeardNoise(position, context.noises ?? []);
   if (heardNoise !== undefined) {
-    setEnemyAwareness(context.world, entity, {
+    setEnemyAwareness(entity, enemyAwareness, {
       state: AwarenessState.Investigating,
       lastKnownX: heardNoise.x,
       lastKnownY: heardNoise.y,
@@ -414,12 +418,11 @@ function updateEnemyAwareness(
     return { state: AwarenessState.Investigating, position: heardNoise };
   }
 
-  const awareness = enemyAwareness(context.world, entity);
-  if (hasLastKnownPosition(awareness) && awareness.state !== AwarenessState.Idle) {
-    const lastKnown = { x: awareness.lastKnownX, y: awareness.lastKnownY };
-    const turnsSinceSeen = awareness.turnsSinceSeen + 1;
+  if (hasLastKnownPosition(entity, enemyAwareness) && enemyAwareness.state[entity]! !== AwarenessState.Idle) {
+    const lastKnown = { x: enemyAwareness.lastKnownX[entity]!, y: enemyAwareness.lastKnownY[entity]! };
+    const turnsSinceSeen = enemyAwareness.turnsSinceSeen[entity]! + 1;
     if (!samePosition(position, lastKnown) && turnsSinceSeen <= MAX_INVESTIGATION_TURNS) {
-      setEnemyAwareness(context.world, entity, {
+      setEnemyAwareness(entity, enemyAwareness, {
         state: AwarenessState.Investigating,
         lastKnownX: lastKnown.x,
         lastKnownY: lastKnown.y,
@@ -429,12 +432,7 @@ function updateEnemyAwareness(
     }
   }
 
-  setEnemyAwareness(context.world, entity, {
-    state: AwarenessState.Idle,
-    lastKnownX: UNKNOWN_LAST_KNOWN_POSITION,
-    lastKnownY: UNKNOWN_LAST_KNOWN_POSITION,
-    turnsSinceSeen: 0,
-  });
+  setEnemyAwareness(entity, enemyAwareness, IDLE_AWARENESS);
   return { state: AwarenessState.Idle };
 }
 
@@ -458,57 +456,22 @@ function nearestHeardNoise(position: GridPoint, noises: readonly NoiseStimulus[]
   return nearest?.noise;
 }
 
-function enemyAwareness(world: World, entity: Entity): EnemyAwarenessSchema {
-  if (!world.components.entityHas(EnemyAwareness, entity)) {
-    setEnemyAwareness(world, entity, {
-      state: AwarenessState.Idle,
-      lastKnownX: UNKNOWN_LAST_KNOWN_POSITION,
-      lastKnownY: UNKNOWN_LAST_KNOWN_POSITION,
-      turnsSinceSeen: 0,
-    });
-  }
-  return toEnemyAwarenessSchema(world.components.getEntityData(EnemyAwareness, entity));
+function setEnemyAwareness(
+  entity: Entity,
+  enemyAwareness: EnemyAwarenessPartitions,
+  awareness: EnemyAwarenessSchema,
+): void {
+  enemyAwareness.state[entity] = awareness.state;
+  enemyAwareness.lastKnownX[entity] = awareness.lastKnownX;
+  enemyAwareness.lastKnownY[entity] = awareness.lastKnownY;
+  enemyAwareness.turnsSinceSeen[entity] = awareness.turnsSinceSeen;
 }
 
-function setEnemyAwareness(world: World, entity: Entity, awareness: EnemyAwarenessSchema): void {
-  if (world.components.entityHas(EnemyAwareness, entity)) {
-    world.components.setEntityData(EnemyAwareness, entity, awareness);
-    return;
-  }
-  world.components.addToEntity(EnemyAwareness, entity, awareness);
-}
-
-function hasLastKnownPosition(awareness: EnemyAwarenessSchema): boolean {
-  return awareness.lastKnownX !== UNKNOWN_LAST_KNOWN_POSITION && awareness.lastKnownY !== UNKNOWN_LAST_KNOWN_POSITION;
+function hasLastKnownPosition(entity: Entity, enemyAwareness: EnemyAwarenessPartitions): boolean {
+  return enemyAwareness.lastKnownX[entity]! !== IDLE_AWARENESS.lastKnownX &&
+    enemyAwareness.lastKnownY[entity]! !== IDLE_AWARENESS.lastKnownY;
 }
 
 function samePosition(a: GridPoint, b: GridPoint): boolean {
   return a.x === b.x && a.y === b.y;
-}
-
-function directionForCode(value: number): CardinalDirection {
-  return value === Direction.North || value === Direction.East || value === Direction.South ||
-      value === Direction.West ?
-    value :
-    Direction.North;
-}
-
-function toEnemyAwarenessSchema(awareness: Record<keyof EnemyAwarenessSchema, number>): EnemyAwarenessSchema {
-  return {
-    state: awarenessStateForCode(awareness.state),
-    lastKnownX: awareness.lastKnownX,
-    lastKnownY: awareness.lastKnownY,
-    turnsSinceSeen: awareness.turnsSinceSeen,
-  };
-}
-
-function awarenessStateForCode(value: number): AwarenessState {
-  switch (value) {
-    case AwarenessState.Idle:
-    case AwarenessState.Investigating:
-    case AwarenessState.Alert:
-      return value;
-    default:
-      return AwarenessState.Idle;
-  }
 }

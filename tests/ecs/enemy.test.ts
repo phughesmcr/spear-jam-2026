@@ -7,9 +7,11 @@ import {
   Blocking,
   Enemy,
   EnemyArchetype,
+  EnemyAwareness,
   Facing,
   GridPos,
   Health,
+  IDLE_AWARENESS,
   TurnTaker,
 } from "@/src/ecs/components.ts";
 import type { AttackSchema } from "@/src/ecs/components.ts";
@@ -35,6 +37,7 @@ Deno.test("enemyTurnSystem moves enemies without an attack component", async () 
   world.components.addToEntity(Facing, enemy, { dir: Direction.East });
   world.components.addToEntity(Blocking, enemy);
   world.components.addToEntity(Enemy, enemy);
+  world.components.addToEntity(EnemyAwareness, enemy, IDLE_AWARENESS);
   world.components.addToEntity(TurnTaker, enemy);
   world.refresh();
 

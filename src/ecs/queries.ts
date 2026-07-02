@@ -1,5 +1,5 @@
 import { Query } from "@phughesmcr/miski";
-import { Drawable, Enemy, Facing, GridPos, TurnTaker } from "./components.ts";
+import { Drawable, Enemy, EnemyAwareness, Facing, GridPos, TurnTaker } from "./components.ts";
 
 /** All entities with a grid position */
 export const positionedQuery: Query = new Query({
@@ -13,5 +13,5 @@ export const drawableRenderQuery: Query = new Query({
 
 /** All enemies that participate in the turn loop */
 export const enemyTurnQuery: Query = new Query({
-  all: { enemy: Enemy, turnTaker: TurnTaker, gridPos: GridPos, facing: Facing },
+  all: { enemy: Enemy, turnTaker: TurnTaker, gridPos: GridPos, facing: Facing, enemyAwareness: EnemyAwareness },
 });

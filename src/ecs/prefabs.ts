@@ -5,7 +5,6 @@ import {
   AttackFacingRequirement,
   AttackPattern,
   AttackTargetMode,
-  AwarenessState,
   Blocking,
   Dialogue,
   DisplayNameComponent,
@@ -21,6 +20,7 @@ import {
   Facing,
   GridPos,
   Health,
+  IDLE_AWARENESS,
   Interactable,
   Item,
   ItemKind,
@@ -152,12 +152,7 @@ export function createEnemy(world: World, prefab: EnemyPrefab): Entity {
   addDisplayName(world, entity, prefab.displayName);
   addExamine(world, entity, prefab);
   world.components.addToEntity(Enemy, entity);
-  world.components.addToEntity(EnemyAwareness, entity, {
-    state: AwarenessState.Idle,
-    lastKnownX: -1,
-    lastKnownY: -1,
-    turnsSinceSeen: 0,
-  });
+  world.components.addToEntity(EnemyAwareness, entity, IDLE_AWARENESS);
   world.components.addToEntity(EnemyArchetypeComponent, entity, { archetype });
   addHealth(world, entity, health);
   world.components.addToEntity(Attack, entity, createAttackSpec(prefab, defaults));
