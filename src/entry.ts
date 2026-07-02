@@ -14,7 +14,7 @@ import type { CanvasPointerInput } from "@/src/input/pointer.ts";
 import { getMap, START_MAP_NAME } from "@/src/map/maps.ts";
 import { configureCanvasDpi, DEFAULT_GAME_CANVAS_SIZE } from "@/src/render/canvas.ts";
 import type { GameCanvasSize } from "@/src/render/canvas.ts";
-import { renderGameFrame } from "@/src/render/game.ts";
+import { preloadGameAssets, renderGameFrame } from "@/src/render/game.ts";
 import { verbMenuHotspotIndexAt } from "@/src/render/verb_menu.ts";
 import { VERBS, verbToCommand } from "@/src/game/verbs.ts";
 
@@ -94,7 +94,10 @@ class Game implements Disposable {
     this.mode = { type: "loading" };
     this.render();
 
-    const session = await createGameSession(getMap(mapName), () => this.rng.nextFloat(), playerState);
+    const [session] = await Promise.all([
+      createGameSession(getMap(mapName), () => this.rng.nextFloat(), playerState),
+      preloadGameAssets(this.spec.canvas.ownerDocument, this.renderLoadedAssets),
+    ]);
     if (this.controller.signal.aborted) {
       session[Symbol.dispose]();
       return;

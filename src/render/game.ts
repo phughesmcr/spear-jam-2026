@@ -8,9 +8,13 @@ import { renderHud } from "@/src/render/hud.ts";
 import { renderMap } from "@/src/render/map.ts";
 import { renderMessageLog } from "@/src/render/messages.ts";
 import { renderOverlay } from "@/src/render/overlay.ts";
-import { renderVerbMenu } from "@/src/render/verb_menu.ts";
+import { preloadVerbMenuAssets, renderVerbMenu } from "@/src/render/verb_menu.ts";
 
 const BACKGROUND_COLOR = "#101217";
+
+export async function preloadGameAssets(document: Document, onAssetLoad?: () => void): Promise<void> {
+  await preloadVerbMenuAssets(document, onAssetLoad);
+}
 
 export function renderGameFrame(
   ctx: CanvasRenderingContext2D,

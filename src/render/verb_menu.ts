@@ -1,5 +1,7 @@
 import { VERBS } from "@/src/game/verbs.ts";
 import type { VerbId } from "@/src/game/verbs.ts";
+import { createImageAsset, loadedImage, preloadImageAssets } from "@/src/render/assets.ts";
+import type { ImageAsset } from "@/src/render/assets.ts";
 import type { GameCanvasSize } from "@/src/render/canvas.ts";
 import { monoFont } from "@/src/render/text.ts";
 
@@ -101,17 +103,15 @@ const HOTSPOTS_BY_VERB_ID: Readonly<Record<VerbId, VerbHotspot>> = Object.freeze
   Object.fromEntries(HOTSPOTS.map((hotspot) => [hotspot.verbId, hotspot])) as Record<VerbId, VerbHotspot>,
 );
 
-type ImageAsset = {
-  readonly src: string;
-  image?: HTMLImageElement;
-  loaded: boolean;
-  failed: boolean;
-};
-
-const spriteAsset: ImageAsset = { src: VERB_MENU_SPRITE_SRC, loaded: false, failed: false };
+const spriteAsset = createImageAsset(VERB_MENU_SPRITE_SRC);
 const glowAssets = Object.fromEntries(
-  VERBS.map((verb) => [verb.id, { src: HOTSPOT_SPECS[verb.id].glowSrc, loaded: false, failed: false }]),
+  VERBS.map((verb) => [verb.id, createImageAsset(HOTSPOT_SPECS[verb.id].glowSrc)]),
 ) as Record<VerbId, ImageAsset>;
+const IMAGE_ASSETS = Object.freeze([spriteAsset, ...VERBS.map((verb) => glowAssets[verb.id])]);
+
+export async function preloadVerbMenuAssets(document: Document, onAssetLoad?: () => void): Promise<void> {
+  await preloadImageAssets(document, IMAGE_ASSETS, onAssetLoad);
+}
 
 export function renderVerbMenu(
   ctx: CanvasRenderingContext2D,
@@ -298,32 +298,6 @@ function drawHotspotLabel(
   ctx.strokeRect(labelX - 3.5, labelY - height / 2 + 0.5, width - 1, height - 1);
   ctx.fillStyle = selected ? TEXT_COLOR : MUTED_TEXT_COLOR;
   ctx.fillText(hotspot.label, labelX + fontSize * 0.2, labelY + 0.5);
-}
-
-function loadedImage(
-  ctx: CanvasRenderingContext2D,
-  asset: ImageAsset,
-  onAssetLoad?: () => void,
-): HTMLImageElement | undefined {
-  if (asset.loaded) return asset.image;
-  if (asset.failed) return undefined;
-
-  if (asset.image === undefined) {
-    const image = ctx.canvas.ownerDocument.createElement("img");
-    image.decoding = "async";
-    image.addEventListener("load", () => {
-      asset.loaded = true;
-      onAssetLoad?.();
-    }, { once: true });
-    image.addEventListener("error", () => {
-      asset.failed = true;
-      onAssetLoad?.();
-    }, { once: true });
-    image.src = asset.src;
-    asset.image = image;
-  }
-
-  return undefined;
 }
 
 function clamp(value: number, min: number, max: number): number {
