@@ -21,6 +21,7 @@ import { Direction } from "@/src/grid/direction.ts";
 import { createGameSession } from "@/src/ecs/session.ts";
 import type { GameSession } from "@/src/ecs/session.ts";
 import { createWorld } from "@/src/ecs/world.ts";
+import { TurnEffectKind } from "@/src/game/turn_effects.ts";
 import { KeyColor, VICTORY_GOTO } from "@/src/map/map.ts";
 import {
   createEntity,
@@ -608,6 +609,7 @@ Deno.test("interacting with an uplink terminal after collecting a code advances 
     health: { current: 4, max: 10 },
     hasUplinkCode: false,
     progress: { credits: 0, score: 0, xp: 0, levelCredits: 0 },
+    turnEffects: [],
   });
 });
 
@@ -869,6 +871,29 @@ Deno.test("turning changes facing without consuming a turn", async () => {
   assertEquals(result, { events: [] });
   assertEquals(session.player.getFacing(), { dir: 2 });
   assertEquals(session.getPlayerState().health, { current: 2, max: 2 });
+});
+
+Deno.test("only consumed player turns tick active turn effects", async () => {
+  const world = await createWorld();
+  const playerEntity = createTestPlayer(world);
+  const session = createTestSession(world, playerEntity, TEST_MAP, {
+    playerState: {
+      turnEffects: [{ kind: TurnEffectKind.Invisibility, remainingTurns: 2 }],
+    },
+  });
+
+  session.handlePlayerCommand({ type: "turn", direction: "right" });
+  assertEquals(session.getPlayerState().turnEffects, [
+    { kind: TurnEffectKind.Invisibility, remainingTurns: 2 },
+  ]);
+
+  session.handlePlayerCommand({ type: "wait" });
+  assertEquals(session.getPlayerState().turnEffects, [
+    { kind: TurnEffectKind.Invisibility, remainingTurns: 1 },
+  ]);
+
+  session.handlePlayerCommand({ type: "wait" });
+  assertEquals(session.getPlayerState().turnEffects, []);
 });
 
 Deno.test("interacting with an uplink terminal linked to victory reports a victory outcome", async () => {

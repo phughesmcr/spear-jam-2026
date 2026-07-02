@@ -4,11 +4,13 @@ import { weaponLabel } from "@/src/ecs/combat.ts";
 import type { ItemPickup } from "@/src/ecs/interactions.ts";
 import type { GameEvent } from "@/src/game/events.ts";
 import type { AmmoKind, CommandSlot, PlayerProgressState, PlayerState } from "@/src/game/state.ts";
+import { TurnEffects } from "@/src/game/turn_effects.ts";
 import type { KeyColor } from "@/src/map/map.ts";
 
 const ENEMY_DEFEAT_CREDITS = 10;
 
-export type PlayerStatusState = Omit<PlayerState, "health">;
+export type PlayerProgressionState = Omit<PlayerState, "health">;
+type PlayerStatusState = Omit<PlayerState, "health" | "turnEffects">;
 
 export type PlayerProgressionContext = {
   readonly world: World;
@@ -17,9 +19,11 @@ export type PlayerProgressionContext = {
 
 export class PlayerProgression {
   private readonly status: PlayerStatus;
+  private readonly turnEffects: TurnEffects;
 
   constructor(playerState: PlayerState) {
     this.status = new PlayerStatus(playerState);
+    this.turnEffects = new TurnEffects(playerState.turnEffects);
   }
 
   get heldKeys(): ReadonlySet<KeyColor> {
@@ -34,8 +38,11 @@ export class PlayerProgression {
     return this.status.selectedWeapon;
   }
 
-  getState(): PlayerStatusState {
-    return this.status.getState();
+  getState(): PlayerProgressionState {
+    return {
+      ...this.status.getState(),
+      turnEffects: this.turnEffects.getState(),
+    };
   }
 
   spendAmmo(ammo: AmmoKind): boolean {
@@ -52,6 +59,10 @@ export class PlayerProgression {
 
   clearTransient(): void {
     this.status.clearTransient();
+  }
+
+  tickTurnEffects(): void {
+    this.turnEffects.tick();
   }
 
   applyItemPickup(pickup: ItemPickup, context: PlayerProgressionContext): readonly GameEvent[] {

@@ -2,6 +2,7 @@ import { assertEquals } from "@std/assert";
 import type { Entity } from "@phughesmcr/miski";
 import { PlayerProgression } from "@/src/game/progression.ts";
 import { createPlayerState } from "@/src/game/state.ts";
+import { TurnEffectKind } from "@/src/game/turn_effects.ts";
 import { KeyColor } from "@/src/map/map.ts";
 
 Deno.test("PlayerProgression defaults to melee with empty carried resources", () => {
@@ -14,6 +15,7 @@ Deno.test("PlayerProgression defaults to melee with empty carried resources", ()
     ammo: { pistol: 0, cannon: 0 },
     hasUplinkCode: false,
     progress: { credits: 0, score: 0, xp: 0, levelCredits: 0 },
+    turnEffects: [],
   });
 });
 
@@ -40,6 +42,24 @@ Deno.test("PlayerProgression tracks weapons and ammo", () => {
   assertEquals(progression.spendAmmo("pistol"), true);
   assertEquals(progression.spendAmmo("pistol"), false);
   assertEquals(progression.getState().ammo, { pistol: 0, cannon: 0 });
+});
+
+Deno.test("PlayerProgression ticks active turn effects", () => {
+  const progression = new PlayerProgression(createPlayerState({
+    turnEffects: [{ kind: TurnEffectKind.Invisibility, remainingTurns: 2 }],
+  }));
+
+  assertEquals(progression.getState().turnEffects, [
+    { kind: TurnEffectKind.Invisibility, remainingTurns: 2 },
+  ]);
+
+  progression.tickTurnEffects();
+  assertEquals(progression.getState().turnEffects, [
+    { kind: TurnEffectKind.Invisibility, remainingTurns: 1 },
+  ]);
+
+  progression.tickTurnEffects();
+  assertEquals(progression.getState().turnEffects, []);
 });
 
 Deno.test("PlayerProgression returns credit and XP events", () => {

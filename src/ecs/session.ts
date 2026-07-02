@@ -279,6 +279,7 @@ export class GameSession implements Disposable {
       blocksSight: (x, y) => this.tileBlocksSight(x, y),
       noises: noise === undefined ? [] : [noise],
     });
+    this.progression.tickTurnEffects();
     this.world.refresh();
     this.refreshVisibility();
     const allEvents = [...events, ...enemyEvents];

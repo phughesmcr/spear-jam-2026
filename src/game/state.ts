@@ -1,4 +1,6 @@
 import type { KeyColor } from "@/src/map/map.ts";
+import { normalizeTurnEffects } from "@/src/game/turn_effects.ts";
+import type { TurnEffectState } from "@/src/game/turn_effects.ts";
 
 export type CommandSlot = 1 | 2 | 3;
 
@@ -30,6 +32,7 @@ export type PlayerState = {
   readonly health: PlayerHealthState;
   readonly hasUplinkCode: boolean;
   readonly progress: PlayerProgressState;
+  readonly turnEffects: readonly TurnEffectState[];
 };
 
 export type PlayerStateInput = {
@@ -40,6 +43,7 @@ export type PlayerStateInput = {
   readonly health?: Partial<PlayerHealthState>;
   readonly hasUplinkCode?: boolean;
   readonly progress?: Partial<PlayerProgressState>;
+  readonly turnEffects?: readonly TurnEffectState[];
 };
 
 export const DEFAULT_PLAYER_STATE: PlayerState = Object.freeze({
@@ -50,6 +54,7 @@ export const DEFAULT_PLAYER_STATE: PlayerState = Object.freeze({
   health: Object.freeze({ current: 10, max: 10 }),
   hasUplinkCode: false,
   progress: Object.freeze({ credits: 0, score: 0, xp: 0, levelCredits: 0 }),
+  turnEffects: Object.freeze([]) as readonly TurnEffectState[],
 });
 
 export function createPlayerState(playerState: PlayerStateInput = {}): PlayerState {
@@ -81,6 +86,7 @@ export function createPlayerState(playerState: PlayerStateInput = {}): PlayerSta
       xp: playerState.progress?.xp ?? DEFAULT_PLAYER_STATE.progress.xp,
       levelCredits: playerState.progress?.levelCredits ?? DEFAULT_PLAYER_STATE.progress.levelCredits,
     },
+    turnEffects: normalizeTurnEffects(playerState.turnEffects ?? DEFAULT_PLAYER_STATE.turnEffects),
   };
 }
 
