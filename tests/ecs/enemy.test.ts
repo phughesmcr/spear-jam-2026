@@ -110,6 +110,60 @@ Deno.test("enemyTurnSystem investigates heard noises instead of omniscient playe
   assertEquals(events, []);
 });
 
+Deno.test("melee dogs investigate noise with a two-step pounce", async () => {
+  const world = await createWorld();
+  const playerEntity = createTestPlayer(world, {
+    x: 5,
+    y: 1,
+    dir: Direction.West,
+    blocking: true,
+    tag: true,
+    health: { current: 5, max: 5 },
+  });
+  const dog = createTestEnemy(world, {
+    x: 1,
+    y: 1,
+    dir: Direction.West,
+    displayName: DisplayName.DigitalDog,
+    attack: MELEE_ATTACK,
+    archetype: EnemyArchetype.MeleeDog,
+  });
+  world.refresh();
+
+  const events = runEnemyTurn(world, playerEntity, flatTestMap(7, 3), [{ x: 3, y: 1, radius: 3 }]);
+
+  assertEquals(world.components.getEntityData(GridPos, dog), { x: 3, y: 1 });
+  assertEquals(world.components.getEntityData(Facing, dog), { dir: Direction.East });
+  assertEquals(events, []);
+});
+
+Deno.test("system sentinels investigate noise by watching without moving", async () => {
+  const world = await createWorld();
+  const playerEntity = createTestPlayer(world, {
+    x: 5,
+    y: 1,
+    dir: Direction.West,
+    blocking: true,
+    tag: true,
+    health: { current: 5, max: 5 },
+  });
+  const sentinel = createTestEnemy(world, {
+    x: 1,
+    y: 1,
+    dir: Direction.West,
+    displayName: DisplayName.SystemSentinel,
+    attack: MELEE_ATTACK,
+    archetype: EnemyArchetype.SystemSentinel,
+  });
+  world.refresh();
+
+  const events = runEnemyTurn(world, playerEntity, flatTestMap(7, 3), [{ x: 3, y: 1, radius: 3 }]);
+
+  assertEquals(world.components.getEntityData(GridPos, sentinel), { x: 1, y: 1 });
+  assertEquals(world.components.getEntityData(Facing, sentinel), { dir: Direction.East });
+  assertEquals(events, []);
+});
+
 Deno.test("enemyTurnSystem keeps investigating the last known position after noise stops", async () => {
   const world = await createWorld();
   const playerEntity = createTestPlayer(world, {

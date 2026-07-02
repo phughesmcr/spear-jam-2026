@@ -23,47 +23,8 @@ import type { RandomSource } from "@/src/game/rng.ts";
 import { CARDINAL_DELTAS, Direction, manhattanDistance } from "@/src/grid/direction.ts";
 import type { CardinalDirection, GridDelta, GridPoint } from "@/src/grid/direction.ts";
 
-type TurnPolicy = {
-  readonly moveSteps: 0 | 1 | 2;
-  readonly attackAfterStep: boolean;
-  readonly retreatWhenAdjacent: boolean;
-};
-
-const DEFAULT_TURN_POLICY: TurnPolicy = {
-  moveSteps: 1,
-  attackAfterStep: false,
-  retreatWhenAdjacent: false,
-};
 const DEFAULT_ENEMY_SIGHT_RADIUS = 6;
 const MAX_INVESTIGATION_TURNS = 6;
-
-const TURN_POLICIES: Readonly<Record<EnemyArchetype, TurnPolicy>> = {
-  [EnemyArchetype.MeleeDog]: {
-    moveSteps: 2,
-    attackAfterStep: true,
-    retreatWhenAdjacent: false,
-  },
-  [EnemyArchetype.Gunslinger]: {
-    moveSteps: 1,
-    attackAfterStep: false,
-    retreatWhenAdjacent: true,
-  },
-  [EnemyArchetype.NetworkNeophyte]: {
-    moveSteps: 1,
-    attackAfterStep: false,
-    retreatWhenAdjacent: false,
-  },
-  [EnemyArchetype.SystemSentinel]: {
-    moveSteps: 0,
-    attackAfterStep: false,
-    retreatWhenAdjacent: false,
-  },
-  [EnemyArchetype.AgenticAcolyte]: {
-    moveSteps: 1,
-    attackAfterStep: false,
-    retreatWhenAdjacent: false,
-  },
-};
 
 export type EnemyTurnContext = {
   readonly world: World;
@@ -75,6 +36,44 @@ export type EnemyTurnContext = {
 };
 
 export type EnemyTurnSystem = (context: EnemyTurnContext) => readonly GameEvent[];
+
+type EnemyActorContext = {
+  readonly context: EnemyTurnContext;
+  readonly entity: Entity;
+  readonly gridPos: GridPosPartitions;
+  readonly facing: FacingPartitions;
+  readonly enemyAwareness: EnemyAwarenessPartitions;
+};
+
+type EnemyAlertStrategy = (actor: EnemyActorContext) => readonly GameEvent[];
+type EnemyInvestigationStrategy = (actor: EnemyActorContext, target: GridPoint) => readonly GameEvent[];
+
+type EnemyBehaviorPlan = {
+  readonly alert: EnemyAlertStrategy;
+  readonly investigate: EnemyInvestigationStrategy;
+};
+
+const DEFAULT_BEHAVIOR_PLAN: EnemyBehaviorPlan = {
+  alert: attackThenPursueOneStep,
+  investigate: investigateOneStep,
+};
+
+const BEHAVIOR_PLANS: Readonly<Record<EnemyArchetype, EnemyBehaviorPlan>> = {
+  [EnemyArchetype.MeleeDog]: {
+    alert: pounceThenBite,
+    investigate: investigateTwoSteps,
+  },
+  [EnemyArchetype.Gunslinger]: {
+    alert: skirmishAtRange,
+    investigate: investigateOneStep,
+  },
+  [EnemyArchetype.NetworkNeophyte]: DEFAULT_BEHAVIOR_PLAN,
+  [EnemyArchetype.SystemSentinel]: {
+    alert: holdAndWatchPlayer,
+    investigate: watchInvestigationTarget,
+  },
+  [EnemyArchetype.AgenticAcolyte]: DEFAULT_BEHAVIOR_PLAN,
+};
 
 export const enemyTurnSystem = new System({
   name: "enemyTurnSystem",
@@ -104,80 +103,111 @@ function advanceEnemyTurn(
   const { world } = context;
   if (!world.entities.isActive(entity)) return [];
 
-  const awareness = updateEnemyAwareness(context, entity, gridPos, facing, enemyAwareness);
-  if (awareness.state === AwarenessState.Idle) return [];
+  const actor = { context, entity, gridPos, facing, enemyAwareness };
+  const awareness = updateEnemyAwareness(actor);
+  return selectEnemyAction(actor, awareness);
+}
 
-  const policy = turnPolicyFor(world, entity);
-  if (awareness.state === AwarenessState.Investigating) {
-    return advanceInvestigatingEnemyTurn(context, entity, gridPos, facing, enemyAwareness, policy, awareness.position);
+function selectEnemyAction(actor: EnemyActorContext, awareness: AwarenessResult): readonly GameEvent[] {
+  switch (awareness.state) {
+    case AwarenessState.Idle:
+      return [];
+    case AwarenessState.Alert:
+      return behaviorPlanFor(actor.context.world, actor.entity).alert(actor);
+    case AwarenessState.Investigating:
+      return behaviorPlanFor(actor.context.world, actor.entity).investigate(actor, awareness.position);
+  }
+}
+
+function attackThenPursueOneStep(actor: EnemyActorContext): readonly GameEvent[] {
+  return attackThenMoveTowardPlayer(actor, 1);
+}
+
+function pounceThenBite(actor: EnemyActorContext): readonly GameEvent[] {
+  const { context, entity, gridPos, facing } = actor;
+  const attackEvents = attackPlayerIfPossible(context, entity, gridPos, facing);
+  if (attackEvents !== undefined) return attackEvents;
+
+  for (let step = 0; step < 2; step++) {
+    if (!tryMoveEnemyTowardPlayer(context.player, entity, gridPos, facing, context.spatial)) break;
+
+    const stepAttackEvents = attackPlayerIfPossible(context, entity, gridPos, facing);
+    if (stepAttackEvents !== undefined) return stepAttackEvents;
   }
 
+  return [];
+}
+
+function skirmishAtRange(actor: EnemyActorContext): readonly GameEvent[] {
+  const { context, entity, gridPos, facing } = actor;
   if (
-    policy.retreatWhenAdjacent &&
     distanceToPlayer(context.player, entity, gridPos) <= 1 &&
     tryMoveEnemyAwayFromPlayer(context.player, entity, gridPos, facing, context.spatial)
   ) {
     return [];
   }
 
+  return attackThenMoveTowardPlayer(actor, 1);
+}
+
+function holdAndWatchPlayer(actor: EnemyActorContext): readonly GameEvent[] {
+  const { context, entity, gridPos, facing } = actor;
   const attackEvents = attackPlayerIfPossible(context, entity, gridPos, facing);
   if (attackEvents !== undefined) return attackEvents;
 
-  for (let step = 0; step < policy.moveSteps; step++) {
-    if (
-      !tryMoveEnemyTowardPlayer(
-        context.player,
-        entity,
-        gridPos,
-        facing,
-        context.spatial,
-      )
-    ) {
-      break;
-    }
+  faceEntityToward(entity, context.player.getPosition(), gridPos, facing);
+  return [];
+}
 
-    if (policy.attackAfterStep) {
-      const stepAttackEvents = attackPlayerIfPossible(context, entity, gridPos, facing);
-      if (stepAttackEvents !== undefined) return stepAttackEvents;
-    }
-  }
+function attackThenMoveTowardPlayer(actor: EnemyActorContext, steps: number): readonly GameEvent[] {
+  const { context, entity, gridPos, facing } = actor;
+  const attackEvents = attackPlayerIfPossible(context, entity, gridPos, facing);
+  if (attackEvents !== undefined) return attackEvents;
 
-  if (policy.moveSteps === 0) {
-    faceEntityToward(entity, context.player.getPosition(), gridPos, facing);
+  for (let step = 0; step < steps; step++) {
+    if (!tryMoveEnemyTowardPlayer(context.player, entity, gridPos, facing, context.spatial)) break;
   }
 
   return [];
 }
 
-function advanceInvestigatingEnemyTurn(
-  context: EnemyTurnContext,
-  entity: Entity,
-  gridPos: GridPosPartitions,
-  facing: FacingPartitions,
-  enemyAwareness: EnemyAwarenessPartitions,
-  policy: TurnPolicy,
-  target: GridPoint,
-): readonly GameEvent[] {
+function investigateOneStep(actor: EnemyActorContext, target: GridPoint): readonly GameEvent[] {
+  return investigateTarget(actor, target, 1);
+}
+
+function investigateTwoSteps(actor: EnemyActorContext, target: GridPoint): readonly GameEvent[] {
+  return investigateTarget(actor, target, 2);
+}
+
+function watchInvestigationTarget(actor: EnemyActorContext, target: GridPoint): readonly GameEvent[] {
+  const { entity, gridPos, facing, enemyAwareness } = actor;
   if (samePosition(entityPosition(entity, gridPos), target)) {
     setEnemyAwareness(entity, enemyAwareness, IDLE_AWARENESS);
     return [];
   }
 
-  for (let step = 0; step < policy.moveSteps; step++) {
-    if (!tryMoveEnemyTowardPosition(target, entity, gridPos, facing, context.spatial)) break;
-    if (samePosition(entityPosition(entity, gridPos), target)) break;
+  faceEntityToward(entity, target, gridPos, facing);
+  return [];
+}
+
+function investigateTarget(actor: EnemyActorContext, target: GridPoint, steps: number): readonly GameEvent[] {
+  const { context, entity, gridPos, facing, enemyAwareness } = actor;
+  if (samePosition(entityPosition(entity, gridPos), target)) {
+    setEnemyAwareness(entity, enemyAwareness, IDLE_AWARENESS);
+    return [];
   }
 
-  if (policy.moveSteps === 0) {
-    faceEntityToward(entity, target, gridPos, facing);
+  for (let step = 0; step < steps; step++) {
+    if (!tryMoveEnemyTowardPosition(target, entity, gridPos, facing, context.spatial)) break;
+    if (samePosition(entityPosition(entity, gridPos), target)) break;
   }
 
   return [];
 }
 
-function turnPolicyFor(world: World, entity: Entity): TurnPolicy {
+function behaviorPlanFor(world: World, entity: Entity): EnemyBehaviorPlan {
   const archetype = enemyArchetypeFor(world, entity);
-  return archetype === undefined ? DEFAULT_TURN_POLICY : TURN_POLICIES[archetype];
+  return archetype === undefined ? DEFAULT_BEHAVIOR_PLAN : BEHAVIOR_PLANS[archetype];
 }
 
 function attackPlayerIfPossible(
@@ -372,13 +402,8 @@ type AwarenessResult =
   | { readonly state: typeof AwarenessState.Alert; readonly position: GridPoint }
   | { readonly state: typeof AwarenessState.Investigating; readonly position: GridPoint };
 
-function updateEnemyAwareness(
-  context: EnemyTurnContext,
-  entity: Entity,
-  gridPos: GridPosPartitions,
-  facing: FacingPartitions,
-  enemyAwareness: EnemyAwarenessPartitions,
-): AwarenessResult {
+function updateEnemyAwareness(actor: EnemyActorContext): AwarenessResult {
+  const { context, entity, gridPos, facing, enemyAwareness } = actor;
   const position = entityPosition(entity, gridPos);
   const playerPosition = context.player.getPosition();
   const blocksSight = context.blocksSight ?? ((x, y) => context.spatial.tileBlocks(x, y));
