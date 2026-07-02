@@ -10,8 +10,7 @@
     "jsr:@fresh/plugin-vite@^1.1.2": "1.1.2",
     "jsr:@phughesmcr/bitpool@~0.9.1": "0.9.1",
     "jsr:@phughesmcr/booleanarray@0.13": "0.13.0",
-    "jsr:@phughesmcr/miski@1.0.0-alpha.2": "1.0.0-alpha.2",
-    "jsr:@phughesmcr/miski@^1.0.0-alpha.2": "1.0.0-alpha.2",
+    "jsr:@phughesmcr/miski@^1.0.0-alpha.3": "1.0.0-alpha.3",
     "jsr:@phughesmcr/partitionedbuffer@~0.4.1": "0.4.1",
     "jsr:@std/assert@^1.0.13": "1.0.19",
     "jsr:@std/bytes@^1.0.6": "1.0.6",
@@ -129,8 +128,8 @@
     "@phughesmcr/booleanarray@0.13.0": {
       "integrity": "43ecfacfc0ec1044a60a3d2fe7163b5d2a3ed7b750c590336c650f124978b98d"
     },
-    "@phughesmcr/miski@1.0.0-alpha.2": {
-      "integrity": "a2c4fb82ef6ba0d67d36c8c243d8f09021d9f788ba38463f4c4e51c7189188f4",
+    "@phughesmcr/miski@1.0.0-alpha.3": {
+      "integrity": "ea8f8b035121fb58a8eec88489627f673f74966b6a7c2c60c636b89ab5de7278",
       "dependencies": [
         "jsr:@phughesmcr/bitpool",
         "jsr:@phughesmcr/booleanarray",
@@ -1503,7 +1502,7 @@
     "dependencies": [
       "jsr:@fresh/core@^2.3.3",
       "jsr:@fresh/plugin-vite@^1.1.2",
-      "jsr:@phughesmcr/miski@^1.0.0-alpha.2",
+      "jsr:@phughesmcr/miski@^1.0.0-alpha.3",
       "jsr:@std/assert@^1.0.13",
       "npm:@preact/signals@^2.9.0",
       "npm:@tailwindcss/vite@^4.1.12",

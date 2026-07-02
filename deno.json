@@ -41,7 +41,7 @@
   ],
   "imports": {
     "@/": "./",
-    "@phughesmcr/miski": "jsr:@phughesmcr/miski@^1.0.0-alpha.2",
+    "@phughesmcr/miski": "jsr:@phughesmcr/miski@^1.0.0-alpha.3",
     "@std/assert": "jsr:@std/assert@^1.0.13",
     "fresh": "jsr:@fresh/core@^2.3.3",
     "preact": "npm:preact@^10.29.1",

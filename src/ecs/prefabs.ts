@@ -47,7 +47,6 @@ import type {
   UplinkTerminalDef,
   WeaponPickupDef,
 } from "@/src/map/map.ts";
-import type { DisplayName } from "@/src/game/names.ts";
 
 type EnemyArchetypeDefaults = {
   readonly health: number;
@@ -118,44 +117,55 @@ type ExaminePrefab = {
 export type PlayerPrefab = Omit<PlayerDef, "prefab">;
 
 export function createPlayer(world: World, prefab: PlayerPrefab): Entity {
-  const entity = createEntity(world);
-  addGridActor(world, entity, prefab, DrawableKind.Player, DrawableLayer.Player);
-  world.components.addToEntity(Player, entity);
-  addHealth(world, entity, DEFAULT_PLAYER_STATE.health.max);
+  const entity = createGridActor(world, prefab, DrawableKind.Player, DrawableLayer.Player);
+  world.components.addBundle(
+    entity,
+    [
+      [Player],
+      [Health, { current: DEFAULT_PLAYER_STATE.health.max, max: DEFAULT_PLAYER_STATE.health.max }],
+    ] as const,
+  );
   return entity;
 }
 
 export type NpcPrefab = Omit<NpcDef, "prefab">;
 
 export function createNpc(world: World, prefab: NpcPrefab): Entity {
-  const entity = createEntity(world);
-  addGridActor(world, entity, prefab, DrawableKind.Npc, DrawableLayer.Npc);
-  addDisplayName(world, entity, prefab.displayName);
+  const entity = createGridActor(world, prefab, DrawableKind.Npc, DrawableLayer.Npc);
+  world.components.addBundle(
+    entity,
+    [
+      [DisplayNameComponent, { displayName: prefab.displayName }],
+      [Npc],
+      [Interactable],
+    ] as const,
+  );
   addExamine(world, entity, prefab);
-  world.components.addToEntity(Npc, entity);
   if (prefab.dialogueTreeId !== undefined && prefab.dialogueTreeId !== DialogueTreeId.None) {
     world.components.addToEntity(Dialogue, entity, { dialogueTreeId: prefab.dialogueTreeId });
   }
-  world.components.addToEntity(Interactable, entity);
   return entity;
 }
 
 export type EnemyPrefab = Omit<EnemyDef, "prefab">;
 
 export function createEnemy(world: World, prefab: EnemyPrefab): Entity {
-  const entity = createEntity(world);
-
   const archetype = prefab.archetype ?? EnemyArchetype.MeleeDog;
   const defaults = ENEMY_ARCHETYPE_DEFAULTS[archetype];
   const health = prefab.health ?? defaults.health;
-  addGridActor(world, entity, prefab, DrawableKind.Enemy, DrawableLayer.Enemy);
-  addDisplayName(world, entity, prefab.displayName);
+  const entity = createGridActor(world, prefab, DrawableKind.Enemy, DrawableLayer.Enemy);
+  world.components.addBundle(
+    entity,
+    [
+      [DisplayNameComponent, { displayName: prefab.displayName }],
+      [Enemy],
+      [EnemyAwareness, IDLE_AWARENESS],
+      [EnemyArchetypeComponent, { archetype }],
+      [Health, { current: health, max: health }],
+      [Attack, createAttackSpec(prefab, defaults)],
+    ] as const,
+  );
   addExamine(world, entity, prefab);
-  world.components.addToEntity(Enemy, entity);
-  world.components.addToEntity(EnemyAwareness, entity, IDLE_AWARENESS);
-  world.components.addToEntity(EnemyArchetypeComponent, entity, { archetype });
-  addHealth(world, entity, health);
-  world.components.addToEntity(Attack, entity, createAttackSpec(prefab, defaults));
   return entity;
 }
 
@@ -177,13 +187,16 @@ export function createDoor(world: World, prefab: DoorPrefab): Entity {
     throw new Error("Locked door prefab is missing a key color");
   }
 
-  const entity = createEntity(world);
-  addPosition(world, entity, prefab);
-  addDrawable(world, entity, DrawableKind.Door, DrawableLayer.Structure);
+  const entity = world.entities.createWithOrThrow(
+    [
+      [GridPos, { x: prefab.x, y: prefab.y }],
+      [Drawable, { kind: DrawableKind.Door, layer: DrawableLayer.Structure }],
+      [Door, { open: 0 }],
+      [Interactable],
+      [Blocking],
+    ] as const,
+  );
   addExamine(world, entity, prefab);
-  world.components.addToEntity(Door, entity, { open: 0 });
-  world.components.addToEntity(Interactable, entity);
-  world.components.addToEntity(Blocking, entity);
   if (prefab.locked === true && prefab.color !== undefined) {
     world.components.addToEntity(Locked, entity, { color: keyColorCode(prefab.color) });
   }
@@ -205,13 +218,16 @@ export function createUplinkCode(world: World, prefab: UplinkCodePrefab): Entity
 export type UplinkTerminalPrefab = Omit<UplinkTerminalDef, "prefab">;
 
 export function createUplinkTerminal(world: World, prefab: UplinkTerminalPrefab): Entity {
-  const entity = createEntity(world);
-  addPosition(world, entity, prefab);
-  addDrawable(world, entity, DrawableKind.UplinkTerminal, DrawableLayer.Structure);
+  const entity = world.entities.createWithOrThrow(
+    [
+      [GridPos, { x: prefab.x, y: prefab.y }],
+      [Drawable, { kind: DrawableKind.UplinkTerminal, layer: DrawableLayer.Structure }],
+      [UplinkTerminal],
+      [Interactable],
+      [Blocking],
+    ] as const,
+  );
   addExamine(world, entity, prefab);
-  world.components.addToEntity(UplinkTerminal, entity);
-  world.components.addToEntity(Interactable, entity);
-  world.components.addToEntity(Blocking, entity);
   return entity;
 }
 
@@ -228,59 +244,36 @@ export function createItem(world: World, prefab: ItemPrefab): Entity {
 }
 
 function createPickup(world: World, prefab: PositionedPrefab, item: ItemKind, value: number): Entity {
-  const entity = createEntity(world);
-  addPosition(world, entity, prefab);
-  addDrawable(world, entity, DrawableKind.Item, DrawableLayer.Item);
-  addItem(world, entity, item, value);
-  return entity;
+  return world.entities.createWithOrThrow(
+    [
+      [GridPos, { x: prefab.x, y: prefab.y }],
+      [Drawable, { kind: DrawableKind.Item, layer: DrawableLayer.Item }],
+      [Item, { kind: item, value }],
+    ] as const,
+  );
 }
 
-function createEntity(world: World): Entity {
-  return world.entities.createOrThrow();
-}
-
-function addGridActor(
+function createGridActor(
   world: World,
-  entity: Entity,
   prefab: GridActorPrefab,
   kind: DrawableKind,
   layer: DrawableLayer,
-): void {
-  addPosition(world, entity, prefab);
-  addFacing(world, entity, prefab);
-  addDrawable(world, entity, kind, layer);
-  world.components.addToEntity(Blocking, entity);
-  world.components.addToEntity(TurnTaker, entity);
-}
-
-function addPosition(world: World, entity: Entity, prefab: PositionedPrefab): void {
-  world.components.addToEntity(GridPos, entity, { x: prefab.x, y: prefab.y });
-}
-
-function addFacing(world: World, entity: Entity, prefab: FacingPrefab): void {
-  world.components.addToEntity(Facing, entity, { dir: normalizeDirection(prefab.dir) });
-}
-
-function addDrawable(world: World, entity: Entity, kind: DrawableKind, layer: DrawableLayer): void {
-  world.components.addToEntity(Drawable, entity, { kind, layer });
-}
-
-function addDisplayName(world: World, entity: Entity, displayName: DisplayName): void {
-  world.components.addToEntity(DisplayNameComponent, entity, { displayName });
+): Entity {
+  return world.entities.createWithOrThrow(
+    [
+      [GridPos, { x: prefab.x, y: prefab.y }],
+      [Facing, { dir: normalizeDirection(prefab.dir) }],
+      [Drawable, { kind, layer }],
+      [Blocking],
+      [TurnTaker],
+    ] as const,
+  );
 }
 
 function addExamine(world: World, entity: Entity, prefab: ExaminePrefab): void {
   if (prefab.examineTextId !== undefined) {
     world.components.addToEntity(Examine, entity, { examineTextId: prefab.examineTextId });
   }
-}
-
-function addHealth(world: World, entity: Entity, health: number): void {
-  world.components.addToEntity(Health, entity, { current: health, max: health });
-}
-
-function addItem(world: World, entity: Entity, kind: ItemKind, value: number): void {
-  world.components.addToEntity(Item, entity, { kind, value });
 }
 
 export function createMapEntity(world: World, prefab: EntityDef): Entity {

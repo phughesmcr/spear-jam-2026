@@ -1,15 +1,5 @@
-import { type Entity, System, type World } from "@phughesmcr/miski";
-import {
-  Door,
-  DrawableKind,
-  EnemyArchetype,
-  enemyArchetypeFor,
-  Facing,
-  healthFor,
-  Item,
-  Locked,
-  UplinkTerminal,
-} from "@/src/ecs/components.ts";
+import { type Entity, System } from "@phughesmcr/miski";
+import { DrawableKind, EnemyArchetype, enemyArchetypeForCode } from "@/src/ecs/components.ts";
 import { drawableRenderQuery } from "@/src/ecs/queries.ts";
 import { itemIconFor, itemKindForCode } from "@/src/game/items.ts";
 import type { ItemIcon } from "@/src/game/items.ts";
@@ -63,10 +53,10 @@ export type DrawableEntity =
 export type DrawableEntityVisitor = (drawable: DrawableEntity) => void;
 
 type DrawableRenderContext = {
-  readonly world: World;
   readonly visit: DrawableEntityVisitor;
 };
 export type DrawableSystem = (context: DrawableRenderContext) => void;
+type DrawableComponents = typeof drawableRenderQuery["$inferComponents"];
 
 export const drawableSystem = new System({
   name: "drawableSystem",
@@ -85,7 +75,7 @@ export const drawableSystem = new System({
     ordered.sort((a, b) => layer[a]! - layer[b]! || a - b);
 
     for (const entity of ordered) {
-      const drawable = drawableEntityFor(context.world, entity, kind[entity]!, {
+      const drawable = drawableEntityFor(components, entity, kind[entity]!, {
         x: positionX[entity]!,
         y: positionY[entity]!,
       });
@@ -95,7 +85,7 @@ export const drawableSystem = new System({
 });
 
 function drawableEntityFor(
-  world: World,
+  components: DrawableComponents,
   entity: Entity,
   kind: number,
   position: DrawableBase,
@@ -104,29 +94,29 @@ function drawableEntityFor(
     case DrawableKind.Player:
     case DrawableKind.Npc:
     case DrawableKind.Enemy:
-      return actorDrawableEntityFor(world, entity, kind, position);
+      return actorDrawableEntityFor(components, entity, kind, position);
     case DrawableKind.Door:
-      return doorDrawableEntityFor(world, entity, position);
+      return doorDrawableEntityFor(components, entity, position);
     case DrawableKind.UplinkTerminal:
-      return uplinkTerminalDrawableEntityFor(world, entity, position);
+      return uplinkTerminalDrawableEntityFor(components, entity, position);
     case DrawableKind.Item:
-      return itemDrawableEntityFor(world, entity, position);
+      return itemDrawableEntityFor(components, entity, position);
     default:
       return undefined;
   }
 }
 
 function actorDrawableEntityFor(
-  world: World,
+  components: DrawableComponents,
   entity: Entity,
   kind: ActorDrawableKind,
   position: DrawableBase,
 ): ActorDrawableEntity | undefined {
-  if (!world.components.entityHas(Facing, entity)) return undefined;
+  if (!components.facing.has(entity)) return undefined;
 
-  const { dir } = world.components.getEntityData(Facing, entity);
-  const enemyArchetype = kind === DrawableKind.Enemy ? enemyArchetypeFor(world, entity) : undefined;
-  const health = kind === DrawableKind.Enemy ? healthFor(world, entity) : undefined;
+  const dir = components.facing.partitions.dir[entity]!;
+  const enemyArchetype = kind === DrawableKind.Enemy ? enemyArchetypeForEntity(components, entity) : undefined;
+  const health = kind === DrawableKind.Enemy ? healthForEntity(components, entity) : undefined;
   return {
     ...position,
     kind,
@@ -137,29 +127,28 @@ function actorDrawableEntityFor(
 }
 
 function doorDrawableEntityFor(
-  world: World,
+  components: DrawableComponents,
   entity: Entity,
   position: DrawableBase,
 ): DoorDrawableEntity | undefined {
-  const door = world.components.readEntityData(Door, entity);
-  if (door === undefined) return undefined;
+  if (!components.door.has(entity)) return undefined;
 
-  const lock = world.components.readEntityData(Locked, entity);
+  const locked = components.locked.has(entity);
   return {
     ...position,
     kind: DrawableKind.Door,
-    open: door.open === 1,
-    locked: lock !== undefined,
-    color: lock === undefined ? undefined : keyColorForCode(lock.color),
+    open: components.door.partitions.open[entity]! === 1,
+    locked,
+    color: locked ? keyColorForCode(components.locked.partitions.color[entity]!) : undefined,
   };
 }
 
 function uplinkTerminalDrawableEntityFor(
-  world: World,
+  components: DrawableComponents,
   entity: Entity,
   position: DrawableBase,
 ): UplinkTerminalDrawableEntity | undefined {
-  if (!world.components.entityHas(UplinkTerminal, entity)) return undefined;
+  if (!components.uplinkTerminal.has(entity)) return undefined;
   return {
     ...position,
     kind: DrawableKind.UplinkTerminal,
@@ -167,17 +156,32 @@ function uplinkTerminalDrawableEntityFor(
 }
 
 function itemDrawableEntityFor(
-  world: World,
+  components: DrawableComponents,
   entity: Entity,
   position: DrawableBase,
 ): ItemDrawableEntity | undefined {
-  const item = world.components.readEntityData(Item, entity);
-  if (item === undefined) return undefined;
+  if (!components.item.has(entity)) return undefined;
 
-  const itemKind = itemKindForCode(item.kind);
+  const itemKind = itemKindForCode(components.item.partitions.kind[entity]!);
   return {
     ...position,
     kind: DrawableKind.Item,
-    icon: itemIconFor(itemKind, item.value),
+    icon: itemIconFor(itemKind, components.item.partitions.value[entity]!),
+  };
+}
+
+function enemyArchetypeForEntity(components: DrawableComponents, entity: Entity): EnemyArchetype | undefined {
+  if (!components.enemyArchetype.has(entity)) return undefined;
+  return enemyArchetypeForCode(components.enemyArchetype.partitions.archetype[entity]!);
+}
+
+function healthForEntity(
+  components: DrawableComponents,
+  entity: Entity,
+): ActorDrawableEntity["health"] | undefined {
+  if (!components.health.has(entity)) return undefined;
+  return {
+    current: components.health.partitions.current[entity]!,
+    max: components.health.partitions.max[entity]!,
   };
 }

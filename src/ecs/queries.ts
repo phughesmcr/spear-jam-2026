@@ -1,5 +1,18 @@
 import { Query } from "@phughesmcr/miski";
-import { Drawable, Enemy, EnemyAwareness, Facing, GridPos, TurnTaker } from "./components.ts";
+import {
+  Door,
+  Drawable,
+  Enemy,
+  EnemyArchetypeComponent,
+  EnemyAwareness,
+  Facing,
+  GridPos,
+  Health,
+  Item,
+  Locked,
+  TurnTaker,
+  UplinkTerminal,
+} from "./components.ts";
 
 /** All entities with a grid position */
 export const positionedQuery = new Query({
@@ -9,6 +22,15 @@ export const positionedQuery = new Query({
 /** All entities that can be drawn by the renderer */
 export const drawableRenderQuery = new Query({
   all: { gridPos: GridPos, drawable: Drawable },
+  include: {
+    facing: Facing,
+    enemyArchetype: EnemyArchetypeComponent,
+    health: Health,
+    door: Door,
+    locked: Locked,
+    uplinkTerminal: UplinkTerminal,
+    item: Item,
+  },
 });
 
 /** All enemies that participate in the turn loop */

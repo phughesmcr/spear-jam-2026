@@ -119,7 +119,6 @@ export class GameSession implements Disposable {
 
   forEachDrawable(visit: DrawableEntityVisitor): void {
     this.drawableSystem({
-      world: this.world,
       visit: (drawable) => {
         if (this.drawableIsVisible(drawable)) visit(drawable);
       },

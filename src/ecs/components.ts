@@ -14,7 +14,10 @@ export type GridPosPartitions = ComponentPartitions<typeof GRID_POS_STORAGE>;
  * out-of-range writes stay visible instead of wrapping to valid tiles.
  * `SpatialIndex` is the single writer and validates bounds before writing.
  */
-export const GridPos: Component<typeof GRID_POS_STORAGE> = new Component<typeof GRID_POS_STORAGE>({
+export const GridPos: Component<GridPosSchema, typeof GRID_POS_STORAGE> = new Component<
+  GridPosSchema,
+  typeof GRID_POS_STORAGE
+>({
   name: "gridPos",
   schema: GRID_POS_STORAGE,
 });
@@ -24,15 +27,22 @@ const FACING_STORAGE = { dir: Uint8Array };
 export type FacingPartitions = ComponentPartitions<typeof FACING_STORAGE>;
 
 /** Cardinal heading: 0=N, 1=E, 2=S, 3=W. */
-export const Facing: Component<typeof FACING_STORAGE> = new Component<typeof FACING_STORAGE>({
+export const Facing: Component<FacingSchema, typeof FACING_STORAGE> = new Component<
+  FacingSchema,
+  typeof FACING_STORAGE
+>({
   name: "facing",
   schema: FACING_STORAGE,
 });
 
 export type DisplayNameSchema = { displayName: DisplayName };
-export const DisplayNameComponent: Component<DisplayNameSchema> = new Component<DisplayNameSchema>({
+const DISPLAY_NAME_STORAGE = { displayName: Uint8Array };
+export const DisplayNameComponent: Component<DisplayNameSchema, typeof DISPLAY_NAME_STORAGE> = new Component<
+  DisplayNameSchema,
+  typeof DISPLAY_NAME_STORAGE
+>({
   name: "displayName",
-  schema: { displayName: Uint8Array },
+  schema: DISPLAY_NAME_STORAGE,
 });
 
 export const Npc: Component<null> = new Component<null>({ name: "npc" });
@@ -75,29 +85,39 @@ export const DrawableLayer = {
 export type DrawableLayer = (typeof DrawableLayer)[keyof typeof DrawableLayer];
 
 const DRAWABLE_STORAGE = { kind: Uint8Array, layer: Uint8Array };
-export const Drawable: Component<typeof DRAWABLE_STORAGE> = new Component<typeof DRAWABLE_STORAGE>({
+export type DrawableSchema = { kind: DrawableKind; layer: DrawableLayer };
+export const Drawable: Component<DrawableSchema, typeof DRAWABLE_STORAGE> = new Component<
+  DrawableSchema,
+  typeof DRAWABLE_STORAGE
+>({
   name: "drawable",
   schema: DRAWABLE_STORAGE,
 });
 
 export type DoorSchema = { open: number };
-export const Door: Component<DoorSchema> = new Component<DoorSchema>({
+const DOOR_STORAGE = { open: Uint8Array };
+export const Door: Component<DoorSchema, typeof DOOR_STORAGE> = new Component<DoorSchema, typeof DOOR_STORAGE>({
   name: "door",
-  schema: { open: Uint8Array },
+  schema: DOOR_STORAGE,
 });
 
 export type LockedSchema = { color: number };
-export const Locked: Component<LockedSchema> = new Component<LockedSchema>({
+const LOCKED_STORAGE = { color: Uint8Array };
+export const Locked: Component<LockedSchema, typeof LOCKED_STORAGE> = new Component<
+  LockedSchema,
+  typeof LOCKED_STORAGE
+>({
   name: "locked",
-  schema: { color: Uint8Array },
+  schema: LOCKED_STORAGE,
 });
 
 export const UplinkTerminal: Component<null> = new Component<null>({ name: "uplinkTerminal" });
 
 export type ItemSchema = { kind: number; value: number };
-export const Item: Component<ItemSchema> = new Component<ItemSchema>({
+const ITEM_STORAGE = { kind: Uint8Array, value: Uint8Array };
+export const Item: Component<ItemSchema, typeof ITEM_STORAGE> = new Component<ItemSchema, typeof ITEM_STORAGE>({
   name: "item",
-  schema: { kind: Uint8Array, value: Uint8Array },
+  schema: ITEM_STORAGE,
 });
 
 export const TurnTaker: Component<null> = new Component<null>({ name: "turnTaker" });
@@ -131,7 +151,8 @@ const ENEMY_AWARENESS_STORAGE = {
   turnsSinceSeen: Uint8Array,
 };
 export type EnemyAwarenessPartitions = ComponentPartitions<typeof ENEMY_AWARENESS_STORAGE>;
-export const EnemyAwareness: Component<typeof ENEMY_AWARENESS_STORAGE> = new Component<
+export const EnemyAwareness: Component<EnemyAwarenessSchema, typeof ENEMY_AWARENESS_STORAGE> = new Component<
+  EnemyAwarenessSchema,
   typeof ENEMY_AWARENESS_STORAGE
 >({
   name: "enemyAwareness",
@@ -147,10 +168,14 @@ export const EnemyArchetype = {
 } as const;
 export type EnemyArchetype = (typeof EnemyArchetype)[keyof typeof EnemyArchetype];
 
-export type EnemyArchetypeSchema = { archetype: number };
-export const EnemyArchetypeComponent: Component<EnemyArchetypeSchema> = new Component<EnemyArchetypeSchema>({
+export type EnemyArchetypeSchema = { archetype: EnemyArchetype };
+const ENEMY_ARCHETYPE_STORAGE = { archetype: Uint8Array };
+export const EnemyArchetypeComponent: Component<EnemyArchetypeSchema, typeof ENEMY_ARCHETYPE_STORAGE> = new Component<
+  EnemyArchetypeSchema,
+  typeof ENEMY_ARCHETYPE_STORAGE
+>({
   name: "enemyArchetype",
-  schema: { archetype: Uint8Array },
+  schema: ENEMY_ARCHETYPE_STORAGE,
 });
 
 export function enemyArchetypeForCode(archetype: number): EnemyArchetype {
@@ -172,9 +197,13 @@ export function enemyArchetypeFor(world: World, entity: Entity): EnemyArchetype 
 }
 
 export type HealthSchema = { current: number; max: number };
-export const Health: Component<HealthSchema> = new Component<HealthSchema>({
+const HEALTH_STORAGE = { current: Uint8Array, max: Uint8Array };
+export const Health: Component<HealthSchema, typeof HEALTH_STORAGE> = new Component<
+  HealthSchema,
+  typeof HEALTH_STORAGE
+>({
   name: "health",
-  schema: { current: Uint8Array, max: Uint8Array },
+  schema: HEALTH_STORAGE,
 });
 
 export function healthFor(world: World, entity: Entity): HealthSchema | undefined {
@@ -188,19 +217,23 @@ export function healthFor(world: World, entity: Entity): HealthSchema | undefine
 }
 
 export type AttackSchema = AttackDef;
-export const Attack: Component<AttackSchema> = new Component<AttackSchema>({
+const ATTACK_STORAGE = {
+  minDamage: Uint8Array,
+  maxDamage: Uint8Array,
+  range: Uint8Array,
+  requiresFacing: Uint8Array,
+  attackBonus: Uint8Array,
+  critThreshold: Uint8Array,
+  critMultiplier: Uint8Array,
+  pattern: Uint8Array,
+  targets: Uint8Array,
+};
+export const Attack: Component<AttackSchema, typeof ATTACK_STORAGE> = new Component<
+  AttackSchema,
+  typeof ATTACK_STORAGE
+>({
   name: "attack",
-  schema: {
-    minDamage: Uint8Array,
-    maxDamage: Uint8Array,
-    range: Uint8Array,
-    requiresFacing: Uint8Array,
-    attackBonus: Uint8Array,
-    critThreshold: Uint8Array,
-    critMultiplier: Uint8Array,
-    pattern: Uint8Array,
-    targets: Uint8Array,
-  },
+  schema: ATTACK_STORAGE,
 });
 
 export const ALL_COMPONENTS: DynamicComponent[] = [
