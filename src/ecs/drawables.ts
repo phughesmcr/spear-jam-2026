@@ -4,10 +4,9 @@ import {
   Door,
   DrawableKind,
   EnemyArchetype,
-  EnemyArchetypeComponent,
-  enemyArchetypeForCode,
+  enemyArchetypeFor,
   Facing,
-  Health,
+  healthFor,
   Item,
   ItemKind,
   itemKindForCode,
@@ -172,26 +171,6 @@ function actorDrawableEntityFor(
     enemyArchetype,
     ...(health === undefined ? {} : { health }),
   };
-}
-
-function healthFor(
-  world: World,
-  entity: Entity,
-): { readonly current: number; readonly max: number } | undefined {
-  if (!world.components.entityHas(Health, entity)) return undefined;
-
-  const health = world.components.getEntityData(Health, entity);
-  return {
-    current: health.current,
-    max: health.max,
-  };
-}
-
-function enemyArchetypeFor(world: World, entity: Entity): EnemyArchetype | undefined {
-  if (!world.components.entityHas(EnemyArchetypeComponent, entity)) return undefined;
-
-  const archetype = world.components.getEntityData(EnemyArchetypeComponent, entity).archetype;
-  return enemyArchetypeForCode(archetype);
 }
 
 function doorDrawableEntityFor(

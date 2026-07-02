@@ -1,4 +1,4 @@
-import { Component, type DynamicComponent } from "@phughesmcr/miski";
+import { Component, type DynamicComponent, type Entity, type World } from "@phughesmcr/miski";
 import type { CardinalDirection } from "@/src/grid/direction.ts";
 import type { DisplayName } from "@/src/game/names.ts";
 import { type AttackDef, AttackFacingRequirement, AttackPattern, AttackTargetMode } from "@/src/game/attack.ts";
@@ -164,6 +164,13 @@ export function enemyArchetypeForCode(archetype: number): EnemyArchetype {
   }
 }
 
+export function enemyArchetypeFor(world: World, entity: Entity): EnemyArchetype | undefined {
+  if (!world.components.entityHas(EnemyArchetypeComponent, entity)) return undefined;
+
+  const archetype = world.components.getEntityData(EnemyArchetypeComponent, entity).archetype;
+  return enemyArchetypeForCode(archetype);
+}
+
 export function commandSlotForCode(slot: number): CommandSlot {
   switch (slot) {
     case 1:
@@ -180,6 +187,16 @@ export const Health: Component<HealthSchema> = new Component<HealthSchema>({
   name: "health",
   schema: { current: Uint8Array, max: Uint8Array },
 });
+
+export function healthFor(world: World, entity: Entity): HealthSchema | undefined {
+  if (!world.components.entityHas(Health, entity)) return undefined;
+
+  const health = world.components.getEntityData(Health, entity);
+  return {
+    current: health.current,
+    max: health.max,
+  };
+}
 
 export type AttackSchema = AttackDef;
 export const Attack: Component<AttackSchema> = new Component<AttackSchema>({

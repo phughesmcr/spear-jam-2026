@@ -69,8 +69,7 @@ export class PlayerInventory {
     this.selectedWeaponSlot = slot;
   }
 
-  spendAmmo(ammo: AmmoKind | undefined): boolean {
-    if (ammo === undefined) return true;
+  spendAmmo(ammo: AmmoKind): boolean {
     if (this.ammoCounts[ammo] <= 0) return false;
 
     this.ammoCounts[ammo] -= 1;

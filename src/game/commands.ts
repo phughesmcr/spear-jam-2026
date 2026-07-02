@@ -11,7 +11,6 @@ export type PlayerCommand =
   | { readonly type: "wait" }
   | { readonly type: "interact" }
   | { readonly type: "attack" }
-  | { readonly type: "selectItem"; readonly slot: CommandSlot }
   | { readonly type: "selectWeapon"; readonly slot: CommandSlot };
 
 export type GameCommand =
@@ -59,7 +58,6 @@ export function isPlayerCommand(command: GameCommand): command is PlayerCommand 
     case "wait":
     case "interact":
     case "attack":
-    case "selectItem":
     case "selectWeapon":
       return true;
     case "menu":

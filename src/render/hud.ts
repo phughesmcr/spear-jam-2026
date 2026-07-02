@@ -1,6 +1,7 @@
 import type { GameSession } from "@/src/ecs/session.ts";
 import type { PlayerState } from "@/src/game/state.ts";
 import type { GameCanvasSize } from "@/src/render/canvas.ts";
+import { fitText } from "@/src/render/text.ts";
 
 const HUD_MARGIN = 12;
 const HUD_PADDING = 10;
@@ -76,14 +77,4 @@ function hudLines(mapName: string, playerState: PlayerState): readonly HudLine[]
 
 function ownedWeaponText(playerState: PlayerState): string {
   return playerState.unlockedWeapons.join(",");
-}
-
-function fitText(ctx: CanvasRenderingContext2D, text: string, maxWidth: number): string {
-  if (ctx.measureText(text).width <= maxWidth) return text;
-
-  let fitted = text;
-  while (fitted.length > 1 && ctx.measureText(`${fitted}...`).width > maxWidth) {
-    fitted = fitted.slice(0, -1);
-  }
-  return `${fitted}...`;
 }

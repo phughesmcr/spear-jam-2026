@@ -1,5 +1,6 @@
 export type CardinalDirection = 0 | 1 | 2 | 3;
 export type GridDelta = { dx: number; dy: number };
+export type GridPoint = { readonly x: number; readonly y: number };
 
 export const Direction = {
   North: 0,
@@ -9,7 +10,7 @@ export const Direction = {
 } as const satisfies Record<string, CardinalDirection>;
 
 const CARDINAL_DIRECTION_COUNT = 4;
-const CARDINAL_DELTAS = [
+export const CARDINAL_DELTAS = [
   { dx: 0, dy: -1 },
   { dx: 1, dy: 0 },
   { dx: 0, dy: 1 },
@@ -22,4 +23,8 @@ export function normalizeDirection(dir: number): CardinalDirection {
 
 export function directionDelta(dir: number): GridDelta {
   return CARDINAL_DELTAS[normalizeDirection(dir)];
+}
+
+export function manhattanDistance(a: GridPoint, b: GridPoint): number {
+  return Math.abs(a.x - b.x) + Math.abs(a.y - b.y);
 }

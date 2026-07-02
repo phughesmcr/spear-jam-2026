@@ -1,10 +1,5 @@
 import { type Entity, System, type World } from "@phughesmcr/miski";
-import {
-  AttackFacingRequirement,
-  EnemyArchetype,
-  EnemyArchetypeComponent,
-  enemyArchetypeForCode,
-} from "@/src/ecs/components.ts";
+import { AttackFacingRequirement, EnemyArchetype, enemyArchetypeFor } from "@/src/ecs/components.ts";
 import type { FacingPartitions, GridPosPartitions } from "@/src/ecs/components.ts";
 import { attackEntity, attackTargets, entityAttack } from "@/src/ecs/combat.ts";
 import type { Player } from "@/src/ecs/player.ts";
@@ -12,7 +7,7 @@ import { enemyTurnQuery } from "@/src/ecs/queries.ts";
 import type { SpatialAccess, SpatialLookup, SpatialMutations } from "@/src/ecs/spatial.ts";
 import type { GameEvent } from "@/src/game/events.ts";
 import type { RandomSource } from "@/src/game/rng.ts";
-import { Direction } from "@/src/grid/direction.ts";
+import { CARDINAL_DELTAS, Direction, manhattanDistance } from "@/src/grid/direction.ts";
 import type { CardinalDirection, GridDelta } from "@/src/grid/direction.ts";
 
 type EnemyTurnComponents = {
@@ -59,13 +54,6 @@ const TURN_POLICIES: Readonly<Record<EnemyArchetype, TurnPolicy>> = {
     retreatWhenAdjacent: false,
   },
 };
-
-const CARDINAL_STEPS = [
-  { dx: 0, dy: -1 },
-  { dx: 1, dy: 0 },
-  { dx: 0, dy: 1 },
-  { dx: -1, dy: 0 },
-] as const satisfies readonly GridDelta[];
 
 export type EnemyTurnContext = {
   readonly world: World;
@@ -143,7 +131,7 @@ function advanceEnemyTurn(
 }
 
 function turnPolicyFor(world: World, entity: Entity): TurnPolicy {
-  const archetype = enemyArchetype(world, entity);
+  const archetype = enemyArchetypeFor(world, entity);
   return archetype === undefined ? DEFAULT_TURN_POLICY : TURN_POLICIES[archetype];
 }
 
@@ -239,8 +227,8 @@ function tryMoveEnemyAwayFromPlayer(
     }
     | undefined;
 
-  for (let index = 0; index < CARDINAL_STEPS.length; index++) {
-    const delta = CARDINAL_STEPS[index]!;
+  for (let index = 0; index < CARDINAL_DELTAS.length; index++) {
+    const delta = CARDINAL_DELTAS[index]!;
     const x = current.x + delta.dx;
     const y = current.y + delta.dy;
     if (spatial.positionBlocks(x, y)) continue;
@@ -323,18 +311,4 @@ function entityPosition(entity: Entity, gridPos: GridPosPartitions): { readonly 
     x: gridPos.x[entity]!,
     y: gridPos.y[entity]!,
   };
-}
-
-function manhattanDistance(
-  a: { readonly x: number; readonly y: number },
-  b: { readonly x: number; readonly y: number },
-): number {
-  return Math.abs(a.x - b.x) + Math.abs(a.y - b.y);
-}
-
-function enemyArchetype(world: World, entity: Entity): EnemyArchetype | undefined {
-  if (!world.components.entityHas(EnemyArchetypeComponent, entity)) return undefined;
-
-  const archetype = world.components.getEntityData(EnemyArchetypeComponent, entity).archetype;
-  return enemyArchetypeForCode(archetype);
 }

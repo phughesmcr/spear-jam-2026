@@ -36,7 +36,6 @@ Deno.test("PlayerInventory sorts unlocked weapons and tracks ammo spending", () 
   assertEquals(inventory.getState().unlockedWeapons, [1, 2, 3]);
   assertEquals(inventory.spendAmmo("pistol"), true);
   assertEquals(inventory.spendAmmo("pistol"), false);
-  assertEquals(inventory.spendAmmo(undefined), true);
   assertEquals(inventory.getState().ammo, { pistol: 0, cannon: 0 });
 });
 

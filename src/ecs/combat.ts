@@ -14,8 +14,7 @@ import {
 import type { AttackSchema } from "@/src/ecs/components.ts";
 import type { Player } from "@/src/ecs/player.ts";
 import type { SpatialAccess, SpatialLookup, SpatialMutations } from "@/src/ecs/spatial.ts";
-import { Direction, directionDelta } from "@/src/grid/direction.ts";
-import type { CardinalDirection } from "@/src/grid/direction.ts";
+import { CARDINAL_DELTAS, directionDelta } from "@/src/grid/direction.ts";
 import type { GameEvent } from "@/src/game/events.ts";
 import type { RandomSource } from "@/src/game/rng.ts";
 import { displayNameText } from "@/src/game/names.ts";
@@ -39,13 +38,6 @@ export type AttackOutcome =
   };
 
 const DEFAULT_DEFENSE = 10;
-const CARDINAL_DIRECTIONS = [
-  Direction.North,
-  Direction.East,
-  Direction.South,
-  Direction.West,
-] as const satisfies readonly CardinalDirection[];
-
 const PLAYER_WEAPONS: Readonly<Record<CommandSlot, WeaponSpec>> = {
   1: {
     label: "Melee",
@@ -260,8 +252,7 @@ function adjacentAttackTargets(
   const targets: Entity[] = [];
   const position = world.components.getEntityData(GridPos, attacker);
 
-  for (const dir of CARDINAL_DIRECTIONS) {
-    const delta = directionDelta(dir);
+  for (const delta of CARDINAL_DELTAS) {
     for (let distance = 1; distance <= attack.range; distance++) {
       const x = position.x + delta.dx * distance;
       const y = position.y + delta.dy * distance;

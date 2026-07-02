@@ -19,7 +19,7 @@ import type { PlayerCommand, PlayerCommandResult } from "@/src/game/commands.ts"
 import type { GameEvent } from "@/src/game/events.ts";
 import type { RandomSource } from "@/src/game/rng.ts";
 import { createPlayerState } from "@/src/game/state.ts";
-import type { AmmoKind, CommandSlot, PlayerState, PlayerStateInput } from "@/src/game/state.ts";
+import type { CommandSlot, PlayerState, PlayerStateInput } from "@/src/game/state.ts";
 import { VICTORY_GOTO } from "@/src/map/map.ts";
 import type { GameMap } from "@/src/map/map.ts";
 
@@ -137,8 +137,6 @@ export class GameSession implements Disposable {
         return this.handlePlayerAttackCommand();
       case "selectWeapon":
         return this.handlePlayerSelectWeaponCommand(command.slot);
-      case "selectItem":
-        return UNCHANGED_PLAYER_COMMAND;
     }
   }
 
@@ -216,8 +214,11 @@ export class GameSession implements Disposable {
   private handlePlayerAttackCommand(): PlayerCommandResult {
     const selectedWeapon = this.inventory.selectedWeapon;
     const ammoKind = weaponAmmoKind(selectedWeapon);
-    const ammoEvents = this.spendAmmo(ammoKind);
-    if (ammoEvents === undefined) return { events: [{ type: "noAmmo", ammo: ammoKind! }] };
+    let ammoEvents: readonly GameEvent[] = [];
+    if (ammoKind !== undefined) {
+      if (!this.inventory.spendAmmo(ammoKind)) return { events: [{ type: "noAmmo", ammo: ammoKind }] };
+      ammoEvents = [{ type: "ammoSpent", ammo: ammoKind, amount: 1 }];
+    }
 
     const events = attackWithSelectedWeapon(
       this.world,
@@ -323,11 +324,6 @@ export class GameSession implements Disposable {
       amount,
       healed,
     }];
-  }
-
-  private spendAmmo(ammo: AmmoKind | undefined): readonly GameEvent[] | undefined {
-    if (!this.inventory.spendAmmo(ammo)) return undefined;
-    return ammo === undefined ? [] : [{ type: "ammoSpent", ammo, amount: 1 }];
   }
 
   private awardCreditsForDefeats(events: readonly GameEvent[]): readonly GameEvent[] {

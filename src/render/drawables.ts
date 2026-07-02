@@ -9,6 +9,7 @@ import type { MapRenderMetrics } from "@/src/render/map.ts";
 
 type Point = { readonly x: number; readonly y: number };
 type Triangle = readonly [Point, Point, Point];
+type EnemySymbol = { readonly color: string; readonly symbol: string };
 
 const ACTOR_STROKE_COLOR = "#101217";
 const PLAYER_COLOR = "#f0c84b";
@@ -39,6 +40,13 @@ const KEY_COLORS: Record<KeyColorType, string> = {
   [KeyColor.Red]: "#df4f45",
   [KeyColor.Blue]: "#4f8df7",
   [KeyColor.Yellow]: "#f4d35e",
+};
+const ENEMY_SYMBOLS: Readonly<Record<EnemyArchetype, EnemySymbol>> = {
+  [EnemyArchetype.MeleeDog]: { color: DOG_COLOR, symbol: "D" },
+  [EnemyArchetype.Gunslinger]: { color: GUNSLINGER_COLOR, symbol: "G" },
+  [EnemyArchetype.NetworkNeophyte]: { color: NETWORK_NEOPHYTE_COLOR, symbol: "N" },
+  [EnemyArchetype.SystemSentinel]: { color: SYSTEM_SENTINEL_COLOR, symbol: "S" },
+  [EnemyArchetype.AgenticAcolyte]: { color: AGENTIC_ACOLYTE_COLOR, symbol: "A" },
 };
 const PLAYER_RADIUS_RATIO = 0.34;
 const PLAYER_BASE_WIDTH_RATIO = 0.75;
@@ -262,32 +270,13 @@ function renderEnemy(
   health: { readonly current: number; readonly max: number } | undefined,
   metrics: MapRenderMetrics,
 ): void {
-  switch (archetype) {
-    case EnemyArchetype.MeleeDog:
-      renderActorSymbol(ctx, x, y, dir, DOG_COLOR, "D", metrics);
-      renderEnemyHealth(ctx, x, y, health, metrics);
-      return;
-    case EnemyArchetype.Gunslinger:
-      renderActorSymbol(ctx, x, y, dir, GUNSLINGER_COLOR, "G", metrics);
-      renderEnemyHealth(ctx, x, y, health, metrics);
-      return;
-    case EnemyArchetype.NetworkNeophyte:
-      renderActorSymbol(ctx, x, y, dir, NETWORK_NEOPHYTE_COLOR, "N", metrics);
-      renderEnemyHealth(ctx, x, y, health, metrics);
-      return;
-    case EnemyArchetype.SystemSentinel:
-      renderActorSymbol(ctx, x, y, dir, SYSTEM_SENTINEL_COLOR, "S", metrics);
-      renderEnemyHealth(ctx, x, y, health, metrics);
-      return;
-    case EnemyArchetype.AgenticAcolyte:
-      renderActorSymbol(ctx, x, y, dir, AGENTIC_ACOLYTE_COLOR, "A", metrics);
-      renderEnemyHealth(ctx, x, y, health, metrics);
-      return;
-    case undefined:
-      renderActor(ctx, x, y, dir, ENEMY_COLOR, metrics);
-      renderEnemyHealth(ctx, x, y, health, metrics);
-      return;
+  if (archetype === undefined) {
+    renderActor(ctx, x, y, dir, ENEMY_COLOR, metrics);
+  } else {
+    const enemySymbol = ENEMY_SYMBOLS[archetype];
+    renderActorSymbol(ctx, x, y, dir, enemySymbol.color, enemySymbol.symbol, metrics);
   }
+  renderEnemyHealth(ctx, x, y, health, metrics);
 }
 
 function renderEnemyHealth(

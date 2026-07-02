@@ -1,5 +1,6 @@
 import { KeyColor, mapDimensions, terrainAt, VICTORY_GOTO } from "@/src/map/map.ts";
 import type { DoorDef, GameMap, KeyColor as KeyColorType, UplinkTerminalDef } from "@/src/map/map.ts";
+import { CARDINAL_DELTAS } from "@/src/grid/direction.ts";
 
 type ReachabilityResult = {
   readonly reachableKeyMask: number;
@@ -12,13 +13,6 @@ type ReachabilityState = {
   readonly keyMask: number;
   readonly hasUplinkCode: boolean;
 };
-
-const CARDINAL_DELTAS = [
-  { dx: 0, dy: -1 },
-  { dx: 1, dy: 0 },
-  { dx: 0, dy: 1 },
-  { dx: -1, dy: 0 },
-] as const;
 
 const KEY_BITS: Readonly<Record<KeyColorType, number>> = {
   [KeyColor.Red]: 1 << 0,
@@ -243,7 +237,7 @@ function keyBit(color: KeyColorType): number {
 }
 
 function stateKey(state: ReachabilityState): string {
-  return `${state.x},${state.y},${state.keyMask},${state.hasUplinkCode ? 1 : 0}`;
+  return `${tileKey(state.x, state.y)},${state.keyMask},${state.hasUplinkCode ? 1 : 0}`;
 }
 
 function tileKey(x: number, y: number): string {
