@@ -1,7 +1,11 @@
 import type { GameCommand } from "@/src/game/commands.ts";
 import Keyboard from "@/src/input/keyboard.ts";
+import Pointer from "@/src/input/pointer.ts";
+import type { CanvasPointerInput } from "@/src/input/pointer.ts";
+import type { GameCanvasSize } from "@/src/render/canvas.ts";
 
 export type GameCommandReceiver = (command: GameCommand) => void;
+export type PointerInputReceiver = (input: CanvasPointerInput) => void;
 
 const COMMANDS_BY_KEY = {
   Space: { type: "wait" },
@@ -19,6 +23,8 @@ const COMMANDS_BY_KEY = {
   Digit3: { type: "selectWeapon", slot: 3 },
 } satisfies Readonly<Record<string, GameCommand>>;
 
+const POINTER_PHASES = ["move", "down", "up", "cancel"] as const;
+
 export function setupKeyboard(window: Window, receiver: GameCommandReceiver): Disposable {
   const input = new Keyboard(window);
 
@@ -31,4 +37,36 @@ export function setupKeyboard(window: Window, receiver: GameCommandReceiver): Di
   }
 
   return input;
+}
+
+export function setupPointer(
+  canvas: HTMLCanvasElement,
+  canvasSize: () => GameCanvasSize,
+  receiver: PointerInputReceiver,
+): Disposable {
+  const input = new Pointer(canvas, canvasSize);
+
+  for (const phase of POINTER_PHASES) {
+    input.addMapping(phase, receiver);
+  }
+
+  return input;
+}
+
+export function setupInput(
+  window: Window,
+  canvas: HTMLCanvasElement,
+  canvasSize: () => GameCanvasSize,
+  commandReceiver: GameCommandReceiver,
+  pointerReceiver: PointerInputReceiver,
+): Disposable {
+  const keyboard = setupKeyboard(window, commandReceiver);
+  const pointer = setupPointer(canvas, canvasSize, pointerReceiver);
+
+  return {
+    [Symbol.dispose]() {
+      keyboard[Symbol.dispose]();
+      pointer[Symbol.dispose]();
+    },
+  };
 }

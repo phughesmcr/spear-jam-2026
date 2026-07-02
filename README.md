@@ -2,6 +2,11 @@
 
 ## Acknowledgements
 
+**Gameplay Inspiration:**
+
+- [Doom RPG](https://en.wikipedia.org/wiki/Doom_RPG)
+- [Normality](https://en.wikipedia.org/wiki/Normality_(video_game))
+
 **Code Inspiration:**
 
 - [MethMethMethod's Super Mario](https://github.com/meth-meth-method/super-mario/)
@@ -11,3 +16,4 @@
 **Art Assets:**
 
 - [Aquilarius' Retro Textures (CC0)](https://aquilarius.itch.io/aquilariusrt)
+- Sprites/HUD and titlescreen generated with GPT Image 2

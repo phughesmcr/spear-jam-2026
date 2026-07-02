@@ -19,6 +19,7 @@ export function renderGameFrame(
   mode: GameMode = { type: "loading" },
   messages: readonly string[] = [],
   combatFeedback: readonly CombatFeedback[] = [],
+  onAssetLoad?: () => void,
 ): void {
   ctx.fillStyle = BACKGROUND_COLOR;
   ctx.fillRect(0, 0, canvasSize.width, canvasSize.height);
@@ -31,7 +32,7 @@ export function renderGameFrame(
   }
   renderMessageLog(ctx, canvasSize, messages);
   if (mode.type === "verbMenu") {
-    renderVerbMenu(ctx, canvasSize, mode.selectedIndex);
+    renderVerbMenu(ctx, canvasSize, mode.selectedIndex, onAssetLoad);
   }
   switch (mode.type) {
     case "loading":
