@@ -2,9 +2,6 @@ import type { Entity, World } from "@phughesmcr/miski";
 import { DialogueTreeId } from "@/src/dialogue/dialogue.ts";
 import {
   Attack,
-  AttackFacingRequirement,
-  AttackPattern,
-  AttackTargetMode,
   Blocking,
   Defense,
   Dialogue,
@@ -14,7 +11,6 @@ import {
   DrawableKind,
   DrawableLayer,
   Enemy,
-  EnemyArchetype,
   EnemyArchetypeComponent,
   EnemyAwareness,
   Examine,
@@ -31,6 +27,7 @@ import {
   UplinkTerminal,
 } from "@/src/ecs/components.ts";
 import type { AttackSchema } from "@/src/ecs/components.ts";
+import { DEFAULT_ENEMY_ARCHETYPE, type EnemyCatalogEntry, enemyCatalogEntry } from "@/src/ecs/enemy_catalog.ts";
 import { DEFAULT_PLAYER_HEALTH } from "@/src/ecs/progression.ts";
 import { DEFAULT_ATTACK } from "@/src/game/attack.ts";
 import { normalizeDirection } from "@/src/grid/direction.ts";
@@ -51,65 +48,7 @@ import type {
   WeaponPickupDef,
 } from "@/src/map/map.ts";
 
-type EnemyArchetypeDefaults = {
-  readonly health: number;
-  readonly hitDc: number;
-  readonly damage: number;
-  readonly attack: Partial<AttackSchema>;
-};
-
 const DEFAULT_PLAYER_HIT_DC = 10;
-
-const ENEMY_ARCHETYPE_DEFAULTS: Readonly<Record<EnemyArchetype, EnemyArchetypeDefaults>> = {
-  [EnemyArchetype.MeleeDog]: {
-    health: 2,
-    hitDc: 10,
-    damage: 1,
-    attack: {
-      attackBonus: 4,
-      range: 1,
-    },
-  },
-  [EnemyArchetype.Gunslinger]: {
-    health: 2,
-    hitDc: 10,
-    damage: 1,
-    attack: {
-      attackBonus: 3,
-      range: 4,
-    },
-  },
-  [EnemyArchetype.NetworkNeophyte]: {
-    health: 3,
-    hitDc: 10,
-    damage: 1,
-    attack: {
-      attackBonus: 2,
-      range: 1,
-    },
-  },
-  [EnemyArchetype.SystemSentinel]: {
-    health: 7,
-    hitDc: 10,
-    damage: 2,
-    attack: {
-      attackBonus: 4,
-      range: 1,
-    },
-  },
-  [EnemyArchetype.AgenticAcolyte]: {
-    health: 4,
-    hitDc: 10,
-    damage: 2,
-    attack: {
-      requiresFacing: AttackFacingRequirement.None,
-      attackBonus: 3,
-      range: 2,
-      pattern: AttackPattern.Adjacent,
-      targets: AttackTargetMode.All,
-    },
-  },
-};
 
 type PositionedPrefab = {
   readonly x: number;
@@ -162,32 +101,32 @@ export function createNpc(world: World, prefab: NpcPrefab): Entity {
 export type EnemyPrefab = Omit<EnemyDef, "prefab">;
 
 export function createEnemy(world: World, prefab: EnemyPrefab): Entity {
-  const archetype = prefab.archetype ?? EnemyArchetype.MeleeDog;
-  const defaults = ENEMY_ARCHETYPE_DEFAULTS[archetype];
-  const health = prefab.health ?? defaults.health;
-  const hitDc = prefab.hitDc ?? defaults.hitDc;
+  const archetype = prefab.archetype ?? DEFAULT_ENEMY_ARCHETYPE;
+  const catalog = enemyCatalogEntry(archetype);
+  const health = prefab.health ?? catalog.health;
+  const hitDc = prefab.hitDc ?? catalog.hitDc;
   const entity = createGridActor(world, prefab, DrawableKind.Enemy, DrawableLayer.Enemy);
   world.components.addBundle(
     entity,
     [
-      [DisplayNameComponent, { displayName: prefab.displayName }],
+      [DisplayNameComponent, { displayName: prefab.displayName ?? catalog.displayName }],
       [Enemy],
       [EnemyAwareness, IDLE_AWARENESS],
       [EnemyArchetypeComponent, { archetype }],
       [Health, { current: health, max: health }],
       [Defense, { hitDc }],
-      [Attack, createAttackSpec(prefab, defaults)],
+      [Attack, createAttackSpec(prefab, catalog)],
     ] as const,
   );
   addExamine(world, entity, prefab);
   return entity;
 }
 
-function createAttackSpec(prefab: EnemyPrefab, defaults: EnemyArchetypeDefaults): AttackSchema {
-  const fixedDamage = prefab.damage ?? defaults.damage;
+function createAttackSpec(prefab: EnemyPrefab, catalog: EnemyCatalogEntry): AttackSchema {
+  const fixedDamage = prefab.damage ?? catalog.damage;
   return {
     ...DEFAULT_ATTACK,
-    ...defaults.attack,
+    ...catalog.attack,
     minDamage: fixedDamage,
     maxDamage: fixedDamage,
     ...prefab.attack,

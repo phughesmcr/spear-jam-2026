@@ -14,7 +14,7 @@
 
 import { DrawableKind } from "@/src/ecs/drawables.ts";
 import type { DrawableEntity, DrawableEntityVisitor } from "@/src/ecs/drawables.ts";
-import { EnemyArchetype } from "@/src/ecs/components.ts";
+import { EnemyArchetype } from "@/src/ecs/enemy_catalog.ts";
 import { type CardinalDirection, directionDelta, normalizeDirection } from "@/src/grid/direction.ts";
 import type { ItemIcon } from "@/src/game/items.ts";
 import type { TargetMarkerTone } from "@/src/game/target_marker.ts";
@@ -755,7 +755,7 @@ function sceneForMapForState(state: FirstPersonRendererState, map: GameMap): Ray
   if (cached !== undefined) return cached;
 
   const { width, height } = mapDimensions(map);
-  const scene = createScene(width, height);
+  const scene = createScene(width, height, { spriteCapacity: raycastSpriteCapacity(map, width * height) });
   for (let y = 0; y < height; y++) {
     for (let x = 0; x < width; x++) {
       const cell = y * width + x;
@@ -775,6 +775,10 @@ function sceneForMapForState(state: FirstPersonRendererState, map: GameMap): Ray
   }
   state.sceneByMap.set(map, scene);
   return scene;
+}
+
+function raycastSpriteCapacity(map: GameMap, cellCount: number): number {
+  return Math.max(cellCount, map.entities.length + MAX_CORPSES);
 }
 
 function isBlocking(map: GameMap, x: number, y: number): boolean {

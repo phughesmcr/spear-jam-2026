@@ -2,7 +2,6 @@ import { type Entity, System, type World } from "@phughesmcr/miski";
 import {
   AttackFacingRequirement,
   AwarenessState,
-  EnemyArchetype,
   enemyArchetypeFor,
   Health,
   IDLE_AWARENESS,
@@ -14,6 +13,7 @@ import type {
   GridPosPartitions,
 } from "@/src/ecs/components.ts";
 import { attackEntity, attackTargets, entityAttack } from "@/src/ecs/combat.ts";
+import { DEFAULT_ENEMY_BEHAVIOR, EnemyBehavior, enemyCatalogEntry } from "@/src/ecs/enemy_catalog.ts";
 import type { Player } from "@/src/ecs/player.ts";
 import { enemyTurnQuery } from "@/src/ecs/queries.ts";
 import type { SpatialAccess, SpatialLookup, SpatialMutations } from "@/src/ecs/spatial.ts";
@@ -57,26 +57,23 @@ type EnemyBehaviorPlan = {
   readonly investigate: EnemyInvestigationStrategy;
 };
 
-const DEFAULT_BEHAVIOR_PLAN: EnemyBehaviorPlan = {
-  alert: attackThenPursueOneStep,
-  investigate: investigateOneStep,
-};
-
-const BEHAVIOR_PLANS: Readonly<Record<EnemyArchetype, EnemyBehaviorPlan>> = {
-  [EnemyArchetype.MeleeDog]: {
+const BEHAVIOR_PLANS: Readonly<Record<EnemyBehavior, EnemyBehaviorPlan>> = {
+  [EnemyBehavior.Pursuer]: {
+    alert: attackThenPursueOneStep,
+    investigate: investigateOneStep,
+  },
+  [EnemyBehavior.Pouncer]: {
     alert: pounceThenBite,
     investigate: investigateTwoSteps,
   },
-  [EnemyArchetype.Gunslinger]: {
+  [EnemyBehavior.Skirmisher]: {
     alert: skirmishAtRange,
     investigate: investigateOneStep,
   },
-  [EnemyArchetype.NetworkNeophyte]: DEFAULT_BEHAVIOR_PLAN,
-  [EnemyArchetype.SystemSentinel]: {
+  [EnemyBehavior.Sentinel]: {
     alert: holdAndWatchPlayer,
     investigate: watchInvestigationTarget,
   },
-  [EnemyArchetype.AgenticAcolyte]: DEFAULT_BEHAVIOR_PLAN,
 };
 
 export const enemyTurnSystem = new System({
@@ -219,7 +216,8 @@ function investigateTarget(actor: EnemyActorContext, target: GridPoint, steps: n
 
 function behaviorPlanFor(world: World, entity: Entity): EnemyBehaviorPlan {
   const archetype = enemyArchetypeFor(world, entity);
-  return archetype === undefined ? DEFAULT_BEHAVIOR_PLAN : BEHAVIOR_PLANS[archetype];
+  const behavior = archetype === undefined ? DEFAULT_ENEMY_BEHAVIOR : enemyCatalogEntry(archetype).behavior;
+  return BEHAVIOR_PLANS[behavior];
 }
 
 function attackPlayerIfPossible(

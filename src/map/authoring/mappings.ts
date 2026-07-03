@@ -7,7 +7,11 @@ import {
   AttackTargetMode,
   type AttackTargetMode as AttackTargetModeType,
 } from "@/src/game/attack.ts";
-import { EnemyArchetype, type EnemyArchetype as EnemyArchetypeType } from "@/src/ecs/components.ts";
+import {
+  ENEMY_ARCHETYPE_CODES,
+  type EnemyArchetype as EnemyArchetypeType,
+  enemyCatalogEntry,
+} from "@/src/ecs/enemy_catalog.ts";
 import { ExamineTextId, type ExamineTextId as ExamineTextIdType } from "@/src/game/examine.ts";
 import { ItemKind, type ItemKind as ItemKindType } from "@/src/game/items.ts";
 import { DisplayName, type DisplayName as DisplayNameType } from "@/src/game/names.ts";
@@ -39,13 +43,9 @@ const EXAMINE_TEXT_IDS: Readonly<Record<string, ExamineTextIdType>> = {
   bootSectorUplinkTerminal: ExamineTextId.BootSectorUplinkTerminal,
 };
 
-const ENEMY_ARCHETYPES: Readonly<Record<string, EnemyArchetypeType>> = {
-  meleeDog: EnemyArchetype.MeleeDog,
-  gunslinger: EnemyArchetype.Gunslinger,
-  networkNeophyte: EnemyArchetype.NetworkNeophyte,
-  systemSentinel: EnemyArchetype.SystemSentinel,
-  agenticAcolyte: EnemyArchetype.AgenticAcolyte,
-};
+const ENEMY_ARCHETYPES: Readonly<Record<string, EnemyArchetypeType>> = Object.fromEntries(
+  ENEMY_ARCHETYPE_CODES.map((archetype) => [enemyCatalogEntry(archetype).authoringKey, archetype]),
+);
 
 const KEY_COLORS: Readonly<Record<string, KeyColorType>> = {
   red: KeyColor.Red,

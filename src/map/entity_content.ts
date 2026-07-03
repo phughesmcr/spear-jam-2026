@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { DialogueTreeId, type DialogueTreeId as DialogueTreeIdType } from "@/src/dialogue/dialogue.ts";
-import { EnemyArchetype, type EnemyArchetype as EnemyArchetypeType } from "@/src/ecs/components.ts";
+import { EnemyArchetype, type EnemyArchetype as EnemyArchetypeType } from "@/src/ecs/enemy_catalog.ts";
 import {
   AttackFacingRequirement,
   type AttackFacingRequirement as AttackFacingRequirementType,
@@ -92,7 +92,7 @@ const ENTITY_DEFINITIONS = [
     ],
     {
       dir: DIRECTION_SCHEMA,
-      displayName: DISPLAY_NAME_SCHEMA,
+      displayName: DISPLAY_NAME_SCHEMA.optional(),
       archetype: ENEMY_ARCHETYPE_SCHEMA.optional(),
       health: POSITIVE_INTEGER_SCHEMA.optional(),
       hitDc: POSITIVE_INTEGER_SCHEMA.optional(),

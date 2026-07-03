@@ -1,4 +1,4 @@
-import { EnemyArchetype } from "@/src/ecs/components.ts";
+import { EnemyArchetype } from "@/src/ecs/enemy_catalog.ts";
 import { DrawableKind } from "@/src/ecs/drawables.ts";
 import type { DrawableEntity } from "@/src/ecs/drawables.ts";
 import type { GameSession } from "@/src/ecs/session.ts";

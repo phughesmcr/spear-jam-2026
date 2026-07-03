@@ -1,7 +1,7 @@
 import { assertEquals, assertThrows } from "@std/assert";
 import { AttackFacingRequirement, AttackPattern, AttackTargetMode } from "@/src/game/attack.ts";
 import { DialogueTreeId } from "@/src/dialogue/dialogue.ts";
-import { EnemyArchetype } from "@/src/ecs/components.ts";
+import { EnemyArchetype } from "@/src/ecs/enemy_catalog.ts";
 import { ExamineTextId } from "@/src/game/examine.ts";
 import { DisplayName } from "@/src/game/names.ts";
 import { ItemKind } from "@/src/game/items.ts";
@@ -351,6 +351,37 @@ Deno.test("compileTiledMap compiles representative prefabs and enemy attack over
     },
     { prefab: "weaponPickup", x: 1, y: 2, slot: 3 },
     { prefab: "item", x: 2, y: 2, item: ItemKind.HealthPatch, amount: 4 },
+  ]);
+});
+
+Deno.test("compileTiledMap lets enemy archetypes supply display names", () => {
+  const compiled = compileTiledMap(
+    tiledMap({
+      width: 1,
+      height: 1,
+      objects: [
+        object({
+          x: 0,
+          y: 0,
+          type: "enemy",
+          properties: [
+            property("dir", "north"),
+            property("archetype", "networkNeophyte"),
+          ],
+        }),
+      ],
+    }),
+    compileOptions(),
+  );
+
+  assertEquals(compiled.gameMap.entities, [
+    {
+      prefab: "enemy",
+      x: 0,
+      y: 0,
+      dir: 0,
+      archetype: EnemyArchetype.NetworkNeophyte,
+    },
   ]);
 });
 

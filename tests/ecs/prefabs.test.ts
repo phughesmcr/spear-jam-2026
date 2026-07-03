@@ -8,12 +8,12 @@ import {
   Dialogue,
   DisplayNameComponent,
   Enemy,
-  EnemyArchetype,
   EnemyArchetypeComponent,
   Examine,
   Health,
   Npc,
 } from "@/src/ecs/components.ts";
+import { EnemyArchetype } from "@/src/ecs/enemy_catalog.ts";
 import { ExamineTextId } from "@/src/game/examine.ts";
 import { DisplayName } from "@/src/game/names.ts";
 import { createDoor, createEnemy, createNpc, createUplinkTerminal } from "@/src/ecs/prefabs.ts";
@@ -145,11 +145,13 @@ Deno.test("enemy archetypes apply top-down tuning defaults", async () => {
       x: 1,
       y: 1,
       dir: 1,
-      displayName: expected.displayName,
       archetype: expected.archetype,
     });
     const attack = world.components.getEntityData(Attack, entity);
 
+    assertEquals(world.components.getEntityData(DisplayNameComponent, entity), {
+      displayName: expected.displayName,
+    });
     assertEquals(world.components.getEntityData(EnemyArchetypeComponent, entity), {
       archetype: expected.code,
     });

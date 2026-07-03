@@ -331,7 +331,7 @@ function compileEnemy(resolved: ResolvedObject, context: string): EntityDef {
     x: resolved.x,
     y: resolved.y,
     dir: requiredDirection(resolved.properties, context),
-    displayName: requiredDisplayName(resolved.properties, context),
+    ...optionalDisplayName(resolved.properties, context),
     ...optionalEnemyArchetype(resolved.properties, context),
     ...optionalNumberField(resolved.properties, "health", context),
     ...optionalNumberField(resolved.properties, "hitDc", context),
@@ -365,6 +365,14 @@ function requiredDirection(properties: PropertyMap, context: string): number {
 
 function requiredDisplayName(properties: PropertyMap, context: string): ReturnType<typeof mapDisplayName> {
   return mapDisplayName(requiredString(properties, "displayName", context), `${context} property "displayName"`);
+}
+
+function optionalDisplayName(
+  properties: PropertyMap,
+  context: string,
+): { readonly displayName?: ReturnType<typeof mapDisplayName> } {
+  const value = optionalString(properties, "displayName", context);
+  return value === undefined ? {} : { displayName: mapDisplayName(value, `${context} property "displayName"`) };
 }
 
 function requiredKeyColor(properties: PropertyMap, context: string): ReturnType<typeof mapKeyColor> {

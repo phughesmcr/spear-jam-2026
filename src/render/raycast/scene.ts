@@ -56,8 +56,7 @@ const PROJECTION_PLANE_LENGTH = CAMERA_PLANE_LENGTH;
  */
 const CAMERA_HEIGHT = 0.5;
 
-const MAX_THIN_WALLS = 64;
-const MAX_SPRITES = 128;
+const DEFAULT_SPRITE_CAPACITY = 128;
 /** Transparent thin-wall hits recorded per screen column. */
 const MAX_THIN_HITS = 8;
 /** Shade bands advance one step per this many tiles of distance. */
@@ -121,7 +120,7 @@ export type RaycastScene = {
   /** Plane texture id + 1 per cell; 0 means untextured (left black). */
   readonly ceilings: Uint8Array;
   /** Index into the thin-wall arrays per cell; -1 means none. */
-  readonly thinByCell: Int16Array;
+  readonly thinByCell: Int32Array;
   thinCount: number;
   readonly thinTex: Int16Array;
   readonly thinAxis: Uint8Array;
@@ -137,27 +136,52 @@ export type RaycastScene = {
   readonly spriteScale: Float32Array;
 };
 
-export function createScene(mapWidth: number, mapHeight: number): RaycastScene {
-  const cellCount = mapWidth * mapHeight;
+export type RaycastSceneOptions = {
+  readonly spriteCapacity?: number;
+};
+
+export function createScene(mapWidth: number, mapHeight: number, options: RaycastSceneOptions = {}): RaycastScene {
+  const cellCount = mapCellCount(mapWidth, mapHeight);
+  const spriteCapacity = checkedCapacity(
+    options.spriteCapacity ?? Math.max(DEFAULT_SPRITE_CAPACITY, cellCount),
+    "Sprite",
+  );
   return {
     mapWidth,
     mapHeight,
     walls: new Uint8Array(cellCount),
     floors: new Uint8Array(cellCount),
     ceilings: new Uint8Array(cellCount),
-    thinByCell: new Int16Array(cellCount).fill(-1),
+    thinByCell: new Int32Array(cellCount).fill(-1),
     thinCount: 0,
-    thinTex: new Int16Array(MAX_THIN_WALLS),
-    thinAxis: new Uint8Array(MAX_THIN_WALLS),
-    thinSlide: new Uint8Array(MAX_THIN_WALLS),
-    thinOffset: new Float32Array(MAX_THIN_WALLS),
-    thinCell: new Int32Array(MAX_THIN_WALLS),
+    thinTex: new Int16Array(cellCount),
+    thinAxis: new Uint8Array(cellCount),
+    thinSlide: new Uint8Array(cellCount),
+    thinOffset: new Float32Array(cellCount),
+    thinCell: new Int32Array(cellCount),
     spriteCount: 0,
-    spriteX: new Float64Array(MAX_SPRITES),
-    spriteY: new Float64Array(MAX_SPRITES),
-    spriteTex: new Int16Array(MAX_SPRITES),
-    spriteScale: new Float32Array(MAX_SPRITES),
+    spriteX: new Float64Array(spriteCapacity),
+    spriteY: new Float64Array(spriteCapacity),
+    spriteTex: new Int16Array(spriteCapacity),
+    spriteScale: new Float32Array(spriteCapacity),
   };
+}
+
+function mapCellCount(mapWidth: number, mapHeight: number): number {
+  if (!Number.isSafeInteger(mapWidth) || mapWidth < 0) {
+    throw new Error(`Map width must be a non-negative safe integer, received ${mapWidth}.`);
+  }
+  if (!Number.isSafeInteger(mapHeight) || mapHeight < 0) {
+    throw new Error(`Map height must be a non-negative safe integer, received ${mapHeight}.`);
+  }
+  return checkedCapacity(mapWidth * mapHeight, "Map cell");
+}
+
+function checkedCapacity(capacity: number, label: string): number {
+  if (!Number.isSafeInteger(capacity) || capacity < 0) {
+    throw new Error(`${label} capacity must be a non-negative safe integer, received ${capacity}.`);
+  }
+  return capacity;
 }
 
 /** Remove all thin walls and sprites; static terrain arrays are untouched. */
@@ -178,9 +202,13 @@ export function addThinWall(
   slide: ThinWallSlide = THIN_SLIDE_NEG,
   offset = 0,
 ): void {
-  if (scene.thinCount >= MAX_THIN_WALLS) return;
   const cell = cellY * scene.mapWidth + cellX;
   if (cell < 0 || cell >= scene.thinByCell.length) return;
+  if (scene.thinCount >= scene.thinTex.length) {
+    throw new Error(
+      `Raycast scene thin wall capacity ${scene.thinTex.length} exceeded while adding cell (${cellX}, ${cellY}).`,
+    );
+  }
 
   const index = scene.thinCount++;
   scene.thinByCell[cell] = index;
@@ -192,7 +220,11 @@ export function addThinWall(
 }
 
 export function addSprite(scene: RaycastScene, x: number, y: number, textureId: number, scale: number): void {
-  if (scene.spriteCount >= MAX_SPRITES) return;
+  if (scene.spriteCount >= scene.spriteX.length) {
+    throw new Error(
+      `Raycast scene sprite capacity ${scene.spriteX.length} exceeded while adding sprite at (${x}, ${y}).`,
+    );
+  }
   const index = scene.spriteCount++;
   scene.spriteX[index] = x;
   scene.spriteY[index] = y;
@@ -221,11 +253,17 @@ export type RaycastFrame = {
 };
 
 /** Pass `pixels` to render straight into an ImageData-backed buffer. */
-export function createFrame(width: number, height: number, pixels?: Uint32Array): RaycastFrame {
+export function createFrame(
+  width: number,
+  height: number,
+  pixels?: Uint32Array,
+  spriteCapacity = DEFAULT_SPRITE_CAPACITY,
+): RaycastFrame {
   const buffer = pixels ?? new Uint32Array(width * height);
   if (buffer.length !== width * height) {
     throw new Error(`Pixel buffer length ${buffer.length} does not match ${width}x${height}.`);
   }
+  const checkedSpriteCapacity = checkedCapacity(spriteCapacity, "Sprite scratch");
   return {
     width,
     height,
@@ -239,9 +277,9 @@ export function createFrame(width: number, height: number, pixels?: Uint32Array)
     thinHitOffset: new Float32Array(width * MAX_THIN_HITS),
     thinHitCount: new Uint8Array(width),
     thinHitCursor: new Int8Array(width),
-    spriteOrder: new Int32Array(MAX_SPRITES),
-    spriteDepth: new Float64Array(MAX_SPRITES),
-    spriteScreenX: new Float64Array(MAX_SPRITES),
+    spriteOrder: new Int32Array(checkedSpriteCapacity),
+    spriteDepth: new Float64Array(checkedSpriteCapacity),
+    spriteScreenX: new Float64Array(checkedSpriteCapacity),
   };
 }
 
@@ -271,11 +309,19 @@ export function renderFrame(
   atlas: RaycastAtlas,
   camera: RaycastCamera,
 ): void {
+  assertFrameCapacity(frame, scene);
   frame.pixels.fill(0xff000000);
   const focal = (0.5 * frame.width) / PROJECTION_PLANE_LENGTH;
   renderPlanes(frame, scene, atlas, camera, focal);
   renderWalls(frame, scene, atlas, camera, focal);
   renderSpritesAndThinWalls(frame, scene, atlas, camera, focal);
+}
+
+function assertFrameCapacity(frame: RaycastFrame, scene: RaycastScene): void {
+  if (scene.spriteCount <= frame.spriteOrder.length) return;
+  throw new Error(
+    `Raycast frame sprite scratch capacity ${frame.spriteOrder.length} cannot render ${scene.spriteCount} scene sprites.`,
+  );
 }
 
 function renderPlanes(

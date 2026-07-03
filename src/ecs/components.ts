@@ -1,4 +1,6 @@
 import { Component, type ComponentPartitions, type DynamicComponent, type Entity, type World } from "@phughesmcr/miski";
+import { enemyArchetypeForCode } from "@/src/ecs/enemy_catalog.ts";
+import type { EnemyArchetype } from "@/src/ecs/enemy_catalog.ts";
 import type { CardinalDirection } from "@/src/grid/direction.ts";
 import type { DisplayName } from "@/src/game/names.ts";
 import { type AttackDef, AttackFacingRequirement, AttackPattern, AttackTargetMode } from "@/src/game/attack.ts";
@@ -12,7 +14,8 @@ export type GridPosPartitions = ComponentPartitions<typeof GRID_POS_STORAGE>;
 /**
  * Grid positions are stored as signed 16-bit integers so accidental
  * out-of-range writes stay visible instead of wrapping to valid tiles.
- * `SpatialIndex` is the single writer and validates bounds before writing.
+ * `SpatialIndex` validates map bounds for game movement, while spatial
+ * lookups read current ECS position state.
  */
 export const GridPos: Component<GridPosSchema, typeof GRID_POS_STORAGE> = new Component<
   GridPosSchema,
@@ -241,15 +244,6 @@ export const EnemyAwareness: Component<EnemyAwarenessSchema, typeof ENEMY_AWAREN
   schema: ENEMY_AWARENESS_STORAGE,
 });
 
-export const EnemyArchetype = {
-  MeleeDog: 1,
-  Gunslinger: 2,
-  NetworkNeophyte: 3,
-  SystemSentinel: 4,
-  AgenticAcolyte: 5,
-} as const;
-export type EnemyArchetype = (typeof EnemyArchetype)[keyof typeof EnemyArchetype];
-
 export type EnemyArchetypeSchema = { archetype: EnemyArchetype };
 const ENEMY_ARCHETYPE_STORAGE = { archetype: Uint8Array };
 export const EnemyArchetypeComponent: Component<EnemyArchetypeSchema, typeof ENEMY_ARCHETYPE_STORAGE> = new Component<
@@ -259,19 +253,6 @@ export const EnemyArchetypeComponent: Component<EnemyArchetypeSchema, typeof ENE
   name: "enemyArchetype",
   schema: ENEMY_ARCHETYPE_STORAGE,
 });
-
-export function enemyArchetypeForCode(archetype: number): EnemyArchetype {
-  switch (archetype) {
-    case EnemyArchetype.MeleeDog:
-    case EnemyArchetype.Gunslinger:
-    case EnemyArchetype.NetworkNeophyte:
-    case EnemyArchetype.SystemSentinel:
-    case EnemyArchetype.AgenticAcolyte:
-      return archetype;
-    default:
-      throw new Error(`Unknown enemy archetype: ${archetype}`);
-  }
-}
 
 export function enemyArchetypeFor(world: World, entity: Entity): EnemyArchetype | undefined {
   const archetype = world.components.readEntityData(EnemyArchetypeComponent, entity)?.archetype;

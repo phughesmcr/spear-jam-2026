@@ -6,7 +6,6 @@ import {
   AttackTargetMode,
   Blocking,
   Enemy,
-  EnemyArchetype,
   EnemyAwareness,
   Facing,
   GridPos,
@@ -16,6 +15,7 @@ import {
 } from "@/src/ecs/components.ts";
 import type { AttackSchema, HealthSchema } from "@/src/ecs/components.ts";
 import { enemyTurnSystem } from "@/src/ecs/enemy.ts";
+import { EnemyArchetype } from "@/src/ecs/enemy_catalog.ts";
 import { createEnemy, createPlayer } from "@/src/ecs/prefabs.ts";
 import { Player } from "@/src/ecs/player.ts";
 import { SpatialIndex } from "@/src/ecs/spatial.ts";

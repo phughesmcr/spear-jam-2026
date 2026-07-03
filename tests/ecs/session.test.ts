@@ -1,6 +1,6 @@
 import { assertEquals, assertRejects } from "@std/assert";
-import { EnemyArchetype } from "@/src/ecs/components.ts";
 import { DrawableKind } from "@/src/ecs/drawables.ts";
+import { EnemyArchetype } from "@/src/ecs/enemy_catalog.ts";
 import { createGameSession } from "@/src/ecs/session.ts";
 import { ItemKind } from "@/src/game/items.ts";
 import type { PlayerCommandResult } from "@/src/game/commands.ts";

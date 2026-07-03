@@ -1,4 +1,4 @@
-import { assert, assertAlmostEquals, assertEquals } from "@std/assert";
+import { assert, assertAlmostEquals, assertEquals, assertThrows } from "@std/assert";
 import {
   addSprite,
   addThinWall,
@@ -308,6 +308,42 @@ Deno.test("clearSceneDynamic removes thin walls and sprites", () => {
   assertEquals(scene.thinCount, 0);
   assertEquals(scene.spriteCount, 0);
   assert(scene.thinByCell.every((index) => index === -1));
+});
+
+Deno.test("createScene sizes thin wall storage from map cell count", () => {
+  const scene = createScene(65, 1);
+
+  for (let x = 0; x < 65; x++) {
+    addThinWall(scene, x, 0, DOOR, THIN_AXIS_X);
+  }
+
+  assertEquals(scene.thinCount, 65);
+  assertEquals(scene.thinByCell[64], 64);
+});
+
+Deno.test("createScene sizes sprite storage from map cell count", () => {
+  const scene = createScene(129, 1);
+
+  for (let x = 0; x < 129; x++) {
+    addSprite(scene, x + 0.5, 0.5, SPRITE, 1);
+  }
+
+  assertEquals(scene.spriteCount, 129);
+  assertEquals(scene.spriteX[128], 128.5);
+});
+
+Deno.test("renderFrame fails loudly when sprite scratch capacity is too small", () => {
+  const atlas = testAtlas();
+  const scene = corridorScene();
+  addSprite(scene, 2.5, 1.5, SPRITE, 1);
+  addSprite(scene, 3.5, 1.5, SPRITE, 1);
+  const frame = createFrame(VIEW, VIEW, undefined, 1);
+
+  assertThrows(
+    () => renderFrame(frame, scene, atlas, CAMERA),
+    Error,
+    "sprite scratch capacity 1",
+  );
 });
 
 Deno.test("renderFrame survives a camera boxed in by walls", () => {

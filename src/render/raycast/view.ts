@@ -61,8 +61,13 @@ export function internalFrameSize(rect: ViewRect): ViewFrameSize {
 export function createRaycastView(): RaycastView {
   let buffers: ViewBuffers | undefined;
 
-  const ensureBuffers = (width: number, height: number): ViewBuffers | undefined => {
-    if (buffers !== undefined && buffers.frame.width === width && buffers.frame.height === height) {
+  const ensureBuffers = (width: number, height: number, spriteCapacity: number): ViewBuffers | undefined => {
+    if (
+      buffers !== undefined &&
+      buffers.frame.width === width &&
+      buffers.frame.height === height &&
+      buffers.frame.spriteOrder.length >= spriteCapacity
+    ) {
       return buffers;
     }
 
@@ -72,14 +77,14 @@ export function createRaycastView(): RaycastView {
 
     const imageData = context.createImageData(width, height);
     const pixels = new Uint32Array(imageData.data.buffer);
-    buffers = { frame: createFrame(width, height, pixels), imageData, canvas, context };
+    buffers = { frame: createFrame(width, height, pixels, spriteCapacity), imageData, canvas, context };
     return buffers;
   };
 
   return {
     render(ctx, rect, scene, atlas, camera, verticalOffsetFraction = 0): void {
       const frameSize = internalFrameSize(rect);
-      const view = ensureBuffers(frameSize.width, frameSize.height);
+      const view = ensureBuffers(frameSize.width, frameSize.height, scene.spriteX.length);
       if (view === undefined) return;
 
       renderFrame(view.frame, scene, atlas, camera);

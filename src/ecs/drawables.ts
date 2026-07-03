@@ -1,5 +1,6 @@
 import { type Entity, System } from "@phughesmcr/miski";
-import { DrawableKind, EnemyArchetype, enemyArchetypeForCode } from "@/src/ecs/components.ts";
+import { DrawableKind } from "@/src/ecs/components.ts";
+import { EnemyArchetype, enemyArchetypeForCode } from "@/src/ecs/enemy_catalog.ts";
 import { drawableRenderQuery } from "@/src/ecs/queries.ts";
 import { itemIconFor, itemKindForCode } from "@/src/game/items.ts";
 import type { ItemIcon } from "@/src/game/items.ts";

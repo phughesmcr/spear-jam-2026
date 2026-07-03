@@ -56,6 +56,40 @@ Deno.test("SpatialIndex keeps its index current when entities move or are remove
   assertEquals(spatial.itemAt(2, 1), undefined);
 });
 
+Deno.test("SpatialIndex reads current ECS positions instead of cached entity occupancy", async () => {
+  const world = await createWorld();
+  const actor = createEntity(world);
+
+  world.components.addToEntity(GridPos, actor, { x: 1, y: 1 });
+  world.components.addToEntity(Blocking, actor);
+  world.refresh();
+
+  const spatial = new SpatialIndex(world, TEST_MAP);
+
+  world.components.setEntityData(GridPos, actor, { x: 2, y: 1 });
+
+  assertEquals(spatial.blockingEntityAt(1, 1), undefined);
+  assertEquals(spatial.blockingEntityAt(2, 1), actor);
+});
+
+Deno.test("SpatialIndex reads current ECS removals instead of cached entity occupancy", async () => {
+  const world = await createWorld();
+  const player = createEntity(world);
+  const key = createEntity(world);
+
+  world.components.addToEntity(GridPos, player, { x: 1, y: 1 });
+  world.components.addToEntity(Facing, player, { dir: 1 });
+  world.components.addToEntity(GridPos, key, { x: 2, y: 1 });
+  world.components.addToEntity(Item, key, { kind: ItemKind.Key, value: keyColorCode(KeyColor.Red) });
+  world.refresh();
+
+  const spatial = new SpatialIndex(world, TEST_MAP);
+
+  world.entities.destroy(key);
+
+  assertEquals(spatial.facedEntity(new Player(world, player)), undefined);
+});
+
 Deno.test("SpatialIndex tracks co-located blocking entities individually", async () => {
   const world = await createWorld();
   const first = createEntity(world);
