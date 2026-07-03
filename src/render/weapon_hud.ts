@@ -19,8 +19,10 @@ export type WeaponHudSpriteRect = {
 
 const WEAPON_SLOTS = [1, 2, 3] as const satisfies readonly CommandSlot[];
 const WEAPON_HUD_PHASES = ["idle", "active"] as const satisfies readonly WeaponHudPhase[];
-const MAX_WIDTH_FRACTION = 0.96;
-const MAX_HEIGHT_FRACTION = 0.72;
+const MAX_WIDTH_FRACTION = 0.82;
+const MAX_HEIGHT_FRACTION = 0.6;
+const RIGHT_OFFSET_FRACTION = 0.08;
+const LOWER_OFFSET_FRACTION = 0.06;
 const MIN_IMAGE_SIZE = 1;
 
 const weaponHudAssets: Readonly<Record<CommandSlot, Readonly<Record<WeaponHudPhase, ImageAsset>>>> = {
@@ -64,6 +66,9 @@ export function renderWeaponHud(
   const rect = weaponHudSpriteRect(canvasSize, { width: imageWidth, height: imageHeight });
 
   ctx.save();
+  ctx.beginPath();
+  ctx.rect(0, 0, canvasSize.width, canvasSize.height);
+  ctx.clip();
   const smoothing = ctx.imageSmoothingEnabled;
   ctx.imageSmoothingEnabled = false;
   ctx.drawImage(image, rect.x, rect.y, rect.width, rect.height);
@@ -85,8 +90,11 @@ export function weaponHudSpriteRect(
   const height = Math.max(MIN_IMAGE_SIZE, Math.round(imageHeight * scale));
 
   return {
-    x: Math.round((canvasSize.width - width) / 2),
-    y: Math.round(canvasSize.height - height),
+    x: Math.min(
+      canvasSize.width - width,
+      Math.round((canvasSize.width - width) / 2 + canvasSize.width * RIGHT_OFFSET_FRACTION),
+    ),
+    y: Math.round(canvasSize.height - height + height * LOWER_OFFSET_FRACTION),
     width,
     height,
   };

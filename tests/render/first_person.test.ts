@@ -11,8 +11,8 @@ Deno.test("sceneForMap uses terrain palette texture refs for wall and plane slot
     {
       palette: [
         { id: 1, color: "#000000", floor_texture: `${TexturePack.Pack1}:0,0`, ceiling_texture: "ceiling" },
-        { id: 2, color: "#888888", wall_texture: `${TexturePack.Pack2}:3,4`, blocking: true },
-        { id: 3, color: "#111111", floor_texture: "floor", ceiling_texture: `${TexturePack.Pack3}:9,7` },
+        { id: 2, color: "#888888", wall_texture: `${TexturePack.Pack2}:3,2`, blocking: true },
+        { id: 3, color: "#111111", floor_texture: "floor", ceiling_texture: `${TexturePack.Pack3}:4,3` },
       ],
     },
   );
@@ -34,19 +34,19 @@ Deno.test("sceneForMap uses terrain palette texture refs for wall and plane slot
   assertEquals(scene.ceilings[1], 0);
 });
 
-Deno.test("sceneForMap rejects texture refs outside the 10x8 pack grid", () => {
+Deno.test("sceneForMap rejects texture refs outside the 5x4 pack grid", () => {
   const map = createGameMap(
     "Invalid Texture",
     [[1]],
     [],
     {
       palette: [
-        { id: 1, color: "#000000", floor_texture: `${TexturePack.Pack1}:10,0`, ceiling_texture: "ceiling" },
+        { id: 1, color: "#000000", floor_texture: `${TexturePack.Pack1}:5,0`, ceiling_texture: "ceiling" },
       ],
     },
   );
 
-  assertThrows(() => sceneForMap(map), Error, "10x8");
+  assertThrows(() => sceneForMap(map), Error, "5x4");
 });
 
 Deno.test("sceneForMap builds static scenes for authored textured maps", () => {

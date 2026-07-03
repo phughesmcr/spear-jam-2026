@@ -1,80 +1,165 @@
 import type { GameSession } from "@/src/ecs/session.ts";
 import type { PlayerState } from "@/src/game/state.ts";
 import type { GameCanvasSize } from "@/src/render/canvas.ts";
-import { fitText, monoFont } from "@/src/render/text.ts";
+import { monoFont } from "@/src/render/text.ts";
 
 const HUD_MARGIN = 12;
-const HUD_PADDING = 10;
-const HUD_WIDTH = 300;
-const HUD_LINE_HEIGHT = 18;
-const HUD_BACKGROUND = "rgba(0, 0, 0, 0.58)";
+const HUD_PADDING_X = 10;
+const HUD_PADDING_Y = 7;
+const HUD_SEGMENT_GAP = 10;
+const HUD_LINE_HEIGHT = 16;
+const HUD_ROW_GAP = 3;
+const HUD_FONT_SIZE = 13;
+const HUD_BACKGROUND = "rgba(4, 7, 12, 0.43)";
+const HUD_BORDER = "rgba(125, 211, 252, 0.32)";
 const HUD_TEXT = "#f3f4f6";
 const HUD_MUTED = "#aeb7c2";
 const HUD_ACCENT = "#f0c84b";
 const HUD_DANGER = "#df4f45";
+const HUD_WARNING = "#fde68a";
+const HUD_GOOD = "#7dd3fc";
+const HUD_RED_KEY = "#ef4444";
+const HUD_BLUE_KEY = "#60a5fa";
+const HUD_YELLOW_KEY = "#facc15";
+const HUD_KEY_NONE = "#475569";
+const SWATCH_SIZE = 8;
 
 export function renderHud(ctx: CanvasRenderingContext2D, canvasSize: GameCanvasSize, session: GameSession): void {
   const playerState = session.getPlayerState();
-  const lines = hudLines(session.map.name, playerState);
-  const width = Math.min(HUD_WIDTH, canvasSize.width - HUD_MARGIN * 2);
-  if (width <= HUD_PADDING * 2) return;
-
-  const height = lines.length * HUD_LINE_HEIGHT + HUD_PADDING * 2;
-  const x = HUD_MARGIN;
-  const y = HUD_MARGIN;
-
+  const rows = hudRows(session.map.name, playerState);
   ctx.save();
+  ctx.font = monoFont(700, HUD_FONT_SIZE);
+
+  let width = HUD_PADDING_X * 2;
+  for (const row of rows) {
+    width = Math.max(width, Math.ceil(rowWidth(ctx, row) + HUD_PADDING_X * 2));
+  }
+  width = Math.min(width, canvasSize.width - HUD_MARGIN * 2);
+  if (width <= HUD_PADDING_X * 2) {
+    ctx.restore();
+    return;
+  }
+
+  const height = rows.length * HUD_LINE_HEIGHT + (rows.length - 1) * HUD_ROW_GAP + HUD_PADDING_Y * 2;
+  const x = HUD_MARGIN;
+  const y = 0;
+
   ctx.fillStyle = HUD_BACKGROUND;
   ctx.fillRect(x, y, width, height);
-  ctx.font = monoFont(400, 14);
+  ctx.fillStyle = HUD_BORDER;
+  ctx.fillRect(x, y, 3, height);
+  ctx.strokeStyle = HUD_BORDER;
+  ctx.strokeRect(x + 0.5, y + 0.5, width - 1, height - 1);
   ctx.textAlign = "left";
   ctx.textBaseline = "middle";
 
-  const maxTextWidth = width - HUD_PADDING * 2;
-  for (let i = 0; i < lines.length; i++) {
-    const line = lines[i]!;
-    const lineY = y + HUD_PADDING + HUD_LINE_HEIGHT * i + HUD_LINE_HEIGHT / 2;
-    ctx.fillStyle = line.color;
-    ctx.fillText(fitText(ctx, line.text, maxTextWidth), x + HUD_PADDING, lineY);
+  for (let rowIndex = 0; rowIndex < rows.length; rowIndex++) {
+    const row = rows[rowIndex]!;
+    const lineY = y + HUD_PADDING_Y + rowIndex * (HUD_LINE_HEIGHT + HUD_ROW_GAP) + HUD_LINE_HEIGHT / 2;
+    drawHudRow(ctx, row, x + HUD_PADDING_X, lineY, width - HUD_PADDING_X * 2);
   }
 
   ctx.restore();
 }
 
-type HudLine = {
+type HudSegment = {
   readonly text: string;
   readonly color: string;
+  readonly swatch?: string;
 };
 
-function hudLines(mapName: string, playerState: PlayerState): readonly HudLine[] {
+type HudRow = readonly HudSegment[];
+
+function hudRows(mapName: string, playerState: PlayerState): readonly HudRow[] {
   const health = playerState.health;
-  const hpText = `HP ${health.current}/${health.max}`;
-  const keyText = playerState.heldKeys.length === 0 ? "Keys none" : `Keys ${playerState.heldKeys.join(", ")}`;
-  const weaponText = `Weapon ${playerState.selectedWeapon} / owned ${ownedWeaponText(playerState)}`;
   const ammo = playerState.ammo;
   const progress = playerState.progress;
+  const codeText = playerState.hasUplinkCode ? "CODE OK" : "CODE -";
 
   return [
-    { text: mapName, color: HUD_ACCENT },
-    {
-      text: hpText,
-      color: health.current <= Math.ceil(health.max * 0.3) ? HUD_DANGER : HUD_TEXT,
-    },
-    { text: weaponText, color: HUD_TEXT },
-    { text: `Ammo P ${ammo.pistol} / C ${ammo.cannon}`, color: ammo.pistol + ammo.cannon === 0 ? HUD_MUTED : HUD_TEXT },
-    {
-      text: `Credits ${progress.credits} / Score ${progress.score}`,
-      color: progress.score === 0 ? HUD_MUTED : HUD_TEXT,
-    },
-    { text: `XP ${progress.xp}`, color: progress.xp === 0 ? HUD_MUTED : HUD_TEXT },
-    { text: keyText, color: playerState.heldKeys.length === 0 ? HUD_MUTED : HUD_TEXT },
-    {
-      text: playerState.hasUplinkCode ? "Uplink code ready" : "Find uplink code",
-      color: playerState.hasUplinkCode ? HUD_TEXT : HUD_MUTED,
-    },
+    [
+      { text: mapName, color: HUD_ACCENT },
+      { text: `HP ${health.current}/${health.max}`, color: healthColor(health.current, health.max) },
+      { text: `W${playerState.selectedWeapon}`, color: HUD_TEXT },
+      { text: `P${ammo.pistol}`, color: ammo.pistol === 0 ? HUD_MUTED : HUD_GOOD },
+      { text: `C${ammo.cannon}`, color: ammo.cannon === 0 ? HUD_MUTED : HUD_GOOD },
+      ...keySegments(playerState.heldKeys),
+    ],
+    [
+      { text: `CR ${progress.credits}`, color: progress.credits === 0 ? HUD_MUTED : HUD_TEXT },
+      { text: `SC ${progress.score}`, color: progress.score === 0 ? HUD_MUTED : HUD_TEXT },
+      { text: `XP ${progress.xp}`, color: progress.xp === 0 ? HUD_MUTED : HUD_TEXT },
+      { text: codeText, color: playerState.hasUplinkCode ? HUD_GOOD : HUD_MUTED },
+    ],
   ];
 }
 
-function ownedWeaponText(playerState: PlayerState): string {
-  return playerState.unlockedWeapons.join(",");
+function healthColor(current: number, max: number): string {
+  if (current <= Math.ceil(max * 0.3)) return HUD_DANGER;
+  if (current <= Math.ceil(max * 0.6)) return HUD_WARNING;
+  return HUD_TEXT;
+}
+
+function keySegments(keys: readonly string[]): readonly HudSegment[] {
+  if (keys.length === 0) return [{ text: "KEY", color: HUD_MUTED, swatch: HUD_KEY_NONE }];
+  return [
+    { text: "KEY", color: HUD_MUTED },
+    ...keys.map((key): HudSegment => ({ text: "", color: HUD_TEXT, swatch: keyColor(key) })),
+  ];
+}
+
+function keyColor(key: string): string {
+  switch (key) {
+    case "red":
+      return HUD_RED_KEY;
+    case "blue":
+      return HUD_BLUE_KEY;
+    case "yellow":
+      return HUD_YELLOW_KEY;
+    default:
+      return HUD_KEY_NONE;
+  }
+}
+
+function rowWidth(ctx: CanvasRenderingContext2D, row: HudRow): number {
+  let width = 0;
+  for (let i = 0; i < row.length; i++) {
+    if (i > 0) width += HUD_SEGMENT_GAP;
+    width += segmentWidth(ctx, row[i]!);
+  }
+  return width;
+}
+
+function segmentWidth(ctx: CanvasRenderingContext2D, segment: HudSegment): number {
+  const textWidth = segment.text === "" ? 0 : ctx.measureText(segment.text).width;
+  return textWidth + (segment.swatch === undefined ? 0 : SWATCH_SIZE + (segment.text === "" ? 0 : 5));
+}
+
+function drawHudRow(
+  ctx: CanvasRenderingContext2D,
+  row: HudRow,
+  x: number,
+  y: number,
+  maxWidth: number,
+): void {
+  let cursor = x;
+  const right = x + maxWidth;
+  for (let i = 0; i < row.length; i++) {
+    if (i > 0) cursor += HUD_SEGMENT_GAP;
+    const segment = row[i]!;
+    if (cursor >= right) return;
+
+    ctx.fillStyle = segment.color;
+    if (segment.text !== "") {
+      ctx.fillText(segment.text, cursor, y);
+      cursor += ctx.measureText(segment.text).width;
+    }
+
+    if (segment.swatch !== undefined) {
+      if (segment.text !== "") cursor += 5;
+      ctx.fillStyle = segment.swatch;
+      ctx.fillRect(cursor, y - SWATCH_SIZE / 2, SWATCH_SIZE, SWATCH_SIZE);
+      cursor += SWATCH_SIZE;
+    }
+  }
 }

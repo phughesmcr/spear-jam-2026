@@ -43,14 +43,18 @@ export type ThinWallSlide =
   | typeof THIN_SLIDE_DOWN;
 
 /** Half the horizontal field of view, as camera plane length. */
-export const CAMERA_PLANE_LENGTH = 0.66;
+export const CAMERA_PLANE_LENGTH = 1.2;
+
+/** Vertical projection scale; lower than the ray plane to avoid excess floor stretch. */
+const PROJECTION_PLANE_LENGTH = 0.95;
 
 const MAX_THIN_WALLS = 64;
 const MAX_SPRITES = 128;
 /** Transparent thin-wall hits recorded per screen column. */
 const MAX_THIN_HITS = 8;
 /** Shade bands advance one step per this many tiles of distance. */
-const SHADE_BAND_DISTANCE = 1.4;
+const SHADE_BAND_DISTANCE = 1.1;
+const CEILING_SHADE_OFFSET = 2;
 const MIN_WALL_DISTANCE = 1e-4;
 const MIN_SPRITE_DISTANCE = 0.05;
 const FIXED_ONE = 65536;
@@ -245,8 +249,7 @@ export function renderFrame(
   camera: RaycastCamera,
 ): void {
   frame.pixels.fill(0xff000000);
-  const planeLength = Math.hypot(camera.planeX, camera.planeY);
-  const focal = (0.5 * frame.width) / (planeLength > 0 ? planeLength : CAMERA_PLANE_LENGTH);
+  const focal = (0.5 * frame.width) / PROJECTION_PLANE_LENGTH;
   renderPlanes(frame, scene, atlas, camera, focal);
   renderWalls(frame, scene, atlas, camera, focal);
   renderSpritesAndThinWalls(frame, scene, atlas, camera, focal);
@@ -278,7 +281,8 @@ function renderPlanes(
   for (let y = horizon; y < height; y++) {
     // Sample the row centre; +0.5 also keeps the horizon row finite.
     const rowDistance = (0.5 * focal) / (y - horizon + 0.5);
-    const band = shadeBand(rowDistance);
+    const floorBand = shadeBand(rowDistance);
+    const ceilingBand = offsetShadeBand(floorBand, CEILING_SHADE_OFFSET);
     const stepX = (rowDistance * raySpanX) / width;
     const stepY = (rowDistance * raySpanY) / width;
     let worldX = cameraX + rowDistance * leftRayX;
@@ -298,8 +302,8 @@ function renderPlanes(
           cachedCell = cell;
           const floorId = floors[cell]!;
           const ceilingId = ceilings[cell]!;
-          floorTexels = floorId === 0 ? undefined : planes[floorId - 1]?.bands[band];
-          ceilingTexels = ceilingId === 0 ? undefined : planes[ceilingId - 1]?.bands[band];
+          floorTexels = floorId === 0 ? undefined : planes[floorId - 1]?.bands[floorBand];
+          ceilingTexels = ceilingId === 0 ? undefined : planes[ceilingId - 1]?.bands[ceilingBand];
         }
         if (floorTexels !== undefined || ceilingTexels !== undefined) {
           const texel = (((worldY * TEX_SIZE) | 0) & TEX_MASK) << TEX_SHIFT | (((worldX * TEX_SIZE) | 0) & TEX_MASK);
@@ -453,7 +457,11 @@ function renderWalls(
 }
 
 function thinShadeBand(distance: number, sideOffset: number): number {
-  const band = shadeBand(distance) + sideOffset;
+  return offsetShadeBand(shadeBand(distance), sideOffset);
+}
+
+function offsetShadeBand(band: number, offset: number): number {
+  band += offset;
   return band >= SHADE_BANDS ? SHADE_BANDS - 1 : band;
 }
 

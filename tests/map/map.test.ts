@@ -50,7 +50,7 @@ Deno.test("createGameMap accepts a custom terrain texture palette", () => {
     {
       palette: [
         { id: 2, color: "#111111", floor_texture: `${TexturePack.Pack1}:0,0`, ceiling_texture: "ceiling" },
-        { id: 3, color: "#eeeeee", wall_texture: `${TexturePack.Pack2}:9,7`, blocking: true },
+        { id: 3, color: "#eeeeee", wall_texture: `${TexturePack.Pack2}:4,3`, blocking: true },
       ],
     },
   );
@@ -60,7 +60,7 @@ Deno.test("createGameMap accepts a custom terrain texture palette", () => {
   assert(floor !== undefined && "floor_texture" in floor);
   assert(wall !== undefined && "wall_texture" in wall);
   assertEquals(floor.floor_texture, "pack1:0,0");
-  assertEquals(wall.wall_texture, "pack2:9,7");
+  assertEquals(wall.wall_texture, "pack2:4,3");
 });
 
 Deno.test("key colors use stable component codes", () => {

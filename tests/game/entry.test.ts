@@ -11,7 +11,7 @@ import type { WeaponHudPhase } from "@/src/render/weapon_hud.ts";
 import { KeyColor } from "@/src/map/map.ts";
 import type { GameMap } from "@/src/map/map.ts";
 
-const CANVAS_SIZE: GameCanvasSize = { width: 720, height: 1280 };
+const CANVAS_SIZE: GameCanvasSize = { width: 720, height: 1152 };
 const PLAYER_ENTITY = 1 as Entity;
 
 Deno.test("Game toggles overlay modes and advances dialogue with scripted commands", async () => {

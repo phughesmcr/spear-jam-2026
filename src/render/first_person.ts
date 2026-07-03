@@ -100,6 +100,9 @@ type TexturePackAsset = ManagedAsset & {
   readonly rows: number;
 };
 
+const TEXTURE_PACK_COLUMNS = 5;
+const TEXTURE_PACK_ROWS = 4;
+
 const WALL_TEX = 0;
 const DOOR_TEX = 1;
 const DOOR_TEX_BY_COLOR: Readonly<Record<KeyColor, number>> = {
@@ -163,6 +166,18 @@ const ENEMY_SPRITES: Readonly<Record<EnemyArchetype, number>> = {
 const ACTOR_SCALE = 0.75;
 const TERMINAL_SCALE = 0.9;
 const ITEM_SCALE = 0.4;
+const TARGET_MAX_DISTANCE = 6;
+const TARGET_SIZE_FRACTION = 0.055;
+const TARGET_INNER_FRACTION = 0.38;
+const TARGET_Y_FRACTION = 0.47;
+const TARGET_COLORS: Readonly<Record<TargetTone, string>> = {
+  danger: "rgba(248, 113, 113, 0.92)",
+  locked: "rgba(250, 204, 21, 0.9)",
+  loot: "rgba(125, 211, 252, 0.9)",
+  use: "rgba(52, 211, 153, 0.9)",
+};
+
+type TargetTone = "danger" | "locked" | "loot" | "use";
 
 /** Tints are relative to mid-grey so the wall texture keeps its detail. */
 const DOOR_TINT: readonly [number, number, number] = [1.2, 0.83, 0.45];
@@ -181,7 +196,7 @@ function managedAsset(src: string, targets: readonly BakeTargetInput[], cropFram
 }
 
 function texturePackAsset(src: string): TexturePackAsset {
-  return { ...managedAsset(src, []), columns: 10, rows: 8 };
+  return { ...managedAsset(src, []), columns: TEXTURE_PACK_COLUMNS, rows: TEXTURE_PACK_ROWS };
 }
 
 function addBakeTarget(entry: ManagedAsset, target: BakeTargetInput): void {
@@ -730,6 +745,104 @@ function enemySheetRow(entity: DrawableEntity["entity"], moving: boolean, nowMs:
   return ROW_IDLE;
 }
 
+function targetToneFor(
+  drawables: readonly DrawableEntity[],
+  playerX: number,
+  playerY: number,
+  forward: ReturnType<typeof directionDelta>,
+): TargetTone | undefined {
+  let bestDistance = Number.POSITIVE_INFINITY;
+  let bestPriority = -1;
+  let bestTone: TargetTone | undefined;
+  for (const drawable of drawables) {
+    const distance = facingDistance(drawable, playerX, playerY, forward);
+    if (distance === undefined || distance > TARGET_MAX_DISTANCE) continue;
+
+    const tone = drawableTargetTone(drawable);
+    if (tone === undefined) continue;
+    const priority = targetPriority(tone);
+    if (distance < bestDistance || (distance === bestDistance && priority > bestPriority)) {
+      bestDistance = distance;
+      bestPriority = priority;
+      bestTone = tone;
+    }
+  }
+  return bestTone;
+}
+
+function facingDistance(
+  drawable: DrawableEntity,
+  playerX: number,
+  playerY: number,
+  forward: ReturnType<typeof directionDelta>,
+): number | undefined {
+  const dx = drawable.x - playerX;
+  const dy = drawable.y - playerY;
+  if (forward.dx !== 0 && dy === 0 && dx * forward.dx > 0) return Math.abs(dx);
+  if (forward.dy !== 0 && dx === 0 && dy * forward.dy > 0) return Math.abs(dy);
+  return undefined;
+}
+
+function drawableTargetTone(drawable: DrawableEntity): TargetTone | undefined {
+  switch (drawable.kind) {
+    case DrawableKind.Enemy:
+      return "danger";
+    case DrawableKind.Door:
+      if (drawable.open) return undefined;
+      return drawable.locked ? "locked" : "use";
+    case DrawableKind.Item:
+      return "loot";
+    case DrawableKind.Npc:
+    case DrawableKind.UplinkTerminal:
+      return "use";
+    case DrawableKind.Player:
+      return undefined;
+  }
+}
+
+function targetPriority(tone: TargetTone): number {
+  switch (tone) {
+    case "danger":
+      return 4;
+    case "locked":
+      return 3;
+    case "use":
+      return 2;
+    case "loot":
+      return 1;
+  }
+}
+
+function drawTargetHighlight(ctx: CanvasRenderingContext2D, rect: ViewRect, tone: TargetTone): void {
+  const size = Math.max(18, Math.round(rect.width * TARGET_SIZE_FRACTION));
+  const inner = Math.round(size * TARGET_INNER_FRACTION);
+  const cx = Math.round(rect.x + rect.width / 2);
+  const cy = Math.round(rect.y + rect.height * TARGET_Y_FRACTION);
+  const left = cx - size;
+  const right = cx + size;
+  const top = cy - size;
+  const bottom = cy + size;
+
+  ctx.save();
+  ctx.strokeStyle = TARGET_COLORS[tone];
+  ctx.lineWidth = Math.max(2, Math.round(rect.width / 360));
+  ctx.beginPath();
+  ctx.moveTo(left, top + inner);
+  ctx.lineTo(left, top);
+  ctx.lineTo(left + inner, top);
+  ctx.moveTo(right - inner, top);
+  ctx.lineTo(right, top);
+  ctx.lineTo(right, top + inner);
+  ctx.moveTo(right, bottom - inner);
+  ctx.lineTo(right, bottom);
+  ctx.lineTo(right - inner, bottom);
+  ctx.moveTo(left + inner, bottom);
+  ctx.lineTo(left, bottom);
+  ctx.lineTo(left, bottom - inner);
+  ctx.stroke();
+  ctx.restore();
+}
+
 /** Tweened world position for a moving entity; updates spritePoint. */
 function tweenedSpritePosition(drawable: DrawableEntity, nowMs: number): void {
   const centerX = drawable.x + 0.5;
@@ -897,4 +1010,7 @@ export function renderFirstPersonView(
     cameraForAngle(poseSample.x + nudgeSample.dx, poseSample.y + nudgeSample.dy, poseSample.angle),
     headBobFraction(poseSample),
   );
+
+  const targetTone = targetToneFor(drawableScratch, playerX, playerY, forward);
+  if (targetTone !== undefined) drawTargetHighlight(ctx, rect, targetTone);
 }

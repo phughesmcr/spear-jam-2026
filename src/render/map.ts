@@ -11,6 +11,11 @@ export interface MapRenderMetrics {
   readonly offsetY: number;
 }
 
+export interface MapRenderOrigin {
+  readonly x: number;
+  readonly y: number;
+}
+
 const MIN_TILE_SIZE = 8;
 const FLOOR_COLOR = "#232832";
 const WALL_COLOR = "#5a5f68";
@@ -25,8 +30,9 @@ export function renderMap(
   canvasSize: GameCanvasSize,
   map: GameMap,
   visibility?: TileVisibility,
+  origin: MapRenderOrigin = { x: 0, y: 0 },
 ): MapRenderMetrics {
-  const metrics = mapRenderMetrics(canvasSize, map);
+  const metrics = mapRenderMetrics(canvasSize, map, origin);
   for (let y = 0; y < metrics.mapHeight; y++) {
     for (let x = 0; x < metrics.mapWidth; x++) {
       renderTile(ctx, map, x, y, metrics, visibility);
@@ -35,7 +41,7 @@ export function renderMap(
   return metrics;
 }
 
-function mapRenderMetrics(canvasSize: GameCanvasSize, map: GameMap): MapRenderMetrics {
+function mapRenderMetrics(canvasSize: GameCanvasSize, map: GameMap, origin: MapRenderOrigin): MapRenderMetrics {
   const { width: mapWidth, height: mapHeight } = mapDimensions(map);
   const tileSize = Math.max(
     MIN_TILE_SIZE,
@@ -45,8 +51,8 @@ function mapRenderMetrics(canvasSize: GameCanvasSize, map: GameMap): MapRenderMe
     mapWidth,
     mapHeight,
     tileSize,
-    offsetX: Math.floor((canvasSize.width - mapWidth * tileSize) / 2),
-    offsetY: Math.floor((canvasSize.height - mapHeight * tileSize) / 2),
+    offsetX: origin.x + Math.floor((canvasSize.width - mapWidth * tileSize) / 2),
+    offsetY: origin.y + Math.floor((canvasSize.height - mapHeight * tileSize) / 2),
   };
 }
 

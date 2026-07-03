@@ -1,9 +1,9 @@
 @import "tailwindcss";
 
 :root {
-  --game-aspect-ratio: 0.5625;
+  --game-aspect-ratio: 0.625;
   --game-display-width: 720px;
-  --game-display-height: 1280px;
+  --game-display-height: 1152px;
 }
 
 * {

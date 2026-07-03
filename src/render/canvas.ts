@@ -4,9 +4,9 @@ export interface GameCanvasSize {
 }
 
 export const GAME_WIDTH = 720;
-export const GAME_HEIGHT = 1280;
+export const GAME_HEIGHT = 1152;
 export const COMPACT_GAME_WIDTH = 360;
-export const COMPACT_GAME_HEIGHT = 720;
+export const COMPACT_GAME_HEIGHT = 576;
 export const MAX_DPR = 2;
 export const DEFAULT_GAME_CANVAS_SIZE: GameCanvasSize = { width: GAME_WIDTH, height: GAME_HEIGHT };
 
