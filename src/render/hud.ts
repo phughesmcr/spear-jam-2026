@@ -1,5 +1,6 @@
 import type { GameSession } from "@/src/ecs/session.ts";
-import type { AmmoKind, PlayerHealthState, PlayerState } from "@/src/game/state.ts";
+import type { PlayerStateSnapshot } from "@/src/ecs/progression.ts";
+import type { AmmoKind, PlayerHealthState } from "@/src/game/state.ts";
 import { KeyColor } from "@/src/map/map.ts";
 import { createImageAsset, loadedImage, preloadImageAssets } from "@/src/render/assets.ts";
 import type { GameCanvasSize } from "@/src/render/canvas.ts";
@@ -143,7 +144,7 @@ export function renderHud(ctx: CanvasRenderingContext2D, canvasSize: GameCanvasS
 export function renderFirstPersonHud(
   ctx: CanvasRenderingContext2D,
   canvasSize: GameCanvasSize,
-  playerState: PlayerState,
+  playerState: PlayerStateSnapshot,
   options: FirstPersonHudOptions = {},
   onAssetLoad?: () => void,
 ): void {
@@ -174,7 +175,7 @@ export function renderFirstPersonHud(
 
 export function firstPersonHudPanels(
   canvasSize: GameCanvasSize,
-  playerState: PlayerState,
+  playerState: PlayerStateSnapshot,
   options: FirstPersonHudOptions = {},
 ): readonly FirstPersonHudPanel[] {
   const panels: FirstPersonHudPanel[] = [{
@@ -208,7 +209,7 @@ type HudLine = {
   readonly color: string;
 };
 
-function hudLines(mapName: string, playerState: PlayerState): readonly HudLine[] {
+function hudLines(mapName: string, playerState: PlayerStateSnapshot): readonly HudLine[] {
   const health = playerState.health;
   const hpText = `HP ${health.current}/${health.max}`;
   const keyText = playerState.heldKeys.length === 0 ? "Keys none" : `Keys ${playerState.heldKeys.join(", ")}`;
@@ -237,7 +238,7 @@ function hudLines(mapName: string, playerState: PlayerState): readonly HudLine[]
   ];
 }
 
-function ownedWeaponText(playerState: PlayerState): string {
+function ownedWeaponText(playerState: PlayerStateSnapshot): string {
   return playerState.unlockedWeapons.join(",");
 }
 
@@ -248,7 +249,7 @@ function healthColor(current: number, max: number): string {
 }
 
 function selectedWeaponAmmo(
-  playerState: PlayerState,
+  playerState: PlayerStateSnapshot,
 ): Pick<Extract<FirstPersonHudPanel, { kind: "ammo" }>, "ammo" | "amount"> | undefined {
   switch (playerState.selectedWeapon) {
     case 1:

@@ -1,7 +1,7 @@
 /**
  * Texel baking for the first-person raycast renderer.
  *
- * All render-time textures are 128x128 arrays of packed RGBA texels (one
+ * All render-time textures are mipmapped arrays of packed RGBA texels (one
  * Uint32 per texel, byte order matching ImageData memory). Baking happens
  * once at load time so the per-pixel render loops only ever copy uint32s:
  * shading is pre-multiplied into SHADE_BANDS darkness variants and wall or
@@ -12,6 +12,9 @@
 export const TEX_SIZE = 128;
 export const TEX_SHIFT = 7;
 export const TEX_MASK = TEX_SIZE - 1;
+export const TEX_MIP_SIZES = [128, 64, 32, 16] as const;
+
+const TEX_MIP_SHIFTS = [7, 6, 5, 4] as const;
 
 /** Darkness variants per texture; band 0 is full brightness. */
 export const SHADE_BANDS = 8;
@@ -26,9 +29,16 @@ export type TexelSource = {
   readonly data: Uint8ClampedArray;
 };
 
-export type BakedTexture = {
-  /** One Uint32Array(TEX_SIZE * TEX_SIZE) per shade band, band 0 brightest. */
+export type BakedTextureMip = {
+  readonly size: number;
+  readonly shift: number;
+  readonly mask: number;
+  /** One Uint32Array(size * size) per shade band, band 0 brightest. */
   readonly bands: readonly Uint32Array[];
+};
+
+export type BakedTexture = {
+  readonly mips: readonly BakedTextureMip[];
   /** True when every texel is opaque; opaque walls terminate rays. */
   readonly opaque: boolean;
 };
@@ -45,32 +55,45 @@ export type BakeOptions = {
 };
 
 /**
- * Bake an RGBA source into pre-shaded TEX_SIZE texel bands. Sources of any size
- * are resampled with nearest-neighbour; texels with alpha below 128 become
+ * Bake an RGBA source into pre-shaded mip texel bands. Sources of any size are
+ * first resampled to TEX_SIZE with nearest-neighbour; lower mips are averaged
+ * from that base level. Texels with alpha below 128 become
  * {@link TRANSPARENT_TEXEL} and everything else is forced fully opaque.
  */
 export function bakeTexture(source: TexelSource, options: BakeOptions = {}): BakedTexture {
   const transpose = options.transpose === true;
-  const tint = options.tint;
-  const bands: Uint32Array[] = [];
-  const bandBytes: Uint8Array[] = [];
-  for (let band = 0; band < SHADE_BANDS; band++) {
-    const texels = new Uint32Array(TEX_SIZE * TEX_SIZE);
-    bands.push(texels);
-    bandBytes.push(new Uint8Array(texels.buffer));
+  const { texels, opaque } = baseTexels(source, options.tint);
+  const mips: BakedTextureMip[] = [];
+  let mipTexels = texels;
+  let size = TEX_SIZE;
+
+  for (let level = 0; level < TEX_MIP_SIZES.length; level++) {
+    mips.push(bakeMip(mipTexels, size, TEX_MIP_SHIFTS[level]!, transpose));
+    if (level < TEX_MIP_SIZES.length - 1) {
+      mipTexels = downsampleTexels(mipTexels, size);
+      size >>= 1;
+    }
   }
 
+  return { mips, opaque };
+}
+
+function baseTexels(
+  source: TexelSource,
+  tint: readonly [number, number, number] | undefined,
+): { readonly texels: Uint8Array; readonly opaque: boolean } {
+  const texels = new Uint8Array(TEX_SIZE * TEX_SIZE * 4);
   let opaque = true;
+
   for (let y = 0; y < TEX_SIZE; y++) {
     const sourceY = Math.floor(y * source.height / TEX_SIZE);
     for (let x = 0; x < TEX_SIZE; x++) {
       const sourceX = Math.floor(x * source.width / TEX_SIZE);
       const sourceIndex = (sourceY * source.width + sourceX) * 4;
       const alpha = source.data[sourceIndex + 3]!;
-      const texelIndex = transpose ? (x << TEX_SHIFT) | y : (y << TEX_SHIFT) | x;
       if (alpha < 128) {
         opaque = false;
-        continue; // Bands start zeroed, which is the transparent sentinel.
+        continue;
       }
 
       let red = source.data[sourceIndex]!;
@@ -82,6 +105,73 @@ export function bakeTexture(source: TexelSource, options: BakeOptions = {}): Bak
         blue = Math.min(255, Math.round(blue * tint[2]));
       }
 
+      const texelIndex = (y * TEX_SIZE + x) * 4;
+      texels[texelIndex] = red;
+      texels[texelIndex + 1] = green;
+      texels[texelIndex + 2] = blue;
+      texels[texelIndex + 3] = 255;
+    }
+  }
+
+  return { texels, opaque };
+}
+
+function downsampleTexels(source: Uint8Array, sourceSize: number): Uint8Array {
+  const size = sourceSize >> 1;
+  const texels = new Uint8Array(size * size * 4);
+
+  for (let y = 0; y < size; y++) {
+    for (let x = 0; x < size; x++) {
+      let red = 0;
+      let green = 0;
+      let blue = 0;
+      let count = 0;
+
+      for (let offsetY = 0; offsetY < 2; offsetY++) {
+        for (let offsetX = 0; offsetX < 2; offsetX++) {
+          const sourceIndex = (((y << 1) + offsetY) * sourceSize + (x << 1) + offsetX) * 4;
+          if (source[sourceIndex + 3]! < 128) continue;
+          red += source[sourceIndex]!;
+          green += source[sourceIndex + 1]!;
+          blue += source[sourceIndex + 2]!;
+          count++;
+        }
+      }
+
+      if (count < 2) continue;
+
+      const texelIndex = (y * size + x) * 4;
+      texels[texelIndex] = Math.round(red / count);
+      texels[texelIndex + 1] = Math.round(green / count);
+      texels[texelIndex + 2] = Math.round(blue / count);
+      texels[texelIndex + 3] = 255;
+    }
+  }
+
+  return texels;
+}
+
+function bakeMip(source: Uint8Array, size: number, shift: number, transpose: boolean): BakedTextureMip {
+  const bands: Uint32Array[] = [];
+  const bandBytes: Uint8Array[] = [];
+  for (let band = 0; band < SHADE_BANDS; band++) {
+    const texels = new Uint32Array(size * size);
+    bands.push(texels);
+    bandBytes.push(new Uint8Array(texels.buffer));
+  }
+
+  for (let y = 0; y < size; y++) {
+    for (let x = 0; x < size; x++) {
+      const sourceIndex = (y * size + x) * 4;
+      const alpha = source[sourceIndex + 3]!;
+      const texelIndex = transpose ? (x << shift) | y : (y << shift) | x;
+      if (alpha < 128) {
+        continue; // Bands start zeroed, which is the transparent sentinel.
+      }
+
+      const red = source[sourceIndex]!;
+      const green = source[sourceIndex + 1]!;
+      const blue = source[sourceIndex + 2]!;
       for (let band = 0; band < SHADE_BANDS; band++) {
         const brightness = (SHADE_BANDS - band) / SHADE_BANDS;
         const byteIndex = texelIndex * 4;
@@ -94,7 +184,7 @@ export function bakeTexture(source: TexelSource, options: BakeOptions = {}): Bak
     }
   }
 
-  return { bands, opaque };
+  return { size, shift, mask: size - 1, bands };
 }
 
 /** Bake a flat-colour texture (loading fallbacks, procedural surfaces). */

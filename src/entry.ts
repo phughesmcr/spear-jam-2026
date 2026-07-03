@@ -9,7 +9,7 @@ import { messageForEvent } from "@/src/game/messages.ts";
 import { SplitMix32 } from "@/src/game/rng.ts";
 import { createGameModel, transition } from "@/src/game/transition.ts";
 import type { GameEffect, GameModel, GameTransitionEvent } from "@/src/game/transition.ts";
-import type { PlayerState } from "@/src/game/state.ts";
+import type { PlayerStateInput } from "@/src/game/state.ts";
 import { setupInput } from "@/src/input/input.ts";
 import type { CanvasPointerInput } from "@/src/input/pointer.ts";
 import { getMap, START_MAP_NAME } from "@/src/map/maps.ts";
@@ -108,7 +108,7 @@ class Game implements Disposable {
     );
   }
 
-  private async loadMap(mapName: string, playerState?: PlayerState): Promise<void> {
+  private async loadMap(mapName: string, playerState?: PlayerStateInput): Promise<void> {
     const [session] = await Promise.all([
       createGameSession(getMap(mapName), () => this.rng.nextFloat(), playerState),
       preloadGameAssets(
@@ -134,7 +134,7 @@ class Game implements Disposable {
     this.apply({ type: "mapLoaded", mapName, playerState });
   }
 
-  private startLoad(mapName: string, playerState?: PlayerState): void {
+  private startLoad(mapName: string, playerState?: PlayerStateInput): void {
     void this.loadMap(mapName, playerState).catch((error: unknown) => this.handleLoadError(error));
   }
 

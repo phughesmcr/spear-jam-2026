@@ -8,6 +8,7 @@ import {
   PlayerTurnEffects,
 } from "@/src/ecs/components.ts";
 import type {
+  HealthSchema,
   PlayerEquipmentSchema,
   PlayerInventorySchema,
   PlayerProgressSchema,
@@ -16,14 +17,53 @@ import type {
 import { weaponLabel } from "@/src/ecs/combat.ts";
 import type { GameEvent } from "@/src/game/events.ts";
 import type { ItemPickup } from "@/src/game/items.ts";
-import { commandSlotForCode, DEFAULT_PLAYER_STATE } from "@/src/game/state.ts";
-import type { AmmoKind, CommandSlot, PlayerState } from "@/src/game/state.ts";
+import { commandSlotForCode } from "@/src/game/state.ts";
+import type {
+  AmmoKind,
+  CommandSlot,
+  PlayerAmmoState,
+  PlayerHealthState,
+  PlayerProgressState,
+  PlayerStateInput,
+} from "@/src/game/state.ts";
 import { normalizeTurnEffects, TurnEffectKind } from "@/src/game/turn_effects.ts";
 import type { TurnEffectKind as TurnEffectKindType, TurnEffectState } from "@/src/game/turn_effects.ts";
 import { KeyColor, keyColorCode } from "@/src/map/map.ts";
 import type { KeyColor as KeyColorType } from "@/src/map/map.ts";
 
 const ENEMY_DEFEAT_CREDITS = 10;
+const DEFAULT_PLAYER_WEAPON: CommandSlot = 1;
+
+export const DEFAULT_PLAYER_HEALTH: PlayerHealthState = {
+  current: 10,
+  max: 10,
+};
+
+const DEFAULT_PLAYER_INVENTORY: PlayerInventorySchema = {
+  keyMask: 0,
+  hasUplinkCode: 0,
+  pistolAmmo: 0,
+  cannonAmmo: 0,
+};
+
+const DEFAULT_PLAYER_EQUIPMENT: PlayerEquipmentSchema = {
+  selectedWeapon: DEFAULT_PLAYER_WEAPON,
+  unlockedWeaponMask: weaponBit(DEFAULT_PLAYER_WEAPON),
+};
+
+const DEFAULT_PLAYER_PROGRESS: PlayerProgressSchema = {
+  credits: 0,
+  score: 0,
+  xp: 0,
+  levelCredits: 0,
+};
+
+const DEFAULT_PLAYER_TURN_EFFECTS: PlayerTurnEffectsSchema = {
+  invisibility: 0,
+  overclock: 0,
+  toughness: 0,
+  healthRegen: 0,
+};
 
 const KEY_COLOR_ORDER: readonly KeyColorType[] = [
   KeyColor.Red,
@@ -43,23 +83,36 @@ const TURN_EFFECT_FIELDS: readonly {
   { kind: TurnEffectKind.HealthRegen, field: "healthRegen" },
 ];
 
-export function writePlayerStateToComponents(world: World, playerEntity: Entity, state: PlayerState): void {
-  upsertPlayerInventory(world, playerEntity, inventoryForState(state));
-  upsertPlayerEquipment(world, playerEntity, equipmentForState(state));
-  upsertPlayerProgress(world, playerEntity, { ...state.progress });
-  upsertPlayerTurnEffects(world, playerEntity, turnEffectsForState(state.turnEffects));
+/** Boundary snapshot generated from ECS components; ECS remains the owner. */
+export type PlayerStateSnapshot = {
+  readonly heldKeys: readonly KeyColorType[];
+  readonly selectedWeapon: CommandSlot;
+  readonly unlockedWeapons: readonly CommandSlot[];
+  readonly ammo: PlayerAmmoState;
+  readonly health: PlayerHealthState;
+  readonly hasUplinkCode: boolean;
+  readonly progress: PlayerProgressState;
+  readonly turnEffects: readonly TurnEffectState[];
+};
 
-  if (world.components.entityHas(Health, playerEntity) && !playerHealthMatchesDefault(state)) {
-    world.components.setEntityData(Health, playerEntity, state.health);
-  }
+export function initializePlayerProgression(
+  world: World,
+  playerEntity: Entity,
+  input: PlayerStateInput = {},
+): void {
+  upsertPlayerHealth(world, playerEntity, healthForInput(input));
+  upsertPlayerInventory(world, playerEntity, inventoryForInput(input));
+  upsertPlayerEquipment(world, playerEntity, equipmentForInput(input));
+  upsertPlayerProgress(world, playerEntity, progressForInput(input));
+  upsertPlayerTurnEffects(world, playerEntity, turnEffectsForInput(input.turnEffects));
 }
 
-export function playerStateFor(world: World, playerEntity: Entity): PlayerState {
+export function playerStateSnapshotFor(world: World, playerEntity: Entity): PlayerStateSnapshot {
   const inventory = playerInventoryFor(world, playerEntity);
   const equipment = playerEquipmentFor(world, playerEntity);
   const progress = playerProgressFor(world, playerEntity);
   const turnEffects = turnEffectsForComponent(playerTurnEffectsFor(world, playerEntity));
-  const health = healthFor(world, playerEntity) ?? DEFAULT_PLAYER_STATE.health;
+  const health = healthFor(world, playerEntity) ?? DEFAULT_PLAYER_HEALTH;
 
   return {
     heldKeys: keyColorsForMask(inventory.keyMask),
@@ -94,6 +147,16 @@ export function playerHasWeapon(world: World, playerEntity: Entity, slot: Comman
 
 export function selectPlayerWeapon(world: World, playerEntity: Entity, slot: CommandSlot): void {
   upsertPlayerEquipment(world, playerEntity, { selectedWeapon: slot });
+}
+
+export function playerAmmoAmount(world: World, playerEntity: Entity, ammo: AmmoKind): number {
+  const inventory = playerInventoryFor(world, playerEntity);
+  switch (ammo) {
+    case "pistol":
+      return inventory.pistolAmmo;
+    case "cannon":
+      return inventory.cannonAmmo;
+  }
 }
 
 export function spendPlayerAmmo(world: World, playerEntity: Entity, ammo: AmmoKind): boolean {
@@ -255,49 +318,65 @@ function applyHealthPatch(
 }
 
 function playerInventoryFor(world: World, playerEntity: Entity): PlayerInventorySchema {
-  return world.components.readEntityData(PlayerInventory, playerEntity) ?? inventoryForState(DEFAULT_PLAYER_STATE);
+  return world.components.readEntityData(PlayerInventory, playerEntity) ?? { ...DEFAULT_PLAYER_INVENTORY };
 }
 
 function playerEquipmentFor(world: World, playerEntity: Entity): PlayerEquipmentSchema {
-  return world.components.readEntityData(PlayerEquipment, playerEntity) ?? equipmentForState(DEFAULT_PLAYER_STATE);
+  return world.components.readEntityData(PlayerEquipment, playerEntity) ?? { ...DEFAULT_PLAYER_EQUIPMENT };
 }
 
 function playerProgressFor(world: World, playerEntity: Entity): PlayerProgressSchema {
-  return world.components.readEntityData(PlayerProgress, playerEntity) ?? { ...DEFAULT_PLAYER_STATE.progress };
+  return world.components.readEntityData(PlayerProgress, playerEntity) ?? { ...DEFAULT_PLAYER_PROGRESS };
 }
 
 function playerTurnEffectsFor(world: World, playerEntity: Entity): PlayerTurnEffectsSchema {
-  return world.components.readEntityData(PlayerTurnEffects, playerEntity) ??
-    turnEffectsForState(DEFAULT_PLAYER_STATE.turnEffects);
+  return world.components.readEntityData(PlayerTurnEffects, playerEntity) ?? { ...DEFAULT_PLAYER_TURN_EFFECTS };
 }
 
-function playerHealthMatchesDefault(state: PlayerState): boolean {
-  return state.health.current === DEFAULT_PLAYER_STATE.health.current &&
-    state.health.max === DEFAULT_PLAYER_STATE.health.max;
-}
-
-function inventoryForState(state: PlayerState): PlayerInventorySchema {
+function healthForInput(input: PlayerStateInput): HealthSchema {
   return {
-    keyMask: keyMaskFor(state.heldKeys),
-    hasUplinkCode: state.hasUplinkCode ? 1 : 0,
-    pistolAmmo: state.ammo.pistol,
-    cannonAmmo: state.ammo.cannon,
+    current: input.health?.current ?? DEFAULT_PLAYER_HEALTH.current,
+    max: input.health?.max ?? DEFAULT_PLAYER_HEALTH.max,
   };
 }
 
-function equipmentForState(state: PlayerState): PlayerEquipmentSchema {
+function inventoryForInput(input: PlayerStateInput): PlayerInventorySchema {
   return {
-    selectedWeapon: state.selectedWeapon,
-    unlockedWeaponMask: weaponMaskFor(state.unlockedWeapons),
+    keyMask: keyMaskFor(input.heldKeys ?? []),
+    hasUplinkCode: input.hasUplinkCode === true ? 1 : 0,
+    pistolAmmo: input.ammo?.pistol ?? DEFAULT_PLAYER_INVENTORY.pistolAmmo,
+    cannonAmmo: input.ammo?.cannon ?? DEFAULT_PLAYER_INVENTORY.cannonAmmo,
   };
 }
 
-function turnEffectsForState(effects: readonly TurnEffectState[]): PlayerTurnEffectsSchema {
+function equipmentForInput(input: PlayerStateInput): PlayerEquipmentSchema {
+  const unlockedWeaponMask = weaponMaskFor([
+    DEFAULT_PLAYER_WEAPON,
+    ...(input.unlockedWeapons ?? []),
+  ]);
+  const selectedWeapon =
+    input.selectedWeapon !== undefined && (unlockedWeaponMask & weaponBit(input.selectedWeapon)) !== 0 ?
+      input.selectedWeapon :
+      DEFAULT_PLAYER_EQUIPMENT.selectedWeapon;
+
+  return {
+    selectedWeapon,
+    unlockedWeaponMask,
+  };
+}
+
+function progressForInput(input: PlayerStateInput): PlayerProgressSchema {
+  return {
+    credits: input.progress?.credits ?? DEFAULT_PLAYER_PROGRESS.credits,
+    score: input.progress?.score ?? DEFAULT_PLAYER_PROGRESS.score,
+    xp: input.progress?.xp ?? DEFAULT_PLAYER_PROGRESS.xp,
+    levelCredits: input.progress?.levelCredits ?? DEFAULT_PLAYER_PROGRESS.levelCredits,
+  };
+}
+
+function turnEffectsForInput(effects: readonly TurnEffectState[] = []): PlayerTurnEffectsSchema {
   const state: PlayerTurnEffectsSchema = {
-    invisibility: 0,
-    overclock: 0,
-    toughness: 0,
-    healthRegen: 0,
+    ...DEFAULT_PLAYER_TURN_EFFECTS,
   };
 
   for (const effect of normalizeTurnEffects(effects)) {
@@ -350,6 +429,21 @@ function weaponBit(slot: CommandSlot): number {
   return 1 << slot;
 }
 
+function upsertPlayerHealth(
+  world: World,
+  playerEntity: Entity,
+  data: Partial<HealthSchema>,
+): void {
+  if (world.components.entityHas(Health, playerEntity)) {
+    world.components.setEntityData(Health, playerEntity, data);
+  } else {
+    world.components.addToEntity(Health, playerEntity, {
+      ...DEFAULT_PLAYER_HEALTH,
+      ...data,
+    });
+  }
+}
+
 function upsertPlayerInventory(
   world: World,
   playerEntity: Entity,
@@ -359,7 +453,7 @@ function upsertPlayerInventory(
     world.components.setEntityData(PlayerInventory, playerEntity, data);
   } else {
     world.components.addToEntity(PlayerInventory, playerEntity, {
-      ...inventoryForState(DEFAULT_PLAYER_STATE),
+      ...DEFAULT_PLAYER_INVENTORY,
       ...data,
     });
   }
@@ -374,7 +468,7 @@ function upsertPlayerEquipment(
     world.components.setEntityData(PlayerEquipment, playerEntity, data);
   } else {
     world.components.addToEntity(PlayerEquipment, playerEntity, {
-      ...equipmentForState(DEFAULT_PLAYER_STATE),
+      ...DEFAULT_PLAYER_EQUIPMENT,
       ...data,
     });
   }
@@ -389,7 +483,7 @@ function upsertPlayerProgress(
     world.components.setEntityData(PlayerProgress, playerEntity, data);
   } else {
     world.components.addToEntity(PlayerProgress, playerEntity, {
-      ...DEFAULT_PLAYER_STATE.progress,
+      ...DEFAULT_PLAYER_PROGRESS,
       ...data,
     });
   }
@@ -404,7 +498,7 @@ function upsertPlayerTurnEffects(
     world.components.setEntityData(PlayerTurnEffects, playerEntity, data);
   } else {
     world.components.addToEntity(PlayerTurnEffects, playerEntity, {
-      ...turnEffectsForState(DEFAULT_PLAYER_STATE.turnEffects),
+      ...DEFAULT_PLAYER_TURN_EFFECTS,
       ...data,
     });
   }

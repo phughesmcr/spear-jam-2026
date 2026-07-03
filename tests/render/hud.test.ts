@@ -1,5 +1,5 @@
 import { assertEquals } from "@std/assert";
-import { createPlayerState } from "@/src/game/state.ts";
+import type { PlayerStateSnapshot } from "@/src/ecs/progression.ts";
 import { KeyColor } from "@/src/map/map.ts";
 import { firstPersonHudPanels, preloadHudAssets, renderFirstPersonHud } from "@/src/render/hud.ts";
 import type { FirstPersonHudPanel } from "@/src/render/hud.ts";
@@ -8,7 +8,7 @@ const CANVAS = { width: 720, height: 1280 };
 const HUD_MARGIN = 12;
 
 Deno.test("firstPersonHudPanels anchors health to the bottom-left edge", () => {
-  const panels = firstPersonHudPanels(CANVAS, createPlayerState());
+  const panels = firstPersonHudPanels(CANVAS, playerSnapshot());
   assertEquals(panelKinds(panels), ["health"]);
 
   const health = expectPanel(panels[0], "health");
@@ -18,12 +18,12 @@ Deno.test("firstPersonHudPanels anchors health to the bottom-left edge", () => {
 });
 
 Deno.test("firstPersonHudPanels shows ammo only for ranged selected weapons", () => {
-  const melee = firstPersonHudPanels(CANVAS, createPlayerState({ ammo: { pistol: 7, cannon: 4 } }));
+  const melee = firstPersonHudPanels(CANVAS, playerSnapshot({ ammo: { pistol: 7, cannon: 4 } }));
   assertEquals(panelKinds(melee), ["health"]);
 
   const pistol = firstPersonHudPanels(
     CANVAS,
-    createPlayerState({
+    playerSnapshot({
       selectedWeapon: 2,
       unlockedWeapons: [2],
       ammo: { pistol: 7, cannon: 4 },
@@ -37,7 +37,7 @@ Deno.test("firstPersonHudPanels shows ammo only for ranged selected weapons", ()
 
   const cannon = firstPersonHudPanels(
     CANVAS,
-    createPlayerState({
+    playerSnapshot({
       selectedWeapon: 3,
       unlockedWeapons: [3],
       ammo: { pistol: 7, cannon: 4 },
@@ -49,7 +49,7 @@ Deno.test("firstPersonHudPanels shows ammo only for ranged selected weapons", ()
 });
 
 Deno.test("firstPersonHudPanels shows keys only when explicitly requested", () => {
-  const playerState = createPlayerState({
+  const playerState = playerSnapshot({
     heldKeys: [KeyColor.Red, KeyColor.Yellow],
   });
   assertEquals(panelKinds(firstPersonHudPanels(CANVAS, playerState)), ["health"]);
@@ -72,7 +72,7 @@ Deno.test("renderFirstPersonHud aligns key color overlays to the key bar slots",
   renderFirstPersonHud(
     ctx as unknown as CanvasRenderingContext2D,
     CANVAS,
-    createPlayerState({ heldKeys: [KeyColor.Red, KeyColor.Yellow, KeyColor.Blue] }),
+    playerSnapshot({ heldKeys: [KeyColor.Red, KeyColor.Yellow, KeyColor.Blue] }),
     { showKeys: true },
   );
 
@@ -95,6 +95,38 @@ function expectPanel<Kind extends FirstPersonHudPanel["kind"]>(
     throw new Error(`Expected ${kind} panel.`);
   }
   return panel as Extract<FirstPersonHudPanel, { readonly kind: Kind }>;
+}
+
+type PlayerSnapshotPatch =
+  & Partial<Omit<PlayerStateSnapshot, "ammo" | "health" | "progress">>
+  & {
+    readonly ammo?: Partial<PlayerStateSnapshot["ammo"]>;
+    readonly health?: Partial<PlayerStateSnapshot["health"]>;
+    readonly progress?: Partial<PlayerStateSnapshot["progress"]>;
+  };
+
+function playerSnapshot(patch: PlayerSnapshotPatch = {}): PlayerStateSnapshot {
+  return {
+    heldKeys: patch.heldKeys ?? [],
+    selectedWeapon: patch.selectedWeapon ?? 1,
+    unlockedWeapons: patch.unlockedWeapons ?? [1],
+    ammo: {
+      pistol: patch.ammo?.pistol ?? 0,
+      cannon: patch.ammo?.cannon ?? 0,
+    },
+    health: {
+      current: patch.health?.current ?? 10,
+      max: patch.health?.max ?? 10,
+    },
+    hasUplinkCode: patch.hasUplinkCode ?? false,
+    progress: {
+      credits: patch.progress?.credits ?? 0,
+      score: patch.progress?.score ?? 0,
+      xp: patch.progress?.xp ?? 0,
+      levelCredits: patch.progress?.levelCredits ?? 0,
+    },
+    turnEffects: patch.turnEffects ?? [],
+  };
 }
 
 type FakeImageEvent = "load" | "error";

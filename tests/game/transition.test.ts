@@ -1,6 +1,5 @@
 import { assertEquals } from "@std/assert";
 import type { Entity } from "@phughesmcr/miski";
-import { createPlayerState } from "@/src/game/state.ts";
 import { createGameModel, transition } from "@/src/game/transition.ts";
 import { KeyColor } from "@/src/map/map.ts";
 
@@ -20,7 +19,7 @@ Deno.test("transition moves loaded maps into playing mode and requests input set
   const result = transition(createGameModel("Level 1"), {
     type: "mapLoaded",
     mapName: "Level 2",
-    playerState: createPlayerState({ heldKeys: [KeyColor.Red] }),
+    playerState: { heldKeys: [KeyColor.Red] },
   });
 
   assertEquals(result.model.currentMapName, "Level 2");
@@ -34,7 +33,7 @@ Deno.test("transition derives command result intermission state", () => {
     type: "mapLoaded",
     mapName: "Level 1",
   }).model;
-  const playerState = createPlayerState({ hasUplinkCode: true });
+  const playerState = { hasUplinkCode: true };
 
   const result = transition(playing, {
     type: "playerCommandResult",
@@ -90,10 +89,10 @@ Deno.test("transition passes smart action through as a player command", () => {
 });
 
 Deno.test("transition retries defeat from the current level entry snapshot", () => {
-  const entryState = createPlayerState({
+  const entryState = {
     heldKeys: [KeyColor.Yellow],
     health: { current: 8, max: 10 },
-  });
+  };
   let model = transition(createGameModel("Level 1"), {
     type: "mapLoaded",
     mapName: "Level 2",
@@ -103,7 +102,7 @@ Deno.test("transition retries defeat from the current level entry snapshot", () 
   ({ model } = transition(model, {
     type: "playerCommandResult",
     playerEntity: PLAYER,
-    playerState: createPlayerState({ health: { current: 0, max: 10 } }),
+    playerState: { health: { current: 0, max: 10 } },
     result: {
       events: [{ type: "examined", text: "You fall." }],
       outcome: "defeat",

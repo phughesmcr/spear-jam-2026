@@ -30,18 +30,19 @@ import {
   clearTransientPlayerState,
   completePlayerLevel,
   heldKeysForPlayer,
+  initializePlayerProgression,
+  playerAmmoAmount,
   playerHasUplinkCode,
   playerHasWeapon,
-  playerStateFor,
+  playerStateSnapshotFor,
   selectedPlayerWeapon,
   selectPlayerWeapon,
   spendPlayerAmmo,
   tickPlayerTurnEffects,
-  writePlayerStateToComponents,
 } from "@/src/ecs/progression.ts";
+import type { PlayerStateSnapshot } from "@/src/ecs/progression.ts";
 import type { RandomSource } from "@/src/game/rng.ts";
-import { createPlayerState } from "@/src/game/state.ts";
-import type { CommandSlot, PlayerState, PlayerStateInput } from "@/src/game/state.ts";
+import type { CommandSlot, DialogueState, PlayerStateInput } from "@/src/game/state.ts";
 import type { TargetMarkerTone } from "@/src/game/target_marker.ts";
 import { VisibilityMap } from "@/src/game/visibility.ts";
 import type { TileVisibility } from "@/src/game/visibility.ts";
@@ -59,6 +60,24 @@ type MoveResult =
   | { readonly moved: false }
   | { readonly moved: true; readonly events: readonly GameEvent[] };
 
+type ConsumedPlayerAction = {
+  readonly type: "consumeTurn";
+  readonly events: readonly GameEvent[];
+  readonly noise?: NoiseStimulus;
+};
+
+type PlayerActionResolution =
+  | { readonly type: "immediate"; readonly events: readonly GameEvent[] }
+  | { readonly type: "refreshVisibility"; readonly events: readonly GameEvent[] }
+  | ConsumedPlayerAction
+  | { readonly type: "dialogue"; readonly dialogue: DialogueState; readonly events: readonly GameEvent[] }
+  | { readonly type: "activateUplinkTerminal"; readonly terminal: Entity; readonly events: readonly GameEvent[] };
+
+const UNCHANGED_PLAYER_ACTION: PlayerActionResolution = Object.freeze({
+  type: "immediate",
+  events: [],
+});
+
 export async function createGameSession(
   map: GameMap,
   random: RandomSource,
@@ -67,7 +86,6 @@ export async function createGameSession(
   const world = await createWorld();
 
   try {
-    const state = createPlayerState(playerState);
     let playerEntity: Entity | undefined;
     const terminalDestinations = new Map<Entity, string>();
 
@@ -85,7 +103,7 @@ export async function createGameSession(
     const player = new Player(world, playerEntity);
     world.refresh();
 
-    return new GameSession(world, player, map, random, terminalDestinations, state);
+    return new GameSession(world, player, map, random, terminalDestinations, playerState);
   } catch (error) {
     await world.destroy();
     throw error;
@@ -111,13 +129,13 @@ export class GameSession implements Disposable {
     map: GameMap,
     random: RandomSource,
     terminalDestinations: ReadonlyMap<Entity, string>,
-    playerState: PlayerState,
+    playerState: PlayerStateInput,
   ) {
     this.world = world;
     this.player = player;
     this.map = map;
     this.random = random;
-    writePlayerStateToComponents(this.world, this.player.getEntity(), playerState);
+    initializePlayerProgression(this.world, this.player.getEntity(), playerState);
     this.world.refresh();
     this.drawableSystem = world.systems.create(drawableSystem);
     this.enemyTurnSystem = world.systems.create(enemyTurnSystem);
@@ -127,8 +145,8 @@ export class GameSession implements Disposable {
     this.refreshVisibility();
   }
 
-  getPlayerState(): PlayerState {
-    return playerStateFor(this.world, this.player.getEntity());
+  getPlayerState(): PlayerStateSnapshot {
+    return playerStateSnapshotFor(this.world, this.player.getEntity());
   }
 
   targetMarkerTone(): TargetMarkerTone | undefined {
@@ -149,31 +167,35 @@ export class GameSession implements Disposable {
   }
 
   handlePlayerCommand(command: PlayerCommand): PlayerCommandResult {
+    return this.commitPlayerAction(this.resolvePlayerAction(command));
+  }
+
+  private resolvePlayerAction(command: PlayerCommand): PlayerActionResolution {
     switch (command.type) {
       case "move":
-        return this.handlePlayerMoveCommand(relativeMoveDirectionOffset(command.direction));
+        return this.resolvePlayerMoveAction(relativeMoveDirectionOffset(command.direction));
       case "turn":
         this.turnPlayer(turnDirectionDelta(command.direction));
-        return UNCHANGED_PLAYER_COMMAND;
+        return { type: "refreshVisibility", events: [] };
       case "wait":
-        return this.consumePlayerTurn();
+        return { type: "consumeTurn", events: [] };
       case "interact":
-        return this.handlePlayerInteractCommand(command.verb);
+        return this.resolvePlayerInteractAction(command.verb);
       case "examine":
-        return { events: [examineEntity(this.world, this.spatial.facedEntity(this.player))] };
+        return { type: "immediate", events: [examineEntity(this.world, this.spatial.facedEntity(this.player))] };
       case "attack":
-        return this.handlePlayerAttackCommand();
+        return this.resolvePlayerAttackAction();
       case "smartAction":
-        return this.handlePlayerSmartActionCommand();
+        return this.resolvePlayerSmartAction();
       case "selectWeapon":
-        return this.handlePlayerSelectWeaponCommand(command.slot);
+        return this.resolvePlayerSelectWeaponAction(command.slot);
     }
   }
 
-  private handlePlayerMoveCommand(directionOffset: number): PlayerCommandResult {
+  private resolvePlayerMoveAction(directionOffset: number): PlayerActionResolution {
     const move = this.tryMovePlayerRelative(directionOffset);
-    if (!move.moved) return UNCHANGED_PLAYER_COMMAND;
-    return this.consumePlayerTurn(move.events, this.playerNoise(MOVE_NOISE_RADIUS));
+    if (!move.moved) return UNCHANGED_PLAYER_ACTION;
+    return { type: "consumeTurn", events: move.events, noise: this.playerNoise(MOVE_NOISE_RADIUS) };
   }
 
   private tryMovePlayer(delta: GridDelta): MoveResult {
@@ -200,21 +222,20 @@ export class GameSession implements Disposable {
 
   private turnPlayer(delta: number): void {
     this.player.turnBy(delta);
-    this.refreshVisibility();
   }
 
-  private handlePlayerInteractCommand(verb?: InteractVerb): PlayerCommandResult {
-    return this.handlePlayerInteraction(this.spatial.facedEntity(this.player), verb);
+  private resolvePlayerInteractAction(verb?: InteractVerb): PlayerActionResolution {
+    return this.resolvePlayerInteraction(this.spatial.facedEntity(this.player), verb);
   }
 
-  private handlePlayerSmartActionCommand(): PlayerCommandResult {
+  private resolvePlayerSmartAction(): PlayerActionResolution {
     const target = this.smartActionInteractionTarget();
-    if (target !== undefined) return this.handlePlayerInteraction(target);
+    if (target !== undefined) return this.resolvePlayerInteraction(target);
 
-    return this.handlePlayerAttackCommand();
+    return this.resolvePlayerAttackAction();
   }
 
-  private handlePlayerInteraction(target: Entity | undefined, verb?: InteractVerb): PlayerCommandResult {
+  private resolvePlayerInteraction(target: Entity | undefined, verb?: InteractVerb): PlayerActionResolution {
     const interaction = interactWithEntity(
       this.world,
       this.spatial,
@@ -225,16 +246,21 @@ export class GameSession implements Disposable {
     );
     switch (interaction.type) {
       case "unchanged":
-        return { events: interaction.events };
+        return { type: "immediate", events: interaction.events };
       case "consumeTurn":
-        return this.consumePlayerTurn(interaction.events, this.noiseForEvents(interaction.events));
+        return { type: "consumeTurn", events: interaction.events };
       case "dialogue":
         return {
+          type: "dialogue",
           events: interaction.events,
           dialogue: interaction.dialogue,
         };
       case "uplinkTerminal":
-        return this.activateUplinkTerminal(interaction.terminal, interaction.events);
+        return {
+          type: "activateUplinkTerminal",
+          terminal: interaction.terminal,
+          events: interaction.events,
+        };
     }
   }
 
@@ -268,7 +294,9 @@ export class GameSession implements Disposable {
   private attackTargetMarkerTone(): TargetMarkerTone | undefined {
     const selectedWeapon = selectedPlayerWeapon(this.world, this.player.getEntity());
     const ammoKind = weaponAmmoKind(selectedWeapon);
-    if (ammoKind !== undefined && this.getPlayerState().ammo[ammoKind] <= 0) return undefined;
+    if (ammoKind !== undefined && playerAmmoAmount(this.world, this.player.getEntity(), ammoKind) <= 0) {
+      return undefined;
+    }
 
     const targets = attackTargetsForSelectedWeapon(this.world, this.player, selectedWeapon, this.spatial);
     return targets.length === 0 ? undefined : "danger";
@@ -284,7 +312,7 @@ export class GameSession implements Disposable {
     return this.spatial.itemAt(x, y) === undefined ? undefined : "loot";
   }
 
-  private activateUplinkTerminal(terminal: Entity, events: readonly GameEvent[]): PlayerCommandResult {
+  private commitUplinkTerminalActivation(terminal: Entity, events: readonly GameEvent[]): PlayerCommandResult {
     const goto = this.terminalDestinations.get(terminal);
     if (goto === undefined) {
       throw new Error(`Uplink terminal ${terminal} is missing a map destination.`);
@@ -302,13 +330,13 @@ export class GameSession implements Disposable {
     };
   }
 
-  private handlePlayerAttackCommand(): PlayerCommandResult {
+  private resolvePlayerAttackAction(): PlayerActionResolution {
     const selectedWeapon = selectedPlayerWeapon(this.world, this.player.getEntity());
     const ammoKind = weaponAmmoKind(selectedWeapon);
     let ammoEvents: readonly GameEvent[] = [];
     if (ammoKind !== undefined) {
       if (!spendPlayerAmmo(this.world, this.player.getEntity(), ammoKind)) {
-        return { events: [{ type: "noAmmo", ammo: ammoKind }] };
+        return { type: "immediate", events: [{ type: "noAmmo", ammo: ammoKind }] };
       }
       ammoEvents = [{ type: "ammoSpent", ammo: ammoKind, amount: 1 }];
     }
@@ -320,16 +348,18 @@ export class GameSession implements Disposable {
       this.spatial,
       this.random,
     );
-    return this.consumePlayerTurn(
-      [...ammoEvents, ...awardCreditsForDefeats(this.world, this.player.getEntity(), events)],
-      this.playerNoise(weaponNoiseRadius(selectedWeapon)),
-    );
+    return {
+      type: "consumeTurn",
+      events: [...ammoEvents, ...events],
+      noise: this.playerNoise(weaponNoiseRadius(selectedWeapon)),
+    };
   }
 
-  private handlePlayerSelectWeaponCommand(slot: CommandSlot): PlayerCommandResult {
+  private resolvePlayerSelectWeaponAction(slot: CommandSlot): PlayerActionResolution {
     const label = weaponLabel(slot);
     if (!playerHasWeapon(this.world, this.player.getEntity(), slot)) {
       return {
+        type: "immediate",
         events: [{
           type: "weaponUnavailable",
           slot,
@@ -340,6 +370,7 @@ export class GameSession implements Disposable {
 
     selectPlayerWeapon(this.world, this.player.getEntity(), slot);
     return {
+      type: "immediate",
       events: [{
         type: "weaponSelected",
         slot,
@@ -348,20 +379,48 @@ export class GameSession implements Disposable {
     };
   }
 
-  private consumePlayerTurn(events: readonly GameEvent[] = [], noise?: NoiseStimulus): PlayerCommandResult {
+  private commitPlayerAction(action: PlayerActionResolution): PlayerCommandResult {
+    switch (action.type) {
+      case "immediate":
+        return this.playerCommandResult(action.events);
+      case "refreshVisibility":
+        this.refreshVisibility();
+        return this.playerCommandResult(action.events);
+      case "consumeTurn":
+        return this.commitConsumedPlayerAction(action);
+      case "dialogue":
+        return {
+          events: action.events,
+          dialogue: action.dialogue,
+        };
+      case "activateUplinkTerminal":
+        return this.commitUplinkTerminalActivation(action.terminal, action.events);
+    }
+  }
+
+  private commitConsumedPlayerAction(action: ConsumedPlayerAction): PlayerCommandResult {
+    const actionEvents = this.applyPlayerActionReactions(action.events);
     const enemyEvents = this.enemyTurnSystem({
       world: this.world,
       player: this.player,
       spatial: this.spatial,
       random: this.random,
       blocksSight: (x, y) => this.tileBlocksSight(x, y),
-      noises: noise === undefined ? [] : [noise],
+      noises: this.noisesForPlayerAction(actionEvents, action.noise),
     });
     tickPlayerTurnEffects(this.world, this.player.getEntity());
     this.world.refresh();
     this.refreshVisibility();
-    const allEvents = [...events, ...enemyEvents];
+    const allEvents = [...actionEvents, ...enemyEvents];
     return this.isPlayerDefeated() ? { events: allEvents, outcome: "defeat" } : { events: allEvents };
+  }
+
+  private playerCommandResult(events: readonly GameEvent[]): PlayerCommandResult {
+    return events.length === 0 ? UNCHANGED_PLAYER_COMMAND : { events };
+  }
+
+  private applyPlayerActionReactions(events: readonly GameEvent[]): readonly GameEvent[] {
+    return awardCreditsForDefeats(this.world, this.player.getEntity(), events);
   }
 
   private refreshVisibility(): void {
@@ -384,9 +443,15 @@ export class GameSession implements Disposable {
     return drawable.kind === DrawableKind.Player || this.visibility.isVisible(drawable.x, drawable.y);
   }
 
-  private noiseForEvents(events: readonly GameEvent[]): NoiseStimulus | undefined {
-    if (events.some((event) => event.type === "doorOpened")) return this.playerNoise(DOOR_NOISE_RADIUS);
-    return undefined;
+  private noisesForPlayerAction(
+    events: readonly GameEvent[],
+    actionNoise: NoiseStimulus | undefined,
+  ): readonly NoiseStimulus[] {
+    const eventNoise = events.some((event) => event.type === "doorOpened") ?
+      this.playerNoise(DOOR_NOISE_RADIUS) :
+      undefined;
+    if (actionNoise === undefined) return eventNoise === undefined ? [] : [eventNoise];
+    return eventNoise === undefined ? [actionNoise] : [actionNoise, eventNoise];
   }
 
   private playerNoise(radius: number): NoiseStimulus | undefined {

@@ -11,7 +11,8 @@ import type { TerrainTile } from "@/src/map/map.ts";
 import type { TiledMap, TiledObject, TiledProperty } from "@/src/map/authoring/mod.ts";
 
 const TILE_SIZE = 16;
-const FIRST_GID = 17;
+const TERRAIN_FIRST_GID = 17;
+const MARKER_FIRST_GID = 23;
 
 const TEST_PALETTE: readonly TerrainTile[] = [
   { id: 0, color: "#111111", floor_texture: `${TexturePack.Pack1}:0,0`, ceiling_texture: "ceiling" },
@@ -19,12 +20,12 @@ const TEST_PALETTE: readonly TerrainTile[] = [
   { id: 5, color: "#444444", floor_texture: "floor", ceiling_texture: "ceiling" },
 ];
 
-Deno.test("compileTiledMap preserves terrain tileset-local IDs", () => {
+Deno.test("compileTiledMap preserves authored terrain IDs", () => {
   const compiled = compileTiledMap(
     tiledMap({
       width: 3,
       height: 1,
-      terrainData: [FIRST_GID, FIRST_GID + 1, FIRST_GID + 5],
+      terrainData: [TERRAIN_FIRST_GID, TERRAIN_FIRST_GID + 1, TERRAIN_FIRST_GID + 5],
     }),
     compileOptions(),
   );
@@ -38,7 +39,7 @@ Deno.test("compileTiledMap preserves terrain tileset-local IDs", () => {
 
 Deno.test("compileTiledMap rejects terrain IDs missing from the selected palette", () => {
   assertThrows(
-    () => compileTiledMap(tiledMap({ terrainData: [FIRST_GID + 2] }), compileOptions()),
+    () => compileTiledMap(tiledMap({ terrainData: [TERRAIN_FIRST_GID + 2] }), compileOptions()),
     Error,
     'Map "Fixture" terrain tile 2 at (0,0) is missing from its palette.',
   );
@@ -52,9 +53,17 @@ Deno.test("compileTiledMap rejects empty and transformed terrain GIDs", () => {
   );
 
   assertThrows(
-    () => compileTiledMap(tiledMap({ terrainData: [0x80000000 + FIRST_GID] }), compileOptions()),
+    () => compileTiledMap(tiledMap({ terrainData: [0x80000000 + TERRAIN_FIRST_GID] }), compileOptions()),
     Error,
     "transformed GID",
+  );
+});
+
+Deno.test("compileTiledMap rejects marker GIDs in terrain layers", () => {
+  assertThrows(
+    () => compileTiledMap(tiledMap({ terrainData: [MARKER_FIRST_GID] }), compileOptions()),
+    Error,
+    "terrainId",
   );
 });
 
@@ -158,7 +167,7 @@ Deno.test("compileTiledMap treats tile objects as bottom-left anchored", () => {
       height: 3,
       objects: [
         object({
-          gid: FIRST_GID,
+          gid: MARKER_FIRST_GID,
           x: TILE_SIZE,
           y: TILE_SIZE * 2,
           width: TILE_SIZE,
@@ -180,7 +189,7 @@ Deno.test("compileTiledMap applies marker defaults before object overrides", () 
     tiledMap({
       objects: [
         object({
-          gid: FIRST_GID + 2,
+          gid: MARKER_FIRST_GID + 2,
           x: 0,
           y: TILE_SIZE,
           width: TILE_SIZE,
@@ -371,7 +380,20 @@ function tiledMap(overrides: TiledMapOverrides = {}): TiledMap {
     ],
     tilesets: [
       {
-        firstgid: FIRST_GID,
+        firstgid: TERRAIN_FIRST_GID,
+        name: "terrain",
+        tilecount: 6,
+        tiles: [
+          { id: 0, properties: [property("terrainId", 0)] },
+          { id: 1, properties: [property("terrainId", 1)] },
+          { id: 2, properties: [property("terrainId", 2)] },
+          { id: 3, properties: [property("terrainId", 3)] },
+          { id: 4, properties: [property("terrainId", 4)] },
+          { id: 5, properties: [property("terrainId", 5)] },
+        ],
+      },
+      {
+        firstgid: MARKER_FIRST_GID,
         source: "markers.tsj",
       },
     ],
@@ -382,7 +404,7 @@ function tiledMap(overrides: TiledMapOverrides = {}): TiledMap {
         type: "tilelayer",
         width,
         height,
-        data: overrides.terrainData ?? Array.from({ length: width * height }, () => FIRST_GID),
+        data: overrides.terrainData ?? Array.from({ length: width * height }, () => TERRAIN_FIRST_GID),
       },
       {
         id: 2,

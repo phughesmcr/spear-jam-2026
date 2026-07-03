@@ -18,7 +18,7 @@
  */
 
 import { SHADE_BANDS, TEX_MASK, TEX_SHIFT, TEX_SIZE, TRANSPARENT_TEXEL } from "@/src/render/raycast/textures.ts";
-import type { BakedTexture } from "@/src/render/raycast/textures.ts";
+import type { BakedTexture, BakedTextureMip } from "@/src/render/raycast/textures.ts";
 
 /** Thin wall plane at `cellX + 0.5`, crossed by rays travelling along x. */
 export const THIN_AXIS_X = 0;
@@ -250,6 +250,21 @@ function shadeBand(distance: number): number {
   return band >= SHADE_BANDS ? SHADE_BANDS - 1 : band;
 }
 
+function mipLevelForTexelsPerPixel(texelsPerPixel: number): number {
+  if (texelsPerPixel >= 8) return 3;
+  if (texelsPerPixel >= 4) return 2;
+  if (texelsPerPixel >= 2) return 1;
+  return 0;
+}
+
+function planeMipLevel(rowDistance: number, width: number): number {
+  return mipLevelForTexelsPerPixel((rowDistance * PROJECTION_PLANE_LENGTH * 2 * TEX_SIZE) / width);
+}
+
+function wallMip(texture: BakedTexture, lineHeight: number): BakedTextureMip {
+  return texture.mips[mipLevelForTexelsPerPixel(TEX_SIZE / lineHeight)]!;
+}
+
 export function renderFrame(
   frame: RaycastFrame,
   scene: RaycastScene,
@@ -291,6 +306,10 @@ function renderPlanes(
     const rowDistance = (CAMERA_HEIGHT * focal) / (y - horizon + 0.5);
     const floorBand = shadeBand(rowDistance);
     const ceilingBand = offsetShadeBand(floorBand, CEILING_SHADE_OFFSET);
+    const mipLevel = planeMipLevel(rowDistance, width);
+    const mipSize = TEX_SIZE >> mipLevel;
+    const mipShift = TEX_SHIFT - mipLevel;
+    const mipMask = mipSize - 1;
     const stepX = (rowDistance * raySpanX) / width;
     const stepY = (rowDistance * raySpanY) / width;
     let worldX = cameraX + rowDistance * leftRayX;
@@ -310,13 +329,13 @@ function renderPlanes(
           cachedCell = cell;
           const floorId = floors[cell]!;
           const ceilingId = ceilings[cell]!;
-          floorTexels = floorId === 0 ? undefined : planes[floorId - 1]?.bands[floorBand];
-          ceilingTexels = ceilingId === 0 ? undefined : planes[ceilingId - 1]?.bands[ceilingBand];
+          floorTexels = floorId === 0 ? undefined : planes[floorId - 1]?.mips[mipLevel]?.bands[floorBand];
+          ceilingTexels = ceilingId === 0 ? undefined : planes[ceilingId - 1]?.mips[mipLevel]?.bands[ceilingBand];
         }
         if (floorTexels !== undefined || ceilingTexels !== undefined) {
-          const texX = (((worldX - cellX) * TEX_SIZE) | 0) & TEX_MASK;
-          const texY = (((worldY - cellY) * TEX_SIZE) | 0) & TEX_MASK;
-          const texel = (texY << TEX_SHIFT) | texX;
+          const texX = (((worldX - cellX) * mipSize) | 0) & mipMask;
+          const texY = (((worldY - cellY) * mipSize) | 0) & mipMask;
+          const texel = (texY << mipShift) | texX;
           if (floorTexels !== undefined) pixels[floorRow + x] = floorTexels[texel]!;
           if (ceilingTexels !== undefined) pixels[ceilingRow + x] = ceilingTexels[texel]!;
         }
@@ -459,7 +478,8 @@ function renderWalls(
       x,
       hitDistance,
       focal,
-      hitTexture.bands[thinShadeBand(hitDistance, side)]!,
+      hitTexture,
+      thinShadeBand(hitDistance, side),
       hitTexX,
       true,
     );
@@ -481,7 +501,8 @@ function drawWallColumn(
   x: number,
   distance: number,
   focal: number,
-  texels: Uint32Array,
+  texture: BakedTexture,
+  band: number,
   texX: number,
   opaque: boolean,
 ): void {
@@ -498,20 +519,22 @@ function drawWallColumn(
   if (yEnd > height) yEnd = height;
   if (yStart >= yEnd) return;
 
-  const texStep = ((TEX_SIZE * FIXED_ONE) / lineHeight) | 0;
-  let texPos = (((yStart - top) * TEX_SIZE * FIXED_ONE) / lineHeight) | 0;
-  const columnBase = texX << TEX_SHIFT;
+  const mip = wallMip(texture, lineHeight);
+  const texels = mip.bands[band]!;
+  const texStep = ((mip.size * FIXED_ONE) / lineHeight) | 0;
+  let texPos = (((yStart - top) * mip.size * FIXED_ONE) / lineHeight) | 0;
+  const columnBase = (((texX * mip.size) / TEX_SIZE) | 0) << mip.shift;
   let offset = yStart * width + x;
   if (opaque) {
     for (let y = yStart; y < yEnd; y++) {
-      pixels[offset] = texels[columnBase + ((texPos >>> 16) & TEX_MASK)]!;
+      pixels[offset] = texels[columnBase + ((texPos >>> 16) & mip.mask)]!;
       texPos += texStep;
       offset += width;
     }
     return;
   }
   for (let y = yStart; y < yEnd; y++) {
-    const texel = texels[columnBase + ((texPos >>> 16) & TEX_MASK)]!;
+    const texel = texels[columnBase + ((texPos >>> 16) & mip.mask)]!;
     if (texel !== TRANSPARENT_TEXEL) pixels[offset] = texel;
     texPos += texStep;
     offset += width;
@@ -615,22 +638,23 @@ function drawSprite(
   if (xEnd > width) xEnd = width;
   if (yStart >= yEnd || xStart >= xEnd) return;
 
-  const texels = texture.bands[shadeBand(depth)]!;
-  const texStep = ((TEX_SIZE * FIXED_ONE) / spriteSize) | 0;
-  const texYStart = (((yStart - top) * TEX_SIZE * FIXED_ONE) / spriteSize) | 0;
-  let texXPos = (((xStart - left) * TEX_SIZE * FIXED_ONE) / spriteSize) | 0;
+  const mip = texture.mips[0]!;
+  const texels = mip.bands[shadeBand(depth)]!;
+  const texStep = ((mip.size * FIXED_ONE) / spriteSize) | 0;
+  const texYStart = (((yStart - top) * mip.size * FIXED_ONE) / spriteSize) | 0;
+  let texXPos = (((xStart - left) * mip.size * FIXED_ONE) / spriteSize) | 0;
 
   for (let x = xStart; x < xEnd; x++) {
     flushThinHits(frame, atlas, focal, x, depth);
-    const texX = (texXPos >>> 16) & TEX_MASK;
+    const texX = (texXPos >>> 16) & mip.mask;
     texXPos += texStep;
     if (depth >= zbuffer[x]!) continue;
 
-    const columnBase = texX << TEX_SHIFT;
+    const columnBase = texX << mip.shift;
     let texYPos = texYStart;
     let offset = yStart * width + x;
     for (let y = yStart; y < yEnd; y++) {
-      const texel = texels[columnBase + ((texYPos >>> 16) & TEX_MASK)]!;
+      const texel = texels[columnBase + ((texYPos >>> 16) & mip.mask)]!;
       if (texel !== TRANSPARENT_TEXEL) pixels[offset] = texel;
       texYPos += texStep;
       offset += width;
@@ -648,7 +672,8 @@ function drawVerticalSlideColumn(
   x: number,
   distance: number,
   focal: number,
-  texels: Uint32Array,
+  texture: BakedTexture,
+  band: number,
   texX: number,
   slide: number,
   offset: number,
@@ -668,14 +693,16 @@ function drawVerticalSlideColumn(
   if (yEnd > height) yEnd = height;
   if (yStart >= yEnd) return;
 
+  const mip = wallMip(texture, lineHeight);
+  const texels = mip.bands[band]!;
   // Texture rows track the slab: a risen slab shows its lower rows.
-  const texStep = ((TEX_SIZE * FIXED_ONE) / lineHeight) | 0;
+  const texStep = ((mip.size * FIXED_ONE) / lineHeight) | 0;
   const slabTexTop = slide === THIN_SLIDE_UP ? offset : 0;
-  let texPos = ((slabTexTop + (yStart - slabTop) / lineHeight) * TEX_SIZE * FIXED_ONE) | 0;
-  const columnBase = texX << TEX_SHIFT;
+  let texPos = ((slabTexTop + (yStart - slabTop) / lineHeight) * mip.size * FIXED_ONE) | 0;
+  const columnBase = (((texX * mip.size) / TEX_SIZE) | 0) << mip.shift;
   let pixelOffset = yStart * width + x;
   for (let y = yStart; y < yEnd; y++) {
-    const texel = texels[columnBase + ((texPos >>> 16) & TEX_MASK)]!;
+    const texel = texels[columnBase + ((texPos >>> 16) & mip.mask)]!;
     if (texel !== TRANSPARENT_TEXEL) pixels[pixelOffset] = texel;
     texPos += texStep;
     pixelOffset += width;
@@ -690,7 +717,6 @@ function flushThinHits(frame: RaycastFrame, atlas: RaycastAtlas, focal: number, 
     const slot = base + cursor;
     const texture = atlas.walls[frame.thinHitTex[slot]!];
     if (texture !== undefined) {
-      const texels = texture.bands[frame.thinHitBand[slot]!]!;
       const offset = frame.thinHitOffset[slot]!;
       if (offset > 0) {
         drawVerticalSlideColumn(
@@ -698,7 +724,8 @@ function flushThinHits(frame: RaycastFrame, atlas: RaycastAtlas, focal: number, 
           x,
           frame.thinHitDist[slot]!,
           focal,
-          texels,
+          texture,
+          frame.thinHitBand[slot]!,
           frame.thinHitTexX[slot]!,
           frame.thinHitSlide[slot]!,
           offset,
@@ -709,7 +736,8 @@ function flushThinHits(frame: RaycastFrame, atlas: RaycastAtlas, focal: number, 
           x,
           frame.thinHitDist[slot]!,
           focal,
-          texels,
+          texture,
+          frame.thinHitBand[slot]!,
           frame.thinHitTexX[slot]!,
           false,
         );

@@ -14,6 +14,7 @@ import {
 } from "@/src/render/raycast/scene.ts";
 import type { RaycastAtlas, RaycastScene } from "@/src/render/raycast/scene.ts";
 import { bakeSolidTexture, bakeTexture, TEX_SIZE } from "@/src/render/raycast/textures.ts";
+import type { TexelSource } from "@/src/render/raycast/textures.ts";
 
 const VIEW = 64;
 const CENTER = VIEW >> 1;
@@ -75,7 +76,11 @@ function corridorScene(): RaycastScene {
 const CAMERA = cameraForGridPose(1, 1, 1, 0);
 
 function texel(atlas: RaycastAtlas, layer: keyof RaycastAtlas, id: number, band: number): number {
-  return atlas[layer][id]!.bands[band]![0]!;
+  return atlas[layer][id]!.mips[0]!.bands[band]![0]!;
+}
+
+function mipTexel(atlas: RaycastAtlas, layer: keyof RaycastAtlas, id: number, band: number, mip: number): number {
+  return atlas[layer][id]!.mips[mip]!.bands[band]![0]!;
 }
 
 function pixel(frame: { readonly width: number; readonly pixels: Uint32Array }, x: number, y: number): number {
@@ -104,6 +109,23 @@ Deno.test("renderFrame textures floor below and mirrored ceiling above", () => {
 
   assertEquals(pixel(frame, CENTER, VIEW - 4), texel(atlas, "planes", FLOOR, 0));
   assertEquals(pixel(frame, CENTER, 3), texel(atlas, "planes", CEILING, 2));
+});
+
+Deno.test("renderFrame samples distant floor rows from averaged mips", () => {
+  const atlas: RaycastAtlas = {
+    walls: [],
+    planes: [bakeTexture(checkerSource())],
+    sprites: [],
+  };
+  const scene = createScene(80, 3);
+  for (let x = 0; x < 80; x++) {
+    scene.floors[1 * 80 + x] = 1;
+  }
+  const frame = createFrame(VIEW, VIEW);
+
+  renderFrame(frame, scene, atlas, CAMERA);
+
+  assertEquals(pixel(frame, CENTER, CENTER), mipTexel(atlas, "planes", FLOOR, 7, 3));
 });
 
 Deno.test("renderFrame shows the player's current floor and ceiling tile across a portrait view", () => {
@@ -145,6 +167,24 @@ Deno.test("renderFrame keeps side wall context near the edge of a portrait view"
   );
 });
 
+Deno.test("renderFrame samples distant wall columns from averaged mips", () => {
+  const atlas: RaycastAtlas = {
+    walls: [bakeTexture(checkerSource(), { transpose: true })],
+    planes: [],
+    sprites: [],
+  };
+  const scene = createScene(14, 3);
+  scene.walls.fill(WALL + 1);
+  for (let x = 1; x < 13; x++) {
+    scene.walls[1 * 14 + x] = 0;
+  }
+  const frame = createFrame(VIEW, VIEW);
+
+  renderFrame(frame, scene, atlas, CAMERA);
+
+  assertEquals(pixel(frame, CENTER, CENTER), mipTexel(atlas, "walls", WALL, 7, 3));
+});
+
 Deno.test("renderFrame stops rays at opaque thin walls (doors)", () => {
   const atlas = testAtlas();
   const scene = corridorScene();
@@ -171,7 +211,7 @@ Deno.test("renderFrame draws see-through thin walls without stopping rays", () =
   // The centre column crosses the grate's transparent half: wall shows through.
   assertEquals(pixel(frame, CENTER, CENTER), texel(atlas, "walls", WALL, 2));
   // A column just left of centre crosses the opaque half of the grate texture.
-  const grateTexel = atlas.walls[GRATE]!.bands[0]![0]!;
+  const grateTexel = atlas.walls[GRATE]!.mips[0]!.bands[0]![0]!;
   assertEquals(pixel(frame, CENTER - (CENTER >> 2), CENTER), grateTexel);
 });
 
@@ -268,3 +308,18 @@ Deno.test("camera ray plane keeps one floor texture close to one game tile", () 
   assertAlmostEquals(Math.hypot(camera.planeX, camera.planeY), 0.66, 1e-9);
   assertAlmostEquals(CAMERA_PLANE_LENGTH, 0.66, 1e-9);
 });
+
+function checkerSource(): TexelSource {
+  const data = new Uint8ClampedArray(TEX_SIZE * TEX_SIZE * 4);
+  for (let y = 0; y < TEX_SIZE; y++) {
+    for (let x = 0; x < TEX_SIZE; x++) {
+      const value = ((x ^ y) & 1) === 0 ? 0 : 255;
+      const index = (y * TEX_SIZE + x) * 4;
+      data[index] = value;
+      data[index + 1] = value;
+      data[index + 2] = value;
+      data[index + 3] = 255;
+    }
+  }
+  return { width: TEX_SIZE, height: TEX_SIZE, data };
+}

@@ -184,9 +184,10 @@ export function attackEntity(
 export function resolveAttack(attack: AttackSchema, hitDc: number, random: RandomSource): AttackOutcome {
   const roll = rollDie(20, random);
   const total = roll + attack.attackBonus;
+  const automaticHit = roll === 20;
   const critical = attack.critThreshold > 0 && roll >= attack.critThreshold;
 
-  if (!critical && total < hitDc) {
+  if (!automaticHit && total < hitDc) {
     return { type: "miss", roll, total };
   }
 

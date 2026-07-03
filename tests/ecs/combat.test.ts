@@ -74,6 +74,21 @@ Deno.test("resolveAttack multiplies damage on a critical hit", () => {
   assertEquals(outcome.damage, 6);
 });
 
+Deno.test("resolveAttack treats a natural 20 as a non-critical auto-hit when below the crit threshold", () => {
+  const outcome = resolveAttack(
+    { ...BASE_ATTACK, minDamage: 2, maxDamage: 2, critThreshold: 21, critMultiplier: 3 },
+    25,
+    sequenceRandom([0.999, 0]),
+  );
+
+  assertEquals(outcome.type, "hit");
+  if (outcome.type !== "hit") return;
+  assertEquals(outcome.roll, 20);
+  assertEquals(outcome.total, 20);
+  assertEquals(outcome.critical, false);
+  assertEquals(outcome.damage, 2);
+});
+
 Deno.test("attackTargets returns the first entity in a directional line", async () => {
   const world = await createWorld();
   const attacker = createEntity(world);

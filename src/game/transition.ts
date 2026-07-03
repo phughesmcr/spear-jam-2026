@@ -3,8 +3,7 @@ import { combatFeedbackForEvents } from "@/src/game/combat_feedback.ts";
 import type { CombatFeedback } from "@/src/game/combat_feedback.ts";
 import { isPlayerCommand } from "@/src/game/commands.ts";
 import type { GameCommand, PlayerCommand, PlayerCommandResult } from "@/src/game/commands.ts";
-import { createPlayerState } from "@/src/game/state.ts";
-import type { GameMode, PlayerState, ViewMode } from "@/src/game/state.ts";
+import type { GameMode, PlayerStateInput, ViewMode } from "@/src/game/state.ts";
 import { VERBS, verbToCommand } from "@/src/game/verbs.ts";
 
 type IntermissionMode = Extract<GameMode, { readonly type: "intermission" }>;
@@ -16,7 +15,7 @@ export type VerbPointerPhase = "move" | "down" | "up" | "cancel";
 export type GameModel = {
   readonly startMapName: string;
   readonly currentMapName: string;
-  readonly currentLevelEntryState?: PlayerState;
+  readonly currentLevelEntryState?: PlayerStateInput;
   readonly combatFeedback: readonly CombatFeedback[];
   readonly mode: GameMode;
   readonly viewMode: ViewMode;
@@ -27,12 +26,12 @@ export type GameModel = {
 export type GameEffect =
   | { readonly type: "render" }
   | { readonly type: "ensureInput" }
-  | { readonly type: "loadMap"; readonly mapName: string; readonly playerState?: PlayerState }
+  | { readonly type: "loadMap"; readonly mapName: string; readonly playerState?: PlayerStateInput }
   | { readonly type: "runPlayerCommand"; readonly command: PlayerCommand };
 
 export type GameTransitionEvent =
   | { readonly type: "start" }
-  | { readonly type: "mapLoaded"; readonly mapName: string; readonly playerState?: PlayerState }
+  | { readonly type: "mapLoaded"; readonly mapName: string; readonly playerState?: PlayerStateInput }
   | { readonly type: "loadFailed"; readonly message: string }
   | { readonly type: "gameCommand"; readonly command: GameCommand }
   | { readonly type: "verbPointer"; readonly phase: VerbPointerPhase; readonly hotspotIndex?: number }
@@ -40,7 +39,7 @@ export type GameTransitionEvent =
     readonly type: "playerCommandResult";
     readonly result: PlayerCommandResult;
     readonly playerEntity: Entity;
-    readonly playerState: PlayerState;
+    readonly playerState: PlayerStateInput;
   };
 
 export type GameTransition = {
@@ -79,11 +78,11 @@ export function transition(model: GameModel, event: GameTransitionEvent): GameTr
   }
 }
 
-function mapLoaded(model: GameModel, mapName: string, playerState?: PlayerState): GameTransition {
+function mapLoaded(model: GameModel, mapName: string, playerState?: PlayerStateInput): GameTransition {
   return done({
     ...model,
     currentMapName: mapName,
-    currentLevelEntryState: playerState === undefined ? undefined : createPlayerState(playerState),
+    currentLevelEntryState: playerState === undefined ? undefined : clonePlayerStateInput(playerState),
     mode: { type: "playing" },
   }, [{ type: "ensureInput" }, { type: "render" }]);
 }
@@ -115,7 +114,7 @@ function gameCommand(model: GameModel, command: GameCommand): GameTransition {
 
 function intermissionCommand(model: GameModel, mode: IntermissionMode, command: GameCommand): GameTransition {
   if (command.type !== "wait") return done(model);
-  const playerState = createPlayerState(mode.playerState);
+  const playerState = clonePlayerStateInput(mode.playerState);
   return done(
     { ...model, mode: { type: "loading" } },
     [{ type: "render" }, { type: "loadMap", mapName: mode.goto, playerState }],
@@ -145,7 +144,7 @@ function outcomeCommand(
 
   const playerState = model.currentLevelEntryState === undefined ?
     undefined :
-    createPlayerState(model.currentLevelEntryState);
+    clonePlayerStateInput(model.currentLevelEntryState);
   return done(resetModel, [{ type: "render" }, { type: "loadMap", mapName: model.currentMapName, playerState }]);
 }
 
@@ -216,7 +215,7 @@ function playerCommandResult(
   model: GameModel,
   result: PlayerCommandResult,
   playerEntity: Entity,
-  playerState: PlayerState,
+  playerState: PlayerStateInput,
 ): GameTransition {
   const modelWithFeedback = applyCombatFeedback(model, playerEntity, result);
   if (result.outcome) {
@@ -294,15 +293,30 @@ function applyCombatFeedback(
   };
 }
 
-function enterIntermission(model: GameModel, goto: string, playerState: PlayerState): GameModel {
+function enterIntermission(model: GameModel, goto: string, playerState: PlayerStateInput): GameModel {
   return {
     ...model,
     mode: {
       type: "intermission",
       message: `Entering ${goto}. Space to continue.`,
       goto,
-      playerState: createPlayerState(playerState),
+      playerState: clonePlayerStateInput(playerState),
     },
+  };
+}
+
+function clonePlayerStateInput(playerState: PlayerStateInput): PlayerStateInput {
+  return {
+    ...(playerState.heldKeys === undefined ? {} : { heldKeys: [...playerState.heldKeys] }),
+    ...(playerState.selectedWeapon === undefined ? {} : { selectedWeapon: playerState.selectedWeapon }),
+    ...(playerState.unlockedWeapons === undefined ? {} : { unlockedWeapons: [...playerState.unlockedWeapons] }),
+    ...(playerState.ammo === undefined ? {} : { ammo: { ...playerState.ammo } }),
+    ...(playerState.health === undefined ? {} : { health: { ...playerState.health } }),
+    ...(playerState.hasUplinkCode === undefined ? {} : { hasUplinkCode: playerState.hasUplinkCode }),
+    ...(playerState.progress === undefined ? {} : { progress: { ...playerState.progress } }),
+    ...(playerState.turnEffects === undefined ?
+      {} :
+      { turnEffects: playerState.turnEffects.map((effect) => ({ ...effect })) }),
   };
 }
 

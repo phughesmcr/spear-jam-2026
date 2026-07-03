@@ -1,5 +1,6 @@
 import { assertEquals, assertRejects } from "@std/assert";
 import { EnemyArchetype } from "@/src/ecs/components.ts";
+import { DrawableKind } from "@/src/ecs/drawables.ts";
 import { createGameSession } from "@/src/ecs/session.ts";
 import { ItemKind } from "@/src/game/items.ts";
 import type { PlayerCommandResult } from "@/src/game/commands.ts";
@@ -70,6 +71,42 @@ Deno.test("opening a door consumes a turn and refreshes visibility through it", 
     const result = session.handlePlayerCommand({ type: "interact" });
 
     assertEquals(eventTypes(result), ["doorOpened"]);
+    assertEquals(session.getVisibility().isVisible(3, 1), true);
+  } finally {
+    session[Symbol.dispose]();
+  }
+});
+
+Deno.test("consumed player actions run enemy phase, turn effects, and visibility refresh", async () => {
+  const session = await createGameSession(
+    testMap([
+      { prefab: "door", x: 2, y: 1 },
+      {
+        prefab: "enemy",
+        x: 4,
+        y: 1,
+        dir: Direction.West,
+        displayName: DisplayName.NetworkNeophyte,
+        archetype: EnemyArchetype.NetworkNeophyte,
+      },
+    ], 6),
+    () => 0,
+    {
+      turnEffects: [{ kind: TurnEffectKind.Invisibility, remainingTurns: 2 }],
+    },
+  );
+  try {
+    const result = session.handlePlayerCommand({ type: "interact" });
+    const enemies: { readonly x: number; readonly y: number }[] = [];
+    session.forEachDrawable((drawable) => {
+      if (drawable.kind === DrawableKind.Enemy) enemies.push({ x: drawable.x, y: drawable.y });
+    });
+
+    assertEquals(eventTypes(result), ["doorOpened"]);
+    assertEquals(enemies, [{ x: 3, y: 1 }]);
+    assertEquals(session.getPlayerState().turnEffects, [
+      { kind: TurnEffectKind.Invisibility, remainingTurns: 1 },
+    ]);
     assertEquals(session.getVisibility().isVisible(3, 1), true);
   } finally {
     session[Symbol.dispose]();

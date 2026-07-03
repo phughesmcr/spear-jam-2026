@@ -58,6 +58,7 @@ type ResolvedObject = GridPosition & {
 
 const NO_PROPERTY_NAMES: ReadonlySet<string> = new Set();
 const MAP_PROPERTY_NAMES: ReadonlySet<string> = new Set(["name", "palette", "campaignOrder"]);
+const TERRAIN_PROPERTY_NAMES: ReadonlySet<string> = new Set(["terrainId"]);
 const ENTITY_PROPERTY_NAMES: ReadonlySet<string> = new Set([
   "prefab",
   "dir",
@@ -235,11 +236,19 @@ function compileTerrain(
     const row: number[] = [];
     for (let x = 0; x < source.width; x++) {
       const index = y * source.width + x;
-      row.push(decodeTerrainGid(layer.data[index]!, registry, `terrain (${x},${y})`).localId);
+      row.push(terrainIdFromGid(layer.data[index]!, registry, `terrain (${x},${y})`));
     }
     rows.push(row);
   }
   return rows;
+}
+
+function terrainIdFromGid(gid: number, registry: TilesetRegistry, context: string): number {
+  const decoded = decodeTerrainGid(gid, registry, context);
+  const properties = readProperties(decoded.tile?.properties, TERRAIN_PROPERTY_NAMES, context);
+  const terrainId = requiredInteger(properties, "terrainId", context);
+  if (terrainId < 0) throw new Error(`${context}: Property "terrainId" must be non-negative.`);
+  return terrainId;
 }
 
 function compileEntities(

@@ -31,10 +31,10 @@ import {
   UplinkTerminal,
 } from "@/src/ecs/components.ts";
 import type { AttackSchema } from "@/src/ecs/components.ts";
+import { DEFAULT_PLAYER_HEALTH } from "@/src/ecs/progression.ts";
 import { DEFAULT_ATTACK } from "@/src/game/attack.ts";
 import { normalizeDirection } from "@/src/grid/direction.ts";
 import { doorSlideCode, keyColorCode } from "@/src/map/map.ts";
-import { DEFAULT_PLAYER_STATE } from "@/src/game/state.ts";
 import { ItemKind } from "@/src/game/items.ts";
 import type {
   DoorDef,
@@ -131,7 +131,7 @@ export function createPlayer(world: World, prefab: PlayerPrefab): Entity {
     entity,
     [
       [Player],
-      [Health, { current: DEFAULT_PLAYER_STATE.health.max, max: DEFAULT_PLAYER_STATE.health.max }],
+      [Health, { current: DEFAULT_PLAYER_HEALTH.max, max: DEFAULT_PLAYER_HEALTH.max }],
       [Defense, { hitDc: DEFAULT_PLAYER_HIT_DC }],
     ] as const,
   );
