@@ -15,6 +15,8 @@ export const TEX_MASK = TEX_SIZE - 1;
 export const TEX_MIP_SIZES = [128, 64, 32, 16] as const;
 
 const TEX_MIP_SHIFTS = [7, 6, 5, 4] as const;
+const SHADE_GAMMA = 2.2;
+const INVERSE_SHADE_GAMMA = 1 / SHADE_GAMMA;
 
 /** Darkness variants per texture; band 0 is full brightness. */
 export const SHADE_BANDS = 8;
@@ -176,15 +178,21 @@ function bakeMip(source: Uint8Array, size: number, shift: number, transpose: boo
         const brightness = (SHADE_BANDS - band) / SHADE_BANDS;
         const byteIndex = texelIndex * 4;
         const bytes = bandBytes[band]!;
-        bytes[byteIndex] = (red * brightness) | 0;
-        bytes[byteIndex + 1] = (green * brightness) | 0;
-        bytes[byteIndex + 2] = (blue * brightness) | 0;
+        bytes[byteIndex] = shadeChannel(red, brightness);
+        bytes[byteIndex + 1] = shadeChannel(green, brightness);
+        bytes[byteIndex + 2] = shadeChannel(blue, brightness);
         bytes[byteIndex + 3] = 255;
       }
     }
   }
 
   return { size, shift, mask: size - 1, bands };
+}
+
+function shadeChannel(value: number, brightness: number): number {
+  if (brightness >= 1 || value === 0) return value;
+  const linear = Math.pow(value / 255, SHADE_GAMMA) * brightness;
+  return Math.round(255 * Math.pow(linear, INVERSE_SHADE_GAMMA));
 }
 
 /** Bake a flat-colour texture (loading fallbacks, procedural surfaces). */

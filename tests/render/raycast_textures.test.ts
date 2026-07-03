@@ -33,7 +33,7 @@ Deno.test("bakeTexture packs opaque texels in ImageData byte order", () => {
   assertEquals(texelBytes(band(baked), TEX_SIZE * TEX_SIZE - 1), [200, 100, 50, 255]);
 });
 
-Deno.test("bakeTexture darkens each shade band and keeps alpha opaque", () => {
+Deno.test("bakeTexture darkens each shade band in gamma-aware steps and keeps alpha opaque", () => {
   const baked = bakeTexture(sourceFromRgba(1, 1, [255, 128, 64, 255]));
 
   let previousRed = 256;
@@ -43,7 +43,7 @@ Deno.test("bakeTexture darkens each shade band and keeps alpha opaque", () => {
     assertEquals(alpha, 255);
     previousRed = red;
   }
-  assertEquals(texelBytes(band(baked, SHADE_BANDS - 1), 0)[0], (255 / SHADE_BANDS) | 0);
+  assertEquals(texelBytes(band(baked, SHADE_BANDS - 1), 0), [99, 50, 25, 255]);
 });
 
 Deno.test("bakeTexture maps transparent texels to the zero sentinel", () => {
