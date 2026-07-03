@@ -17,6 +17,7 @@ const COMMANDS_BY_KEY = {
   KeyE: { type: "turn", direction: "right" },
   Comma: { type: "attack" },
   Period: { type: "action" },
+  Tab: { type: "toggleView" },
   Escape: { type: "menu" },
   KeyP: { type: "pause" },
   Digit1: { type: "selectWeapon", slot: 1 },

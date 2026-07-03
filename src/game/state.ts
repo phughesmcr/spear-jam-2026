@@ -126,3 +126,6 @@ export type GameMode =
   | { readonly type: "victory" }
   | { readonly type: "defeat" }
   | { readonly type: "error"; readonly message: string };
+
+/** Which renderer presents the playing view. */
+export type ViewMode = "firstPerson" | "topDown";

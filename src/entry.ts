@@ -7,7 +7,7 @@ import type { CombatFeedback } from "@/src/game/combat_feedback.ts";
 import { SplitMix32 } from "@/src/game/rng.ts";
 import { createGameModel, transition } from "@/src/game/transition.ts";
 import type { GameEffect, GameModel, GameTransitionEvent } from "@/src/game/transition.ts";
-import type { GameMode, PlayerState } from "@/src/game/state.ts";
+import type { GameMode, PlayerState, ViewMode } from "@/src/game/state.ts";
 import { setupInput as setupRealInput } from "@/src/input/input.ts";
 import type { CanvasPointerInput } from "@/src/input/pointer.ts";
 import { getMap as getRealMap, START_MAP_NAME } from "@/src/map/maps.ts";
@@ -40,6 +40,7 @@ type GameFrameRenderer = (
   mode: GameMode,
   messages: readonly string[],
   combatFeedback: readonly CombatFeedback[],
+  viewMode: ViewMode,
   onAssetLoad?: () => void,
 ) => void;
 
@@ -115,6 +116,7 @@ class Game implements Disposable {
       this.model.mode,
       this.model.recentMessages,
       this.model.combatFeedback,
+      this.model.viewMode,
       this.renderLoadedAssets,
     );
   }
@@ -253,6 +255,7 @@ function renderRuntimeGameFrame(
   mode: GameMode,
   messages: readonly string[],
   combatFeedback: readonly CombatFeedback[],
+  viewMode: ViewMode,
   onAssetLoad?: () => void,
 ): void {
   renderRealGameFrame(
@@ -262,6 +265,7 @@ function renderRuntimeGameFrame(
     mode,
     messages,
     combatFeedback,
+    viewMode,
     onAssetLoad,
   );
 }

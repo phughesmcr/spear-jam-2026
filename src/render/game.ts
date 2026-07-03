@@ -1,12 +1,13 @@
 import type { GameSession } from "@/src/ecs/session.ts";
 import type { CombatFeedback } from "@/src/game/combat_feedback.ts";
-import type { GameMode } from "@/src/game/state.ts";
+import type { GameMode, ViewMode } from "@/src/game/state.ts";
 import type { GameCanvasSize } from "@/src/render/canvas.ts";
 import { renderCombatFeedback } from "@/src/render/combat_feedback.ts";
 import { renderDrawableEntities } from "@/src/render/drawables.ts";
 import { preloadFirstPersonAssets, renderFirstPersonView } from "@/src/render/first_person.ts";
 import { renderHud } from "@/src/render/hud.ts";
 import { renderMap } from "@/src/render/map.ts";
+import type { MapRenderMetrics } from "@/src/render/map.ts";
 import { renderMessageLog } from "@/src/render/messages.ts";
 import { renderOverlay } from "@/src/render/overlay.ts";
 import { preloadVerbMenuAssets, renderVerbMenu } from "@/src/render/verb_menu.ts";
@@ -20,6 +21,21 @@ export async function preloadGameAssets(document: Document, onAssetLoad?: () => 
   ]);
 }
 
+/** Where the combat feedback strip sits above the message log, full width. */
+const FEEDBACK_MARGIN = 12;
+const FEEDBACK_BOTTOM_OFFSET = 150;
+
+/** Synthetic map metrics so the feedback strip can render without a map. */
+function firstPersonFeedbackMetrics(canvasSize: GameCanvasSize): MapRenderMetrics {
+  return {
+    mapWidth: 1,
+    mapHeight: 0,
+    tileSize: canvasSize.width - FEEDBACK_MARGIN * 2,
+    offsetX: FEEDBACK_MARGIN,
+    offsetY: canvasSize.height - FEEDBACK_BOTTOM_OFFSET,
+  };
+}
+
 export function renderGameFrame(
   ctx: CanvasRenderingContext2D,
   canvasSize: GameCanvasSize,
@@ -27,27 +43,26 @@ export function renderGameFrame(
   mode: GameMode = { type: "loading" },
   messages: readonly string[] = [],
   combatFeedback: readonly CombatFeedback[] = [],
+  viewMode: ViewMode = "firstPerson",
   onAssetLoad?: () => void,
 ): void {
   ctx.fillStyle = BACKGROUND_COLOR;
   ctx.fillRect(0, 0, canvasSize.width, canvasSize.height);
   if (session) {
     const { map } = session;
-    const viewHeight = Math.min(canvasSize.width, Math.floor(canvasSize.height / 2));
-    renderFirstPersonView(
-      ctx,
-      { x: 0, y: 0, width: canvasSize.width, height: viewHeight },
-      session,
-      onAssetLoad,
-    );
-
-    const mapArea: GameCanvasSize = { width: canvasSize.width, height: canvasSize.height - viewHeight };
-    ctx.save();
-    ctx.translate(0, viewHeight);
-    const metrics = renderMap(ctx, mapArea, map, session.getVisibility());
-    renderDrawableEntities(ctx, session, metrics);
-    renderCombatFeedback(ctx, metrics, combatFeedback);
-    ctx.restore();
+    if (viewMode === "firstPerson") {
+      renderFirstPersonView(
+        ctx,
+        { x: 0, y: 0, width: canvasSize.width, height: canvasSize.height },
+        session,
+        onAssetLoad,
+      );
+      renderCombatFeedback(ctx, firstPersonFeedbackMetrics(canvasSize), combatFeedback);
+    } else {
+      const metrics = renderMap(ctx, canvasSize, map, session.getVisibility());
+      renderDrawableEntities(ctx, session, metrics);
+      renderCombatFeedback(ctx, metrics, combatFeedback);
+    }
     renderHud(ctx, canvasSize, session);
   }
   renderMessageLog(ctx, canvasSize, messages);

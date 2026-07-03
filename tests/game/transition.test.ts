@@ -109,3 +109,25 @@ Deno.test("transition retries defeat from the current level entry snapshot", () 
     { type: "loadMap", mapName: "Level 2", playerState: entryState },
   ]);
 });
+
+Deno.test("transition toggles the playing view mode with a render", () => {
+  const model = createGameModel("Level 1");
+  assertEquals(model.viewMode, "firstPerson");
+
+  const toggled = transition(model, { type: "gameCommand", command: { type: "toggleView" } });
+  assertEquals(toggled.model.viewMode, "topDown");
+  assertEquals(toggled.effects, [{ type: "render" }]);
+
+  const restored = transition(toggled.model, { type: "gameCommand", command: { type: "toggleView" } });
+  assertEquals(restored.model.viewMode, "firstPerson");
+});
+
+Deno.test("transition keeps the view mode across map loads", () => {
+  const toggled = transition(createGameModel("Level 1"), {
+    type: "gameCommand",
+    command: { type: "toggleView" },
+  });
+  const loaded = transition(toggled.model, { type: "mapLoaded", mapName: "Level 2" });
+
+  assertEquals(loaded.model.viewMode, "topDown");
+});

@@ -5,7 +5,7 @@ import { isPlayerCommand } from "@/src/game/commands.ts";
 import type { GameCommand, PlayerCommand, PlayerCommandResult } from "@/src/game/commands.ts";
 import { messageForEvent } from "@/src/game/messages.ts";
 import { createPlayerState } from "@/src/game/state.ts";
-import type { GameMode, PlayerState } from "@/src/game/state.ts";
+import type { GameMode, PlayerState, ViewMode } from "@/src/game/state.ts";
 import { VERBS, verbToCommand } from "@/src/game/verbs.ts";
 
 const MESSAGE_LOG_LIMIT = 5;
@@ -23,6 +23,7 @@ export type GameModel = {
   readonly recentMessages: readonly string[];
   readonly combatFeedback: readonly CombatFeedback[];
   readonly mode: GameMode;
+  readonly viewMode: ViewMode;
   readonly lastVerbIndex: number;
   readonly verbPointerDownIndex?: number;
 };
@@ -58,6 +59,7 @@ export function createGameModel(startMapName: string): GameModel {
     recentMessages: [],
     combatFeedback: [],
     mode: { type: "loading" },
+    viewMode: "firstPerson",
     lastVerbIndex: 0,
   };
 }
@@ -111,6 +113,8 @@ function gameCommand(model: GameModel, command: GameCommand): GameTransition {
       return toggleMenu(model);
     case "pause":
       return togglePause(model);
+    case "toggleView":
+      return toggleView(model);
   }
 }
 
@@ -172,6 +176,7 @@ function verbMenuCommand(model: GameModel, mode: VerbMenuMode, command: GameComm
     case "attack":
     case "selectWeapon":
     case "pause":
+    case "toggleView":
       return done(model);
   }
 }
@@ -241,6 +246,11 @@ function toggleMenu(model: GameModel): GameTransition {
     default:
       return done(model, [{ type: "render" }]);
   }
+}
+
+function toggleView(model: GameModel): GameTransition {
+  const viewMode: ViewMode = model.viewMode === "firstPerson" ? "topDown" : "firstPerson";
+  return done({ ...model, viewMode }, [{ type: "render" }]);
 }
 
 function togglePause(model: GameModel): GameTransition {

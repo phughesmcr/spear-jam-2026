@@ -3,7 +3,7 @@ import type { Entity } from "@phughesmcr/miski";
 import { startGame } from "@/src/entry.ts";
 import type { GameCommand, PlayerCommand, PlayerCommandResult } from "@/src/game/commands.ts";
 import { createPlayerState } from "@/src/game/state.ts";
-import type { GameMode, PlayerState, PlayerStateInput } from "@/src/game/state.ts";
+import type { GameMode, PlayerState, PlayerStateInput, ViewMode } from "@/src/game/state.ts";
 import type { CanvasPointerInput } from "@/src/input/pointer.ts";
 import type { GameCanvasSize } from "@/src/render/canvas.ts";
 import { verbMenuSpriteRect } from "@/src/render/verb_menu.ts";
@@ -248,6 +248,7 @@ class EntryHarness implements Disposable {
           mode: GameMode,
           _messages: readonly string[],
           _combatFeedback: readonly unknown[],
+          _viewMode: ViewMode,
           _onAssetLoad?: () => void,
         ): void => {
           this.frames.push({ mode });

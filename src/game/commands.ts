@@ -19,7 +19,8 @@ export type GameCommand =
   | PlayerCommand
   | { readonly type: "action" }
   | { readonly type: "menu" }
-  | { readonly type: "pause" };
+  | { readonly type: "pause" }
+  | { readonly type: "toggleView" };
 
 export type MapChange = {
   readonly goto: string;
@@ -67,6 +68,7 @@ export function isPlayerCommand(command: GameCommand): command is PlayerCommand 
     case "action":
     case "menu":
     case "pause":
+    case "toggleView":
       return false;
   }
 }
