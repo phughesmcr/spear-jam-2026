@@ -46,8 +46,15 @@ export type ThinWallSlide =
 export const CAMERA_PLANE_LENGTH = 0.66;
 
 const PROJECTION_PLANE_LENGTH = CAMERA_PLANE_LENGTH;
-/** Eye height above the floor in world-tile units. */
-const CAMERA_HEIGHT = 0.38;
+/**
+ * Eye height above the floor in world-tile units. Walls project symmetrically
+ * about the horizon (`drawWallColumn` spans `horizon +- lineHeight / 2`),
+ * which places the eye halfway up the one-tile-tall walls. Floor and ceiling
+ * casting must use the same height (and its mirror, `1 - CAMERA_HEIGHT`, for
+ * the ceiling) or plane tile boundaries detach from wall bases and the planes
+ * render over-tiled. At 0.5 the mirror is free: one row distance serves both.
+ */
+const CAMERA_HEIGHT = 0.5;
 
 const MAX_THIN_WALLS = 64;
 const MAX_SPRITES = 128;

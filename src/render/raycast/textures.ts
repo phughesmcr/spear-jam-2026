@@ -1,7 +1,7 @@
 /**
  * Texel baking for the first-person raycast renderer.
  *
- * All render-time textures are 64x64 arrays of packed RGBA texels (one
+ * All render-time textures are 128x128 arrays of packed RGBA texels (one
  * Uint32 per texel, byte order matching ImageData memory). Baking happens
  * once at load time so the per-pixel render loops only ever copy uint32s:
  * shading is pre-multiplied into SHADE_BANDS darkness variants and wall or
@@ -9,8 +9,8 @@
  * texture memory sequentially.
  */
 
-export const TEX_SIZE = 64;
-export const TEX_SHIFT = 6;
+export const TEX_SIZE = 128;
+export const TEX_SHIFT = 7;
 export const TEX_MASK = TEX_SIZE - 1;
 
 /** Darkness variants per texture; band 0 is full brightness. */
@@ -45,7 +45,7 @@ export type BakeOptions = {
 };
 
 /**
- * Bake an RGBA source into pre-shaded 64x64 texel bands. Sources of any size
+ * Bake an RGBA source into pre-shaded TEX_SIZE texel bands. Sources of any size
  * are resampled with nearest-neighbour; texels with alpha below 128 become
  * {@link TRANSPARENT_TEXEL} and everything else is forced fully opaque.
  */

@@ -121,7 +121,9 @@ Deno.test("renderFrame shows the player's current floor and ceiling tile across 
   assertEquals(pixel(frame, frame.width >> 1, aheadY), texel(atlas, "planes", AHEAD_FLOOR, 0));
   assertEquals(pixel(frame, frame.width >> 1, frame.height - 1 - aheadY), texel(atlas, "planes", AHEAD_FLOOR, 2));
 
-  const sampleY = Math.floor(frame.height * 0.875);
+  // The current tile's front edge (0.5 tiles ahead) projects at
+  // horizon + focal, about 93% down this portrait frame; sample below it.
+  const sampleY = Math.floor(frame.height * 0.95);
   const sampleXs = [Math.floor(frame.width * 0.2), frame.width >> 1, Math.floor(frame.width * 0.8)];
   for (const x of sampleXs) {
     assertEquals(pixel(frame, x, sampleY), texel(atlas, "planes", CURRENT_FLOOR, 0));
@@ -257,7 +259,7 @@ Deno.test("renderFrame survives a camera boxed in by walls", () => {
 });
 
 Deno.test("texture size stays the baked constant the renderer assumes", () => {
-  assertEquals(TEX_SIZE, 64);
+  assertEquals(TEX_SIZE, 128);
 });
 
 Deno.test("camera ray plane keeps one floor texture close to one game tile", () => {

@@ -2,7 +2,7 @@
  * First-person view adapter.
  *
  * Bridges the game session to the raycast renderer: bakes PNG assets into
- * 64x64 texel bands (with procedural fallbacks while images load), builds the
+ * TEX_SIZE texel bands (with procedural fallbacks while images load), builds the
  * static terrain arrays once per map, and rebuilds the cheap dynamic scene
  * (doors as thin walls, drawables as billboard sprites) each frame.
  *
@@ -554,7 +554,7 @@ function opaqueBounds(pixels: TexelSource): OpaqueBounds | undefined {
   return { left, top, right, bottom };
 }
 
-/** Content crop within a frame, in 64ths of the frame's span. */
+/** Content crop within a frame, in TEX_SIZE-ths of the frame's span. */
 type ContentCrop = {
   readonly left: number;
   readonly top: number;
@@ -562,7 +562,7 @@ type ContentCrop = {
 };
 
 /**
- * Draw (a frame of) the image at 64x64, optionally zoomed to a crop within
+ * Draw (a frame of) the image at TEX_SIZE square, optionally zoomed to a crop within
  * the frame, and hand back its pixels for baking.
  */
 function rasterize(
@@ -610,7 +610,7 @@ function measureContentCrop(
   if (bounds === undefined) return undefined;
 
   // Extra margin absorbs pose-to-pose size differences under a shared crop.
-  const margin = 3;
+  const margin = Math.round(TEX_SIZE * 0.05);
   const size = Math.max(bounds.right - bounds.left, bounds.bottom - bounds.top) + 1 + margin * 2;
   let left = (bounds.left + bounds.right + 1) / 2 - size / 2;
   let top = bounds.bottom + 1 + margin - size;
