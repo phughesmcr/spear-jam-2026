@@ -2,6 +2,7 @@ import { assert, assertAlmostEquals, assertEquals } from "@std/assert";
 import {
   addSprite,
   addThinWall,
+  CAMERA_PLANE_LENGTH,
   cameraForGridPose,
   clearSceneDynamic,
   createFrame,
@@ -257,4 +258,11 @@ Deno.test("renderFrame survives a camera boxed in by walls", () => {
 
 Deno.test("texture size stays the baked constant the renderer assumes", () => {
   assertEquals(TEX_SIZE, 64);
+});
+
+Deno.test("camera ray plane keeps one floor texture close to one game tile", () => {
+  const camera = cameraForGridPose(1, 1, 1, 0);
+
+  assertAlmostEquals(Math.hypot(camera.planeX, camera.planeY), 0.66, 1e-9);
+  assertAlmostEquals(CAMERA_PLANE_LENGTH, 0.66, 1e-9);
 });

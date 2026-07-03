@@ -4,6 +4,7 @@ import {
   AwarenessState,
   EnemyArchetype,
   enemyArchetypeFor,
+  Health,
   IDLE_AWARENESS,
 } from "@/src/ecs/components.ts";
 import type {
@@ -91,11 +92,17 @@ export const enemyTurnSystem = new System({
     const events: GameEvent[] = [];
 
     for (let i = 0; i < count; i++) {
+      if (isPlayerDefeated(context)) break;
       events.push(...advanceEnemyTurn(context, indices[i]!, gridPos, facing, enemyAwareness, markers));
     }
     return events;
   },
 });
+
+function isPlayerDefeated(context: EnemyTurnContext): boolean {
+  const health = context.world.components.readEntityData(Health, context.player.getEntity());
+  return health !== undefined && health.current <= 0;
+}
 
 function advanceEnemyTurn(
   context: EnemyTurnContext,

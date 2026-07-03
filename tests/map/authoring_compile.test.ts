@@ -225,6 +225,7 @@ Deno.test("compileTiledMap compiles representative prefabs and enemy attack over
             property("displayName", "systemSentinel"),
             property("archetype", "systemSentinel"),
             property("health", 11),
+            property("hitDc", 14),
             property("damage", 4),
             property("attackMinDamage", 2),
             property("attackMaxDamage", 6),
@@ -288,6 +289,7 @@ Deno.test("compileTiledMap compiles representative prefabs and enemy attack over
       displayName: DisplayName.SystemSentinel,
       archetype: EnemyArchetype.SystemSentinel,
       health: 11,
+      hitDc: 14,
       damage: 4,
       attack: {
         minDamage: 2,

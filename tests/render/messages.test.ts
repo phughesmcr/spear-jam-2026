@@ -2,7 +2,7 @@ import { assertEquals } from "@std/assert";
 import {
   messageLogLineY,
   messageLogTextColor,
-  renderMessageLog,1280
+  renderMessageLog,
   visibleMessageLogLines,
 } from "@/src/render/messages.ts";
 

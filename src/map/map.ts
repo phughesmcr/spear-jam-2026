@@ -94,6 +94,7 @@ export type EnemyDef = {
   displayName: DisplayName;
   archetype?: EnemyArchetype;
   health?: number;
+  hitDc?: number;
   damage?: number;
   attack?: Partial<AttackDef>;
   examineTextId?: number;

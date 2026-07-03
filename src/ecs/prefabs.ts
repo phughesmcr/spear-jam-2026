@@ -6,6 +6,7 @@ import {
   AttackPattern,
   AttackTargetMode,
   Blocking,
+  Defense,
   Dialogue,
   DisplayNameComponent,
   Door,
@@ -50,13 +51,17 @@ import type {
 
 type EnemyArchetypeDefaults = {
   readonly health: number;
+  readonly hitDc: number;
   readonly damage: number;
   readonly attack: Partial<AttackSchema>;
 };
 
+const DEFAULT_PLAYER_HIT_DC = 10;
+
 const ENEMY_ARCHETYPE_DEFAULTS: Readonly<Record<EnemyArchetype, EnemyArchetypeDefaults>> = {
   [EnemyArchetype.MeleeDog]: {
     health: 2,
+    hitDc: 10,
     damage: 1,
     attack: {
       attackBonus: 4,
@@ -65,6 +70,7 @@ const ENEMY_ARCHETYPE_DEFAULTS: Readonly<Record<EnemyArchetype, EnemyArchetypeDe
   },
   [EnemyArchetype.Gunslinger]: {
     health: 2,
+    hitDc: 10,
     damage: 1,
     attack: {
       attackBonus: 3,
@@ -73,6 +79,7 @@ const ENEMY_ARCHETYPE_DEFAULTS: Readonly<Record<EnemyArchetype, EnemyArchetypeDe
   },
   [EnemyArchetype.NetworkNeophyte]: {
     health: 3,
+    hitDc: 10,
     damage: 1,
     attack: {
       attackBonus: 2,
@@ -81,6 +88,7 @@ const ENEMY_ARCHETYPE_DEFAULTS: Readonly<Record<EnemyArchetype, EnemyArchetypeDe
   },
   [EnemyArchetype.SystemSentinel]: {
     health: 7,
+    hitDc: 10,
     damage: 2,
     attack: {
       attackBonus: 4,
@@ -89,6 +97,7 @@ const ENEMY_ARCHETYPE_DEFAULTS: Readonly<Record<EnemyArchetype, EnemyArchetypeDe
   },
   [EnemyArchetype.AgenticAcolyte]: {
     health: 4,
+    hitDc: 10,
     damage: 2,
     attack: {
       requiresFacing: AttackFacingRequirement.None,
@@ -123,6 +132,7 @@ export function createPlayer(world: World, prefab: PlayerPrefab): Entity {
     [
       [Player],
       [Health, { current: DEFAULT_PLAYER_STATE.health.max, max: DEFAULT_PLAYER_STATE.health.max }],
+      [Defense, { hitDc: DEFAULT_PLAYER_HIT_DC }],
     ] as const,
   );
   return entity;
@@ -153,6 +163,7 @@ export function createEnemy(world: World, prefab: EnemyPrefab): Entity {
   const archetype = prefab.archetype ?? EnemyArchetype.MeleeDog;
   const defaults = ENEMY_ARCHETYPE_DEFAULTS[archetype];
   const health = prefab.health ?? defaults.health;
+  const hitDc = prefab.hitDc ?? defaults.hitDc;
   const entity = createGridActor(world, prefab, DrawableKind.Enemy, DrawableLayer.Enemy);
   world.components.addBundle(
     entity,
@@ -162,6 +173,7 @@ export function createEnemy(world: World, prefab: EnemyPrefab): Entity {
       [EnemyAwareness, IDLE_AWARENESS],
       [EnemyArchetypeComponent, { archetype }],
       [Health, { current: health, max: health }],
+      [Defense, { hitDc }],
       [Attack, createAttackSpec(prefab, defaults)],
     ] as const,
   );

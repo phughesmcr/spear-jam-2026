@@ -4,6 +4,7 @@ import {
   AttackFacingRequirement,
   AttackPattern,
   AttackTargetMode,
+  Defense,
   DisplayNameComponent,
   Enemy,
   Facing,
@@ -39,7 +40,6 @@ export type AttackOutcome =
     readonly critical: boolean;
   };
 
-const DEFAULT_DEFENSE = 10;
 const MELEE_ATTACK_NOISE_RADIUS = 4;
 const RANGED_ATTACK_NOISE_RADIUS = 8;
 const PLAYER_WEAPONS: Readonly<Record<CommandSlot, WeaponSpec>> = {
@@ -91,13 +91,7 @@ export function attackWithSelectedWeapon(
   random: RandomSource,
 ): readonly GameEvent[] {
   const weapon = PLAYER_WEAPONS[selectedWeapon];
-  const targets = attackTargets(
-    world,
-    player.getEntity(),
-    weapon,
-    spatial,
-    (entity) => world.components.entityHas(Enemy, entity),
-  );
+  const targets = attackTargetsForSelectedWeapon(world, player, selectedWeapon, spatial);
 
   if (targets.length === 0) {
     return [{
@@ -114,6 +108,21 @@ export function attackWithSelectedWeapon(
   return events;
 }
 
+export function attackTargetsForSelectedWeapon(
+  world: World,
+  player: Player,
+  selectedWeapon: CommandSlot,
+  spatial: SpatialLookup,
+): readonly Entity[] {
+  return attackTargets(
+    world,
+    player.getEntity(),
+    PLAYER_WEAPONS[selectedWeapon],
+    spatial,
+    (entity) => world.components.entityHas(Enemy, entity),
+  );
+}
+
 export function attackEntity(
   world: World,
   attacker: Entity,
@@ -124,10 +133,14 @@ export function attackEntity(
 ): readonly GameEvent[] {
   const health = world.components.readEntityData(Health, defender);
   if (health === undefined) return [];
+  if (health.current <= 0) return [];
+
+  const defense = world.components.readEntityData(Defense, defender);
+  if (defense === undefined) return [];
 
   const attackerName = entityName(world, attacker);
   const defenderName = entityName(world, defender);
-  const outcome = resolveAttack(attack, random);
+  const outcome = resolveAttack(attack, defense.hitDc, random);
   if (outcome.type === "miss") {
     return [{
       type: "attackMissed",
@@ -168,12 +181,12 @@ export function attackEntity(
   return events;
 }
 
-export function resolveAttack(attack: AttackSchema, random: RandomSource): AttackOutcome {
+export function resolveAttack(attack: AttackSchema, hitDc: number, random: RandomSource): AttackOutcome {
   const roll = rollDie(20, random);
   const total = roll + attack.attackBonus;
   const critical = attack.critThreshold > 0 && roll >= attack.critThreshold;
 
-  if (!critical && total < DEFAULT_DEFENSE) {
+  if (!critical && total < hitDc) {
     return { type: "miss", roll, total };
   }
 

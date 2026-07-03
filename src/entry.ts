@@ -16,7 +16,8 @@ import type { CanvasPointerInput } from "@/src/input/pointer.ts";
 import { getMap as getRealMap, START_MAP_NAME } from "@/src/map/maps.ts";
 import { configureCanvasDpi as configureRealCanvasDpi, DEFAULT_GAME_CANVAS_SIZE } from "@/src/render/canvas.ts";
 import type { GameCanvasSize } from "@/src/render/canvas.ts";
-import { bumpFirstPersonView, markSpriteAttack, markSpriteDeath } from "@/src/render/first_person.ts";
+import { createFirstPersonRenderer } from "@/src/render/first_person.ts";
+import type { FirstPersonRenderer } from "@/src/render/first_person.ts";
 import {
   preloadGameAssets as preloadRealGameAssets,
   renderGameFrame as renderRealGameFrame,
@@ -34,6 +35,7 @@ interface GameSessionHandle extends Disposable {
   readonly map: GameSession["map"];
   readonly player: Pick<GameSession["player"], "getEntity" | "getPosition" | "getFacing">;
   getPlayerState(): PlayerState;
+  targetMarkerTone(): ReturnType<GameSession["targetMarkerTone"]>;
   handlePlayerCommand(command: PlayerCommand): PlayerCommandResult;
 }
 
@@ -52,6 +54,7 @@ type GameFrameRenderer = (
   combatFeedback: readonly CombatFeedback[],
   viewMode: ViewMode,
   weaponHudPhase: WeaponHudPhase,
+  firstPersonRenderer: FirstPersonRenderer,
   firstPersonHud: FirstPersonHudOptions,
   onAssetLoad?: () => void,
 ) => void;
@@ -63,6 +66,7 @@ type MessageHudEntry = {
 };
 
 export interface GameRuntime {
+  readonly createFirstPersonRenderer: () => FirstPersonRenderer;
   readonly configureCanvasDpi: typeof configureRealCanvasDpi;
   readonly createGameSession: GameSessionFactory;
   readonly getMap: typeof getRealMap;
@@ -90,6 +94,7 @@ class Game implements Disposable {
   private readonly spec: GameSpec;
   private readonly controller: AbortController;
   private readonly runtime: GameRuntime;
+  private readonly firstPersonRenderer: FirstPersonRenderer;
   private readonly rng: SplitMix32;
   private model: GameModel = createGameModel(START_MAP_NAME);
   private canvasController: Disposable;
@@ -111,6 +116,7 @@ class Game implements Disposable {
     this.spec = spec;
     this.controller = controller;
     this.runtime = spec.runtime ?? gameRuntime();
+    this.firstPersonRenderer = this.runtime.createFirstPersonRenderer();
     this.rng = new SplitMix32(spec.seed);
     this.canvasController = this.runtime.configureCanvasDpi(
       spec.window,
@@ -142,6 +148,7 @@ class Game implements Disposable {
       this.model.combatFeedback,
       this.model.viewMode,
       this.weaponHudPhase,
+      this.firstPersonRenderer,
       { showKeys: this.keyHudVisible },
       this.renderLoadedAssets,
     );
@@ -150,7 +157,11 @@ class Game implements Disposable {
   private async loadMap(mapName: string, playerState?: PlayerState): Promise<void> {
     const [session] = await Promise.all([
       this.runtime.createGameSession(this.runtime.getMap(mapName), () => this.rng.nextFloat(), playerState),
-      this.runtime.preloadGameAssets(this.spec.canvas.ownerDocument, this.renderLoadedAssets),
+      this.runtime.preloadGameAssets(
+        this.spec.canvas.ownerDocument,
+        this.firstPersonRenderer,
+        this.renderLoadedAssets,
+      ),
     ]);
     if (this.controller.signal.aborted) {
       session[Symbol.dispose]();
@@ -159,6 +170,7 @@ class Game implements Disposable {
 
     const previousSession = this.session;
     this.session = session;
+    this.firstPersonRenderer.reset();
     this.clearWeaponHudTimeout();
     this.clearKeyHudTimeout();
     this.clearMessageHudEntries();
@@ -207,7 +219,7 @@ class Game implements Disposable {
           this.session.player.getFacing().dir + relativeMoveDirectionOffset(command.direction),
         );
         const delta = directionDelta(worldDir);
-        bumpFirstPersonView(delta.dx, delta.dy);
+        this.firstPersonRenderer.bump(delta.dx, delta.dy);
       }
     }
     if (playerAttackOccurred(result.events, playerEntity)) {
@@ -223,9 +235,9 @@ class Game implements Disposable {
       // First-person sprite animation: enemies strike a pose when they
       // attack and play a death sequence when defeated.
       if ((event.type === "damageDealt" || event.type === "attackMissed") && event.actor !== playerEntity) {
-        markSpriteAttack(event.actor);
+        this.firstPersonRenderer.markSpriteAttack(event.actor);
       } else if (event.type === "entityDefeated") {
-        markSpriteDeath(event.entity);
+        this.firstPersonRenderer.markSpriteDeath(event.entity);
       }
     }
     this.apply({
@@ -237,8 +249,12 @@ class Game implements Disposable {
   }
 
   private apply(event: GameTransitionEvent): void {
+    const previousViewMode = this.model.viewMode;
     const next = transition(this.model, event);
     this.model = next.model;
+    if (this.model.viewMode !== previousViewMode) {
+      this.firstPersonRenderer.reset();
+    }
     this.executeEffects(next.effects);
   }
 
@@ -368,6 +384,7 @@ function keyHudShouldFlash(events: readonly GameEvent[]): boolean {
 
 function gameRuntime(): GameRuntime {
   return {
+    createFirstPersonRenderer,
     configureCanvasDpi: configureRealCanvasDpi,
     createGameSession: createRuntimeGameSession,
     getMap: getRealMap,
@@ -394,6 +411,7 @@ function renderRuntimeGameFrame(
   combatFeedback: readonly CombatFeedback[],
   viewMode: ViewMode,
   weaponHudPhase: WeaponHudPhase,
+  firstPersonRenderer: FirstPersonRenderer,
   firstPersonHud: FirstPersonHudOptions,
   onAssetLoad?: () => void,
 ): void {
@@ -406,6 +424,7 @@ function renderRuntimeGameFrame(
     combatFeedback,
     viewMode,
     weaponHudPhase,
+    firstPersonRenderer,
     firstPersonHud,
     onAssetLoad,
   );

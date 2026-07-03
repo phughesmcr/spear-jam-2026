@@ -4,6 +4,7 @@ import {
   Attack,
   AttackFacingRequirement,
   AttackPattern,
+  Defense,
   Dialogue,
   DisplayNameComponent,
   Enemy,
@@ -87,6 +88,7 @@ Deno.test("enemy archetypes apply top-down tuning defaults", async () => {
       displayName: DisplayName.DigitalDog,
       code: EnemyArchetype.MeleeDog,
       health: 2,
+      hitDc: 10,
       damage: 1,
       range: 1,
       pattern: AttackPattern.Line,
@@ -97,6 +99,7 @@ Deno.test("enemy archetypes apply top-down tuning defaults", async () => {
       displayName: DisplayName.GigabitGunslinger,
       code: EnemyArchetype.Gunslinger,
       health: 2,
+      hitDc: 10,
       damage: 1,
       range: 4,
       pattern: AttackPattern.Line,
@@ -107,6 +110,7 @@ Deno.test("enemy archetypes apply top-down tuning defaults", async () => {
       displayName: DisplayName.NetworkNeophyte,
       code: EnemyArchetype.NetworkNeophyte,
       health: 3,
+      hitDc: 10,
       damage: 1,
       range: 1,
       pattern: AttackPattern.Line,
@@ -117,6 +121,7 @@ Deno.test("enemy archetypes apply top-down tuning defaults", async () => {
       displayName: DisplayName.SystemSentinel,
       code: EnemyArchetype.SystemSentinel,
       health: 7,
+      hitDc: 10,
       damage: 2,
       range: 1,
       pattern: AttackPattern.Line,
@@ -127,6 +132,7 @@ Deno.test("enemy archetypes apply top-down tuning defaults", async () => {
       displayName: DisplayName.AgenticAcolyte,
       code: EnemyArchetype.AgenticAcolyte,
       health: 4,
+      hitDc: 10,
       damage: 2,
       range: 2,
       pattern: AttackPattern.Adjacent,
@@ -150,6 +156,9 @@ Deno.test("enemy archetypes apply top-down tuning defaults", async () => {
     assertEquals(world.components.getEntityData(Health, entity), {
       current: expected.health,
       max: expected.health,
+    });
+    assertEquals(world.components.getEntityData(Defense, entity), {
+      hitDc: expected.hitDc,
     });
     assertEquals(attack.minDamage, expected.damage);
     assertEquals(attack.maxDamage, expected.damage);

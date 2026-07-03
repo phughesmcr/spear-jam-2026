@@ -19,6 +19,7 @@ import { ExamineTextId } from "@/src/game/examine.ts";
 import { ItemKind } from "@/src/game/items.ts";
 import { DisplayName } from "@/src/game/names.ts";
 import { Direction } from "@/src/grid/direction.ts";
+import type { DrawableEntity } from "@/src/ecs/drawables.ts";
 import { createGameSession } from "@/src/ecs/session.ts";
 import type { GameSession } from "@/src/ecs/session.ts";
 import { createWorld } from "@/src/ecs/world.ts";
@@ -378,6 +379,28 @@ Deno.test("visibility treats closed doors as opaque and reveals behind them afte
 
   assertEquals(session.getVisibility().isVisible(2, 0), true);
   assertEquals(drawableTiles(session), [`${DrawableKind.Item}:2,0`]);
+});
+
+Deno.test("forEachDrawable supports collecting distinct drawable references during one pass", async () => {
+  const session = await createGameSession(
+    flatTestMap(4, 1, [
+      { prefab: "player", x: 0, y: 0, dir: Direction.East },
+      { prefab: "item", x: 1, y: 0, item: ItemKind.HealthPatch, amount: 1 },
+      { prefab: "item", x: 2, y: 0, item: ItemKind.PistolAmmo, amount: 4 },
+    ]),
+    () => 0,
+  );
+  const drawables: DrawableEntity[] = [];
+
+  session.forEachDrawable((drawable) => drawables.push(drawable));
+
+  assertEquals(drawables.map((drawable) => `${drawable.kind}:${drawable.x},${drawable.y}`), [
+    `${DrawableKind.Item}:1,0`,
+    `${DrawableKind.Item}:2,0`,
+    `${DrawableKind.Player}:0,0`,
+  ]);
+  assertEquals(drawables[0] === drawables[1], false);
+  assertEquals(drawables[1] === drawables[2], false);
 });
 
 Deno.test("closed doors block enemy sight", async () => {
@@ -877,6 +900,108 @@ Deno.test("attacking empty space with a ranged weapon still spends ammo", async 
     },
   ]);
   assertEquals(session.getPlayerState().ammo, { pistol: 0, cannon: 0 });
+});
+
+Deno.test("target marker tone follows selected weapon reach and ammo", async () => {
+  const world = await createWorld();
+  const playerEntity = createTestPlayer(world, { blocking: true, tag: true });
+  createTestEnemy(world, {
+    x: 3,
+    y: 1,
+    dir: 3,
+    displayName: DisplayName.Imp,
+    health: { current: 3, max: 3 },
+    attack: TEST_ATTACK,
+  });
+
+  const meleeSession = createTestSession(world, playerEntity, flatTestMap(5, 3));
+  assertEquals(meleeSession.targetMarkerTone(), undefined);
+
+  const rangedWorld = await createWorld();
+  const rangedPlayer = createTestPlayer(rangedWorld, { blocking: true, tag: true });
+  createTestEnemy(rangedWorld, {
+    x: 3,
+    y: 1,
+    dir: 3,
+    displayName: DisplayName.Imp,
+    health: { current: 3, max: 3 },
+    attack: TEST_ATTACK,
+  });
+  const rangedSession = createTestSession(rangedWorld, rangedPlayer, flatTestMap(5, 3), {
+    playerState: {
+      selectedWeapon: 2,
+      unlockedWeapons: [1, 2],
+      ammo: { pistol: 1 },
+    },
+  });
+  assertEquals(rangedSession.targetMarkerTone(), "danger");
+
+  const emptyAmmoWorld = await createWorld();
+  const emptyAmmoPlayer = createTestPlayer(emptyAmmoWorld, { blocking: true, tag: true });
+  createTestEnemy(emptyAmmoWorld, {
+    x: 3,
+    y: 1,
+    dir: 3,
+    displayName: DisplayName.Imp,
+    health: { current: 3, max: 3 },
+    attack: TEST_ATTACK,
+  });
+  const emptyAmmoSession = createTestSession(emptyAmmoWorld, emptyAmmoPlayer, flatTestMap(5, 3), {
+    playerState: {
+      selectedWeapon: 2,
+      unlockedWeapons: [1, 2],
+      ammo: { pistol: 0 },
+    },
+  });
+  assertEquals(emptyAmmoSession.targetMarkerTone(), undefined);
+});
+
+Deno.test("target marker tone follows interaction and pickup reachability", async () => {
+  const lockedDoorWorld = await createWorld();
+  const lockedDoorPlayer = createTestPlayer(lockedDoorWorld, { blocking: true, tag: true });
+  createTestDoor(lockedDoorWorld, {
+    x: 2,
+    y: 1,
+    blocking: true,
+    interactable: true,
+    color: KeyColor.Red,
+  });
+  const lockedDoorSession = createTestSession(lockedDoorWorld, lockedDoorPlayer);
+  assertEquals(lockedDoorSession.targetMarkerTone(), "locked");
+
+  const openDoorWorld = await createWorld();
+  const openDoorPlayer = createTestPlayer(openDoorWorld, { blocking: true, tag: true });
+  createTestDoor(openDoorWorld, {
+    x: 2,
+    y: 1,
+    open: 1,
+    interactable: true,
+  });
+  const openDoorSession = createTestSession(openDoorWorld, openDoorPlayer);
+  assertEquals(openDoorSession.targetMarkerTone(), undefined);
+
+  const npcWorld = await createWorld();
+  const npcPlayer = createTestPlayer(npcWorld, { blocking: true, tag: true });
+  createTestNpc(npcWorld, {
+    x: 2,
+    y: 1,
+    displayName: DisplayName.John,
+    interactable: true,
+  });
+  const npcSession = createTestSession(npcWorld, npcPlayer);
+  assertEquals(npcSession.targetMarkerTone(), "use");
+
+  const adjacentItemWorld = await createWorld();
+  const adjacentItemPlayer = createTestPlayer(adjacentItemWorld, { blocking: true, tag: true });
+  createTestItem(adjacentItemWorld, { x: 2, y: 1, kind: ItemKind.HealthPatch, amount: 4 });
+  const adjacentItemSession = createTestSession(adjacentItemWorld, adjacentItemPlayer);
+  assertEquals(adjacentItemSession.targetMarkerTone(), "loot");
+
+  const farItemWorld = await createWorld();
+  const farItemPlayer = createTestPlayer(farItemWorld, { blocking: true, tag: true });
+  createTestItem(farItemWorld, { x: 3, y: 1, kind: ItemKind.HealthPatch, amount: 4 });
+  const farItemSession = createTestSession(farItemWorld, farItemPlayer, flatTestMap(5, 3));
+  assertEquals(farItemSession.targetMarkerTone(), undefined);
 });
 
 Deno.test("ranged attack noise makes hidden enemies investigate", async () => {

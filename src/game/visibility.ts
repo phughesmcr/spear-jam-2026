@@ -1,5 +1,4 @@
-import { canSeePoint } from "@/src/game/perception.ts";
-import { distanceSquared } from "@/src/grid/direction.ts";
+import { canSeeTile } from "@/src/game/perception.ts";
 import type { CardinalDirection, GridPoint } from "@/src/grid/direction.ts";
 
 export interface TileVisibility {
@@ -29,21 +28,24 @@ export class VisibilityMap implements TileVisibility {
   revealFrom(origin: GridPoint, options: VisibilityOptions): void {
     this.visibleTiles.fill(0);
 
-    const originIndex = this.tileIndex(origin.x, origin.y);
+    const originX = origin.x;
+    const originY = origin.y;
+    const originIndex = this.tileIndex(originX, originY);
     if (originIndex === undefined) return;
 
     const radius = Math.max(0, Math.floor(options.radius));
     const radiusSquared = radius * radius;
-    const minX = Math.max(0, origin.x - radius);
-    const maxX = Math.min(this.width - 1, origin.x + radius);
-    const minY = Math.max(0, origin.y - radius);
-    const maxY = Math.min(this.height - 1, origin.y + radius);
+    const minX = Math.max(0, originX - radius);
+    const maxX = Math.min(this.width - 1, originX + radius);
+    const minY = Math.max(0, originY - radius);
+    const maxY = Math.min(this.height - 1, originY + radius);
 
     for (let y = minY; y <= maxY; y++) {
       for (let x = minX; x <= maxX; x++) {
-        const target = { x, y };
-        if (distanceSquared(origin, target) > radiusSquared) continue;
-        if (!canSeePoint(origin, target, options)) continue;
+        const dx = originX - x;
+        const dy = originY - y;
+        if (dx * dx + dy * dy > radiusSquared) continue;
+        if (!canSeeTile(originX, originY, x, y, options)) continue;
         this.reveal(x, y);
       }
     }

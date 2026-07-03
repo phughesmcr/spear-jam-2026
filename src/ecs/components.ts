@@ -61,6 +61,82 @@ export const Examine: Component<ExamineSchema> = new Component<ExamineSchema>({
 
 export const Player: Component<null> = new Component<null>({ name: "player", maxEntities: 1 });
 
+export type PlayerInventorySchema = {
+  keyMask: number;
+  hasUplinkCode: number;
+  pistolAmmo: number;
+  cannonAmmo: number;
+};
+const PLAYER_INVENTORY_STORAGE = {
+  keyMask: Uint8Array,
+  hasUplinkCode: Uint8Array,
+  pistolAmmo: Uint16Array,
+  cannonAmmo: Uint16Array,
+};
+export const PlayerInventory: Component<PlayerInventorySchema, typeof PLAYER_INVENTORY_STORAGE> = new Component<
+  PlayerInventorySchema,
+  typeof PLAYER_INVENTORY_STORAGE
+>({
+  name: "playerInventory",
+  schema: PLAYER_INVENTORY_STORAGE,
+});
+
+export type PlayerEquipmentSchema = {
+  selectedWeapon: number;
+  unlockedWeaponMask: number;
+};
+const PLAYER_EQUIPMENT_STORAGE = {
+  selectedWeapon: Uint8Array,
+  unlockedWeaponMask: Uint8Array,
+};
+export const PlayerEquipment: Component<PlayerEquipmentSchema, typeof PLAYER_EQUIPMENT_STORAGE> = new Component<
+  PlayerEquipmentSchema,
+  typeof PLAYER_EQUIPMENT_STORAGE
+>({
+  name: "playerEquipment",
+  schema: PLAYER_EQUIPMENT_STORAGE,
+});
+
+export type PlayerProgressSchema = {
+  credits: number;
+  score: number;
+  xp: number;
+  levelCredits: number;
+};
+const PLAYER_PROGRESS_STORAGE = {
+  credits: Uint32Array,
+  score: Uint32Array,
+  xp: Uint32Array,
+  levelCredits: Uint32Array,
+};
+export const PlayerProgress: Component<PlayerProgressSchema, typeof PLAYER_PROGRESS_STORAGE> = new Component<
+  PlayerProgressSchema,
+  typeof PLAYER_PROGRESS_STORAGE
+>({
+  name: "playerProgress",
+  schema: PLAYER_PROGRESS_STORAGE,
+});
+
+export type PlayerTurnEffectsSchema = {
+  invisibility: number;
+  overclock: number;
+  toughness: number;
+  healthRegen: number;
+};
+const PLAYER_TURN_EFFECTS_STORAGE = {
+  invisibility: Uint16Array,
+  overclock: Uint16Array,
+  toughness: Uint16Array,
+  healthRegen: Uint16Array,
+};
+export const PlayerTurnEffects: Component<PlayerTurnEffectsSchema, typeof PLAYER_TURN_EFFECTS_STORAGE> = new Component<
+  PlayerTurnEffectsSchema,
+  typeof PLAYER_TURN_EFFECTS_STORAGE
+>({
+  name: "playerTurnEffects",
+  schema: PLAYER_TURN_EFFECTS_STORAGE,
+});
+
 export const Blocking: Component<null> = new Component<null>({ name: "blocking" });
 
 export const Interactable: Component<null> = new Component<null>({ name: "interactable" });
@@ -222,6 +298,16 @@ export function healthFor(world: World, entity: Entity): HealthSchema | undefine
   };
 }
 
+export type DefenseSchema = { hitDc: number };
+const DEFENSE_STORAGE = { hitDc: Uint8Array };
+export const Defense: Component<DefenseSchema, typeof DEFENSE_STORAGE> = new Component<
+  DefenseSchema,
+  typeof DEFENSE_STORAGE
+>({
+  name: "defense",
+  schema: DEFENSE_STORAGE,
+});
+
 export type AttackSchema = AttackDef;
 const ATTACK_STORAGE = {
   minDamage: Uint8Array,
@@ -250,6 +336,10 @@ export const ALL_COMPONENTS: DynamicComponent[] = [
   Dialogue,
   Examine,
   Player,
+  PlayerInventory,
+  PlayerEquipment,
+  PlayerProgress,
+  PlayerTurnEffects,
   Blocking,
   Interactable,
   Drawable,
@@ -262,5 +352,6 @@ export const ALL_COMPONENTS: DynamicComponent[] = [
   EnemyAwareness,
   EnemyArchetypeComponent,
   Health,
+  Defense,
   Attack,
 ];

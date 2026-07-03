@@ -1,9 +1,15 @@
 import type { Entity, World } from "@phughesmcr/miski";
-import { Door, Health, healthFor, Interactable, Npc, UplinkTerminal } from "@/src/ecs/components.ts";
+import { Door, healthFor, Interactable, Locked, Npc, UplinkTerminal } from "@/src/ecs/components.ts";
 import { directionDelta } from "@/src/grid/direction.ts";
 import type { GridDelta } from "@/src/grid/direction.ts";
-import { attackWithSelectedWeapon, weaponAmmoKind, weaponLabel, weaponNoiseRadius } from "@/src/ecs/combat.ts";
-import { DrawableKind, drawableSystem } from "@/src/ecs/drawables.ts";
+import {
+  attackTargetsForSelectedWeapon,
+  attackWithSelectedWeapon,
+  weaponAmmoKind,
+  weaponLabel,
+  weaponNoiseRadius,
+} from "@/src/ecs/combat.ts";
+import { createDrawableRenderScratch, DrawableKind, drawableSystem } from "@/src/ecs/drawables.ts";
 import type { DrawableEntity, DrawableEntityVisitor, DrawableSystem } from "@/src/ecs/drawables.ts";
 import { enemyTurnSystem } from "@/src/ecs/enemy.ts";
 import type { EnemyTurnSystem } from "@/src/ecs/enemy.ts";
@@ -18,10 +24,25 @@ import type { PlayerCommand, PlayerCommandResult } from "@/src/game/commands.ts"
 import type { InteractVerb } from "@/src/game/commands.ts";
 import type { GameEvent } from "@/src/game/events.ts";
 import type { NoiseStimulus } from "@/src/game/perception.ts";
-import { PlayerProgression } from "@/src/game/progression.ts";
+import {
+  applyItemPickupToPlayer,
+  awardCreditsForDefeats,
+  clearTransientPlayerState,
+  completePlayerLevel,
+  heldKeysForPlayer,
+  playerHasUplinkCode,
+  playerHasWeapon,
+  playerStateFor,
+  selectedPlayerWeapon,
+  selectPlayerWeapon,
+  spendPlayerAmmo,
+  tickPlayerTurnEffects,
+  writePlayerStateToComponents,
+} from "@/src/ecs/progression.ts";
 import type { RandomSource } from "@/src/game/rng.ts";
-import { createPlayerState, DEFAULT_PLAYER_STATE } from "@/src/game/state.ts";
+import { createPlayerState } from "@/src/game/state.ts";
 import type { CommandSlot, PlayerState, PlayerStateInput } from "@/src/game/state.ts";
+import type { TargetMarkerTone } from "@/src/game/target_marker.ts";
 import { VisibilityMap } from "@/src/game/visibility.ts";
 import type { TileVisibility } from "@/src/game/visibility.ts";
 import { mapDimensions, VICTORY_GOTO } from "@/src/map/map.ts";
@@ -61,10 +82,6 @@ export async function createGameSession(
 
     if (playerEntity === undefined) throw new Error("Map is missing a player spawn.");
 
-    if (world.components.readEntityData(Health, playerEntity) !== undefined) {
-      world.components.setEntityData(Health, playerEntity, state.health);
-    }
-
     const player = new Player(world, playerEntity);
     world.refresh();
 
@@ -81,11 +98,11 @@ export class GameSession implements Disposable {
   readonly map: GameMap;
   private readonly random: RandomSource;
   private readonly drawableSystem: DrawableSystem;
+  private readonly drawableScratch = createDrawableRenderScratch();
   private readonly enemyTurnSystem: EnemyTurnSystem;
   private readonly spatial: SpatialIndex;
   private readonly visibility: VisibilityMap;
   private readonly terminalDestinations: ReadonlyMap<Entity, string>;
-  private readonly progression: PlayerProgression;
   private disposed = false;
 
   constructor(
@@ -100,25 +117,27 @@ export class GameSession implements Disposable {
     this.player = player;
     this.map = map;
     this.random = random;
+    writePlayerStateToComponents(this.world, this.player.getEntity(), playerState);
+    this.world.refresh();
     this.drawableSystem = world.systems.create(drawableSystem);
     this.enemyTurnSystem = world.systems.create(enemyTurnSystem);
     this.spatial = new SpatialIndex(world, map);
     this.visibility = new VisibilityMap(mapDimensions(map));
     this.terminalDestinations = new Map(terminalDestinations);
-    this.progression = new PlayerProgression(playerState);
     this.refreshVisibility();
   }
 
   getPlayerState(): PlayerState {
-    const health = healthFor(this.world, this.player.getEntity()) ?? DEFAULT_PLAYER_STATE.health;
-    return {
-      ...this.progression.getState(),
-      health: { ...health },
-    };
+    return playerStateFor(this.world, this.player.getEntity());
+  }
+
+  targetMarkerTone(): TargetMarkerTone | undefined {
+    return this.interactionTargetMarkerTone() ?? this.attackTargetMarkerTone() ?? this.pickupTargetMarkerTone();
   }
 
   forEachDrawable(visit: DrawableEntityVisitor): void {
     this.drawableSystem({
+      scratch: this.drawableScratch,
       visit: (drawable) => {
         if (this.drawableIsVisible(drawable)) visit(drawable);
       },
@@ -165,10 +184,9 @@ export class GameSession implements Disposable {
 
     this.spatial.moveEntity(this.player.getEntity(), next);
     const pickup = collectItemAt(this.world, this.spatial, next.x, next.y);
-    const pickupEvents = pickup === undefined ? [] : this.progression.applyItemPickup(pickup, {
-      world: this.world,
-      playerEntity: this.player.getEntity(),
-    });
+    const pickupEvents = pickup === undefined ?
+      [] :
+      applyItemPickupToPlayer(this.world, this.player.getEntity(), pickup);
     return {
       moved: true,
       events: pickupEvents,
@@ -201,8 +219,8 @@ export class GameSession implements Disposable {
       this.world,
       this.spatial,
       target,
-      this.progression.heldKeys,
-      this.progression.hasUplinkCode,
+      heldKeysForPlayer(this.world, this.player.getEntity()),
+      playerHasUplinkCode(this.world, this.player.getEntity()),
       verb,
     );
     switch (interaction.type) {
@@ -232,14 +250,48 @@ export class GameSession implements Disposable {
     return undefined;
   }
 
+  private interactionTargetMarkerTone(): TargetMarkerTone | undefined {
+    const target = this.spatial.facedEntity(this.player);
+    if (target === undefined || !this.world.components.entityHas(Interactable, target)) return undefined;
+
+    const door = this.world.components.readEntityData(Door, target);
+    if (door !== undefined) {
+      if (door.open === 1) return undefined;
+      return this.world.components.entityHas(Locked, target) ? "locked" : "use";
+    }
+
+    if (this.world.components.entityHas(Npc, target)) return "use";
+    if (this.world.components.entityHas(UplinkTerminal, target)) return "use";
+    return undefined;
+  }
+
+  private attackTargetMarkerTone(): TargetMarkerTone | undefined {
+    const selectedWeapon = selectedPlayerWeapon(this.world, this.player.getEntity());
+    const ammoKind = weaponAmmoKind(selectedWeapon);
+    if (ammoKind !== undefined && this.getPlayerState().ammo[ammoKind] <= 0) return undefined;
+
+    const targets = attackTargetsForSelectedWeapon(this.world, this.player, selectedWeapon, this.spatial);
+    return targets.length === 0 ? undefined : "danger";
+  }
+
+  private pickupTargetMarkerTone(): TargetMarkerTone | undefined {
+    const current = this.player.getPosition();
+    const { dir } = this.player.getFacing();
+    const delta = directionDelta(dir);
+    const x = current.x + delta.dx;
+    const y = current.y + delta.dy;
+    if (this.spatial.positionBlocks(x, y)) return undefined;
+    return this.spatial.itemAt(x, y) === undefined ? undefined : "loot";
+  }
+
   private activateUplinkTerminal(terminal: Entity, events: readonly GameEvent[]): PlayerCommandResult {
     const goto = this.terminalDestinations.get(terminal);
     if (goto === undefined) {
       throw new Error(`Uplink terminal ${terminal} is missing a map destination.`);
     }
 
-    const levelCompleteEvents = this.progression.completeLevel(events);
-    this.progression.clearTransient();
+    const levelCompleteEvents = completePlayerLevel(this.world, this.player.getEntity(), events);
+    clearTransientPlayerState(this.world, this.player.getEntity());
     this.world.refresh();
     if (goto === VICTORY_GOTO) {
       return { events: levelCompleteEvents, outcome: "victory" };
@@ -251,11 +303,13 @@ export class GameSession implements Disposable {
   }
 
   private handlePlayerAttackCommand(): PlayerCommandResult {
-    const selectedWeapon = this.progression.selectedWeapon;
+    const selectedWeapon = selectedPlayerWeapon(this.world, this.player.getEntity());
     const ammoKind = weaponAmmoKind(selectedWeapon);
     let ammoEvents: readonly GameEvent[] = [];
     if (ammoKind !== undefined) {
-      if (!this.progression.spendAmmo(ammoKind)) return { events: [{ type: "noAmmo", ammo: ammoKind }] };
+      if (!spendPlayerAmmo(this.world, this.player.getEntity(), ammoKind)) {
+        return { events: [{ type: "noAmmo", ammo: ammoKind }] };
+      }
       ammoEvents = [{ type: "ammoSpent", ammo: ammoKind, amount: 1 }];
     }
 
@@ -267,14 +321,14 @@ export class GameSession implements Disposable {
       this.random,
     );
     return this.consumePlayerTurn(
-      [...ammoEvents, ...this.progression.awardCreditsForDefeats(events, this.player.getEntity())],
+      [...ammoEvents, ...awardCreditsForDefeats(this.world, this.player.getEntity(), events)],
       this.playerNoise(weaponNoiseRadius(selectedWeapon)),
     );
   }
 
   private handlePlayerSelectWeaponCommand(slot: CommandSlot): PlayerCommandResult {
     const label = weaponLabel(slot);
-    if (!this.progression.hasWeapon(slot)) {
+    if (!playerHasWeapon(this.world, this.player.getEntity(), slot)) {
       return {
         events: [{
           type: "weaponUnavailable",
@@ -284,7 +338,7 @@ export class GameSession implements Disposable {
       };
     }
 
-    this.progression.selectWeapon(slot);
+    selectPlayerWeapon(this.world, this.player.getEntity(), slot);
     return {
       events: [{
         type: "weaponSelected",
@@ -303,7 +357,7 @@ export class GameSession implements Disposable {
       blocksSight: (x, y) => this.tileBlocksSight(x, y),
       noises: noise === undefined ? [] : [noise],
     });
-    this.progression.tickTurnEffects();
+    tickPlayerTurnEffects(this.world, this.player.getEntity());
     this.world.refresh();
     this.refreshVisibility();
     const allEvents = [...events, ...enemyEvents];

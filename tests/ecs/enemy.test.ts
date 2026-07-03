@@ -272,6 +272,63 @@ Deno.test("gunslingers shoot from range instead of closing", async () => {
   assertEquals(events.map((event) => event.type), ["damageDealt"]);
 });
 
+Deno.test("enemyTurnSystem stops the enemy phase after player defeat", async () => {
+  const world = await createWorld();
+  const playerEntity = createTestPlayer(world, {
+    x: 2,
+    y: 1,
+    dir: Direction.West,
+    blocking: true,
+    tag: true,
+    health: { current: 1, max: 1 },
+  });
+  const killingEnemy = createTestEnemy(world, {
+    x: 1,
+    y: 1,
+    dir: Direction.East,
+    displayName: DisplayName.Imp,
+    attack: MELEE_ATTACK,
+    archetype: EnemyArchetype.NetworkNeophyte,
+  });
+  const laterEnemy = createTestEnemy(world, {
+    x: 4,
+    y: 1,
+    dir: Direction.West,
+    displayName: DisplayName.NetworkNeophyte,
+    attack: MELEE_ATTACK,
+    archetype: EnemyArchetype.NetworkNeophyte,
+  });
+  world.refresh();
+
+  const events = world.systems.create(enemyTurnSystem)({
+    world,
+    player: new Player(world, playerEntity),
+    spatial: new SpatialIndex(world, flatTestMap(6, 3)),
+    random: () => 0,
+  });
+
+  assertEquals(events, [
+    {
+      type: "damageDealt",
+      actor: killingEnemy,
+      actorName: "Imp",
+      target: playerEntity,
+      targetName: "You",
+      amount: 1,
+      critical: false,
+    },
+    {
+      type: "entityDefeated",
+      actor: killingEnemy,
+      entity: playerEntity,
+      entityName: "You",
+    },
+  ]);
+  assertEquals(world.components.getEntityData(Health, playerEntity), { current: 0, max: 1 });
+  assertEquals(world.components.getEntityData(GridPos, laterEnemy), { x: 4, y: 1 });
+  assertEquals(world.components.getEntityData(Facing, laterEnemy), { dir: Direction.West });
+});
+
 Deno.test("gunslingers back away when adjacent", async () => {
   const world = await createWorld();
   const playerEntity = createTestPlayer(world, {

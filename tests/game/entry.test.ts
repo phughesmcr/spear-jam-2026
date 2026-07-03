@@ -4,9 +4,13 @@ import { startGame } from "@/src/entry.ts";
 import type { GameCommand, PlayerCommand, PlayerCommandResult } from "@/src/game/commands.ts";
 import { createPlayerState } from "@/src/game/state.ts";
 import type { GameMode, PlayerState, PlayerStateInput, ViewMode } from "@/src/game/state.ts";
+import type { TargetMarkerTone } from "@/src/game/target_marker.ts";
 import type { CanvasPointerInput } from "@/src/input/pointer.ts";
 import type { GameCanvasSize } from "@/src/render/canvas.ts";
+import type { FirstPersonRenderer, FirstPersonRenderSession } from "@/src/render/first_person.ts";
 import type { FirstPersonHudOptions } from "@/src/render/hud.ts";
+import type { RaycastScene } from "@/src/render/raycast/scene.ts";
+import type { ViewRect } from "@/src/render/raycast/view.ts";
 import { verbMenuSpriteRect } from "@/src/render/verb_menu.ts";
 import type { WeaponHudPhase } from "@/src/render/weapon_hud.ts";
 import { KeyColor } from "@/src/map/map.ts";
@@ -195,6 +199,42 @@ Deno.test("Game flashes the weapon HUD active for smart action attacks", async (
   }
 });
 
+Deno.test("Game owns first-person renderer events and resets", async () => {
+  const harness = await startHarness();
+  try {
+    assertEquals(harness.renderer.preloadCount, 1);
+    assertEquals(harness.renderer.resetCount, 1);
+    assertEquals(harness.latestFrame().renderer, harness.renderer);
+
+    harness.command({ type: "move", direction: "forward" });
+    assertEquals(harness.renderer.bumps, [{ dx: 0, dy: -1 }]);
+
+    harness.latestSession().enqueue({
+      events: [
+        {
+          type: "attackMissed",
+          actor: 7 as Entity,
+          actorName: "Imp",
+        },
+        {
+          type: "entityDefeated",
+          actor: PLAYER_ENTITY,
+          entity: 7 as Entity,
+          entityName: "Imp",
+        },
+      ],
+    });
+    harness.command({ type: "wait" });
+    assertEquals(harness.renderer.attacks, [7 as Entity]);
+    assertEquals(harness.renderer.deaths, [7 as Entity]);
+
+    harness.command({ type: "toggleView" });
+    assertEquals(harness.renderer.resetCount, 2);
+  } finally {
+    harness[Symbol.dispose]();
+  }
+});
+
 Deno.test("Game does not flash the weapon HUD when an attack has no ammo", async () => {
   const harness = await startHarness();
   try {
@@ -326,6 +366,7 @@ type RenderSnapshot = {
   readonly messages: readonly string[];
   readonly weaponHudPhase: WeaponHudPhase;
   readonly firstPersonHud: FirstPersonHudOptions;
+  readonly renderer: FirstPersonRenderer;
 };
 
 type LoadSnapshot = {
@@ -349,6 +390,7 @@ class FakeSession implements Disposable {
   readonly commands: PlayerCommand[] = [];
   readonly results: PlayerCommandResult[] = [];
   state: PlayerState;
+  targetTone: TargetMarkerTone | undefined = undefined;
   disposed = false;
 
   constructor(map: GameMap, playerState?: PlayerStateInput) {
@@ -369,8 +411,56 @@ class FakeSession implements Disposable {
     return createPlayerState(this.state);
   }
 
+  targetMarkerTone(): TargetMarkerTone | undefined {
+    return this.targetTone;
+  }
+
   [Symbol.dispose](): void {
     this.disposed = true;
+  }
+}
+
+class FakeFirstPersonRenderer implements FirstPersonRenderer {
+  readonly bumps: { readonly dx: number; readonly dy: number }[] = [];
+  readonly attacks: Entity[] = [];
+  readonly deaths: Entity[] = [];
+  preloadCount = 0;
+  resetCount = 0;
+  renderCount = 0;
+
+  preloadAssets(_document: Document, _onAssetLoad?: () => void): Promise<void> {
+    this.preloadCount++;
+    return Promise.resolve();
+  }
+
+  reset(): void {
+    this.resetCount++;
+  }
+
+  bump(dirX: number, dirY: number): void {
+    this.bumps.push({ dx: dirX, dy: dirY });
+  }
+
+  markSpriteAttack(entity: Entity): void {
+    this.attacks.push(entity);
+  }
+
+  markSpriteDeath(entity: Entity): void {
+    this.deaths.push(entity);
+  }
+
+  sceneForMap(_map: GameMap): RaycastScene {
+    throw new Error("Fake renderer does not build scenes.");
+  }
+
+  render(
+    _ctx: CanvasRenderingContext2D,
+    _rect: ViewRect,
+    _session: FirstPersonRenderSession,
+    _targetTone?: TargetMarkerTone,
+    _repaint?: () => void,
+  ): void {
+    this.renderCount++;
   }
 }
 
@@ -378,6 +468,7 @@ class EntryHarness implements Disposable {
   readonly frames: RenderSnapshot[] = [];
   readonly loads: LoadSnapshot[] = [];
   readonly sessions: FakeSession[] = [];
+  readonly renderer = new FakeFirstPersonRenderer();
   private readonly timers = new Map<number, () => void>();
   private nextTimerId = 1;
   private commandReceiver?: (command: GameCommand) => void;
@@ -401,6 +492,7 @@ class EntryHarness implements Disposable {
         },
       } as unknown as Window,
       runtime: {
+        createFirstPersonRenderer: (): FirstPersonRenderer => this.renderer,
         configureCanvasDpi: (
           _window: Window,
           _canvas: HTMLCanvasElement,
@@ -422,7 +514,11 @@ class EntryHarness implements Disposable {
           return Promise.resolve(session);
         },
         getMap: (name: string): GameMap => fakeMap(name),
-        preloadGameAssets: async (_document: Document, _onAssetLoad?: () => void): Promise<void> => {},
+        preloadGameAssets: (
+          document: Document,
+          renderer: FirstPersonRenderer,
+          onAssetLoad?: () => void,
+        ): Promise<void> => renderer.preloadAssets(document, onAssetLoad),
         renderGameFrame: (
           _ctx: CanvasRenderingContext2D,
           _canvasSize: GameCanvasSize,
@@ -432,10 +528,11 @@ class EntryHarness implements Disposable {
           _combatFeedback: readonly unknown[],
           _viewMode: ViewMode,
           weaponHudPhase: WeaponHudPhase,
+          renderer: FirstPersonRenderer,
           firstPersonHud: FirstPersonHudOptions,
           _onAssetLoad?: () => void,
         ): void => {
-          this.frames.push({ mode, messages, weaponHudPhase, firstPersonHud });
+          this.frames.push({ mode, messages, weaponHudPhase, firstPersonHud, renderer });
         },
         setupInput: (
           _window: Window,

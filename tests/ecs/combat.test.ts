@@ -5,6 +5,7 @@ import {
   AttackPattern,
   AttackTargetMode,
   Blocking,
+  Defense,
   DisplayNameComponent,
   Facing,
   GridPos,
@@ -53,7 +54,7 @@ Deno.test("weapon metadata exposes labels, ammo, and attack noise from the comba
 });
 
 Deno.test("resolveAttack misses when the d20 total is below defense", () => {
-  const outcome = resolveAttack(BASE_ATTACK, sequenceRandom([0]));
+  const outcome = resolveAttack(BASE_ATTACK, 10, sequenceRandom([0]));
 
   assertEquals(outcome.type, "miss");
   assertEquals(outcome.roll, 1);
@@ -63,6 +64,7 @@ Deno.test("resolveAttack misses when the d20 total is below defense", () => {
 Deno.test("resolveAttack multiplies damage on a critical hit", () => {
   const outcome = resolveAttack(
     { ...BASE_ATTACK, minDamage: 2, maxDamage: 2, critMultiplier: 3 },
+    10,
     sequenceRandom([0.999, 0]),
   );
 
@@ -139,6 +141,7 @@ Deno.test("attackEntity emits damage events and updates health", async () => {
   world.components.addToEntity(GridPos, defender, { x: 2, y: 1 });
   world.components.addToEntity(DisplayNameComponent, defender, { displayName: DisplayName.Imp });
   world.components.addToEntity(Health, defender, { current: 3, max: 3 });
+  world.components.addToEntity(Defense, defender, { hitDc: 10 });
   world.refresh();
 
   const events = attackEntity(
@@ -164,6 +167,41 @@ Deno.test("attackEntity emits damage events and updates health", async () => {
   assertEquals(world.components.getEntityData(Health, defender), { current: 2, max: 3 });
 });
 
+Deno.test("attackEntity resolves attacks against the defender hit DC", async () => {
+  const world = await createWorld();
+  const attacker = createEntity(world);
+  const defender = createEntity(world);
+
+  world.components.addToEntity(GridPos, attacker, { x: 1, y: 1 });
+  world.components.addToEntity(GridPos, defender, { x: 2, y: 1 });
+  world.components.addToEntity(DisplayNameComponent, defender, { displayName: DisplayName.Imp });
+  world.components.addToEntity(Health, defender, { current: 3, max: 3 });
+  world.components.addToEntity(Defense, defender, { hitDc: 15 });
+  world.refresh();
+
+  const events = attackEntity(
+    world,
+    attacker,
+    defender,
+    { ...BASE_ATTACK, attackBonus: 4 },
+    sequenceRandom([0.45, 0]),
+    new SpatialIndex(world, TEST_MAP),
+  );
+
+  assertEquals(events, [
+    {
+      type: "attackMissed",
+      actor: attacker,
+      actorName: "Something",
+      target: defender,
+      targetName: "Imp",
+      roll: 10,
+      total: 14,
+    },
+  ]);
+  assertEquals(world.components.getEntityData(Health, defender), { current: 3, max: 3 });
+});
+
 Deno.test("attackEntity emits defeat events and removes defeated non-player entities from spatial lookup", async () => {
   const world = await createWorld();
   const player = createEntity(world);
@@ -175,6 +213,7 @@ Deno.test("attackEntity emits defeat events and removes defeated non-player enti
   world.components.addToEntity(Blocking, defender);
   world.components.addToEntity(DisplayNameComponent, defender, { displayName: DisplayName.Imp });
   world.components.addToEntity(Health, defender, { current: 1, max: 1 });
+  world.components.addToEntity(Defense, defender, { hitDc: 10 });
   world.refresh();
 
   const spatial = new SpatialIndex(world, TEST_MAP);
@@ -216,6 +255,7 @@ Deno.test("attackEntity emits player defeat without removing the player entity",
   world.components.addToEntity(GridPos, player, { x: 1, y: 1 });
   world.components.addToEntity(PlayerTag, player);
   world.components.addToEntity(Health, player, { current: 1, max: 1 });
+  world.components.addToEntity(Defense, player, { hitDc: 10 });
   world.components.addToEntity(GridPos, attacker, { x: 2, y: 1 });
   world.components.addToEntity(DisplayNameComponent, attacker, { displayName: DisplayName.Imp });
   world.refresh();
@@ -246,6 +286,37 @@ Deno.test("attackEntity emits player defeat without removing the player entity",
       entityName: "You",
     },
   ]);
+  assertEquals(world.entities.isActive(player), true);
+});
+
+Deno.test("attackEntity no-ops against already defeated defenders", async () => {
+  const world = await createWorld();
+  const player = createEntity(world);
+  const attacker = createEntity(world);
+  let randomCalls = 0;
+
+  world.components.addToEntity(GridPos, player, { x: 1, y: 1 });
+  world.components.addToEntity(PlayerTag, player);
+  world.components.addToEntity(Health, player, { current: 0, max: 1 });
+  world.components.addToEntity(GridPos, attacker, { x: 2, y: 1 });
+  world.components.addToEntity(DisplayNameComponent, attacker, { displayName: DisplayName.Imp });
+  world.refresh();
+
+  const events = attackEntity(
+    world,
+    attacker,
+    player,
+    { ...BASE_ATTACK, minDamage: 1, maxDamage: 1, attackBonus: 20 },
+    () => {
+      randomCalls++;
+      return 0;
+    },
+    new SpatialIndex(world, TEST_MAP),
+  );
+
+  assertEquals(events, []);
+  assertEquals(randomCalls, 0);
+  assertEquals(world.components.getEntityData(Health, player), { current: 0, max: 1 });
   assertEquals(world.entities.isActive(player), true);
 });
 

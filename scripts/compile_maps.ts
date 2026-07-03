@@ -333,6 +333,7 @@ function entityExpression(entity: EntityDef, uses: SymbolUse): string {
         );
       }
       if (entity.health !== undefined) entries.push(`health: ${entity.health}`);
+      if (entity.hitDc !== undefined) entries.push(`hitDc: ${entity.hitDc}`);
       if (entity.damage !== undefined) entries.push(`damage: ${entity.damage}`);
       if (entity.attack !== undefined) entries.push(`attack: ${attackExpression(entity.attack, uses)}`);
       if (entity.examineTextId !== undefined) {

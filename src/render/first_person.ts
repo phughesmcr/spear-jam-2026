@@ -13,11 +13,11 @@
  */
 
 import { DrawableKind } from "@/src/ecs/drawables.ts";
-import type { DrawableEntity } from "@/src/ecs/drawables.ts";
+import type { DrawableEntity, DrawableEntityVisitor } from "@/src/ecs/drawables.ts";
 import { EnemyArchetype } from "@/src/ecs/components.ts";
-import type { GameSession } from "@/src/ecs/session.ts";
 import { type CardinalDirection, directionDelta, normalizeDirection } from "@/src/grid/direction.ts";
 import type { ItemIcon } from "@/src/game/items.ts";
+import type { TargetMarkerTone } from "@/src/game/target_marker.ts";
 import { KeyColor, mapDimensions, terrainAt, TexturePack } from "@/src/map/map.ts";
 import type { CeilingTexture, DoorSlide, FloorTexture, GameMap, TexturePackRef, WallTexture } from "@/src/map/map.ts";
 import { createImageAsset, loadedImage, preloadImageAssets } from "@/src/render/assets.ts";
@@ -166,18 +166,15 @@ const ENEMY_SPRITES: Readonly<Record<EnemyArchetype, number>> = {
 const ACTOR_SCALE = 0.75;
 const TERMINAL_SCALE = 0.9;
 const ITEM_SCALE = 0.4;
-const TARGET_MAX_DISTANCE = 6;
 const TARGET_SIZE_FRACTION = 0.055;
 const TARGET_INNER_FRACTION = 0.38;
 const TARGET_Y_FRACTION = 0.47;
-const TARGET_COLORS: Readonly<Record<TargetTone, string>> = {
+const TARGET_COLORS: Readonly<Record<TargetMarkerTone, string>> = {
   danger: "rgba(248, 113, 113, 0.92)",
   locked: "rgba(250, 204, 21, 0.9)",
   loot: "rgba(125, 211, 252, 0.9)",
   use: "rgba(52, 211, 153, 0.9)",
 };
-
-type TargetTone = "danger" | "locked" | "loot" | "use";
 
 /** Tints are relative to mid-grey so the wall texture keeps its detail. */
 const DOOR_TINT: readonly [number, number, number] = [1.2, 0.83, 0.45];
@@ -221,81 +218,90 @@ function enemySheetTargets(baseSlot: number): readonly BakeTargetInput[] {
 /** Enemy sheets share the idle-front cell's content crop across all frames. */
 const ENEMY_CROP_FRAME: SourceFrame = [0, 0, 1 / 4, 1 / 4];
 
-const TEXTURE_PACK_ASSETS: Readonly<Record<TexturePack, TexturePackAsset>> = {
-  [TexturePack.Pack1]: texturePackAsset(new URL("../../assets/game/textures/pack1.png", import.meta.url).href),
-  [TexturePack.Pack2]: texturePackAsset(new URL("../../assets/game/textures/pack2.png", import.meta.url).href),
-  [TexturePack.Pack3]: texturePackAsset(new URL("../../assets/game/textures/pack3.png", import.meta.url).href),
+type AssetCatalog = {
+  readonly managedAssets: readonly ManagedAsset[];
+  readonly texturePackAssets: Readonly<Record<TexturePack, TexturePackAsset>>;
 };
 
-// Asset URLs must be fully static `new URL` literals so Vite can resolve them.
-const MANAGED_ASSETS: readonly ManagedAsset[] = [
-  managedAsset(new URL("../../assets/game/textures/wall.png", import.meta.url).href, [
-    { layer: "walls", slot: WALL_TEX },
-    { layer: "walls", slot: DOOR_TEX, tint: DOOR_TINT },
-    { layer: "walls", slot: DOOR_TEX_BY_COLOR[KeyColor.Red], tint: DOOR_TINTS_BY_COLOR[KeyColor.Red] },
-    { layer: "walls", slot: DOOR_TEX_BY_COLOR[KeyColor.Blue], tint: DOOR_TINTS_BY_COLOR[KeyColor.Blue] },
-    { layer: "walls", slot: DOOR_TEX_BY_COLOR[KeyColor.Yellow], tint: DOOR_TINTS_BY_COLOR[KeyColor.Yellow] },
-  ]),
-  managedAsset(new URL("../../assets/game/textures/floor.png", import.meta.url).href, [
-    { layer: "planes", slot: FLOOR_TEX },
-  ]),
-  managedAsset(new URL("../../assets/game/textures/ceiling.png", import.meta.url).href, [
-    { layer: "planes", slot: CEILING_TEX },
-  ]),
-  managedAsset(
-    new URL("../../assets/game/sprites/digital_dog.png", import.meta.url).href,
-    enemySheetTargets(SPRITE_DOG),
-    ENEMY_CROP_FRAME,
-  ),
-  managedAsset(
-    new URL("../../assets/game/sprites/gigabit_gun_slinger.png", import.meta.url).href,
-    enemySheetTargets(SPRITE_GUNSLINGER),
-    ENEMY_CROP_FRAME,
-  ),
-  managedAsset(
-    new URL("../../assets/game/sprites/network_neophyte.png", import.meta.url).href,
-    enemySheetTargets(SPRITE_NEOPHYTE),
-    ENEMY_CROP_FRAME,
-  ),
-  managedAsset(
-    new URL("../../assets/game/sprites/system_sentinel.png", import.meta.url).href,
-    enemySheetTargets(SPRITE_SENTINEL),
-    ENEMY_CROP_FRAME,
-  ),
-  managedAsset(
-    new URL("../../assets/game/sprites/agentic_acolyte.png", import.meta.url).href,
-    enemySheetTargets(SPRITE_ACOLYTE),
-    ENEMY_CROP_FRAME,
-  ),
-  managedAsset(new URL("../../assets/game/sprites/corpse.png", import.meta.url).href, [
-    { layer: "sprites", slot: SPRITE_CORPSE },
-  ]),
-  managedAsset(new URL("../../assets/game/sprites/uplink_terminal.png", import.meta.url).href, [
-    // Left half of the sheet is the inactive terminal, right half is active.
-    { layer: "sprites", slot: SPRITE_TERMINAL, frame: [0.5, 0, 0.5, 1] },
-  ]),
-  managedAsset(new URL("../../assets/game/sprites/health.png", import.meta.url).href, [
-    { layer: "sprites", slot: SPRITE_HEALTH },
-  ]),
-  managedAsset(new URL("../../assets/game/sprites/red_key.png", import.meta.url).href, [
-    { layer: "sprites", slot: SPRITE_KEY_BY_COLOR[KeyColor.Red] },
-  ]),
-  managedAsset(new URL("../../assets/game/sprites/blue_key.png", import.meta.url).href, [
-    { layer: "sprites", slot: SPRITE_KEY_BY_COLOR[KeyColor.Blue] },
-  ]),
-  managedAsset(new URL("../../assets/game/sprites/yellow_key.png", import.meta.url).href, [
-    { layer: "sprites", slot: SPRITE_KEY_BY_COLOR[KeyColor.Yellow] },
-  ]),
-  managedAsset(new URL("../../assets/game/sprites/weapon_2.png", import.meta.url).href, [
-    { layer: "sprites", slot: SPRITE_WEAPON_2 },
-  ]),
-  managedAsset(new URL("../../assets/game/sprites/weapon_3.png", import.meta.url).href, [
-    { layer: "sprites", slot: SPRITE_WEAPON_3 },
-  ]),
-  TEXTURE_PACK_ASSETS[TexturePack.Pack1],
-  TEXTURE_PACK_ASSETS[TexturePack.Pack2],
-  TEXTURE_PACK_ASSETS[TexturePack.Pack3],
-];
+function createAssetCatalog(): AssetCatalog {
+  const texturePackAssets: Readonly<Record<TexturePack, TexturePackAsset>> = {
+    [TexturePack.Pack1]: texturePackAsset(new URL("../../assets/game/textures/pack1.png", import.meta.url).href),
+    [TexturePack.Pack2]: texturePackAsset(new URL("../../assets/game/textures/pack2.png", import.meta.url).href),
+    [TexturePack.Pack3]: texturePackAsset(new URL("../../assets/game/textures/pack3.png", import.meta.url).href),
+  };
+
+  // Asset URLs must be fully static `new URL` literals so Vite can resolve them.
+  const managedAssets: readonly ManagedAsset[] = [
+    managedAsset(new URL("../../assets/game/textures/wall.png", import.meta.url).href, [
+      { layer: "walls", slot: WALL_TEX },
+      { layer: "walls", slot: DOOR_TEX, tint: DOOR_TINT },
+      { layer: "walls", slot: DOOR_TEX_BY_COLOR[KeyColor.Red], tint: DOOR_TINTS_BY_COLOR[KeyColor.Red] },
+      { layer: "walls", slot: DOOR_TEX_BY_COLOR[KeyColor.Blue], tint: DOOR_TINTS_BY_COLOR[KeyColor.Blue] },
+      { layer: "walls", slot: DOOR_TEX_BY_COLOR[KeyColor.Yellow], tint: DOOR_TINTS_BY_COLOR[KeyColor.Yellow] },
+    ]),
+    managedAsset(new URL("../../assets/game/textures/floor.png", import.meta.url).href, [
+      { layer: "planes", slot: FLOOR_TEX },
+    ]),
+    managedAsset(new URL("../../assets/game/textures/ceiling.png", import.meta.url).href, [
+      { layer: "planes", slot: CEILING_TEX },
+    ]),
+    managedAsset(
+      new URL("../../assets/game/sprites/digital_dog.png", import.meta.url).href,
+      enemySheetTargets(SPRITE_DOG),
+      ENEMY_CROP_FRAME,
+    ),
+    managedAsset(
+      new URL("../../assets/game/sprites/gigabit_gun_slinger.png", import.meta.url).href,
+      enemySheetTargets(SPRITE_GUNSLINGER),
+      ENEMY_CROP_FRAME,
+    ),
+    managedAsset(
+      new URL("../../assets/game/sprites/network_neophyte.png", import.meta.url).href,
+      enemySheetTargets(SPRITE_NEOPHYTE),
+      ENEMY_CROP_FRAME,
+    ),
+    managedAsset(
+      new URL("../../assets/game/sprites/system_sentinel.png", import.meta.url).href,
+      enemySheetTargets(SPRITE_SENTINEL),
+      ENEMY_CROP_FRAME,
+    ),
+    managedAsset(
+      new URL("../../assets/game/sprites/agentic_acolyte.png", import.meta.url).href,
+      enemySheetTargets(SPRITE_ACOLYTE),
+      ENEMY_CROP_FRAME,
+    ),
+    managedAsset(new URL("../../assets/game/sprites/corpse.png", import.meta.url).href, [
+      { layer: "sprites", slot: SPRITE_CORPSE },
+    ]),
+    managedAsset(new URL("../../assets/game/sprites/uplink_terminal.png", import.meta.url).href, [
+      // Left half of the sheet is the inactive terminal, right half is active.
+      { layer: "sprites", slot: SPRITE_TERMINAL, frame: [0.5, 0, 0.5, 1] },
+    ]),
+    managedAsset(new URL("../../assets/game/sprites/health.png", import.meta.url).href, [
+      { layer: "sprites", slot: SPRITE_HEALTH },
+    ]),
+    managedAsset(new URL("../../assets/game/sprites/red_key.png", import.meta.url).href, [
+      { layer: "sprites", slot: SPRITE_KEY_BY_COLOR[KeyColor.Red] },
+    ]),
+    managedAsset(new URL("../../assets/game/sprites/blue_key.png", import.meta.url).href, [
+      { layer: "sprites", slot: SPRITE_KEY_BY_COLOR[KeyColor.Blue] },
+    ]),
+    managedAsset(new URL("../../assets/game/sprites/yellow_key.png", import.meta.url).href, [
+      { layer: "sprites", slot: SPRITE_KEY_BY_COLOR[KeyColor.Yellow] },
+    ]),
+    managedAsset(new URL("../../assets/game/sprites/weapon_2.png", import.meta.url).href, [
+      { layer: "sprites", slot: SPRITE_WEAPON_2 },
+    ]),
+    managedAsset(new URL("../../assets/game/sprites/weapon_3.png", import.meta.url).href, [
+      { layer: "sprites", slot: SPRITE_WEAPON_3 },
+    ]),
+    texturePackAssets[TexturePack.Pack1],
+    texturePackAssets[TexturePack.Pack2],
+    texturePackAssets[TexturePack.Pack3],
+  ];
+
+  return { managedAssets, texturePackAssets };
+}
 
 function buildAtlas(): RaycastAtlas {
   const walls: BakedTexture[] = [];
@@ -363,42 +369,131 @@ function bakeOrb(hexColor: string): BakedTexture {
   return bakeTexture(orbSource(red, green, blue), { transpose: true });
 }
 
-const atlas: RaycastAtlas = buildAtlas();
-const view = createRaycastView();
-const sceneByMap = new WeakMap<GameMap, RaycastScene>();
-const packWallSlots = new Map<TexturePackRef, number>();
-const packPlaneSlots = new Map<TexturePackRef, number>();
-const orbSpriteByColor = new Map<string, number>();
-const drawableScratch: DrawableEntity[] = [];
-let rasterCanvas: OffscreenCanvas | undefined;
-
-const poseTween = createPoseTween();
-const poseSample: PoseSample = { x: 0, y: 0, angle: 0, progress: 1, moving: false, settled: true };
-const nudgeTween = createNudgeTween();
-const nudgeSample: NudgeSample = { dx: 0, dy: 0, settled: true };
-const spriteTweens = new Map<DrawableEntity["entity"], SpriteTween>();
-const spritePoint: SpritePoint = { x: 0, y: 0, settled: true };
-const doorTweens = new Map<DrawableEntity["entity"], ScalarTween>();
-const doorSample: ScalarSample = { value: 0, settled: true };
-
-/** Entities holding their attack pose, mapped to when the pose ends. */
-const attackPoseUntil = new Map<DrawableEntity["entity"], number>();
-/** Last rendered position and sheet base per enemy, for death placement. */
-const lastSeenEnemies = new Map<DrawableEntity["entity"], { x: number; y: number; base: number }>();
 type DeathEffect = { x: number; y: number; base: number; startMs: number };
-const deathEffects: DeathEffect[] = [];
-const corpses: { x: number; y: number }[] = [];
 
-let lastSession: GameSession | undefined;
-let repaintScheduled = false;
-let lastRepaint: (() => void) | undefined;
+export interface FirstPersonRenderSession {
+  readonly map: GameMap;
+  forEachDrawable(visit: DrawableEntityVisitor): void;
+}
+
+export interface FirstPersonRenderer {
+  preloadAssets(document: Document, onAssetLoad?: () => void): Promise<void>;
+  sceneForMap(map: GameMap): RaycastScene;
+  reset(): void;
+  bump(dirX: number, dirY: number): void;
+  markSpriteAttack(entity: DrawableEntity["entity"]): void;
+  markSpriteDeath(entity: DrawableEntity["entity"]): void;
+  render(
+    ctx: CanvasRenderingContext2D,
+    rect: ViewRect,
+    session: FirstPersonRenderSession,
+    targetTone?: TargetMarkerTone,
+    repaint?: () => void,
+  ): void;
+}
+
+function createFirstPersonRendererState() {
+  return {
+    atlas: buildAtlas(),
+    view: createRaycastView(),
+    assetCatalog: createAssetCatalog(),
+    sceneByMap: new WeakMap<GameMap, RaycastScene>(),
+    packWallSlots: new Map<TexturePackRef, number>(),
+    packPlaneSlots: new Map<TexturePackRef, number>(),
+    orbSpriteByColor: new Map<string, number>(),
+    drawableScratch: [] as DrawableEntity[],
+    rasterCanvas: undefined as OffscreenCanvas | undefined,
+    poseTween: createPoseTween(),
+    poseSample: { x: 0, y: 0, angle: 0, progress: 1, moving: false, settled: true } satisfies PoseSample,
+    nudgeTween: createNudgeTween(),
+    nudgeSample: { dx: 0, dy: 0, settled: true } satisfies NudgeSample,
+    spriteTweens: new Map<DrawableEntity["entity"], SpriteTween>(),
+    spritePoint: { x: 0, y: 0, settled: true } satisfies SpritePoint,
+    doorTweens: new Map<DrawableEntity["entity"], ScalarTween>(),
+    doorSample: { value: 0, settled: true } satisfies ScalarSample,
+    attackPoseUntil: new Map<DrawableEntity["entity"], number>(),
+    lastSeenEnemies: new Map<DrawableEntity["entity"], { x: number; y: number; base: number }>(),
+    deathEffects: [] as DeathEffect[],
+    corpses: [] as { x: number; y: number }[],
+    poseInitialized: false,
+    repaintScheduled: false,
+    lastRepaint: undefined as (() => void) | undefined,
+  };
+}
+
+type FirstPersonRendererState = ReturnType<typeof createFirstPersonRendererState>;
+
+class OwnedFirstPersonRenderer implements FirstPersonRenderer {
+  private readonly state = createFirstPersonRendererState();
+
+  preloadAssets(document: Document, onAssetLoad?: () => void): Promise<void> {
+    return preloadImageAssets(
+      document,
+      this.state.assetCatalog.managedAssets.map((entry) => entry.asset),
+      onAssetLoad,
+    );
+  }
+
+  sceneForMap(map: GameMap): RaycastScene {
+    return sceneForMapForState(this.state, map);
+  }
+
+  reset(): void {
+    resetFirstPersonRendererState(this.state);
+  }
+
+  bump(dirX: number, dirY: number): void {
+    bumpFirstPersonRenderer(this.state, dirX, dirY);
+  }
+
+  markSpriteAttack(entity: DrawableEntity["entity"]): void {
+    markFirstPersonSpriteAttack(this.state, entity);
+  }
+
+  markSpriteDeath(entity: DrawableEntity["entity"]): void {
+    markFirstPersonSpriteDeath(this.state, entity);
+  }
+
+  render(
+    ctx: CanvasRenderingContext2D,
+    rect: ViewRect,
+    session: FirstPersonRenderSession,
+    targetTone?: TargetMarkerTone,
+    repaint?: () => void,
+  ): void {
+    renderFirstPersonView(this.state, ctx, rect, session, targetTone, repaint);
+  }
+}
+
+export function createFirstPersonRenderer(): FirstPersonRenderer {
+  return new OwnedFirstPersonRenderer();
+}
+
+export function sceneForMap(map: GameMap): RaycastScene {
+  return createFirstPersonRenderer().sceneForMap(map);
+}
+
+function resetFirstPersonRendererState(state: FirstPersonRendererState): void {
+  state.sceneByMap = new WeakMap<GameMap, RaycastScene>();
+  state.drawableScratch.length = 0;
+  state.poseInitialized = false;
+  state.nudgeTween.active = false;
+  state.spriteTweens.clear();
+  state.doorTweens.clear();
+  state.attackPoseUntil.clear();
+  state.lastSeenEnemies.clear();
+  state.deathEffects.length = 0;
+  state.corpses.length = 0;
+  state.repaintScheduled = false;
+  state.lastRepaint = undefined;
+}
 
 /** One repaint per animation frame while the camera tween is unsettled. */
-function scheduleRepaint(repaint: () => void): void {
-  if (repaintScheduled || typeof requestAnimationFrame !== "function") return;
-  repaintScheduled = true;
+function scheduleRepaint(state: FirstPersonRendererState, repaint: () => void): void {
+  if (state.repaintScheduled || typeof requestAnimationFrame !== "function") return;
+  state.repaintScheduled = true;
   requestAnimationFrame((): void => {
-    repaintScheduled = false;
+    state.repaintScheduled = false;
     repaint();
   });
 }
@@ -406,17 +501,17 @@ function scheduleRepaint(repaint: () => void): void {
 /**
  * Play a short recoil lunge toward (dirX, dirY) — the presentation for a
  * move blocked by a wall or entity, which changes no game state. Repaints
- * with the last callback given to {@link renderFirstPersonView}.
+ * with the last callback given to the renderer.
  */
-export function bumpFirstPersonView(dirX: number, dirY: number): void {
-  startNudgeTween(nudgeTween, dirX, dirY, performance.now());
-  if (lastRepaint !== undefined) scheduleRepaint(lastRepaint);
+function bumpFirstPersonRenderer(state: FirstPersonRendererState, dirX: number, dirY: number): void {
+  startNudgeTween(state.nudgeTween, dirX, dirY, performance.now());
+  if (state.lastRepaint !== undefined) scheduleRepaint(state, state.lastRepaint);
 }
 
 /** Show the entity in its attack pose briefly (it just struck something). */
-export function markSpriteAttack(entity: DrawableEntity["entity"]): void {
-  attackPoseUntil.set(entity, performance.now() + ATTACK_POSE_MS);
-  if (lastRepaint !== undefined) scheduleRepaint(lastRepaint);
+function markFirstPersonSpriteAttack(state: FirstPersonRendererState, entity: DrawableEntity["entity"]): void {
+  state.attackPoseUntil.set(entity, performance.now() + ATTACK_POSE_MS);
+  if (state.lastRepaint !== undefined) scheduleRepaint(state, state.lastRepaint);
 }
 
 /**
@@ -424,18 +519,14 @@ export function markSpriteAttack(entity: DrawableEntity["entity"]): void {
  * The ECS destroys defeated entities immediately, so this echo is the only
  * record the renderer keeps of them.
  */
-export function markSpriteDeath(entity: DrawableEntity["entity"]): void {
-  const seen = lastSeenEnemies.get(entity);
+function markFirstPersonSpriteDeath(state: FirstPersonRendererState, entity: DrawableEntity["entity"]): void {
+  const seen = state.lastSeenEnemies.get(entity);
   if (seen === undefined) return;
-  deathEffects.push({ x: seen.x, y: seen.y, base: seen.base, startMs: performance.now() });
-  lastSeenEnemies.delete(entity);
-  spriteTweens.delete(entity);
-  attackPoseUntil.delete(entity);
-  if (lastRepaint !== undefined) scheduleRepaint(lastRepaint);
-}
-
-export async function preloadFirstPersonAssets(document: Document, onAssetLoad?: () => void): Promise<void> {
-  await preloadImageAssets(document, MANAGED_ASSETS.map((entry) => entry.asset), onAssetLoad);
+  state.deathEffects.push({ x: seen.x, y: seen.y, base: seen.base, startMs: performance.now() });
+  state.lastSeenEnemies.delete(entity);
+  state.spriteTweens.delete(entity);
+  state.attackPoseUntil.delete(entity);
+  if (state.lastRepaint !== undefined) scheduleRepaint(state, state.lastRepaint);
 }
 
 type OpaqueBounds = {
@@ -475,12 +566,13 @@ type ContentCrop = {
  * the frame, and hand back its pixels for baking.
  */
 function rasterize(
+  state: FirstPersonRendererState,
   image: HTMLImageElement,
   frame: SourceFrame | undefined,
   crop: ContentCrop | undefined,
 ): TexelSource | undefined {
-  rasterCanvas ??= new OffscreenCanvas(TEX_SIZE, TEX_SIZE);
-  const context = rasterCanvas.getContext("2d", { willReadFrequently: true });
+  state.rasterCanvas ??= new OffscreenCanvas(TEX_SIZE, TEX_SIZE);
+  const context = state.rasterCanvas.getContext("2d", { willReadFrequently: true });
   if (context === null) return undefined;
 
   const imageWidth = image.naturalWidth || image.width;
@@ -507,8 +599,12 @@ function rasterize(
  * that keeps the content's feet at the bottom edge, so sprites fill their
  * billboard quad instead of floating in sheet padding.
  */
-function measureContentCrop(image: HTMLImageElement, frame: SourceFrame | undefined): ContentCrop | undefined {
-  const pixels = rasterize(image, frame, undefined);
+function measureContentCrop(
+  state: FirstPersonRendererState,
+  image: HTMLImageElement,
+  frame: SourceFrame | undefined,
+): ContentCrop | undefined {
+  const pixels = rasterize(state, image, frame, undefined);
   if (pixels === undefined) return undefined;
   const bounds = opaqueBounds(pixels);
   if (bounds === undefined) return undefined;
@@ -525,8 +621,12 @@ function measureContentCrop(image: HTMLImageElement, frame: SourceFrame | undefi
   return { left, top, size };
 }
 
-function bakeLoadedAssets(ctx: CanvasRenderingContext2D, onAssetLoad?: () => void): void {
-  for (const entry of MANAGED_ASSETS) {
+function bakeLoadedAssets(
+  state: FirstPersonRendererState,
+  ctx: CanvasRenderingContext2D,
+  onAssetLoad?: () => void,
+): void {
+  for (const entry of state.assetCatalog.managedAssets) {
     const image = loadedImage(ctx, entry.asset, onAssetLoad);
     if (image === undefined) continue;
 
@@ -538,17 +638,17 @@ function bakeLoadedAssets(ctx: CanvasRenderingContext2D, onAssetLoad?: () => voi
       if (target.layer === "sprites") {
         if (entry.cropFrame !== undefined) {
           if (!sharedCropMeasured) {
-            sharedCrop = measureContentCrop(image, entry.cropFrame);
+            sharedCrop = measureContentCrop(state, image, entry.cropFrame);
             sharedCropMeasured = true;
           }
           crop = sharedCrop;
         } else {
-          crop = measureContentCrop(image, target.frame);
+          crop = measureContentCrop(state, image, target.frame);
         }
       }
-      const source = rasterize(image, target.frame, crop);
+      const source = rasterize(state, image, target.frame, crop);
       if (source === undefined) continue;
-      atlas[target.layer][target.slot] = bakeTexture(source, {
+      state.atlas[target.layer][target.slot] = bakeTexture(source, {
         transpose: target.layer !== "planes",
         ...(target.tint === undefined ? {} : { tint: target.tint }),
       });
@@ -557,13 +657,13 @@ function bakeLoadedAssets(ctx: CanvasRenderingContext2D, onAssetLoad?: () => voi
   }
 }
 
-function orbSprite(color: string): number {
-  const existing = orbSpriteByColor.get(color);
+function orbSprite(state: FirstPersonRendererState, color: string): number {
+  const existing = state.orbSpriteByColor.get(color);
   if (existing !== undefined) return existing;
 
-  const id = FIRST_ORB_SPRITE + orbSpriteByColor.size;
-  atlas.sprites[id] = bakeOrb(color);
-  orbSpriteByColor.set(color, id);
+  const id = FIRST_ORB_SPRITE + state.orbSpriteByColor.size;
+  state.atlas.sprites[id] = bakeOrb(color);
+  state.orbSpriteByColor.set(color, id);
   return id;
 }
 
@@ -571,7 +671,10 @@ function isTexturePack(value: string): value is TexturePack {
   return value === TexturePack.Pack1 || value === TexturePack.Pack2 || value === TexturePack.Pack3;
 }
 
-function parseTexturePackRef(texture: TexturePackRef): {
+function parseTexturePackRef(
+  texture: TexturePackRef,
+  texturePackAssets: Readonly<Record<TexturePack, TexturePackAsset>>,
+): {
   readonly pack: TexturePack;
   readonly column: number;
   readonly row: number;
@@ -588,7 +691,7 @@ function parseTexturePackRef(texture: TexturePackRef): {
   const rowText = cellParts[1];
   const column = Number(columnText);
   const row = Number(rowText);
-  const entry = TEXTURE_PACK_ASSETS[packText];
+  const entry = texturePackAssets[packText];
   if (
     cellParts.length !== 2 ||
     !Number.isInteger(column) ||
@@ -604,46 +707,51 @@ function parseTexturePackRef(texture: TexturePackRef): {
   return { pack: packText, column, row };
 }
 
-function texturePackFrame(texture: TexturePackRef, entry: TexturePackAsset): SourceFrame {
-  const { column, row } = parseTexturePackRef(texture);
+function texturePackFrame(
+  texture: TexturePackRef,
+  entry: TexturePackAsset,
+  texturePackAssets: Readonly<Record<TexturePack, TexturePackAsset>>,
+): SourceFrame {
+  const { column, row } = parseTexturePackRef(texture, texturePackAssets);
   return [column / entry.columns, row / entry.rows, 1 / entry.columns, 1 / entry.rows];
 }
 
 function texturePackSlot(
+  state: FirstPersonRendererState,
   layer: "walls" | "planes",
   texture: TexturePackRef,
   fallback: BakedTexture,
 ): number {
-  const slots = layer === "walls" ? packWallSlots : packPlaneSlots;
+  const slots = layer === "walls" ? state.packWallSlots : state.packPlaneSlots;
   const existing = slots.get(texture);
   if (existing !== undefined) return existing;
 
-  const { pack } = parseTexturePackRef(texture);
+  const { pack } = parseTexturePackRef(texture, state.assetCatalog.texturePackAssets);
   const slot = (layer === "walls" ? FIRST_PACK_WALL_TEX : FIRST_PACK_PLANE_TEX) + slots.size;
-  const entry = TEXTURE_PACK_ASSETS[pack];
+  const entry = state.assetCatalog.texturePackAssets[pack];
   slots.set(texture, slot);
-  atlas[layer][slot] = fallback;
-  addBakeTarget(entry, { layer, slot, frame: texturePackFrame(texture, entry) });
+  state.atlas[layer][slot] = fallback;
+  addBakeTarget(entry, { layer, slot, frame: texturePackFrame(texture, entry, state.assetCatalog.texturePackAssets) });
   return slot;
 }
 
-function wallTextureSlot(texture: WallTexture | undefined): number {
+function wallTextureSlot(state: FirstPersonRendererState, texture: WallTexture | undefined): number {
   if (texture === undefined || texture === "wall") return WALL_TEX;
-  return texturePackSlot("walls", texture, atlas.walls[WALL_TEX]!);
+  return texturePackSlot(state, "walls", texture, state.atlas.walls[WALL_TEX]!);
 }
 
-function floorTextureSlot(texture: FloorTexture): number {
+function floorTextureSlot(state: FirstPersonRendererState, texture: FloorTexture): number {
   if (texture === "floor") return FLOOR_TEX;
-  return texturePackSlot("planes", texture, atlas.planes[FLOOR_TEX]!);
+  return texturePackSlot(state, "planes", texture, state.atlas.planes[FLOOR_TEX]!);
 }
 
-function ceilingTextureSlot(texture: CeilingTexture): number {
+function ceilingTextureSlot(state: FirstPersonRendererState, texture: CeilingTexture): number {
   if (texture === "ceiling") return CEILING_TEX;
-  return texturePackSlot("planes", texture, atlas.planes[CEILING_TEX]!);
+  return texturePackSlot(state, "planes", texture, state.atlas.planes[CEILING_TEX]!);
 }
 
-export function sceneForMap(map: GameMap): RaycastScene {
-  const cached = sceneByMap.get(map);
+function sceneForMapForState(state: FirstPersonRendererState, map: GameMap): RaycastScene {
+  const cached = state.sceneByMap.get(map);
   if (cached !== undefined) return cached;
 
   const { width, height } = mapDimensions(map);
@@ -654,18 +762,18 @@ export function sceneForMap(map: GameMap): RaycastScene {
       const terrain = terrainAt(map, x, y);
       // Missing terrain blocks movement, so render it as wall to match.
       if (terrain === undefined) {
-        scene.walls[cell] = wallTextureSlot(undefined) + 1;
+        scene.walls[cell] = wallTextureSlot(state, undefined) + 1;
         continue;
       }
       if (terrain.blocking === true) {
-        scene.walls[cell] = wallTextureSlot("wall_texture" in terrain ? terrain.wall_texture : undefined) + 1;
+        scene.walls[cell] = wallTextureSlot(state, "wall_texture" in terrain ? terrain.wall_texture : undefined) + 1;
         continue;
       }
-      scene.floors[cell] = floorTextureSlot(terrain.floor_texture) + 1;
-      scene.ceilings[cell] = ceilingTextureSlot(terrain.ceiling_texture) + 1;
+      scene.floors[cell] = floorTextureSlot(state, terrain.floor_texture) + 1;
+      scene.ceilings[cell] = ceilingTextureSlot(state, terrain.ceiling_texture) + 1;
     }
   }
-  sceneByMap.set(map, scene);
+  state.sceneByMap.set(map, scene);
   return scene;
 }
 
@@ -708,19 +816,23 @@ function doorSlideForAxis(slide: DoorSlide | undefined, axis: ThinWallAxis): Thi
 }
 
 /** Animated openness for a door entity; updates doorSample. */
-function tweenedDoorOpenness(drawable: DrawableEntity & { open: boolean; openMs: number }, nowMs: number): void {
+function tweenedDoorOpenness(
+  state: FirstPersonRendererState,
+  drawable: DrawableEntity & { open: boolean; openMs: number },
+  nowMs: number,
+): void {
   const target = drawable.open ? 1 : 0;
-  let tween = doorTweens.get(drawable.entity);
+  let tween = state.doorTweens.get(drawable.entity);
   if (tween === undefined) {
     tween = createScalarTween(target);
-    doorTweens.set(drawable.entity, tween);
+    state.doorTweens.set(drawable.entity, tween);
   } else {
     retargetScalarTween(tween, target, nowMs, drawable.openMs);
   }
-  sampleScalarTween(tween, nowMs, doorSample);
+  sampleScalarTween(tween, nowMs, state.doorSample);
 }
 
-function itemSprite(icon: ItemIcon): number {
+function itemSprite(state: FirstPersonRendererState, icon: ItemIcon): number {
   switch (icon.type) {
     case "key":
       return SPRITE_KEY_BY_COLOR[icon.color];
@@ -729,7 +841,7 @@ function itemSprite(icon: ItemIcon): number {
     case "uplinkCode":
       return SPRITE_UPLINK_CODE;
     case "badge":
-      return icon.label === "+" ? SPRITE_HEALTH : orbSprite(icon.color);
+      return icon.label === "+" ? SPRITE_HEALTH : orbSprite(state, icon.color);
   }
 }
 
@@ -739,81 +851,18 @@ function enemySprite(archetype: EnemyArchetype, dir: number, cameraDir: Cardinal
 }
 
 /** Pick the sheet row for an enemy: attack pose, mid-stride gait, or idle. */
-function enemySheetRow(entity: DrawableEntity["entity"], moving: boolean, nowMs: number): number {
-  if (nowMs < (attackPoseUntil.get(entity) ?? 0)) return ROW_ATTACK;
+function enemySheetRow(
+  state: FirstPersonRendererState,
+  entity: DrawableEntity["entity"],
+  moving: boolean,
+  nowMs: number,
+): number {
+  if (nowMs < (state.attackPoseUntil.get(entity) ?? 0)) return ROW_ATTACK;
   if (moving && ((nowMs / WALK_FRAME_MS) & 1) === 1) return ROW_WALK;
   return ROW_IDLE;
 }
 
-function targetToneFor(
-  drawables: readonly DrawableEntity[],
-  playerX: number,
-  playerY: number,
-  forward: ReturnType<typeof directionDelta>,
-): TargetTone | undefined {
-  let bestDistance = Number.POSITIVE_INFINITY;
-  let bestPriority = -1;
-  let bestTone: TargetTone | undefined;
-  for (const drawable of drawables) {
-    const distance = facingDistance(drawable, playerX, playerY, forward);
-    if (distance === undefined || distance > TARGET_MAX_DISTANCE) continue;
-
-    const tone = drawableTargetTone(drawable);
-    if (tone === undefined) continue;
-    const priority = targetPriority(tone);
-    if (distance < bestDistance || (distance === bestDistance && priority > bestPriority)) {
-      bestDistance = distance;
-      bestPriority = priority;
-      bestTone = tone;
-    }
-  }
-  return bestTone;
-}
-
-function facingDistance(
-  drawable: DrawableEntity,
-  playerX: number,
-  playerY: number,
-  forward: ReturnType<typeof directionDelta>,
-): number | undefined {
-  const dx = drawable.x - playerX;
-  const dy = drawable.y - playerY;
-  if (forward.dx !== 0 && dy === 0 && dx * forward.dx > 0) return Math.abs(dx);
-  if (forward.dy !== 0 && dx === 0 && dy * forward.dy > 0) return Math.abs(dy);
-  return undefined;
-}
-
-function drawableTargetTone(drawable: DrawableEntity): TargetTone | undefined {
-  switch (drawable.kind) {
-    case DrawableKind.Enemy:
-      return "danger";
-    case DrawableKind.Door:
-      if (drawable.open) return undefined;
-      return drawable.locked ? "locked" : "use";
-    case DrawableKind.Item:
-      return "loot";
-    case DrawableKind.Npc:
-    case DrawableKind.UplinkTerminal:
-      return "use";
-    case DrawableKind.Player:
-      return undefined;
-  }
-}
-
-function targetPriority(tone: TargetTone): number {
-  switch (tone) {
-    case "danger":
-      return 4;
-    case "locked":
-      return 3;
-    case "use":
-      return 2;
-    case "loot":
-      return 1;
-  }
-}
-
-function drawTargetHighlight(ctx: CanvasRenderingContext2D, rect: ViewRect, tone: TargetTone): void {
+function drawTargetHighlight(ctx: CanvasRenderingContext2D, rect: ViewRect, tone: TargetMarkerTone): void {
   const size = Math.max(18, Math.round(rect.width * TARGET_SIZE_FRACTION));
   const inner = Math.round(size * TARGET_INNER_FRACTION);
   const cx = Math.round(rect.x + rect.width / 2);
@@ -844,21 +893,22 @@ function drawTargetHighlight(ctx: CanvasRenderingContext2D, rect: ViewRect, tone
 }
 
 /** Tweened world position for a moving entity; updates spritePoint. */
-function tweenedSpritePosition(drawable: DrawableEntity, nowMs: number): void {
+function tweenedSpritePosition(state: FirstPersonRendererState, drawable: DrawableEntity, nowMs: number): void {
   const centerX = drawable.x + 0.5;
   const centerY = drawable.y + 0.5;
-  let tween = spriteTweens.get(drawable.entity);
+  let tween = state.spriteTweens.get(drawable.entity);
   if (tween === undefined) {
     tween = createSpriteTween(centerX, centerY);
-    spriteTweens.set(drawable.entity, tween);
+    state.spriteTweens.set(drawable.entity, tween);
   } else {
     retargetSpriteTween(tween, centerX, centerY, nowMs);
   }
-  sampleSpriteTween(tween, nowMs, spritePoint);
+  sampleSpriteTween(tween, nowMs, state.spritePoint);
 }
 
 /** Returns true when the drawable's animation still needs repaints. */
 function addDrawable(
+  state: FirstPersonRendererState,
   scene: RaycastScene,
   map: GameMap,
   drawable: DrawableEntity,
@@ -874,28 +924,28 @@ function addDrawable(
       addSprite(scene, centerX, centerY, SPRITE_NPC, ACTOR_SCALE);
       return false;
     case DrawableKind.Enemy: {
-      tweenedSpritePosition(drawable, nowMs);
+      tweenedSpritePosition(state, drawable, nowMs);
       if (drawable.enemyArchetype === undefined) {
-        addSprite(scene, spritePoint.x, spritePoint.y, SPRITE_NPC, ACTOR_SCALE);
-        return !spritePoint.settled;
+        addSprite(scene, state.spritePoint.x, state.spritePoint.y, SPRITE_NPC, ACTOR_SCALE);
+        return !state.spritePoint.settled;
       }
-      const attacking = nowMs < (attackPoseUntil.get(drawable.entity) ?? 0);
-      const row = enemySheetRow(drawable.entity, !spritePoint.settled, nowMs);
+      const attacking = nowMs < (state.attackPoseUntil.get(drawable.entity) ?? 0);
+      const row = enemySheetRow(state, drawable.entity, !state.spritePoint.settled, nowMs);
       const sprite = enemySprite(drawable.enemyArchetype, drawable.dir, cameraDir, row);
-      let seen = lastSeenEnemies.get(drawable.entity);
+      let seen = state.lastSeenEnemies.get(drawable.entity);
       if (seen === undefined) {
         seen = { x: 0, y: 0, base: 0 };
-        lastSeenEnemies.set(drawable.entity, seen);
+        state.lastSeenEnemies.set(drawable.entity, seen);
       }
-      seen.x = spritePoint.x;
-      seen.y = spritePoint.y;
+      seen.x = state.spritePoint.x;
+      seen.y = state.spritePoint.y;
       seen.base = ENEMY_SPRITES[drawable.enemyArchetype];
-      addSprite(scene, spritePoint.x, spritePoint.y, sprite, ACTOR_SCALE);
-      return !spritePoint.settled || attacking;
+      addSprite(scene, state.spritePoint.x, state.spritePoint.y, sprite, ACTOR_SCALE);
+      return !state.spritePoint.settled || attacking;
     }
     case DrawableKind.Door: {
-      tweenedDoorOpenness(drawable, nowMs);
-      if (doorSample.value >= 1) return false;
+      tweenedDoorOpenness(state, drawable, nowMs);
+      if (state.doorSample.value >= 1) return false;
       const axis = doorAxis(map, drawable.x, drawable.y);
       addThinWall(
         scene,
@@ -904,15 +954,15 @@ function addDrawable(
         doorTexture(drawable.locked, drawable.color),
         axis,
         doorSlideForAxis(drawable.slide, axis),
-        doorSample.value,
+        state.doorSample.value,
       );
-      return !doorSample.settled;
+      return !state.doorSample.settled;
     }
     case DrawableKind.UplinkTerminal:
       addSprite(scene, centerX, centerY, SPRITE_TERMINAL, TERMINAL_SCALE);
       return false;
     case DrawableKind.Item:
-      addSprite(scene, centerX, centerY, itemSprite(drawable.icon), ITEM_SCALE);
+      addSprite(scene, centerX, centerY, itemSprite(state, drawable.icon), ITEM_SCALE);
       return false;
   }
 }
@@ -923,20 +973,22 @@ function addDrawable(
  * is tweening between grid poses, one requestAnimationFrame repaint at a time
  * is scheduled, so idle turns keep costing zero frames.
  */
-export function renderFirstPersonView(
+function renderFirstPersonView(
+  state: FirstPersonRendererState,
   ctx: CanvasRenderingContext2D,
   rect: ViewRect,
-  session: GameSession,
+  session: FirstPersonRenderSession,
+  targetTone?: TargetMarkerTone,
   repaint?: () => void,
 ): void {
   const map = session.map;
-  const scene = sceneForMap(map);
-  bakeLoadedAssets(ctx, repaint);
+  const scene = sceneForMapForState(state, map);
+  bakeLoadedAssets(state, ctx, repaint);
   clearSceneDynamic(scene);
 
   // Two passes over the drawables: the camera pose must be known before
   // enemies pick a directional sprite.
-  drawableScratch.length = 0;
+  state.drawableScratch.length = 0;
   let playerX = 0;
   let playerY = 0;
   let playerDir: CardinalDirection | undefined;
@@ -947,70 +999,64 @@ export function renderFirstPersonView(
       playerDir = normalizeDirection(drawable.dir);
       return;
     }
-    drawableScratch.push(drawable);
+    state.drawableScratch.push(drawable);
   });
   if (playerDir === undefined) return;
 
   const forward = directionDelta(playerDir);
   const targetAngle = Math.atan2(forward.dy, forward.dx);
   const nowMs = performance.now();
-  lastRepaint = repaint;
-  if (lastSession !== session) {
-    // New session (map load, retry): spawn poses snap instead of animating,
-    // and entity ids from the previous session no longer mean anything.
-    lastSession = session;
-    snapPoseTween(poseTween, playerX + 0.5, playerY + 0.5, targetAngle);
-    nudgeTween.active = false;
-    spriteTweens.clear();
-    doorTweens.clear();
-    attackPoseUntil.clear();
-    lastSeenEnemies.clear();
-    deathEffects.length = 0;
-    corpses.length = 0;
+  state.lastRepaint = repaint;
+  if (!state.poseInitialized) {
+    state.poseInitialized = true;
+    snapPoseTween(state.poseTween, playerX + 0.5, playerY + 0.5, targetAngle);
   } else {
-    retargetPoseTween(poseTween, playerX + 0.5, playerY + 0.5, targetAngle, nowMs);
+    retargetPoseTween(state.poseTween, playerX + 0.5, playerY + 0.5, targetAngle, nowMs);
   }
 
   // Corpses first so anything else on the tile draws over them.
-  for (const corpse of corpses) {
+  for (const corpse of state.corpses) {
     addSprite(scene, corpse.x, corpse.y, SPRITE_CORPSE, CORPSE_SCALE);
   }
 
   let spritesAnimating = false;
-  for (const drawable of drawableScratch) {
-    spritesAnimating = addDrawable(scene, map, drawable, playerDir, nowMs) || spritesAnimating;
+  for (const drawable of state.drawableScratch) {
+    spritesAnimating = addDrawable(state, scene, map, drawable, playerDir, nowMs) || spritesAnimating;
   }
 
   // Death sequences play out where the entity last stood, then settle into
   // corpses that persist for the rest of the session.
-  for (let i = deathEffects.length - 1; i >= 0; i--) {
-    const death = deathEffects[i]!;
+  for (let i = state.deathEffects.length - 1; i >= 0; i--) {
+    const death = state.deathEffects[i]!;
     const frame = ((nowMs - death.startMs) / DEATH_FRAME_MS) | 0;
     if (frame >= SHEET_COLUMNS) {
-      if (corpses.length >= MAX_CORPSES) corpses.shift();
-      corpses.push({ x: death.x, y: death.y });
-      deathEffects.splice(i, 1);
+      if (state.corpses.length >= MAX_CORPSES) state.corpses.shift();
+      state.corpses.push({ x: death.x, y: death.y });
+      state.deathEffects.splice(i, 1);
       continue;
     }
     addSprite(scene, death.x, death.y, death.base + ROW_DEATH * SHEET_COLUMNS + frame, ACTOR_SCALE);
     spritesAnimating = true;
   }
 
-  samplePoseTween(poseTween, nowMs, poseSample);
-  sampleNudgeTween(nudgeTween, nowMs, nudgeSample);
-  if ((!poseSample.settled || !nudgeSample.settled || spritesAnimating) && repaint !== undefined) {
-    scheduleRepaint(repaint);
+  samplePoseTween(state.poseTween, nowMs, state.poseSample);
+  sampleNudgeTween(state.nudgeTween, nowMs, state.nudgeSample);
+  if ((!state.poseSample.settled || !state.nudgeSample.settled || spritesAnimating) && repaint !== undefined) {
+    scheduleRepaint(state, repaint);
   }
 
-  view.render(
+  state.view.render(
     ctx,
     rect,
     scene,
-    atlas,
-    cameraForAngle(poseSample.x + nudgeSample.dx, poseSample.y + nudgeSample.dy, poseSample.angle),
-    headBobFraction(poseSample),
+    state.atlas,
+    cameraForAngle(
+      state.poseSample.x + state.nudgeSample.dx,
+      state.poseSample.y + state.nudgeSample.dy,
+      state.poseSample.angle,
+    ),
+    headBobFraction(state.poseSample),
   );
 
-  const targetTone = targetToneFor(drawableScratch, playerX, playerY, forward);
   if (targetTone !== undefined) drawTargetHighlight(ctx, rect, targetTone);
 }

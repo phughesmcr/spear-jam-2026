@@ -43,10 +43,11 @@ export type ThinWallSlide =
   | typeof THIN_SLIDE_DOWN;
 
 /** Half the horizontal field of view, as camera plane length. */
-export const CAMERA_PLANE_LENGTH = 1.0;
+export const CAMERA_PLANE_LENGTH = 0.66;
 
-/** Neutral projection scale: one world tile maps to one texture span. */
-const PROJECTION_PLANE_LENGTH = 1.0;
+const PROJECTION_PLANE_LENGTH = CAMERA_PLANE_LENGTH;
+/** Eye height above the floor in world-tile units. */
+const CAMERA_HEIGHT = 0.38;
 
 const MAX_THIN_WALLS = 64;
 const MAX_SPRITES = 128;
@@ -280,7 +281,7 @@ function renderPlanes(
 
   for (let y = horizon; y < height; y++) {
     // Sample the row centre; +0.5 also keeps the horizon row finite.
-    const rowDistance = (0.5 * focal) / (y - horizon + 0.5);
+    const rowDistance = (CAMERA_HEIGHT * focal) / (y - horizon + 0.5);
     const floorBand = shadeBand(rowDistance);
     const ceilingBand = offsetShadeBand(floorBand, CEILING_SHADE_OFFSET);
     const stepX = (rowDistance * raySpanX) / width;
@@ -306,7 +307,9 @@ function renderPlanes(
           ceilingTexels = ceilingId === 0 ? undefined : planes[ceilingId - 1]?.bands[ceilingBand];
         }
         if (floorTexels !== undefined || ceilingTexels !== undefined) {
-          const texel = (((worldY * TEX_SIZE) | 0) & TEX_MASK) << TEX_SHIFT | (((worldX * TEX_SIZE) | 0) & TEX_MASK);
+          const texX = (((worldX - cellX) * TEX_SIZE) | 0) & TEX_MASK;
+          const texY = (((worldY - cellY) * TEX_SIZE) | 0) & TEX_MASK;
+          const texel = (texY << TEX_SHIFT) | texX;
           if (floorTexels !== undefined) pixels[floorRow + x] = floorTexels[texel]!;
           if (ceilingTexels !== undefined) pixels[ceilingRow + x] = ceilingTexels[texel]!;
         }

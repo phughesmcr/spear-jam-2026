@@ -5,6 +5,7 @@ import {
   Attack,
   type AttackSchema,
   Blocking,
+  Defense,
   Dialogue,
   DisplayNameComponent,
   Door,
@@ -70,13 +71,15 @@ export type TestPlayerOptions = {
   blocking?: boolean;
   tag?: boolean;
   health?: HealthSchema;
+  hitDc?: number;
 };
 
 export function createTestPlayer(world: World, opts: TestPlayerOptions = {}): Entity {
-  const { x = 1, y = 1, dir = 1, blocking, tag, health } = opts;
+  const { x = 1, y = 1, dir = 1, blocking, tag, health, hitDc = 10 } = opts;
   const entity = createEntity(world);
   world.components.addToEntity(GridPos, entity, { x, y });
   world.components.addToEntity(Facing, entity, { dir });
+  world.components.addToEntity(Defense, entity, { hitDc });
   if (blocking) world.components.addToEntity(Blocking, entity);
   if (tag) world.components.addToEntity(PlayerComponent, entity);
   if (health) world.components.addToEntity(Health, entity, health);
@@ -211,6 +214,7 @@ export type TestEnemyOptions = {
   displayName: DisplayName;
   attack: AttackSchema;
   health?: HealthSchema;
+  hitDc?: number;
   archetype?: EnemyArchetype;
   examineTextId?: number;
 };
@@ -225,6 +229,7 @@ export function createTestEnemy(world: World, opts: TestEnemyOptions): Entity {
   world.components.addToEntity(TurnTaker, entity);
   world.components.addToEntity(DisplayNameComponent, entity, { displayName: opts.displayName });
   world.components.addToEntity(Attack, entity, opts.attack);
+  world.components.addToEntity(Defense, entity, { hitDc: opts.hitDc ?? 10 });
   if (opts.examineTextId !== undefined) {
     world.components.addToEntity(Examine, entity, { examineTextId: opts.examineTextId });
   }

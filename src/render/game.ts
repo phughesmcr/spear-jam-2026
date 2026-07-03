@@ -4,7 +4,7 @@ import type { GameMode, ViewMode } from "@/src/game/state.ts";
 import type { GameCanvasSize } from "@/src/render/canvas.ts";
 import { renderCombatFeedback } from "@/src/render/combat_feedback.ts";
 import { renderDrawableEntities } from "@/src/render/drawables.ts";
-import { preloadFirstPersonAssets, renderFirstPersonView } from "@/src/render/first_person.ts";
+import { createFirstPersonRenderer, type FirstPersonRenderer } from "@/src/render/first_person.ts";
 import { preloadHudAssets, renderFirstPersonHud, renderHud } from "@/src/render/hud.ts";
 import type { FirstPersonHudOptions } from "@/src/render/hud.ts";
 import { renderMap } from "@/src/render/map.ts";
@@ -25,10 +25,14 @@ type GameRenderRect = {
   readonly height: number;
 };
 
-export async function preloadGameAssets(document: Document, onAssetLoad?: () => void): Promise<void> {
+export async function preloadGameAssets(
+  document: Document,
+  firstPersonRenderer: FirstPersonRenderer,
+  onAssetLoad?: () => void,
+): Promise<void> {
   await Promise.all([
     preloadVerbMenuAssets(document, onAssetLoad),
-    preloadFirstPersonAssets(document, onAssetLoad),
+    firstPersonRenderer.preloadAssets(document, onAssetLoad),
     preloadWeaponHudAssets(document, onAssetLoad),
     preloadHudAssets(document, onAssetLoad),
   ]);
@@ -78,6 +82,7 @@ export function renderGameFrame(
   combatFeedback: readonly CombatFeedback[] = [],
   viewMode: ViewMode = "firstPerson",
   weaponHudPhase: WeaponHudPhase = "idle",
+  firstPersonRenderer: FirstPersonRenderer = createFirstPersonRenderer(),
   firstPersonHud: FirstPersonHudOptions = {},
   onAssetLoad?: () => void,
 ): void {
@@ -88,10 +93,11 @@ export function renderGameFrame(
     const { map } = session;
     if (viewMode === "firstPerson") {
       const playRect = gameRenderRect(canvasSize, viewMode);
-      renderFirstPersonView(
+      firstPersonRenderer.render(
         ctx,
         playRect,
         session,
+        session.targetMarkerTone(),
         onAssetLoad,
       );
       renderFirstPersonVignette(ctx, playRect);
