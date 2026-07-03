@@ -1,0 +1,61 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<tileset version="1.10" tiledversion="1.11.2" name="entity_markers" tilewidth="16" tileheight="16" tilecount="9"
+  columns="9">
+  <image source="entity_markers.png" width="160" height="16" />
+  <tile id="0" type="player">
+    <properties>
+      <property name="prefab" propertytype="Prefab" type="string" value="player" />
+      <property name="facing" propertytype="Facing" type="string" value="north" />
+    </properties>
+  </tile>
+  <tile id="1" type="npc">
+    <properties>
+      <property name="prefab" propertytype="Prefab" type="string" value="npc" />
+      <property name="facing" propertytype="Facing" type="string" value="north" />
+      <property name="displayName" propertytype="DisplayName" type="string" value="John" />
+    </properties>
+  </tile>
+  <tile id="2" type="enemy">
+    <properties>
+      <property name="prefab" propertytype="Prefab" type="string" value="enemy" />
+      <property name="facing" propertytype="Facing" type="string" value="north" />
+      <property name="displayName" propertytype="DisplayName" type="string" value="DigitalDog" />
+      <property name="archetype" propertytype="EnemyArchetype" type="string" value="MeleeDog" />
+    </properties>
+  </tile>
+  <tile id="3" type="door">
+    <properties>
+      <property name="prefab" propertytype="Prefab" type="string" value="door" />
+    </properties>
+  </tile>
+  <tile id="4" type="key">
+    <properties>
+      <property name="prefab" propertytype="Prefab" type="string" value="key" />
+      <property name="color" propertytype="KeyColor" type="string" value="red" />
+    </properties>
+  </tile>
+  <tile id="5" type="uplinkCode">
+    <properties>
+      <property name="prefab" propertytype="Prefab" type="string" value="uplinkCode" />
+    </properties>
+  </tile>
+  <tile id="6" type="uplinkTerminal">
+    <properties>
+      <property name="prefab" propertytype="Prefab" type="string" value="uplinkTerminal" />
+      <property name="goto" type="string" value="victory" />
+    </properties>
+  </tile>
+  <tile id="7" type="weaponPickup">
+    <properties>
+      <property name="prefab" propertytype="Prefab" type="string" value="weaponPickup" />
+      <property name="slot" type="int" value="2" />
+    </properties>
+  </tile>
+  <tile id="8" type="item">
+    <properties>
+      <property name="prefab" propertytype="Prefab" type="string" value="item" />
+      <property name="item" propertytype="ItemKind" type="string" value="HealthPatch" />
+      <property name="amount" type="int" value="1" />
+    </properties>
+  </tile>
+</tileset>

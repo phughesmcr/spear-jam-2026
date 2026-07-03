@@ -1,12 +1,11 @@
 import type { GameMap } from "@/src/map/map.ts";
-import { MAP_1 } from "@/src/map/map_1.ts";
-import { MAP_2 } from "@/src/map/map_2.ts";
-import { MAP_3 } from "@/src/map/map_3.ts";
-import { MAP_4 } from "@/src/map/map_4.ts";
-import { MAP_5 } from "@/src/map/map_5.ts";
+import {
+  GAME_MAPS as GENERATED_GAME_MAPS,
+  START_MAP_NAME as GENERATED_START_MAP_NAME,
+} from "@/src/map/generated_maps.ts";
 
-export const START_MAP_NAME = MAP_1.name;
-export const GAME_MAPS = [MAP_1, MAP_2, MAP_3, MAP_4, MAP_5] as const satisfies readonly GameMap[];
+export const START_MAP_NAME = GENERATED_START_MAP_NAME;
+export const GAME_MAPS = GENERATED_GAME_MAPS satisfies readonly GameMap[];
 
 const MAPS: ReadonlyMap<string, GameMap> = new Map(GAME_MAPS.map((map) => [map.name, map]));
 

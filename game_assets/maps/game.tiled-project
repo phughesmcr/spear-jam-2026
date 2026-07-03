@@ -1,0 +1,233 @@
+{
+  "automappingRulesFile": "",
+  "commands": [],
+  "compatibilityVersion": 1100,
+  "extensionsPath": "extensions",
+  "folders": [
+    "."
+  ],
+  "properties": [],
+  "propertyTypes": [
+    {
+      "id": 1,
+      "name": "TerrainPalette",
+      "storageType": "string",
+      "type": "enum",
+      "values": [
+        "boot_sector",
+        "data_conduit",
+        "firewall",
+        "nexus",
+        "mainframe_core"
+      ],
+      "valuesAsFlags": false
+    },
+    {
+      "id": 2,
+      "name": "Prefab",
+      "storageType": "string",
+      "type": "enum",
+      "values": [
+        "player",
+        "npc",
+        "enemy",
+        "door",
+        "key",
+        "uplinkCode",
+        "uplinkTerminal",
+        "weaponPickup",
+        "item"
+      ],
+      "valuesAsFlags": false
+    },
+    {
+      "id": 3,
+      "name": "Facing",
+      "storageType": "string",
+      "type": "enum",
+      "values": [
+        "north",
+        "east",
+        "south",
+        "west"
+      ],
+      "valuesAsFlags": false
+    },
+    {
+      "id": 4,
+      "name": "KeyColor",
+      "storageType": "string",
+      "type": "enum",
+      "values": [
+        "red",
+        "blue",
+        "yellow"
+      ],
+      "valuesAsFlags": false
+    },
+    {
+      "id": 5,
+      "name": "DoorSlide",
+      "storageType": "string",
+      "type": "enum",
+      "values": [
+        "north",
+        "east",
+        "south",
+        "west",
+        "up",
+        "down"
+      ],
+      "valuesAsFlags": false
+    },
+    {
+      "id": 6,
+      "name": "DisplayName",
+      "storageType": "string",
+      "type": "enum",
+      "values": [
+        "John",
+        "Imp",
+        "DigitalDog",
+        "GigabitGunslinger",
+        "NetworkNeophyte",
+        "SystemSentinel",
+        "AgenticAcolyte"
+      ],
+      "valuesAsFlags": false
+    },
+    {
+      "id": 7,
+      "name": "DialogueTreeId",
+      "storageType": "string",
+      "type": "enum",
+      "values": [
+        "None",
+        "JohnIntro"
+      ],
+      "valuesAsFlags": false
+    },
+    {
+      "id": 8,
+      "name": "ExamineTextId",
+      "storageType": "string",
+      "type": "enum",
+      "values": [
+        "BootSectorUplinkTerminal"
+      ],
+      "valuesAsFlags": false
+    },
+    {
+      "id": 9,
+      "name": "ItemKind",
+      "storageType": "string",
+      "type": "enum",
+      "values": [
+        "HealthPatch",
+        "PistolAmmo",
+        "CannonAmmo",
+        "Key",
+        "UplinkCode",
+        "Weapon"
+      ],
+      "valuesAsFlags": false
+    },
+    {
+      "id": 10,
+      "name": "EnemyArchetype",
+      "storageType": "string",
+      "type": "enum",
+      "values": [
+        "MeleeDog",
+        "Gunslinger",
+        "NetworkNeophyte",
+        "SystemSentinel",
+        "AgenticAcolyte"
+      ],
+      "valuesAsFlags": false
+    },
+    {
+      "id": 11,
+      "name": "AttackPattern",
+      "storageType": "string",
+      "type": "enum",
+      "values": [
+        "line",
+        "adjacent"
+      ],
+      "valuesAsFlags": false
+    },
+    {
+      "id": 12,
+      "name": "AttackTargets",
+      "storageType": "string",
+      "type": "enum",
+      "values": [
+        "first",
+        "all"
+      ],
+      "valuesAsFlags": false
+    },
+    {
+      "id": 13,
+      "name": "AttackRequiresFacing",
+      "storageType": "string",
+      "type": "enum",
+      "values": [
+        "required",
+        "none"
+      ],
+      "valuesAsFlags": false
+    },
+    {
+      "color": "#ff0ea5e9",
+      "drawFill": true,
+      "id": 20,
+      "members": [
+        {
+          "name": "name",
+          "type": "string",
+          "value": "Boot Sector"
+        },
+        {
+          "name": "palette",
+          "propertyType": "TerrainPalette",
+          "type": "string",
+          "value": "boot_sector"
+        },
+        {
+          "name": "campaignOrder",
+          "type": "int",
+          "value": 1
+        }
+      ],
+      "name": "map_metadata",
+      "type": "class",
+      "useAs": [
+        "map"
+      ]
+    },
+    {
+      "color": "#ff334155",
+      "drawFill": true,
+      "id": 21,
+      "members": [],
+      "name": "terrain_layer",
+      "type": "class",
+      "useAs": [
+        "layer"
+      ]
+    },
+    {
+      "color": "#ffa855f7",
+      "drawFill": false,
+      "id": 22,
+      "members": [],
+      "name": "object_layer",
+      "type": "class",
+      "useAs": [
+        "layer"
+      ]
+    }
+  ]
+}

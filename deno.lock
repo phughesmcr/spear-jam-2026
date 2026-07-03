@@ -34,6 +34,7 @@
     "jsr:@std/path@^1.1.5": "1.1.5",
     "jsr:@std/semver@^1.0.6": "1.0.8",
     "jsr:@std/uuid@^1.0.9": "1.1.1",
+    "jsr:@std/xml@~0.1.2": "0.1.2",
     "npm:@babel/core@^7.28.0": "7.29.7",
     "npm:@babel/preset-react@^7.27.1": "7.29.7_@babel+core@7.29.7",
     "npm:@opentelemetry/api@^1.9.0": "1.9.1",
@@ -207,6 +208,9 @@
       "dependencies": [
         "jsr:@std/bytes"
       ]
+    },
+    "@std/xml@0.1.2": {
+      "integrity": "a17a771548f10895b9a2a54b39b52e2e27e0617e0e05bb5919c04c87f89007f0"
     }
   },
   "npm": {
@@ -1504,6 +1508,7 @@
       "jsr:@fresh/plugin-vite@^1.1.2",
       "jsr:@phughesmcr/miski@^1.0.0-alpha.3",
       "jsr:@std/assert@^1.0.13",
+      "jsr:@std/xml@~0.1.2",
       "npm:@preact/signals@^2.9.0",
       "npm:@tailwindcss/vite@^4.1.12",
       "npm:@types/babel__core@^7.20.5",
