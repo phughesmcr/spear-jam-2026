@@ -8,6 +8,7 @@ import {
   renderFirstPersonCombatFeedback,
 } from "@/src/render/combat_feedback.ts";
 import { renderDrawableEntities } from "@/src/render/drawables.ts";
+import { renderDialogue } from "@/src/render/dialogue.ts";
 import { createFirstPersonRenderer, type FirstPersonRenderer } from "@/src/render/first_person.ts";
 import { preloadHudAssets, renderFirstPersonHud, renderHud } from "@/src/render/hud.ts";
 import type { FirstPersonHudOptions } from "@/src/render/hud.ts";
@@ -119,7 +120,7 @@ export function renderGameFrame(
       renderOverlay(ctx, canvasSize, "MENU", "Esc to resume");
       return;
     case "dialogue":
-      renderOverlay(ctx, canvasSize, mode.title, mode.message);
+      renderDialogue(ctx, canvasSize, mode);
       return;
     case "intermission":
       renderOverlay(ctx, canvasSize, "INTERMISSION", mode.message);
@@ -144,13 +145,17 @@ export function renderGameFrame(
 function renderFirstPersonVignette(ctx: CanvasRenderingContext2D, rect: GameRenderRect): void {
   const centerX = rect.x + rect.width / 2;
   const centerY = rect.y + rect.height * 0.54;
-  const radius = Math.max(rect.width, rect.height) * 0.76;
-  const gradient = ctx.createRadialGradient(centerX, centerY, radius * 0.24, centerX, centerY, radius);
+  const cornerRadius = Math.hypot(rect.width / 2, Math.max(centerY - rect.y, rect.y + rect.height - centerY));
+  const innerRadius = Math.min(rect.width, rect.height) * 0.28;
+  const gradient = ctx.createRadialGradient(centerX, centerY, innerRadius, centerX, centerY, cornerRadius);
   gradient.addColorStop(0, "rgba(0, 0, 0, 0)");
-  gradient.addColorStop(0.62, "rgba(0, 0, 0, 0.08)");
-  gradient.addColorStop(1, "rgba(0, 0, 0, 0.48)");
+  gradient.addColorStop(0.42, "rgba(0, 0, 0, 0)");
+  gradient.addColorStop(0.72, "rgba(0, 0, 0, 0.32)");
+  gradient.addColorStop(1, "rgba(0, 0, 0, 0.78)");
 
   ctx.save();
+  ctx.globalAlpha = 1;
+  ctx.globalCompositeOperation = "source-over";
   ctx.fillStyle = gradient;
   ctx.fillRect(rect.x, rect.y, rect.width, rect.height);
   ctx.restore();

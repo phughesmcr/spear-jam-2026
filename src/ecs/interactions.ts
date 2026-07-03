@@ -162,7 +162,7 @@ function interactWithNpc(world: World, npc: Entity): PlayerInteractionResult {
     events: [],
     dialogue: {
       title: displayNameLabel,
-      message: `${dialogueText} Space to continue.`,
+      message: dialogueText,
     },
   };
 }

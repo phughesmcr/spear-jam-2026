@@ -35,7 +35,7 @@ Deno.test("interactWithEntity applies default verbs for doors, NPCs, and termina
     events: [],
     dialogue: {
       title: "John",
-      message: "Stay sharp. Space to continue.",
+      message: "Stay sharp.",
     },
   });
   assertEquals(interactWithEntity(world, spatial, terminal, new Set(), false), {

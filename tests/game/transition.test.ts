@@ -88,6 +88,21 @@ Deno.test("transition passes smart action through as a player command", () => {
   assertEquals(result.effects, [{ type: "runPlayerCommand", command: { type: "smartAction" } }]);
 });
 
+Deno.test("transition lets dialogue close from space or numbered choices", () => {
+  const model = {
+    ...createGameModel("Level 1"),
+    mode: { type: "dialogue", title: "John", message: "Stay sharp." },
+  } as const;
+
+  const space = transition(model, { type: "gameCommand", command: { type: "wait" } });
+  assertEquals(space.model.mode, { type: "playing" });
+  assertEquals(space.effects, [{ type: "render" }]);
+
+  const numbered = transition(model, { type: "gameCommand", command: { type: "selectWeapon", slot: 2 } });
+  assertEquals(numbered.model.mode, { type: "playing" });
+  assertEquals(numbered.effects, [{ type: "render" }]);
+});
+
 Deno.test("transition retries defeat from the current level entry snapshot", () => {
   const entryState = {
     heldKeys: [KeyColor.Yellow],

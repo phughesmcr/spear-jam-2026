@@ -122,7 +122,7 @@ function intermissionCommand(model: GameModel, mode: IntermissionMode, command: 
 }
 
 function dialogueCommand(model: GameModel, _mode: DialogueMode, command: GameCommand): GameTransition {
-  if (command.type !== "wait") return done(model);
+  if (command.type !== "wait" && command.type !== "selectWeapon") return done(model);
   return done({ ...model, mode: { type: "playing" } }, [{ type: "render" }]);
 }
 
