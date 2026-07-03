@@ -1,18 +1,6 @@
 import { z } from "zod";
-import { AttackFacingRequirement, AttackPattern, AttackTargetMode } from "@/src/game/attack.ts";
-import { DialogueTreeId, type DialogueTreeId as DialogueTreeIdType } from "@/src/dialogue/dialogue.ts";
-import { EnemyArchetype, type EnemyArchetype as EnemyArchetypeType } from "@/src/ecs/components.ts";
-import { ExamineTextId, type ExamineTextId as ExamineTextIdType } from "@/src/game/examine.ts";
-import { ItemKind, type ItemKind as ItemKindType } from "@/src/game/items.ts";
-import { DisplayName, type DisplayName as DisplayNameType } from "@/src/game/names.ts";
-import {
-  createGameMap,
-  type DoorSlide,
-  type EntityDef,
-  type GameMap,
-  KeyColor,
-  type KeyColor as KeyColorType,
-} from "@/src/map/map.ts";
+import { ENTITY_SCHEMA } from "@/src/map/entity_content.ts";
+import { createGameMap, type GameMap } from "@/src/map/map.ts";
 import compiledMapsData from "@/src/map/compiled_maps.json" with { type: "json" };
 import { validateGameMaps } from "@/src/map/map_validation.ts";
 import {
@@ -37,108 +25,9 @@ const PALETTES = {
 } as const;
 
 const PALETTE_KEYS = ["boot_sector", "data_conduit", "firewall", "nexus", "mainframe_core"] as const;
-const DOOR_SLIDES = ["north", "east", "south", "west", "up", "down"] as const satisfies readonly DoorSlide[];
 const INTEGER_SCHEMA = z.number().int();
 const NON_NEGATIVE_INTEGER_SCHEMA = INTEGER_SCHEMA.nonnegative();
-const POSITIVE_INTEGER_SCHEMA = INTEGER_SCHEMA.positive();
-const DIRECTION_SCHEMA = INTEGER_SCHEMA.min(0).max(3);
-const KEY_COLOR_SCHEMA = z.enum([KeyColor.Red, KeyColor.Blue, KeyColor.Yellow]) satisfies z.ZodType<KeyColorType>;
 const PALETTE_SCHEMA = z.enum(PALETTE_KEYS);
-const DOOR_SLIDE_SCHEMA = z.enum(DOOR_SLIDES);
-const DISPLAY_NAME_SCHEMA = numberEnumSchema<DisplayNameType>(Object.values(DisplayName), "displayName");
-const DIALOGUE_TREE_ID_SCHEMA = numberEnumSchema<DialogueTreeIdType>(
-  Object.values(DialogueTreeId),
-  "dialogueTreeId",
-);
-const ENEMY_ARCHETYPE_SCHEMA = numberEnumSchema<EnemyArchetypeType>(Object.values(EnemyArchetype), "archetype");
-const EXAMINE_TEXT_ID_SCHEMA = numberEnumSchema<ExamineTextIdType>(Object.values(ExamineTextId), "examineTextId");
-const ITEM_KIND_SCHEMA = numberEnumSchema<ItemKindType>(Object.values(ItemKind), "item");
-const ATTACK_FACING_REQUIREMENT_SCHEMA = numberEnumSchema(
-  Object.values(AttackFacingRequirement),
-  "attack.requiresFacing",
-);
-const ATTACK_PATTERN_SCHEMA = numberEnumSchema(Object.values(AttackPattern), "attack.pattern");
-const ATTACK_TARGET_MODE_SCHEMA = numberEnumSchema(Object.values(AttackTargetMode), "attack.targets");
-
-const ATTACK_SCHEMA = z.object({
-  minDamage: POSITIVE_INTEGER_SCHEMA.optional(),
-  maxDamage: POSITIVE_INTEGER_SCHEMA.optional(),
-  range: POSITIVE_INTEGER_SCHEMA.optional(),
-  requiresFacing: ATTACK_FACING_REQUIREMENT_SCHEMA.optional(),
-  attackBonus: INTEGER_SCHEMA.optional(),
-  critThreshold: POSITIVE_INTEGER_SCHEMA.optional(),
-  critMultiplier: POSITIVE_INTEGER_SCHEMA.optional(),
-  pattern: ATTACK_PATTERN_SCHEMA.optional(),
-  targets: ATTACK_TARGET_MODE_SCHEMA.optional(),
-}).strict();
-
-const BASE_ENTITY_SCHEMA = {
-  x: NON_NEGATIVE_INTEGER_SCHEMA,
-  y: NON_NEGATIVE_INTEGER_SCHEMA,
-} as const;
-
-const ENTITY_SCHEMA: z.ZodType<EntityDef> = z.discriminatedUnion("prefab", [
-  z.object({
-    prefab: z.literal("player"),
-    ...BASE_ENTITY_SCHEMA,
-    dir: DIRECTION_SCHEMA,
-  }).strict(),
-  z.object({
-    prefab: z.literal("npc"),
-    ...BASE_ENTITY_SCHEMA,
-    dir: DIRECTION_SCHEMA,
-    displayName: DISPLAY_NAME_SCHEMA,
-    dialogueTreeId: DIALOGUE_TREE_ID_SCHEMA.optional(),
-    examineTextId: EXAMINE_TEXT_ID_SCHEMA.optional(),
-  }).strict(),
-  z.object({
-    prefab: z.literal("enemy"),
-    ...BASE_ENTITY_SCHEMA,
-    dir: DIRECTION_SCHEMA,
-    displayName: DISPLAY_NAME_SCHEMA,
-    archetype: ENEMY_ARCHETYPE_SCHEMA.optional(),
-    health: POSITIVE_INTEGER_SCHEMA.optional(),
-    hitDc: POSITIVE_INTEGER_SCHEMA.optional(),
-    damage: POSITIVE_INTEGER_SCHEMA.optional(),
-    attack: ATTACK_SCHEMA.optional(),
-    examineTextId: EXAMINE_TEXT_ID_SCHEMA.optional(),
-  }).strict(),
-  z.object({
-    prefab: z.literal("door"),
-    ...BASE_ENTITY_SCHEMA,
-    locked: z.boolean().optional(),
-    color: KEY_COLOR_SCHEMA.optional(),
-    slide: DOOR_SLIDE_SCHEMA.optional(),
-    openMs: POSITIVE_INTEGER_SCHEMA.optional(),
-    examineTextId: EXAMINE_TEXT_ID_SCHEMA.optional(),
-  }).strict(),
-  z.object({
-    prefab: z.literal("key"),
-    ...BASE_ENTITY_SCHEMA,
-    color: KEY_COLOR_SCHEMA,
-  }).strict(),
-  z.object({
-    prefab: z.literal("uplinkCode"),
-    ...BASE_ENTITY_SCHEMA,
-  }).strict(),
-  z.object({
-    prefab: z.literal("uplinkTerminal"),
-    ...BASE_ENTITY_SCHEMA,
-    goto: z.string().min(1),
-    examineTextId: EXAMINE_TEXT_ID_SCHEMA.optional(),
-  }).strict(),
-  z.object({
-    prefab: z.literal("weaponPickup"),
-    ...BASE_ENTITY_SCHEMA,
-    slot: z.union([z.literal(2), z.literal(3)]),
-  }).strict(),
-  z.object({
-    prefab: z.literal("item"),
-    ...BASE_ENTITY_SCHEMA,
-    item: ITEM_KIND_SCHEMA,
-    amount: POSITIVE_INTEGER_SCHEMA,
-  }).strict(),
-]);
 
 const COMPILED_MAP_SCHEMA = z.object({
   name: z.string().min(1),
@@ -195,13 +84,6 @@ export function loadGameMapsData(data: unknown): LoadedGameMaps {
 
 function gameMapFromCompiledMap(map: CompiledMap): GameMap {
   return createGameMap(map.name, map.tiles, map.entities, { palette: PALETTES[map.palette] });
-}
-
-function numberEnumSchema<T extends number>(values: readonly T[], name: string): z.ZodType<T> {
-  const allowed = new Set<number>(values);
-  return z.custom<T>((value) => typeof value === "number" && Number.isInteger(value) && allowed.has(value), {
-    message: `${name} must be one of ${values.join(", ")}`,
-  });
 }
 
 function formatZodError(error: z.ZodError): string {

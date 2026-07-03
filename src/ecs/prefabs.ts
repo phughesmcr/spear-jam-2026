@@ -40,6 +40,8 @@ import type {
   DoorDef,
   EnemyDef,
   EntityDef,
+  EntityDefFor,
+  EntityPrefab,
   ItemDef,
   KeyDef,
   NpcDef,
@@ -255,6 +257,24 @@ export function createItem(world: World, prefab: ItemPrefab): Entity {
   return createPickup(world, prefab, prefab.item, prefab.amount);
 }
 
+type MapEntityCreator<Prefab extends EntityPrefab> = (world: World, prefab: EntityDefFor<Prefab>) => Entity;
+
+type MapEntityCreators = {
+  readonly [Prefab in EntityPrefab]: MapEntityCreator<Prefab>;
+};
+
+const MAP_ENTITY_CREATORS = {
+  player: createPlayer,
+  npc: createNpc,
+  enemy: createEnemy,
+  door: createDoor,
+  key: createKey,
+  uplinkCode: createUplinkCode,
+  uplinkTerminal: createUplinkTerminal,
+  weaponPickup: createWeaponPickup,
+  item: createItem,
+} satisfies MapEntityCreators;
+
 function createPickup(world: World, prefab: PositionedPrefab, item: ItemKind, value: number): Entity {
   return world.entities.createWithOrThrow(
     [
@@ -289,24 +309,6 @@ function addExamine(world: World, entity: Entity, prefab: ExaminePrefab): void {
 }
 
 export function createMapEntity(world: World, prefab: EntityDef): Entity {
-  switch (prefab.prefab) {
-    case "player":
-      return createPlayer(world, prefab);
-    case "npc":
-      return createNpc(world, prefab);
-    case "enemy":
-      return createEnemy(world, prefab);
-    case "door":
-      return createDoor(world, prefab);
-    case "key":
-      return createKey(world, prefab);
-    case "uplinkCode":
-      return createUplinkCode(world, prefab);
-    case "uplinkTerminal":
-      return createUplinkTerminal(world, prefab);
-    case "weaponPickup":
-      return createWeaponPickup(world, prefab);
-    case "item":
-      return createItem(world, prefab);
-  }
+  const create = MAP_ENTITY_CREATORS[prefab.prefab] as MapEntityCreator<typeof prefab.prefab>;
+  return create(world, prefab);
 }

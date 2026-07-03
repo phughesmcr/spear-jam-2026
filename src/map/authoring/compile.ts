@@ -16,7 +16,11 @@ import {
 import type { PropertyMap } from "@/src/map/authoring/properties.ts";
 import type { TiledLayer, TiledMap, TiledObject } from "@/src/map/authoring/tiled_types.ts";
 import {
-  type AuthoringPrefab,
+  ENTITY_AUTHORING_PROPERTY_NAMES,
+  mapEntityPrefab,
+  PREFAB_AUTHORING_PROPERTY_NAMES,
+} from "@/src/map/entity_content.ts";
+import {
   mapAttackFacingRequirement,
   mapAttackPattern,
   mapAttackTargets,
@@ -28,7 +32,6 @@ import {
   mapExamineTextId,
   mapItemKind,
   mapKeyColor,
-  mapPrefab,
 } from "@/src/map/authoring/mappings.ts";
 
 export type CompileTiledMapOptions = {
@@ -59,89 +62,6 @@ type ResolvedObject = GridPosition & {
 const NO_PROPERTY_NAMES: ReadonlySet<string> = new Set();
 const MAP_PROPERTY_NAMES: ReadonlySet<string> = new Set(["name", "palette", "campaignOrder"]);
 const TERRAIN_PROPERTY_NAMES: ReadonlySet<string> = new Set(["terrainId"]);
-const ENTITY_PROPERTY_NAMES: ReadonlySet<string> = new Set([
-  "prefab",
-  "dir",
-  "facing",
-  "displayName",
-  "dialogueTreeId",
-  "examineTextId",
-  "archetype",
-  "health",
-  "hitDc",
-  "damage",
-  "attackMinDamage",
-  "attackMaxDamage",
-  "attackRange",
-  "attackRequiresFacing",
-  "attackBonus",
-  "attackCritThreshold",
-  "attackCritMultiplier",
-  "attackPattern",
-  "attackTargets",
-  "locked",
-  "color",
-  "slide",
-  "openMs",
-  "goto",
-  "slot",
-  "item",
-  "amount",
-]);
-const PLAYER_PROPERTY_NAMES: ReadonlySet<string> = new Set(["prefab", "dir", "facing"]);
-const NPC_PROPERTY_NAMES: ReadonlySet<string> = new Set([
-  "prefab",
-  "dir",
-  "facing",
-  "displayName",
-  "dialogueTreeId",
-  "examineTextId",
-]);
-const ENEMY_PROPERTY_NAMES: ReadonlySet<string> = new Set([
-  "prefab",
-  "dir",
-  "facing",
-  "displayName",
-  "archetype",
-  "health",
-  "hitDc",
-  "damage",
-  "attackMinDamage",
-  "attackMaxDamage",
-  "attackRange",
-  "attackRequiresFacing",
-  "attackBonus",
-  "attackCritThreshold",
-  "attackCritMultiplier",
-  "attackPattern",
-  "attackTargets",
-  "examineTextId",
-]);
-const DOOR_PROPERTY_NAMES: ReadonlySet<string> = new Set([
-  "prefab",
-  "locked",
-  "color",
-  "slide",
-  "openMs",
-  "examineTextId",
-]);
-const KEY_PROPERTY_NAMES: ReadonlySet<string> = new Set(["prefab", "color"]);
-const UPLINK_CODE_PROPERTY_NAMES: ReadonlySet<string> = new Set(["prefab"]);
-const UPLINK_TERMINAL_PROPERTY_NAMES: ReadonlySet<string> = new Set(["prefab", "goto", "examineTextId"]);
-const WEAPON_PICKUP_PROPERTY_NAMES: ReadonlySet<string> = new Set(["prefab", "slot"]);
-const ITEM_PROPERTY_NAMES: ReadonlySet<string> = new Set(["prefab", "item", "amount"]);
-
-const PREFAB_PROPERTY_NAMES: Readonly<Record<AuthoringPrefab, ReadonlySet<string>>> = {
-  player: PLAYER_PROPERTY_NAMES,
-  npc: NPC_PROPERTY_NAMES,
-  enemy: ENEMY_PROPERTY_NAMES,
-  door: DOOR_PROPERTY_NAMES,
-  key: KEY_PROPERTY_NAMES,
-  uplinkCode: UPLINK_CODE_PROPERTY_NAMES,
-  uplinkTerminal: UPLINK_TERMINAL_PROPERTY_NAMES,
-  weaponPickup: WEAPON_PICKUP_PROPERTY_NAMES,
-  item: ITEM_PROPERTY_NAMES,
-};
 
 export function compileTiledMap(source: TiledMap, options: CompileTiledMapOptions): CompiledTiledMap {
   validateMapShape(source);
@@ -267,8 +187,8 @@ function compileEntity(
 ): EntityDef {
   const context = objectContext(object, index);
   const resolved = resolveObject(source, object, context, registry);
-  const prefab = mapPrefab(requiredString(resolved.properties, "prefab", context), context);
-  validatePropertyNames(resolved.properties, PREFAB_PROPERTY_NAMES[prefab], context);
+  const prefab = mapEntityPrefab(requiredString(resolved.properties, "prefab", context), context);
+  validatePropertyNames(resolved.properties, PREFAB_AUTHORING_PROPERTY_NAMES[prefab], context);
 
   switch (prefab) {
     case "player":
@@ -345,7 +265,7 @@ function resolveObject(
 
 function propertiesFromObjectSource(object: TiledObject | undefined, context: string): Map<string, unknown> {
   if (object === undefined) return new Map();
-  const properties = readProperties(object.properties, ENTITY_PROPERTY_NAMES, context);
+  const properties = readProperties(object.properties, ENTITY_AUTHORING_PROPERTY_NAMES, context);
   if (object.type !== undefined && object.type.length > 0 && !properties.has("prefab")) {
     properties.set("prefab", object.type);
   }
@@ -359,7 +279,7 @@ function propertiesFromMarker(
 ): Map<string, unknown> {
   if (object.gid === undefined) return new Map();
   const marker = decodeObjectGid(object.gid, registry, `${context} marker`);
-  const properties = readProperties(marker.tile?.properties, ENTITY_PROPERTY_NAMES, `${context} marker`);
+  const properties = readProperties(marker.tile?.properties, ENTITY_AUTHORING_PROPERTY_NAMES, `${context} marker`);
   if (marker.tile?.type !== undefined && marker.tile.type.length > 0 && !properties.has("prefab")) {
     properties.set("prefab", marker.tile.type);
   }

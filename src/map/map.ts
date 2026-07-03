@@ -1,8 +1,19 @@
-import type { DisplayName } from "@/src/game/names.ts";
-import type { AttackDef } from "@/src/game/attack.ts";
-import type { DialogueTreeId } from "@/src/dialogue/dialogue.ts";
-import type { EnemyArchetype } from "@/src/ecs/components.ts";
-import type { ItemKind } from "@/src/game/items.ts";
+import type { EntityDef } from "@/src/map/entity_content.ts";
+
+export type {
+  DoorDef,
+  EnemyDef,
+  EntityDef,
+  EntityDefFor,
+  EntityPrefab,
+  ItemDef,
+  KeyDef,
+  NpcDef,
+  PlayerDef,
+  UplinkCodeDef,
+  UplinkTerminalDef,
+  WeaponPickupDef,
+} from "@/src/map/entity_content.ts";
 
 export const TexturePack = {
   Pack1: "pack1",
@@ -69,37 +80,6 @@ export function keyColorForCode(code: number): KeyColor {
 /** Sentinel `goto` for exits that end the game in victory instead of loading a map. */
 export const VICTORY_GOTO = "victory";
 
-export type PlayerDef = {
-  prefab: "player";
-  x: number;
-  y: number;
-  dir: number;
-};
-
-export type NpcDef = {
-  prefab: "npc";
-  x: number;
-  y: number;
-  dir: number;
-  displayName: DisplayName;
-  dialogueTreeId?: DialogueTreeId;
-  examineTextId?: number;
-};
-
-export type EnemyDef = {
-  prefab: "enemy";
-  x: number;
-  y: number;
-  dir: number;
-  displayName: DisplayName;
-  archetype?: EnemyArchetype;
-  health?: number;
-  hitDc?: number;
-  damage?: number;
-  attack?: Partial<AttackDef>;
-  examineTextId?: number;
-};
-
 /**
  * Which way a door slides open. Horizontal directions must lie along the
  * door's span (east/west for doors in north-south walls, north/south for
@@ -131,66 +111,6 @@ export function doorSlideForCode(code: number): DoorSlide | undefined {
 
 /** How long a door takes to slide fully open (or closed). */
 export const DEFAULT_DOOR_OPEN_MS = 350;
-
-export type DoorDef = {
-  prefab: "door";
-  x: number;
-  y: number;
-  locked?: boolean;
-  color?: KeyColor;
-  /** Slide direction; defaults to along the wall toward north/west. */
-  slide?: DoorSlide;
-  /** Milliseconds for a full open/close slide. */
-  openMs?: number;
-  examineTextId?: number;
-};
-
-export type KeyDef = {
-  prefab: "key";
-  x: number;
-  y: number;
-  color: KeyColor;
-};
-
-export type UplinkCodeDef = {
-  prefab: "uplinkCode";
-  x: number;
-  y: number;
-};
-
-export type UplinkTerminalDef = {
-  prefab: "uplinkTerminal";
-  x: number;
-  y: number;
-  goto: string;
-  examineTextId?: number;
-};
-
-export type WeaponPickupDef = {
-  prefab: "weaponPickup";
-  x: number;
-  y: number;
-  slot: 2 | 3;
-};
-
-export type ItemDef = {
-  prefab: "item";
-  x: number;
-  y: number;
-  item: ItemKind;
-  amount: number;
-};
-
-export type EntityDef =
-  | PlayerDef
-  | NpcDef
-  | EnemyDef
-  | DoorDef
-  | KeyDef
-  | UplinkCodeDef
-  | UplinkTerminalDef
-  | WeaponPickupDef
-  | ItemDef;
 
 export type GameMap = {
   readonly name: string;

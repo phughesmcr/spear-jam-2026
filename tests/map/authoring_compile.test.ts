@@ -119,6 +119,25 @@ Deno.test("compileTiledMap rejects duplicate and unknown properties", () => {
     Error,
     "type does not match",
   );
+
+  assertThrows(
+    () =>
+      compileTiledMap(
+        tiledMap({
+          objects: [
+            object({
+              x: 0,
+              y: 0,
+              type: "player",
+              properties: [property("dir", "north"), property("goto", VICTORY_GOTO)],
+            }),
+          ],
+        }),
+        compileOptions(),
+      ),
+    Error,
+    'Property "goto" is not valid for this prefab.',
+  );
 });
 
 Deno.test("compileTiledMap rejects non-cell-aligned objects", () => {

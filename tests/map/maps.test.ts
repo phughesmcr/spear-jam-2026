@@ -40,4 +40,23 @@ Deno.test("loadGameMapsData rejects malformed compiled map data", () => {
     Error,
     "Invalid compiled map data",
   );
+
+  assertThrows(
+    () =>
+      loadGameMapsData({
+        startMapName: "Fixture",
+        maps: [
+          {
+            name: "Fixture",
+            palette: "boot_sector",
+            tiles: [[0]],
+            entities: [
+              { prefab: "player", x: 0, y: 0, dir: 1, goto: "victory" },
+            ],
+          },
+        ],
+      }),
+    Error,
+    'Unrecognized key: "goto"',
+  );
 });

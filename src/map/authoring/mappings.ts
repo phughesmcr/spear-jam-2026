@@ -11,21 +11,7 @@ import { EnemyArchetype, type EnemyArchetype as EnemyArchetypeType } from "@/src
 import { ExamineTextId, type ExamineTextId as ExamineTextIdType } from "@/src/game/examine.ts";
 import { ItemKind, type ItemKind as ItemKindType } from "@/src/game/items.ts";
 import { DisplayName, type DisplayName as DisplayNameType } from "@/src/game/names.ts";
-import { type DoorSlide, type EntityDef, KeyColor, type KeyColor as KeyColorType } from "@/src/map/map.ts";
-
-export type AuthoringPrefab = EntityDef["prefab"];
-
-const PREFABS: Readonly<Record<string, AuthoringPrefab>> = {
-  player: "player",
-  npc: "npc",
-  enemy: "enemy",
-  door: "door",
-  key: "key",
-  uplinkCode: "uplinkCode",
-  uplinkTerminal: "uplinkTerminal",
-  weaponPickup: "weaponPickup",
-  item: "item",
-};
+import { type DoorSlide, KeyColor, type KeyColor as KeyColorType } from "@/src/map/map.ts";
 
 const DIRECTIONS: Readonly<Record<string, number>> = {
   north: 0,
@@ -99,10 +85,6 @@ const ATTACK_FACING_REQUIREMENTS: Readonly<Record<string, AttackFacingRequiremen
   required: AttackFacingRequirement.Required,
   none: AttackFacingRequirement.None,
 };
-
-export function mapPrefab(value: string, context: string): AuthoringPrefab {
-  return lookup(PREFABS, value, "prefab", context);
-}
 
 export function mapDirection(value: string, context: string): number {
   return lookup(DIRECTIONS, value, "direction", context);
