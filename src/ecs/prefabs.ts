@@ -32,7 +32,7 @@ import {
 import type { AttackSchema } from "@/src/ecs/components.ts";
 import { DEFAULT_ATTACK } from "@/src/game/attack.ts";
 import { normalizeDirection } from "@/src/grid/direction.ts";
-import { keyColorCode } from "@/src/map/map.ts";
+import { doorSlideCode, keyColorCode } from "@/src/map/map.ts";
 import { DEFAULT_PLAYER_STATE } from "@/src/game/state.ts";
 import { ItemKind } from "@/src/game/items.ts";
 import type {
@@ -191,7 +191,7 @@ export function createDoor(world: World, prefab: DoorPrefab): Entity {
     [
       [GridPos, { x: prefab.x, y: prefab.y }],
       [Drawable, { kind: DrawableKind.Door, layer: DrawableLayer.Structure }],
-      [Door, { open: 0 }],
+      [Door, { open: 0, slide: doorSlideCode(prefab.slide), openMs: prefab.openMs ?? 0 }],
       [Interactable],
       [Blocking],
     ] as const,

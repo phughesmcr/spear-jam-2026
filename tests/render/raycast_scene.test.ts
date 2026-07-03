@@ -8,6 +8,8 @@ import {
   createScene,
   renderFrame,
   THIN_AXIS_X,
+  THIN_SLIDE_NEG,
+  THIN_SLIDE_UP,
 } from "@/src/render/raycast/scene.ts";
 import type { RaycastAtlas, RaycastScene } from "@/src/render/raycast/scene.ts";
 import { bakeSolidTexture, bakeTexture, TEX_SIZE } from "@/src/render/raycast/textures.ts";
@@ -135,6 +137,48 @@ Deno.test("renderFrame draws sprites in front of walls and occludes behind doors
   addSprite(scene, 3.5, 1.5, SPRITE, 1);
   renderFrame(frame, scene, atlas, CAMERA);
   assertEquals(pixel(frame, CENTER, CENTER), texel(atlas, "walls", DOOR, 0));
+});
+
+Deno.test("a horizontally sliding door passes rays through the gap", () => {
+  const atlas = testAtlas();
+  const scene = corridorScene();
+  // Slid three-quarters toward the negative span: the centre ray (local 0.5)
+  // falls in the gap and reaches the corridor's end wall.
+  addThinWall(scene, 2, 1, DOOR, THIN_AXIS_X, THIN_SLIDE_NEG, 0.75);
+  const frame = createFrame(VIEW, VIEW);
+
+  renderFrame(frame, scene, atlas, CAMERA);
+
+  assertAlmostEquals(frame.zbuffer[CENTER]!, 2.5, 1e-9);
+  assertEquals(pixel(frame, CENTER, CENTER), texel(atlas, "walls", WALL, 1));
+});
+
+Deno.test("a horizontally sliding door still stops rays that hit the slab", () => {
+  const atlas = testAtlas();
+  const scene = corridorScene();
+  // Only slightly open: the centre ray (local 0.5) still hits the slab.
+  addThinWall(scene, 2, 1, DOOR, THIN_AXIS_X, THIN_SLIDE_NEG, 0.25);
+  const frame = createFrame(VIEW, VIEW);
+
+  renderFrame(frame, scene, atlas, CAMERA);
+
+  assertAlmostEquals(frame.zbuffer[CENTER]!, 1, 1e-9);
+  assertEquals(pixel(frame, CENTER, CENTER), texel(atlas, "walls", DOOR, 0));
+});
+
+Deno.test("a rising door draws the slab on top and the wall behind below", () => {
+  const atlas = testAtlas();
+  const scene = corridorScene();
+  addThinWall(scene, 2, 1, DOOR, THIN_AXIS_X, THIN_SLIDE_UP, 0.5);
+  const frame = createFrame(VIEW, VIEW);
+
+  renderFrame(frame, scene, atlas, CAMERA);
+
+  // The ray passes under the half-risen slab and registers the end wall.
+  assertAlmostEquals(frame.zbuffer[CENTER]!, 2.5, 1e-9);
+  // Upper half of the doorway: the slab. Below it: the wall behind.
+  assertEquals(pixel(frame, CENTER, CENTER >> 1), texel(atlas, "walls", DOOR, 0));
+  assertEquals(pixel(frame, CENTER, CENTER + 6), texel(atlas, "walls", WALL, 1));
 });
 
 Deno.test("clearSceneDynamic removes thin walls and sprites", () => {

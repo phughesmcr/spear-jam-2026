@@ -19,7 +19,7 @@ import type { GameSession } from "@/src/ecs/session.ts";
 import { type CardinalDirection, directionDelta, normalizeDirection } from "@/src/grid/direction.ts";
 import type { ItemIcon } from "@/src/game/items.ts";
 import { KeyColor, mapDimensions, terrainAt } from "@/src/map/map.ts";
-import type { GameMap } from "@/src/map/map.ts";
+import type { DoorSlide, GameMap } from "@/src/map/map.ts";
 import { createImageAsset, loadedImage, preloadImageAssets } from "@/src/render/assets.ts";
 import type { ImageAsset } from "@/src/render/assets.ts";
 import {
@@ -30,24 +30,38 @@ import {
   createScene,
   THIN_AXIS_X,
   THIN_AXIS_Y,
+  THIN_SLIDE_DOWN,
+  THIN_SLIDE_NEG,
+  THIN_SLIDE_POS,
+  THIN_SLIDE_UP,
 } from "@/src/render/raycast/scene.ts";
-import type { RaycastAtlas, RaycastScene, ThinWallAxis } from "@/src/render/raycast/scene.ts";
+import type { RaycastAtlas, RaycastScene, ThinWallAxis, ThinWallSlide } from "@/src/render/raycast/scene.ts";
 import { bakeSolidTexture, bakeTexture, TEX_SIZE } from "@/src/render/raycast/textures.ts";
 import type { BakedTexture, TexelSource } from "@/src/render/raycast/textures.ts";
 import {
   createNudgeTween,
   createPoseTween,
+  createScalarTween,
   createSpriteTween,
   headBobFraction,
   retargetPoseTween,
+  retargetScalarTween,
   retargetSpriteTween,
   sampleNudgeTween,
   samplePoseTween,
+  sampleScalarTween,
   sampleSpriteTween,
   snapPoseTween,
   startNudgeTween,
 } from "@/src/render/raycast/tween.ts";
-import type { NudgeSample, PoseSample, SpritePoint, SpriteTween } from "@/src/render/raycast/tween.ts";
+import type {
+  NudgeSample,
+  PoseSample,
+  ScalarSample,
+  ScalarTween,
+  SpritePoint,
+  SpriteTween,
+} from "@/src/render/raycast/tween.ts";
 import { createRaycastView } from "@/src/render/raycast/view.ts";
 import type { ViewRect } from "@/src/render/raycast/view.ts";
 
@@ -273,6 +287,8 @@ const nudgeTween = createNudgeTween();
 const nudgeSample: NudgeSample = { dx: 0, dy: 0, settled: true };
 const spriteTweens = new Map<DrawableEntity["entity"], SpriteTween>();
 const spritePoint: SpritePoint = { x: 0, y: 0, settled: true };
+const doorTweens = new Map<DrawableEntity["entity"], ScalarTween>();
+const doorSample: ScalarSample = { value: 0, settled: true };
 let poseTweenMap: GameMap | undefined;
 let repaintScheduled = false;
 let lastRepaint: (() => void) | undefined;
@@ -442,6 +458,41 @@ function doorTexture(locked: boolean, color: KeyColor | undefined): number {
   return DOOR_TEX;
 }
 
+/**
+ * Map an authored slide direction onto the door's span axis. Horizontal
+ * directions perpendicular to the span (or unset) fall back to sliding
+ * toward the negative end (north/west).
+ */
+function doorSlideForAxis(slide: DoorSlide | undefined, axis: ThinWallAxis): ThinWallSlide {
+  switch (slide) {
+    case "up":
+      return THIN_SLIDE_UP;
+    case "down":
+      return THIN_SLIDE_DOWN;
+    case "east":
+      return axis === THIN_AXIS_Y ? THIN_SLIDE_POS : THIN_SLIDE_NEG;
+    case "south":
+      return axis === THIN_AXIS_X ? THIN_SLIDE_POS : THIN_SLIDE_NEG;
+    case "north":
+    case "west":
+    default:
+      return THIN_SLIDE_NEG;
+  }
+}
+
+/** Animated openness for a door entity; updates doorSample. */
+function tweenedDoorOpenness(drawable: DrawableEntity & { open: boolean; openMs: number }, nowMs: number): void {
+  const target = drawable.open ? 1 : 0;
+  let tween = doorTweens.get(drawable.entity);
+  if (tween === undefined) {
+    tween = createScalarTween(target);
+    doorTweens.set(drawable.entity, tween);
+  } else {
+    retargetScalarTween(tween, target, nowMs, drawable.openMs);
+  }
+  sampleScalarTween(tween, nowMs, doorSample);
+}
+
 function itemSprite(icon: ItemIcon): number {
   switch (icon.type) {
     case "key":
@@ -498,16 +549,21 @@ function addDrawable(
       addSprite(scene, spritePoint.x, spritePoint.y, sprite, ACTOR_SCALE);
       return !spritePoint.settled;
     }
-    case DrawableKind.Door:
-      if (drawable.open) return false;
+    case DrawableKind.Door: {
+      tweenedDoorOpenness(drawable, nowMs);
+      if (doorSample.value >= 1) return false;
+      const axis = doorAxis(map, drawable.x, drawable.y);
       addThinWall(
         scene,
         drawable.x,
         drawable.y,
         doorTexture(drawable.locked, drawable.color),
-        doorAxis(map, drawable.x, drawable.y),
+        axis,
+        doorSlideForAxis(drawable.slide, axis),
+        doorSample.value,
       );
-      return false;
+      return !doorSample.settled;
+    }
     case DrawableKind.UplinkTerminal:
       addSprite(scene, centerX, centerY, SPRITE_TERMINAL, TERMINAL_SCALE);
       return false;
@@ -563,6 +619,7 @@ export function renderFirstPersonView(
     snapPoseTween(poseTween, playerX + 0.5, playerY + 0.5, targetAngle);
     nudgeTween.active = false;
     spriteTweens.clear();
+    doorTweens.clear();
   } else {
     retargetPoseTween(poseTween, playerX + 0.5, playerY + 0.5, targetAngle, nowMs);
   }

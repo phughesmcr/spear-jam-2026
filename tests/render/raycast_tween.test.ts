@@ -2,14 +2,17 @@ import { assert, assertAlmostEquals, assertEquals } from "@std/assert";
 import {
   createNudgeTween,
   createPoseTween,
+  createScalarTween,
   createSpriteTween,
   headBobFraction,
   MOVE_TWEEN_MS,
   NUDGE_TWEEN_MS,
   retargetPoseTween,
+  retargetScalarTween,
   retargetSpriteTween,
   sampleNudgeTween,
   samplePoseTween,
+  sampleScalarTween,
   sampleSpriteTween,
   shortestAngleDelta,
   smoothstep,
@@ -17,7 +20,7 @@ import {
   startNudgeTween,
   TURN_TWEEN_MS,
 } from "@/src/render/raycast/tween.ts";
-import type { NudgeSample, PoseSample, SpritePoint } from "@/src/render/raycast/tween.ts";
+import type { NudgeSample, PoseSample, ScalarSample, SpritePoint } from "@/src/render/raycast/tween.ts";
 
 const EAST = 0;
 const SOUTH = Math.PI / 2;
@@ -213,6 +216,42 @@ Deno.test("sprite tween retargeted mid-step chains from the interpolated point",
   const done = spriteAt(tween, midMs + MOVE_TWEEN_MS);
   assertEquals(done.x, 5.5);
   assertEquals(done.y, 7.5);
+  assert(done.settled);
+});
+
+function scalarAt(tween: ReturnType<typeof createScalarTween>, nowMs: number): ScalarSample {
+  const out: ScalarSample = { value: 0, settled: false };
+  sampleScalarTween(tween, nowMs, out);
+  return out;
+}
+
+Deno.test("scalar tween slides between targets over the full duration", () => {
+  const tween = createScalarTween(0);
+  assert(scalarAt(tween, 0).settled);
+
+  retargetScalarTween(tween, 1, 0, 400);
+  const mid = scalarAt(tween, 200);
+  assert(mid.value > 0 && mid.value < 1);
+  assert(!mid.settled);
+
+  const done = scalarAt(tween, 400);
+  assertEquals(done.value, 1);
+  assert(done.settled);
+});
+
+Deno.test("scalar tween reverses mid-slide proportionally from the current value", () => {
+  const tween = createScalarTween(0);
+  retargetScalarTween(tween, 1, 0, 400);
+
+  const before = scalarAt(tween, 200);
+  retargetScalarTween(tween, 0, 200, 400);
+  const after = scalarAt(tween, 200);
+  assertAlmostEquals(after.value, before.value);
+
+  // Closing from partway takes proportionally less than a full sweep.
+  const partialDuration = 400 * before.value;
+  const done = scalarAt(tween, 200 + partialDuration + 1);
+  assertEquals(done.value, 0);
   assert(done.settled);
 });
 

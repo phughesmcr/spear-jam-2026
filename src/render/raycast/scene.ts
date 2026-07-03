@@ -27,6 +27,21 @@ export const THIN_AXIS_Y = 1;
 
 export type ThinWallAxis = typeof THIN_AXIS_X | typeof THIN_AXIS_Y;
 
+/** Thin wall slides open toward the negative end of its span axis. */
+export const THIN_SLIDE_NEG = 0;
+/** Thin wall slides open toward the positive end of its span axis. */
+export const THIN_SLIDE_POS = 1;
+/** Thin wall rises into the ceiling as it opens. */
+export const THIN_SLIDE_UP = 2;
+/** Thin wall sinks into the floor as it opens. */
+export const THIN_SLIDE_DOWN = 3;
+
+export type ThinWallSlide =
+  | typeof THIN_SLIDE_NEG
+  | typeof THIN_SLIDE_POS
+  | typeof THIN_SLIDE_UP
+  | typeof THIN_SLIDE_DOWN;
+
 /** Half the horizontal field of view, as camera plane length. */
 export const CAMERA_PLANE_LENGTH = 0.66;
 
@@ -98,6 +113,10 @@ export type RaycastScene = {
   thinCount: number;
   readonly thinTex: Int16Array;
   readonly thinAxis: Uint8Array;
+  /** How the thin wall slides open; one of the THIN_SLIDE_* constants. */
+  readonly thinSlide: Uint8Array;
+  /** Openness 0 (closed) to 1 (fully open). */
+  readonly thinOffset: Float32Array;
   readonly thinCell: Int32Array;
   spriteCount: number;
   readonly spriteX: Float64Array;
@@ -118,6 +137,8 @@ export function createScene(mapWidth: number, mapHeight: number): RaycastScene {
     thinCount: 0,
     thinTex: new Int16Array(MAX_THIN_WALLS),
     thinAxis: new Uint8Array(MAX_THIN_WALLS),
+    thinSlide: new Uint8Array(MAX_THIN_WALLS),
+    thinOffset: new Float32Array(MAX_THIN_WALLS),
     thinCell: new Int32Array(MAX_THIN_WALLS),
     spriteCount: 0,
     spriteX: new Float64Array(MAX_SPRITES),
@@ -142,6 +163,8 @@ export function addThinWall(
   cellY: number,
   textureId: number,
   axis: ThinWallAxis,
+  slide: ThinWallSlide = THIN_SLIDE_NEG,
+  offset = 0,
 ): void {
   if (scene.thinCount >= MAX_THIN_WALLS) return;
   const cell = cellY * scene.mapWidth + cellX;
@@ -151,6 +174,8 @@ export function addThinWall(
   scene.thinByCell[cell] = index;
   scene.thinTex[index] = textureId;
   scene.thinAxis[index] = axis;
+  scene.thinSlide[index] = slide;
+  scene.thinOffset[index] = offset;
   scene.thinCell[index] = cell;
 }
 
@@ -174,6 +199,8 @@ export type RaycastFrame = {
   readonly thinHitTex: Int16Array;
   readonly thinHitTexX: Uint8Array;
   readonly thinHitBand: Uint8Array;
+  readonly thinHitSlide: Uint8Array;
+  readonly thinHitOffset: Float32Array;
   readonly thinHitCount: Uint8Array;
   readonly thinHitCursor: Int8Array;
   readonly spriteOrder: Int32Array;
@@ -196,6 +223,8 @@ export function createFrame(width: number, height: number, pixels?: Uint32Array)
     thinHitTex: new Int16Array(width * MAX_THIN_HITS),
     thinHitTexX: new Uint8Array(width * MAX_THIN_HITS),
     thinHitBand: new Uint8Array(width * MAX_THIN_HITS),
+    thinHitSlide: new Uint8Array(width * MAX_THIN_HITS),
+    thinHitOffset: new Float32Array(width * MAX_THIN_HITS),
     thinHitCount: new Uint8Array(width),
     thinHitCursor: new Int8Array(width),
     spriteOrder: new Int32Array(MAX_SPRITES),
@@ -367,10 +396,29 @@ function renderWalls(
       }
       if (thinDistance <= 0 || planeHit < planeCell || planeHit >= planeCell + 1) continue;
 
-      const texX = ((planeHit - planeCell) * TEX_SIZE) | 0;
       const texture = atlas.walls[scene.thinTex[thinIndex]!];
       if (texture === undefined) continue;
-      if (texture.opaque) {
+
+      // A sliding thin wall covers only part of its span (horizontal slides)
+      // or its height (vertical slides). Horizontal slides resolve per column
+      // here: the ray either hits the shifted slab or passes the gap.
+      const slide = scene.thinSlide[thinIndex]!;
+      const offset = scene.thinOffset[thinIndex]!;
+      const local = planeHit - planeCell;
+      let texLocal = local;
+      if (offset > 0 && slide === THIN_SLIDE_NEG) {
+        if (local >= 1 - offset) continue;
+        texLocal = local + offset;
+      } else if (offset > 0 && slide === THIN_SLIDE_POS) {
+        if (local < offset) continue;
+        texLocal = local - offset;
+      } else if (offset >= 1) {
+        continue;
+      }
+      const texX = ((texLocal * TEX_SIZE) | 0) & TEX_MASK;
+      const verticalSlide = offset > 0 && (slide === THIN_SLIDE_UP || slide === THIN_SLIDE_DOWN);
+
+      if (texture.opaque && !verticalSlide) {
         hitDistance = thinDistance;
         hitTexture = texture;
         hitTexX = texX;
@@ -383,6 +431,8 @@ function renderWalls(
         frame.thinHitTex[slot] = scene.thinTex[thinIndex]!;
         frame.thinHitTexX[slot] = texX;
         frame.thinHitBand[slot] = thinShadeBand(thinDistance, axis === THIN_AXIS_Y ? 1 : 0);
+        frame.thinHitSlide[slot] = verticalSlide ? slide : THIN_SLIDE_NEG;
+        frame.thinHitOffset[slot] = verticalSlide ? offset : 0;
       }
     }
 
@@ -570,6 +620,50 @@ function drawSprite(
   }
 }
 
+/**
+ * Draw one strip of a vertically sliding thin wall: the slab rises into the
+ * ceiling (or sinks into the floor) by `offset` of its height, so the strip
+ * is clipped and the texture rows shift with the slab.
+ */
+function drawVerticalSlideColumn(
+  frame: RaycastFrame,
+  x: number,
+  distance: number,
+  focal: number,
+  texels: Uint32Array,
+  texX: number,
+  slide: number,
+  offset: number,
+): void {
+  const height = frame.height;
+  const horizon = height >> 1;
+  const pixels = frame.pixels;
+  const width = frame.width;
+  const lineHeight = focal / (distance < MIN_WALL_DISTANCE ? MIN_WALL_DISTANCE : distance);
+  const halfLine = lineHeight * 0.5;
+  const top = horizon - halfLine;
+  const slabTop = slide === THIN_SLIDE_DOWN ? top + offset * lineHeight : top;
+  const slabBottom = slide === THIN_SLIDE_UP ? horizon + halfLine - offset * lineHeight : horizon + halfLine;
+  let yStart = Math.ceil(slabTop);
+  let yEnd = Math.ceil(slabBottom);
+  if (yStart < 0) yStart = 0;
+  if (yEnd > height) yEnd = height;
+  if (yStart >= yEnd) return;
+
+  // Texture rows track the slab: a risen slab shows its lower rows.
+  const texStep = ((TEX_SIZE * FIXED_ONE) / lineHeight) | 0;
+  const slabTexTop = slide === THIN_SLIDE_UP ? offset : 0;
+  let texPos = ((slabTexTop + (yStart - slabTop) / lineHeight) * TEX_SIZE * FIXED_ONE) | 0;
+  const columnBase = texX << TEX_SHIFT;
+  let pixelOffset = yStart * width + x;
+  for (let y = yStart; y < yEnd; y++) {
+    const texel = texels[columnBase + ((texPos >>> 16) & TEX_MASK)]!;
+    if (texel !== TRANSPARENT_TEXEL) pixels[pixelOffset] = texel;
+    texPos += texStep;
+    pixelOffset += width;
+  }
+}
+
 /** Draw this column's transparent stripes that lie at or beyond `depth`. */
 function flushThinHits(frame: RaycastFrame, atlas: RaycastAtlas, focal: number, x: number, depth: number): void {
   let cursor = frame.thinHitCursor[x]!;
@@ -578,15 +672,30 @@ function flushThinHits(frame: RaycastFrame, atlas: RaycastAtlas, focal: number, 
     const slot = base + cursor;
     const texture = atlas.walls[frame.thinHitTex[slot]!];
     if (texture !== undefined) {
-      drawWallColumn(
-        frame,
-        x,
-        frame.thinHitDist[slot]!,
-        focal,
-        texture.bands[frame.thinHitBand[slot]!]!,
-        frame.thinHitTexX[slot]!,
-        false,
-      );
+      const texels = texture.bands[frame.thinHitBand[slot]!]!;
+      const offset = frame.thinHitOffset[slot]!;
+      if (offset > 0) {
+        drawVerticalSlideColumn(
+          frame,
+          x,
+          frame.thinHitDist[slot]!,
+          focal,
+          texels,
+          frame.thinHitTexX[slot]!,
+          frame.thinHitSlide[slot]!,
+          offset,
+        );
+      } else {
+        drawWallColumn(
+          frame,
+          x,
+          frame.thinHitDist[slot]!,
+          focal,
+          texels,
+          frame.thinHitTexX[slot]!,
+          false,
+        );
+      }
     }
     cursor--;
   }

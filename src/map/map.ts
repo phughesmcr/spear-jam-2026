@@ -87,12 +87,48 @@ export type EnemyDef = {
   examineTextId?: number;
 };
 
+/**
+ * Which way a door slides open. Horizontal directions must lie along the
+ * door's span (east/west for doors in north-south walls, north/south for
+ * doors in east-west walls); invalid directions fall back to the default.
+ */
+export type DoorSlide = "north" | "east" | "south" | "west" | "up" | "down";
+
+const DOOR_SLIDE_CODES: Readonly<Record<DoorSlide, number>> = {
+  north: 1,
+  east: 2,
+  south: 3,
+  west: 4,
+  up: 5,
+  down: 6,
+};
+
+const DOOR_SLIDES_BY_CODE = new Map<number, DoorSlide>(
+  Object.entries(DOOR_SLIDE_CODES).map(([slide, code]) => [code, slide as DoorSlide]),
+);
+
+/** Storage code for a door slide direction; 0 means "renderer default". */
+export function doorSlideCode(slide?: DoorSlide): number {
+  return slide === undefined ? 0 : DOOR_SLIDE_CODES[slide];
+}
+
+export function doorSlideForCode(code: number): DoorSlide | undefined {
+  return DOOR_SLIDES_BY_CODE.get(code);
+}
+
+/** How long a door takes to slide fully open (or closed). */
+export const DEFAULT_DOOR_OPEN_MS = 350;
+
 export type DoorDef = {
   prefab: "door";
   x: number;
   y: number;
   locked?: boolean;
   color?: KeyColor;
+  /** Slide direction; defaults to along the wall toward north/west. */
+  slide?: DoorSlide;
+  /** Milliseconds for a full open/close slide. */
+  openMs?: number;
   examineTextId?: number;
 };
 

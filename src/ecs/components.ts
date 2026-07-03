@@ -94,8 +94,14 @@ export const Drawable: Component<DrawableSchema, typeof DRAWABLE_STORAGE> = new 
   schema: DRAWABLE_STORAGE,
 });
 
-export type DoorSchema = { open: number };
-const DOOR_STORAGE = { open: Uint8Array };
+export type DoorSchema = {
+  open: number;
+  /** Door slide direction code from {@link doorSlideCode}; 0 = default. */
+  slide: number;
+  /** Milliseconds for a full open/close slide; 0 = default. */
+  openMs: number;
+};
+const DOOR_STORAGE = { open: Uint8Array, slide: Uint8Array, openMs: Uint16Array };
 export const Door: Component<DoorSchema, typeof DOOR_STORAGE> = new Component<DoorSchema, typeof DOOR_STORAGE>({
   name: "door",
   schema: DOOR_STORAGE,

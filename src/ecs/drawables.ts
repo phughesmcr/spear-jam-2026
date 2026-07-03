@@ -3,8 +3,8 @@ import { DrawableKind, EnemyArchetype, enemyArchetypeForCode } from "@/src/ecs/c
 import { drawableRenderQuery } from "@/src/ecs/queries.ts";
 import { itemIconFor, itemKindForCode } from "@/src/game/items.ts";
 import type { ItemIcon } from "@/src/game/items.ts";
-import { keyColorForCode } from "@/src/map/map.ts";
-import type { KeyColor } from "@/src/map/map.ts";
+import { DEFAULT_DOOR_OPEN_MS, doorSlideForCode, keyColorForCode } from "@/src/map/map.ts";
+import type { DoorSlide, KeyColor } from "@/src/map/map.ts";
 
 export { DrawableKind };
 
@@ -35,6 +35,10 @@ export type DoorDrawableEntity = DrawableBase & {
   readonly open: boolean;
   readonly locked: boolean;
   readonly color?: KeyColor;
+  /** Slide direction for open/close animation; undefined = renderer default. */
+  readonly slide?: DoorSlide;
+  /** Milliseconds for a full open/close slide. */
+  readonly openMs: number;
 };
 
 export type UplinkTerminalDrawableEntity = DrawableBase & {
@@ -137,12 +141,16 @@ function doorDrawableEntityFor(
   if (!components.door.has(entity)) return undefined;
 
   const locked = components.locked.has(entity);
+  const slide = doorSlideForCode(components.door.partitions.slide[entity]!);
+  const openMs = components.door.partitions.openMs[entity]!;
   return {
     ...position,
     kind: DrawableKind.Door,
     open: components.door.partitions.open[entity]! === 1,
     locked,
     color: locked ? keyColorForCode(components.locked.partitions.color[entity]!) : undefined,
+    ...(slide === undefined ? {} : { slide }),
+    openMs: openMs === 0 ? DEFAULT_DOOR_OPEN_MS : openMs,
   };
 }
 

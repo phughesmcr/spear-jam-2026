@@ -1,9 +1,11 @@
+import type { Entity } from "@phughesmcr/miski";
 import { createGameSession as createRealGameSession, type GameSession } from "@/src/ecs/session.ts";
 import { relativeMoveDirectionOffset } from "@/src/game/commands.ts";
 import type { GameCommand } from "@/src/game/commands.ts";
 import type { PlayerCommand, PlayerCommandResult } from "@/src/game/commands.ts";
 import { directionDelta, normalizeDirection } from "@/src/grid/direction.ts";
 import type { CombatFeedback } from "@/src/game/combat_feedback.ts";
+import type { GameEvent } from "@/src/game/events.ts";
 import { SplitMix32 } from "@/src/game/rng.ts";
 import { createGameModel, transition } from "@/src/game/transition.ts";
 import type { GameEffect, GameModel, GameTransitionEvent } from "@/src/game/transition.ts";
@@ -19,6 +21,9 @@ import {
   renderGameFrame as renderRealGameFrame,
 } from "@/src/render/game.ts";
 import { verbMenuHotspotIndexAt } from "@/src/render/verb_menu.ts";
+import type { WeaponHudPhase } from "@/src/render/weapon_hud.ts";
+
+const WEAPON_HUD_ACTIVE_MS = 140;
 
 interface GameSessionHandle extends Disposable {
   readonly map: GameSession["map"];
@@ -41,6 +46,7 @@ type GameFrameRenderer = (
   messages: readonly string[],
   combatFeedback: readonly CombatFeedback[],
   viewMode: ViewMode,
+  weaponHudPhase: WeaponHudPhase,
   onAssetLoad?: () => void,
 ) => void;
 
@@ -76,6 +82,8 @@ class Game implements Disposable {
   private model: GameModel = createGameModel(START_MAP_NAME);
   private canvasController: Disposable;
   private canvasSize: GameCanvasSize = DEFAULT_GAME_CANVAS_SIZE;
+  private weaponHudPhase: WeaponHudPhase = "idle";
+  private weaponHudTimeoutId?: number;
   private inputController?: Disposable;
   private session?: GameSessionHandle;
   private started = false;
@@ -117,6 +125,7 @@ class Game implements Disposable {
       this.model.recentMessages,
       this.model.combatFeedback,
       this.model.viewMode,
+      this.weaponHudPhase,
       this.renderLoadedAssets,
     );
   }
@@ -133,6 +142,8 @@ class Game implements Disposable {
 
     const previousSession = this.session;
     this.session = session;
+    this.clearWeaponHudTimeout();
+    this.weaponHudPhase = "idle";
     previousSession?.[Symbol.dispose]();
     this.apply({ type: "mapLoaded", mapName, playerState });
   }
@@ -165,6 +176,7 @@ class Game implements Disposable {
   private handlePlayerCommand(command: PlayerCommand): void {
     if (!this.session) return;
 
+    const playerEntity = this.session.player.getEntity();
     const moveFrom = command.type === "move" ? this.session.player.getPosition() : undefined;
     const result = this.session.handlePlayerCommand(command);
     if (command.type === "move" && moveFrom !== undefined) {
@@ -178,10 +190,13 @@ class Game implements Disposable {
         bumpFirstPersonView(delta.dx, delta.dy);
       }
     }
+    if (playerAttackOccurred(result.events, playerEntity)) {
+      this.flashWeaponHud();
+    }
     this.apply({
       type: "playerCommandResult",
       result,
-      playerEntity: this.session.player.getEntity(),
+      playerEntity,
       playerState: this.session.getPlayerState(),
     });
   }
@@ -222,12 +237,42 @@ class Game implements Disposable {
     );
   }
 
+  private flashWeaponHud(): void {
+    this.clearWeaponHudTimeout();
+    this.weaponHudPhase = "active";
+    this.weaponHudTimeoutId = this.spec.window.setTimeout(() => {
+      this.weaponHudTimeoutId = undefined;
+      this.weaponHudPhase = "idle";
+      this.render();
+    }, WEAPON_HUD_ACTIVE_MS);
+  }
+
+  private clearWeaponHudTimeout(): void {
+    if (this.weaponHudTimeoutId === undefined) return;
+    this.spec.window.clearTimeout(this.weaponHudTimeoutId);
+    this.weaponHudTimeoutId = undefined;
+  }
+
   [Symbol.dispose](): void {
     this.controller.abort();
+    this.clearWeaponHudTimeout();
     this.inputController?.[Symbol.dispose]();
     this.session?.[Symbol.dispose]();
     this.canvasController?.[Symbol.dispose]();
   }
+}
+
+function playerAttackOccurred(events: readonly GameEvent[], playerEntity: Entity): boolean {
+  return events.some((event) => {
+    switch (event.type) {
+      case "attackMissed":
+      case "damageDealt":
+      case "entityDefeated":
+        return event.actor === playerEntity;
+      default:
+        return false;
+    }
+  });
 }
 
 function gameRuntime(): GameRuntime {
@@ -257,6 +302,7 @@ function renderRuntimeGameFrame(
   messages: readonly string[],
   combatFeedback: readonly CombatFeedback[],
   viewMode: ViewMode,
+  weaponHudPhase: WeaponHudPhase,
   onAssetLoad?: () => void,
 ): void {
   renderRealGameFrame(
@@ -267,6 +313,7 @@ function renderRuntimeGameFrame(
     messages,
     combatFeedback,
     viewMode,
+    weaponHudPhase,
     onAssetLoad,
   );
 }

@@ -7,6 +7,7 @@ import type { GameMode, PlayerState, PlayerStateInput, ViewMode } from "@/src/ga
 import type { CanvasPointerInput } from "@/src/input/pointer.ts";
 import type { GameCanvasSize } from "@/src/render/canvas.ts";
 import { verbMenuSpriteRect } from "@/src/render/verb_menu.ts";
+import type { WeaponHudPhase } from "@/src/render/weapon_hud.ts";
 import { KeyColor } from "@/src/map/map.ts";
 import type { GameMap } from "@/src/map/map.ts";
 
@@ -154,8 +155,63 @@ Deno.test("Game retries defeat from the level-entry snapshot instead of the defe
   }
 });
 
+Deno.test("Game flashes the weapon HUD active for player attacks", async () => {
+  const harness = await startHarness();
+  try {
+    harness.latestSession().enqueue({
+      events: [{
+        type: "attackMissed",
+        actor: PLAYER_ENTITY,
+        actorName: "You",
+      }],
+    });
+
+    harness.command({ type: "attack" });
+    assertEquals(harness.latestFrame().weaponHudPhase, "active");
+
+    harness.runNextTimer();
+    assertEquals(harness.latestFrame().weaponHudPhase, "idle");
+  } finally {
+    harness[Symbol.dispose]();
+  }
+});
+
+Deno.test("Game flashes the weapon HUD active for smart action attacks", async () => {
+  const harness = await startHarness();
+  try {
+    harness.latestSession().enqueue({
+      events: [{
+        type: "attackMissed",
+        actor: PLAYER_ENTITY,
+        actorName: "You",
+      }],
+    });
+
+    harness.command({ type: "smartAction" });
+    assertEquals(harness.latestFrame().weaponHudPhase, "active");
+  } finally {
+    harness[Symbol.dispose]();
+  }
+});
+
+Deno.test("Game does not flash the weapon HUD when an attack has no ammo", async () => {
+  const harness = await startHarness();
+  try {
+    harness.latestSession().enqueue({
+      events: [{ type: "noAmmo", ammo: "pistol" }],
+    });
+
+    harness.command({ type: "attack" });
+    assertEquals(harness.latestFrame().weaponHudPhase, "idle");
+    assertEquals(harness.pendingTimerCount(), 0);
+  } finally {
+    harness[Symbol.dispose]();
+  }
+});
+
 type RenderSnapshot = {
   readonly mode: GameMode;
+  readonly weaponHudPhase: WeaponHudPhase;
 };
 
 type LoadSnapshot = {
@@ -208,6 +264,8 @@ class EntryHarness implements Disposable {
   readonly frames: RenderSnapshot[] = [];
   readonly loads: LoadSnapshot[] = [];
   readonly sessions: FakeSession[] = [];
+  private readonly timers = new Map<number, () => void>();
+  private nextTimerId = 1;
   private commandReceiver?: (command: GameCommand) => void;
   private pointerReceiver?: (input: CanvasPointerInput) => void;
   private game?: Disposable;
@@ -217,7 +275,17 @@ class EntryHarness implements Disposable {
       canvas: {} as HTMLCanvasElement,
       ctx: {} as CanvasRenderingContext2D,
       seed: 123,
-      window: {} as Window,
+      window: {
+        setTimeout: (callback: () => void): number => {
+          const timerId = this.nextTimerId;
+          this.nextTimerId++;
+          this.timers.set(timerId, callback);
+          return timerId;
+        },
+        clearTimeout: (timerId: number): void => {
+          this.timers.delete(timerId);
+        },
+      } as unknown as Window,
       runtime: {
         configureCanvasDpi: (
           _window: Window,
@@ -249,9 +317,10 @@ class EntryHarness implements Disposable {
           _messages: readonly string[],
           _combatFeedback: readonly unknown[],
           _viewMode: ViewMode,
+          weaponHudPhase: WeaponHudPhase,
           _onAssetLoad?: () => void,
         ): void => {
-          this.frames.push({ mode });
+          this.frames.push({ mode, weaponHudPhase });
         },
         setupInput: (
           _window: Window,
@@ -279,9 +348,26 @@ class EntryHarness implements Disposable {
   }
 
   latestMode(): GameMode {
+    return this.latestFrame().mode;
+  }
+
+  latestFrame(): RenderSnapshot {
     const frame = this.frames[this.frames.length - 1];
     if (frame === undefined) throw new Error("No frame was rendered.");
-    return frame.mode;
+    return frame;
+  }
+
+  pendingTimerCount(): number {
+    return this.timers.size;
+  }
+
+  runNextTimer(): void {
+    const timer = this.timers.entries().next();
+    if (timer.done) throw new Error("No pending timer.");
+
+    const [timerId, callback] = timer.value;
+    this.timers.delete(timerId);
+    callback();
   }
 
   latestSession(): FakeSession {

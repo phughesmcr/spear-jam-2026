@@ -52,7 +52,7 @@ export const MAP_1: GameMap = createGameMap(
       goto: "Data Conduit",
       examineTextId: ExamineTextId.BootSectorUplinkTerminal,
     },
-    { prefab: "door", x: 11, y: 4, locked: true, color: KeyColor.Red },
+    { prefab: "door", x: 11, y: 4, locked: true, color: KeyColor.Red, slide: "up", openMs: 600 },
     { prefab: "enemy", x: 9, y: 6, dir: 0, displayName: DisplayName.DigitalDog, archetype: EnemyArchetype.MeleeDog },
     { prefab: "uplinkCode", x: 9, y: 7 },
     { prefab: "item", x: 11, y: 7, item: ItemKind.HealthPatch, amount: 4 },

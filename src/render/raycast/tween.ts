@@ -208,6 +208,54 @@ export function sampleSpriteTween(tween: SpriteTween, nowMs: number, out: Sprite
   out.settled = t >= 1;
 }
 
+/** Scalar tween for door openness and similar 0-1 slides. */
+export type ScalarTween = {
+  from: number;
+  to: number;
+  startMs: number;
+  durationMs: number;
+};
+
+export type ScalarSample = {
+  value: number;
+  settled: boolean;
+};
+
+export function createScalarTween(value: number): ScalarTween {
+  return { from: value, to: value, startMs: 0, durationMs: 0 };
+}
+
+/**
+ * Animate toward a new target. `fullDurationMs` covers a full 0-to-1 sweep;
+ * partial slides (reversing a half-open door) take proportionally less.
+ */
+export function retargetScalarTween(
+  tween: ScalarTween,
+  target: number,
+  nowMs: number,
+  fullDurationMs: number,
+): void {
+  if (target === tween.to) return;
+  const eased = smoothstep(scalarTweenProgress(tween, nowMs));
+  tween.from = tween.from + (tween.to - tween.from) * eased;
+  tween.to = target;
+  tween.startMs = nowMs;
+  tween.durationMs = fullDurationMs * Math.abs(target - tween.from);
+}
+
+function scalarTweenProgress(tween: ScalarTween, nowMs: number): number {
+  if (tween.durationMs <= 0) return 1;
+  const t = (nowMs - tween.startMs) / tween.durationMs;
+  return t >= 1 ? 1 : t <= 0 ? 0 : t;
+}
+
+export function sampleScalarTween(tween: ScalarTween, nowMs: number, out: ScalarSample): void {
+  const t = scalarTweenProgress(tween, nowMs);
+  const eased = smoothstep(t);
+  out.value = tween.from + (tween.to - tween.from) * eased;
+  out.settled = t >= 1;
+}
+
 export const NUDGE_TWEEN_MS = 110;
 /** Peak displacement of a blocked-move recoil, in tiles. */
 const NUDGE_DISTANCE = 0.08;

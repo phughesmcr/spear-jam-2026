@@ -11,6 +11,8 @@ import type { MapRenderMetrics } from "@/src/render/map.ts";
 import { renderMessageLog } from "@/src/render/messages.ts";
 import { renderOverlay } from "@/src/render/overlay.ts";
 import { preloadVerbMenuAssets, renderVerbMenu } from "@/src/render/verb_menu.ts";
+import { preloadWeaponHudAssets, renderWeaponHud } from "@/src/render/weapon_hud.ts";
+import type { WeaponHudPhase } from "@/src/render/weapon_hud.ts";
 
 const BACKGROUND_COLOR = "#101217";
 
@@ -18,6 +20,7 @@ export async function preloadGameAssets(document: Document, onAssetLoad?: () => 
   await Promise.all([
     preloadVerbMenuAssets(document, onAssetLoad),
     preloadFirstPersonAssets(document, onAssetLoad),
+    preloadWeaponHudAssets(document, onAssetLoad),
   ]);
 }
 
@@ -44,6 +47,7 @@ export function renderGameFrame(
   messages: readonly string[] = [],
   combatFeedback: readonly CombatFeedback[] = [],
   viewMode: ViewMode = "firstPerson",
+  weaponHudPhase: WeaponHudPhase = "idle",
   onAssetLoad?: () => void,
 ): void {
   ctx.fillStyle = BACKGROUND_COLOR;
@@ -57,6 +61,7 @@ export function renderGameFrame(
         session,
         onAssetLoad,
       );
+      renderWeaponHud(ctx, canvasSize, session.getPlayerState().selectedWeapon, weaponHudPhase, onAssetLoad);
       renderCombatFeedback(ctx, firstPersonFeedbackMetrics(canvasSize), combatFeedback);
     } else {
       const metrics = renderMap(ctx, canvasSize, map, session.getVisibility());
