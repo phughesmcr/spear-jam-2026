@@ -3,6 +3,7 @@ import { ItemKind } from "@/src/game/items.ts";
 import { DisplayName } from "@/src/game/names.ts";
 import { createGameMap, KeyColor } from "@/src/map/map.ts";
 import type { GameMap } from "@/src/map/map.ts";
+import { DATA_CONDUIT_PALETTE } from "@/src/map/terrain_palettes.ts";
 
 /**
  * Level 2: Data Conduit — introduces the Gigabit Gunslinger.
@@ -15,19 +16,19 @@ import type { GameMap } from "@/src/map/map.ts";
 export const MAP_2: GameMap = createGameMap(
   "Data Conduit",
   [
-    [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
-    [1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1],
-    [1, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 1],
-    [1, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 1],
-    [1, 0, 0, 0, 0, 0, 1, 1, 1, 0, 0, 0, 0, 0, 1],
-    [1, 0, 0, 0, 0, 0, 1, 1, 1, 0, 0, 0, 0, 0, 1],
-    [1, 0, 0, 0, 0, 0, 1, 1, 1, 0, 0, 0, 0, 0, 1],
-    [1, 1, 1, 0, 1, 1, 1, 1, 1, 1, 1, 0, 1, 1, 1],
-    [1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1],
-    [1, 1, 0, 1, 1, 1, 0, 1, 1, 1, 1, 1, 0, 1, 1],
-    [1, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1],
-    [1, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1],
-    [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
+    [1, 4, 5, 1, 4, 5, 1, 4, 5, 1, 4, 5, 1, 4, 1],
+    [4, 0, 2, 3, 0, 2, 3, 0, 2, 3, 0, 2, 3, 0, 5],
+    [1, 2, 3, 4, 2, 3, 0, 5, 2, 3, 0, 1, 2, 3, 1],
+    [5, 0, 4, 5, 1, 4, 5, 1, 4, 5, 1, 4, 5, 2, 4],
+    [1, 3, 0, 2, 3, 0, 4, 5, 1, 3, 0, 2, 3, 0, 5],
+    [4, 0, 2, 3, 0, 2, 5, 1, 4, 0, 2, 3, 0, 2, 1],
+    [1, 2, 3, 0, 2, 3, 1, 4, 5, 2, 3, 0, 2, 3, 4],
+    [5, 1, 4, 0, 5, 1, 4, 5, 1, 4, 5, 3, 1, 4, 5],
+    [1, 2, 3, 0, 2, 3, 0, 2, 3, 0, 2, 3, 0, 2, 1],
+    [4, 5, 3, 1, 4, 5, 0, 1, 4, 5, 1, 4, 2, 5, 1],
+    [1, 0, 2, 3, 5, 0, 2, 3, 0, 4, 2, 3, 0, 2, 5],
+    [5, 3, 0, 2, 1, 3, 0, 2, 3, 5, 0, 2, 3, 0, 4],
+    [1, 5, 1, 4, 1, 5, 1, 4, 1, 5, 1, 4, 1, 5, 1],
   ],
   [
     // Start room, bottom-left; the blue door is in view down the south hall.
@@ -69,4 +70,5 @@ export const MAP_2: GameMap = createGameMap(
     { prefab: "uplinkCode", x: 13, y: 11 },
     { prefab: "item", x: 13, y: 10, item: ItemKind.HealthPatch, amount: 4 },
   ],
+  { palette: DATA_CONDUIT_PALETTE },
 );

@@ -1,5 +1,13 @@
-import { assertEquals, assertThrows } from "@std/assert";
-import { createGameMap, KeyColor, keyColorCode, keyColorForCode, mapDimensions, terrainAt } from "@/src/map/map.ts";
+import { assert, assertEquals, assertThrows } from "@std/assert";
+import {
+  createGameMap,
+  KeyColor,
+  keyColorCode,
+  keyColorForCode,
+  mapDimensions,
+  terrainAt,
+  TexturePack,
+} from "@/src/map/map.ts";
 
 Deno.test("createGameMap rejects ragged terrain rows", () => {
   assertThrows(
@@ -32,6 +40,27 @@ Deno.test("terrainAt resolves palette tiles and rejects out-of-bounds reads", ()
   assertEquals(terrainAt(map, 2, 0), undefined);
   assertEquals(terrainAt(map, 0, 2), undefined);
   assertEquals(terrainAt(map, 0.5, 0), undefined);
+});
+
+Deno.test("createGameMap accepts a custom terrain texture palette", () => {
+  const map = createGameMap(
+    "Textured",
+    [[2, 3]],
+    [],
+    {
+      palette: [
+        { id: 2, color: "#111111", floor_texture: `${TexturePack.Pack1}:0,0`, ceiling_texture: "ceiling" },
+        { id: 3, color: "#eeeeee", wall_texture: `${TexturePack.Pack2}:9,7`, blocking: true },
+      ],
+    },
+  );
+
+  const floor = terrainAt(map, 0, 0);
+  const wall = terrainAt(map, 1, 0);
+  assert(floor !== undefined && "floor_texture" in floor);
+  assert(wall !== undefined && "wall_texture" in wall);
+  assertEquals(floor.floor_texture, "pack1:0,0");
+  assertEquals(wall.wall_texture, "pack2:9,7");
 });
 
 Deno.test("key colors use stable component codes", () => {

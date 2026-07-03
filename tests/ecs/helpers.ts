@@ -53,8 +53,8 @@ export function flatTestMap(
         {
           id: 0,
           color: "#000",
-          floor_texture: "",
-          ceiling_texture: "",
+          floor_texture: "floor",
+          ceiling_texture: "ceiling",
         },
       ],
       tiles: Array.from({ length: height }, () => [...row]),

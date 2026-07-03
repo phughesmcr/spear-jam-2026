@@ -4,19 +4,31 @@ import type { DialogueTreeId } from "@/src/dialogue/dialogue.ts";
 import type { EnemyArchetype } from "@/src/ecs/components.ts";
 import type { ItemKind } from "@/src/game/items.ts";
 
+export const TexturePack = {
+  Pack1: "pack1",
+  Pack2: "pack2",
+  Pack3: "pack3",
+} as const;
+
+export type TexturePack = (typeof TexturePack)[keyof typeof TexturePack];
+export type TexturePackRef = `${TexturePack}:${number},${number}`;
+export type WallTexture = "wall" | TexturePackRef;
+export type FloorTexture = "floor" | TexturePackRef;
+export type CeilingTexture = "ceiling" | TexturePackRef;
+
 export type WallTile = {
   id: number;
   color: string;
-  wall_texture?: string;
-  blocking: boolean;
+  wall_texture?: WallTexture;
+  blocking: true;
 };
 
 export type FloorTile = {
   id: number;
   color: string;
-  floor_texture: string;
-  ceiling_texture: string;
-  blocking?: boolean;
+  floor_texture: FloorTexture;
+  ceiling_texture: CeilingTexture;
+  blocking?: false;
 };
 
 export type TerrainTile = WallTile | FloorTile;
@@ -193,6 +205,10 @@ export type MapDimensions = {
   readonly height: number;
 };
 
+export type GameMapOptions = {
+  readonly palette?: readonly TerrainTile[];
+};
+
 export function mapDimensions(map: GameMap): MapDimensions {
   return {
     width: map.terrain.tiles[0]?.length ?? 0,
@@ -224,6 +240,7 @@ export function createGameMap(
   name: string,
   tiles: readonly (readonly number[])[],
   entities: readonly EntityDef[],
+  options: GameMapOptions = {},
 ): GameMap {
   const width = tiles[0]?.length ?? 0;
   if (tiles.length === 0 || width === 0) {
@@ -240,7 +257,7 @@ export function createGameMap(
   return {
     name,
     terrain: {
-      palette: DEFAULT_TERRAIN_PALETTE,
+      palette: options.palette ?? DEFAULT_TERRAIN_PALETTE,
       tiles,
     },
     entities,

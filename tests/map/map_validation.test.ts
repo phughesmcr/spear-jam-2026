@@ -1,10 +1,40 @@
-import { assertEquals } from "@std/assert";
-import { createGameMap, KeyColor, VICTORY_GOTO } from "@/src/map/map.ts";
+import { assert, assertEquals } from "@std/assert";
+import { createGameMap, KeyColor, mapDimensions, terrainAt, TexturePack, VICTORY_GOTO } from "@/src/map/map.ts";
+import type { TerrainTile } from "@/src/map/map.ts";
 import { GAME_MAPS } from "@/src/map/maps.ts";
 import { validateGameMaps } from "@/src/map/map_validation.ts";
 
 Deno.test("authored game maps pass softlock validation", () => {
   assertEquals(validateGameMaps(GAME_MAPS), []);
+});
+
+Deno.test("authored game maps use texture pack terrain palettes", () => {
+  for (const map of GAME_MAPS) {
+    const textures = map.terrain.palette.flatMap(terrainTextures);
+    assert(textures.length > 0, `${map.name} should declare terrain textures.`);
+    assert(
+      textures.every(isTexturePackRef),
+      `${map.name} should use pack-backed textures, got: ${textures.join(", ")}`,
+    );
+  }
+});
+
+Deno.test("authored game maps use varied floor, ceiling, and wall textures", () => {
+  for (const map of GAME_MAPS) {
+    const textures = usedTerrainTextures(map);
+    assert(
+      textures.floors.size >= 3,
+      `${map.name} should use at least 3 floor textures, got ${textures.floors.size}.`,
+    );
+    assert(
+      textures.ceilings.size >= 3,
+      `${map.name} should use at least 3 ceiling textures, got ${textures.ceilings.size}.`,
+    );
+    assert(
+      textures.walls.size >= 3,
+      `${map.name} should use at least 3 wall textures, got ${textures.walls.size}.`,
+    );
+  }
 });
 
 Deno.test("map validation requires exactly one player spawn", () => {
@@ -29,6 +59,39 @@ Deno.test("map validation requires exactly one player spawn", () => {
     ],
   );
 });
+
+function terrainTextures(tile: TerrainTile): readonly string[] {
+  if (tile.blocking === true) return tile.wall_texture === undefined ? [] : [tile.wall_texture];
+  return [tile.floor_texture, tile.ceiling_texture];
+}
+
+function isTexturePackRef(texture: string): boolean {
+  return Object.values(TexturePack).some((pack) => texture.startsWith(`${pack}:`));
+}
+
+function usedTerrainTextures(map: (typeof GAME_MAPS)[number]): {
+  readonly floors: ReadonlySet<string>;
+  readonly ceilings: ReadonlySet<string>;
+  readonly walls: ReadonlySet<string>;
+} {
+  const floors = new Set<string>();
+  const ceilings = new Set<string>();
+  const walls = new Set<string>();
+  const { width, height } = mapDimensions(map);
+  for (let y = 0; y < height; y++) {
+    for (let x = 0; x < width; x++) {
+      const tile = terrainAt(map, x, y);
+      if (tile === undefined) continue;
+      if (tile.blocking === true) {
+        if (tile.wall_texture !== undefined) walls.add(tile.wall_texture);
+        continue;
+      }
+      floors.add(tile.floor_texture);
+      ceilings.add(tile.ceiling_texture);
+    }
+  }
+  return { floors, ceilings, walls };
+}
 
 Deno.test("map validation reports entities outside terrain bounds", () => {
   assertEquals(

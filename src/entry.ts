@@ -15,7 +15,7 @@ import type { CanvasPointerInput } from "@/src/input/pointer.ts";
 import { getMap as getRealMap, START_MAP_NAME } from "@/src/map/maps.ts";
 import { configureCanvasDpi as configureRealCanvasDpi, DEFAULT_GAME_CANVAS_SIZE } from "@/src/render/canvas.ts";
 import type { GameCanvasSize } from "@/src/render/canvas.ts";
-import { bumpFirstPersonView } from "@/src/render/first_person.ts";
+import { bumpFirstPersonView, markSpriteAttack, markSpriteDeath } from "@/src/render/first_person.ts";
 import {
   preloadGameAssets as preloadRealGameAssets,
   renderGameFrame as renderRealGameFrame,
@@ -192,6 +192,15 @@ class Game implements Disposable {
     }
     if (playerAttackOccurred(result.events, playerEntity)) {
       this.flashWeaponHud();
+    }
+    for (const event of result.events) {
+      // First-person sprite animation: enemies strike a pose when they
+      // attack and play a death sequence when defeated.
+      if ((event.type === "damageDealt" || event.type === "attackMissed") && event.actor !== playerEntity) {
+        markSpriteAttack(event.actor);
+      } else if (event.type === "entityDefeated") {
+        markSpriteDeath(event.entity);
+      }
     }
     this.apply({
       type: "playerCommandResult",

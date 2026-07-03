@@ -5,6 +5,7 @@ import { ExamineTextId } from "@/src/game/examine.ts";
 import { DisplayName } from "@/src/game/names.ts";
 import { createGameMap, KeyColor } from "@/src/map/map.ts";
 import type { GameMap } from "@/src/map/map.ts";
+import { BOOT_SECTOR_PALETTE } from "@/src/map/terrain_palettes.ts";
 
 /**
  * Level 1: Boot Sector — the tutorial.
@@ -18,17 +19,17 @@ import type { GameMap } from "@/src/map/map.ts";
 export const MAP_1: GameMap = createGameMap(
   "Boot Sector",
   [
-    [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
-    [1, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 1],
-    [1, 0, 0, 0, 0, 0, 1, 1, 1, 1, 0, 0, 1],
-    [1, 0, 0, 0, 1, 0, 1, 1, 1, 1, 0, 0, 1],
-    [1, 1, 0, 1, 1, 0, 1, 1, 1, 1, 1, 0, 1],
-    [1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1],
-    [1, 0, 0, 0, 1, 1, 0, 1, 1, 0, 1, 0, 1],
-    [1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1],
-    [1, 1, 1, 0, 1, 0, 0, 0, 1, 1, 1, 1, 1],
-    [1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1],
-    [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
+    [1, 4, 1, 5, 1, 4, 1, 5, 1, 4, 1, 5, 1],
+    [4, 0, 2, 3, 5, 0, 2, 3, 0, 2, 3, 0, 4],
+    [1, 2, 3, 0, 2, 3, 5, 1, 4, 5, 2, 3, 1],
+    [5, 0, 2, 3, 1, 0, 4, 5, 1, 4, 0, 2, 5],
+    [1, 4, 2, 5, 4, 3, 1, 4, 5, 1, 5, 3, 1],
+    [4, 0, 2, 3, 5, 0, 2, 3, 1, 0, 2, 3, 4],
+    [1, 3, 0, 2, 1, 5, 3, 4, 5, 2, 1, 0, 5],
+    [5, 2, 3, 0, 4, 2, 3, 0, 5, 3, 0, 2, 1],
+    [1, 4, 5, 3, 1, 0, 2, 3, 4, 1, 5, 4, 1],
+    [4, 0, 2, 3, 0, 2, 3, 0, 2, 3, 0, 2, 5],
+    [1, 5, 1, 4, 1, 5, 1, 4, 1, 5, 1, 4, 1],
   ],
   [
     // Start room: John briefs the player before the first door.
@@ -57,4 +58,5 @@ export const MAP_1: GameMap = createGameMap(
     { prefab: "uplinkCode", x: 9, y: 7 },
     { prefab: "item", x: 11, y: 7, item: ItemKind.HealthPatch, amount: 4 },
   ],
+  { palette: BOOT_SECTOR_PALETTE },
 );

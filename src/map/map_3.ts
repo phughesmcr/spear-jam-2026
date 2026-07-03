@@ -3,6 +3,7 @@ import { ItemKind } from "@/src/game/items.ts";
 import { DisplayName } from "@/src/game/names.ts";
 import { createGameMap, KeyColor } from "@/src/map/map.ts";
 import type { GameMap } from "@/src/map/map.ts";
+import { FIREWALL_PALETTE } from "@/src/map/terrain_palettes.ts";
 
 /**
  * Level 3: Firewall — introduces the Network Neophyte and the Current Cannon.
@@ -16,19 +17,19 @@ import type { GameMap } from "@/src/map/map.ts";
 export const MAP_3: GameMap = createGameMap(
   "Firewall",
   [
-    [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
-    [1, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 1],
-    [1, 0, 1, 0, 1, 0, 1, 1, 1, 1, 1, 0, 1, 0, 1, 0, 1],
-    [1, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 1],
-    [1, 1, 1, 1, 0, 1, 1, 1, 1, 1, 1, 1, 1, 0, 1, 1, 1],
-    [1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1],
-    [1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1],
-    [1, 1, 1, 1, 0, 1, 1, 1, 0, 1, 1, 1, 1, 1, 0, 1, 1],
-    [1, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 1, 0, 0, 0, 1],
-    [1, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 1, 0, 0, 0, 1],
-    [1, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 1, 0, 0, 0, 1],
-    [1, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 1, 0, 0, 0, 1],
-    [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
+    [1, 4, 5, 1, 4, 5, 1, 4, 5, 1, 4, 5, 1, 4, 5, 1, 4],
+    [4, 0, 2, 3, 0, 2, 5, 1, 4, 5, 1, 3, 0, 2, 3, 0, 5],
+    [1, 2, 4, 3, 5, 0, 1, 4, 5, 1, 4, 2, 5, 3, 1, 0, 4],
+    [5, 3, 0, 2, 3, 0, 4, 5, 1, 4, 5, 0, 2, 3, 0, 2, 1],
+    [1, 4, 5, 1, 2, 5, 1, 4, 5, 1, 4, 5, 1, 3, 4, 5, 1],
+    [4, 0, 2, 3, 0, 2, 3, 0, 2, 3, 0, 2, 3, 0, 2, 3, 5],
+    [1, 0, 2, 3, 0, 2, 3, 0, 2, 3, 0, 2, 3, 0, 2, 3, 4],
+    [5, 1, 4, 5, 2, 1, 4, 5, 0, 1, 4, 5, 1, 4, 3, 5, 1],
+    [1, 3, 0, 2, 3, 0, 4, 2, 3, 0, 2, 3, 5, 0, 2, 3, 4],
+    [4, 0, 2, 3, 0, 2, 5, 3, 0, 2, 3, 0, 1, 2, 3, 0, 5],
+    [1, 2, 3, 0, 2, 3, 4, 0, 2, 3, 0, 2, 5, 3, 0, 2, 1],
+    [5, 0, 2, 3, 0, 2, 1, 3, 0, 2, 3, 0, 4, 2, 3, 0, 5],
+    [1, 5, 1, 4, 1, 5, 1, 4, 1, 5, 1, 4, 1, 5, 1, 4, 1],
   ],
   [
     // Start at the west mouth of the firing lane.
@@ -119,4 +120,5 @@ export const MAP_3: GameMap = createGameMap(
     // North-east uplink chamber, terminal flanked by pillars.
     { prefab: "uplinkTerminal", x: 13, y: 2, goto: "The Nexus" },
   ],
+  { palette: FIREWALL_PALETTE },
 );

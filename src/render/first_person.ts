@@ -18,8 +18,8 @@ import { EnemyArchetype } from "@/src/ecs/components.ts";
 import type { GameSession } from "@/src/ecs/session.ts";
 import { type CardinalDirection, directionDelta, normalizeDirection } from "@/src/grid/direction.ts";
 import type { ItemIcon } from "@/src/game/items.ts";
-import { KeyColor, mapDimensions, terrainAt } from "@/src/map/map.ts";
-import type { DoorSlide, GameMap } from "@/src/map/map.ts";
+import { KeyColor, mapDimensions, terrainAt, TexturePack } from "@/src/map/map.ts";
+import type { CeilingTexture, DoorSlide, FloorTexture, GameMap, TexturePackRef, WallTexture } from "@/src/map/map.ts";
 import { createImageAsset, loadedImage, preloadImageAssets } from "@/src/render/assets.ts";
 import type { ImageAsset } from "@/src/render/assets.ts";
 import {
@@ -75,12 +75,29 @@ type BakeTarget = {
   readonly slot: number;
   readonly tint?: readonly [number, number, number];
   readonly frame?: SourceFrame;
+  baked: boolean;
+};
+
+type BakeTargetInput = {
+  readonly layer: AtlasLayer;
+  readonly slot: number;
+  readonly tint?: readonly [number, number, number];
+  readonly frame?: SourceFrame;
 };
 
 type ManagedAsset = {
   readonly asset: ImageAsset;
-  readonly targets: readonly BakeTarget[];
-  baked: boolean;
+  readonly targets: BakeTarget[];
+  /**
+   * Frame to measure a shared content crop from. Sheet cells must all share
+   * one crop or sprites would pulse in size when animation frames switch.
+   */
+  readonly cropFrame?: SourceFrame;
+};
+
+type TexturePackAsset = ManagedAsset & {
+  readonly columns: number;
+  readonly rows: number;
 };
 
 const WALL_TEX = 0;
@@ -90,32 +107,50 @@ const DOOR_TEX_BY_COLOR: Readonly<Record<KeyColor, number>> = {
   [KeyColor.Blue]: 3,
   [KeyColor.Yellow]: 4,
 };
+const FIRST_PACK_WALL_TEX = 5;
 
 const FLOOR_TEX = 0;
 const CEILING_TEX = 1;
+const FIRST_PACK_PLANE_TEX = 2;
 
-/** Enemy sheets bake one sprite per view column; ids are base + column. */
-const SPRITE_VIEW_COLUMNS = 4;
+/** Enemy sheets are 4x4: rows idle/walk/attack/death, columns per view. */
+const SHEET_COLUMNS = 4;
+const SHEET_SLOTS = 16;
+const ROW_IDLE = 0;
+const ROW_WALK = 1;
+const ROW_ATTACK = 2;
+/** Death row frames play in sequence and are not directional. */
+const ROW_DEATH = 3;
 /** Relative facing (entity dir - camera dir) to enemy sheet column. */
 const REL_DIR_TO_SHEET_COLUMN: readonly [number, number, number, number] = [2, 3, 0, 1];
 
 const SPRITE_DOG = 0;
-const SPRITE_GUNSLINGER = 4;
-const SPRITE_NEOPHYTE = 8;
-const SPRITE_SENTINEL = 12;
-const SPRITE_ACOLYTE = 16;
-const SPRITE_TERMINAL = 20;
-const SPRITE_HEALTH = 21;
+const SPRITE_GUNSLINGER = 16;
+const SPRITE_NEOPHYTE = 32;
+const SPRITE_SENTINEL = 48;
+const SPRITE_ACOLYTE = 64;
+const SPRITE_TERMINAL = 80;
+const SPRITE_HEALTH = 81;
 const SPRITE_KEY_BY_COLOR: Readonly<Record<KeyColor, number>> = {
-  [KeyColor.Red]: 22,
-  [KeyColor.Blue]: 23,
-  [KeyColor.Yellow]: 24,
+  [KeyColor.Red]: 82,
+  [KeyColor.Blue]: 83,
+  [KeyColor.Yellow]: 84,
 };
-const SPRITE_WEAPON_2 = 25;
-const SPRITE_WEAPON_3 = 26;
-const SPRITE_NPC = 27;
-const SPRITE_UPLINK_CODE = 28;
-const FIRST_ORB_SPRITE = 29;
+const SPRITE_WEAPON_2 = 85;
+const SPRITE_WEAPON_3 = 86;
+const SPRITE_NPC = 87;
+const SPRITE_UPLINK_CODE = 88;
+const SPRITE_CORPSE = 89;
+const FIRST_ORB_SPRITE = 90;
+
+/** Alternate walk and idle poses at this cadence while an enemy moves. */
+const WALK_FRAME_MS = 90;
+/** How long an enemy holds its attack pose after striking. */
+const ATTACK_POSE_MS = 380;
+/** Per-frame duration of the four-frame death sequence. */
+const DEATH_FRAME_MS = 140;
+const MAX_CORPSES = 48;
+const CORPSE_SCALE = 0.6;
 
 const ENEMY_SPRITES: Readonly<Record<EnemyArchetype, number>> = {
   [EnemyArchetype.MeleeDog]: SPRITE_DOG,
@@ -137,18 +172,45 @@ const DOOR_TINTS_BY_COLOR: Readonly<Record<KeyColor, readonly [number, number, n
   [KeyColor.Yellow]: [1.7, 1.5, 0.65],
 };
 
-function managedAsset(src: string, targets: readonly BakeTarget[]): ManagedAsset {
-  return { asset: createImageAsset(src), targets, baked: false };
+function managedAsset(src: string, targets: readonly BakeTargetInput[], cropFrame?: SourceFrame): ManagedAsset {
+  return {
+    asset: createImageAsset(src),
+    targets: targets.map((target) => ({ ...target, baked: false })),
+    ...(cropFrame === undefined ? {} : { cropFrame }),
+  };
 }
 
-/** Four directional sprites from the idle row of a 4x4 enemy sheet. */
-function enemySheetTargets(baseSlot: number): readonly BakeTarget[] {
-  const targets: BakeTarget[] = [];
-  for (let column = 0; column < SPRITE_VIEW_COLUMNS; column++) {
-    targets.push({ layer: "sprites", slot: baseSlot + column, frame: [column / 4, 0, 1 / 4, 1 / 4] });
+function texturePackAsset(src: string): TexturePackAsset {
+  return { ...managedAsset(src, []), columns: 10, rows: 8 };
+}
+
+function addBakeTarget(entry: ManagedAsset, target: BakeTargetInput): void {
+  entry.targets.push({ ...target, baked: false });
+}
+
+/** All sixteen cells of a 4x4 enemy sheet; slot = base + row * 4 + column. */
+function enemySheetTargets(baseSlot: number): readonly BakeTargetInput[] {
+  const targets: BakeTargetInput[] = [];
+  for (let row = 0; row < SHEET_COLUMNS; row++) {
+    for (let column = 0; column < SHEET_COLUMNS; column++) {
+      targets.push({
+        layer: "sprites",
+        slot: baseSlot + row * SHEET_COLUMNS + column,
+        frame: [column / 4, row / 4, 1 / 4, 1 / 4],
+      });
+    }
   }
   return targets;
 }
+
+/** Enemy sheets share the idle-front cell's content crop across all frames. */
+const ENEMY_CROP_FRAME: SourceFrame = [0, 0, 1 / 4, 1 / 4];
+
+const TEXTURE_PACK_ASSETS: Readonly<Record<TexturePack, TexturePackAsset>> = {
+  [TexturePack.Pack1]: texturePackAsset(new URL("../../assets/game/textures/pack1.png", import.meta.url).href),
+  [TexturePack.Pack2]: texturePackAsset(new URL("../../assets/game/textures/pack2.png", import.meta.url).href),
+  [TexturePack.Pack3]: texturePackAsset(new URL("../../assets/game/textures/pack3.png", import.meta.url).href),
+};
 
 // Asset URLs must be fully static `new URL` literals so Vite can resolve them.
 const MANAGED_ASSETS: readonly ManagedAsset[] = [
@@ -168,23 +230,31 @@ const MANAGED_ASSETS: readonly ManagedAsset[] = [
   managedAsset(
     new URL("../../assets/game/sprites/digital_dog.png", import.meta.url).href,
     enemySheetTargets(SPRITE_DOG),
+    ENEMY_CROP_FRAME,
   ),
   managedAsset(
     new URL("../../assets/game/sprites/gigabit_gun_slinger.png", import.meta.url).href,
     enemySheetTargets(SPRITE_GUNSLINGER),
+    ENEMY_CROP_FRAME,
   ),
   managedAsset(
     new URL("../../assets/game/sprites/network_neophyte.png", import.meta.url).href,
     enemySheetTargets(SPRITE_NEOPHYTE),
+    ENEMY_CROP_FRAME,
   ),
   managedAsset(
     new URL("../../assets/game/sprites/system_sentinel.png", import.meta.url).href,
     enemySheetTargets(SPRITE_SENTINEL),
+    ENEMY_CROP_FRAME,
   ),
   managedAsset(
     new URL("../../assets/game/sprites/agentic_acolyte.png", import.meta.url).href,
     enemySheetTargets(SPRITE_ACOLYTE),
+    ENEMY_CROP_FRAME,
   ),
+  managedAsset(new URL("../../assets/game/sprites/corpse.png", import.meta.url).href, [
+    { layer: "sprites", slot: SPRITE_CORPSE },
+  ]),
   managedAsset(new URL("../../assets/game/sprites/uplink_terminal.png", import.meta.url).href, [
     // Left half of the sheet is the inactive terminal, right half is active.
     { layer: "sprites", slot: SPRITE_TERMINAL, frame: [0.5, 0, 0.5, 1] },
@@ -207,6 +277,9 @@ const MANAGED_ASSETS: readonly ManagedAsset[] = [
   managedAsset(new URL("../../assets/game/sprites/weapon_3.png", import.meta.url).href, [
     { layer: "sprites", slot: SPRITE_WEAPON_3 },
   ]),
+  TEXTURE_PACK_ASSETS[TexturePack.Pack1],
+  TEXTURE_PACK_ASSETS[TexturePack.Pack2],
+  TEXTURE_PACK_ASSETS[TexturePack.Pack3],
 ];
 
 function buildAtlas(): RaycastAtlas {
@@ -236,14 +309,15 @@ function buildAtlas(): RaycastAtlas {
   sprites[SPRITE_WEAPON_3] = bakeOrb("#c084fc");
   sprites[SPRITE_NPC] = bakeOrb("#59d39b");
   sprites[SPRITE_UPLINK_CODE] = bakeOrb("#7dd3fc");
+  sprites[SPRITE_CORPSE] = bakeOrb("#4b5563");
 
   return { walls, planes, sprites };
 }
 
 function fillEnemyFallback(sprites: BakedTexture[], baseSlot: number, color: string): void {
   const orb = bakeOrb(color);
-  for (let column = 0; column < SPRITE_VIEW_COLUMNS; column++) {
-    sprites[baseSlot + column] = orb;
+  for (let slot = 0; slot < SHEET_SLOTS; slot++) {
+    sprites[baseSlot + slot] = orb;
   }
 }
 
@@ -277,6 +351,8 @@ function bakeOrb(hexColor: string): BakedTexture {
 const atlas: RaycastAtlas = buildAtlas();
 const view = createRaycastView();
 const sceneByMap = new WeakMap<GameMap, RaycastScene>();
+const packWallSlots = new Map<TexturePackRef, number>();
+const packPlaneSlots = new Map<TexturePackRef, number>();
 const orbSpriteByColor = new Map<string, number>();
 const drawableScratch: DrawableEntity[] = [];
 let rasterCanvas: OffscreenCanvas | undefined;
@@ -289,7 +365,16 @@ const spriteTweens = new Map<DrawableEntity["entity"], SpriteTween>();
 const spritePoint: SpritePoint = { x: 0, y: 0, settled: true };
 const doorTweens = new Map<DrawableEntity["entity"], ScalarTween>();
 const doorSample: ScalarSample = { value: 0, settled: true };
-let poseTweenMap: GameMap | undefined;
+
+/** Entities holding their attack pose, mapped to when the pose ends. */
+const attackPoseUntil = new Map<DrawableEntity["entity"], number>();
+/** Last rendered position and sheet base per enemy, for death placement. */
+const lastSeenEnemies = new Map<DrawableEntity["entity"], { x: number; y: number; base: number }>();
+type DeathEffect = { x: number; y: number; base: number; startMs: number };
+const deathEffects: DeathEffect[] = [];
+const corpses: { x: number; y: number }[] = [];
+
+let lastSession: GameSession | undefined;
 let repaintScheduled = false;
 let lastRepaint: (() => void) | undefined;
 
@@ -310,6 +395,27 @@ function scheduleRepaint(repaint: () => void): void {
  */
 export function bumpFirstPersonView(dirX: number, dirY: number): void {
   startNudgeTween(nudgeTween, dirX, dirY, performance.now());
+  if (lastRepaint !== undefined) scheduleRepaint(lastRepaint);
+}
+
+/** Show the entity in its attack pose briefly (it just struck something). */
+export function markSpriteAttack(entity: DrawableEntity["entity"]): void {
+  attackPoseUntil.set(entity, performance.now() + ATTACK_POSE_MS);
+  if (lastRepaint !== undefined) scheduleRepaint(lastRepaint);
+}
+
+/**
+ * Play the death sequence where the entity last stood, then leave a corpse.
+ * The ECS destroys defeated entities immediately, so this echo is the only
+ * record the renderer keeps of them.
+ */
+export function markSpriteDeath(entity: DrawableEntity["entity"]): void {
+  const seen = lastSeenEnemies.get(entity);
+  if (seen === undefined) return;
+  deathEffects.push({ x: seen.x, y: seen.y, base: seen.base, startMs: performance.now() });
+  lastSeenEnemies.delete(entity);
+  spriteTweens.delete(entity);
+  attackPoseUntil.delete(entity);
   if (lastRepaint !== undefined) scheduleRepaint(lastRepaint);
 }
 
@@ -342,16 +448,21 @@ function opaqueBounds(pixels: TexelSource): OpaqueBounds | undefined {
   return { left, top, right, bottom };
 }
 
+/** Content crop within a frame, in 64ths of the frame's span. */
+type ContentCrop = {
+  readonly left: number;
+  readonly top: number;
+  readonly size: number;
+};
+
 /**
- * Draw (a frame of) the image at 64x64 and hand back its pixels for baking.
- * With `cropToContent`, redraws zoomed to the opaque bounding box expanded to
- * a square that keeps the content's feet at the bottom edge, so sprites fill
- * their billboard quad instead of floating in sheet padding.
+ * Draw (a frame of) the image at 64x64, optionally zoomed to a crop within
+ * the frame, and hand back its pixels for baking.
  */
 function rasterize(
   image: HTMLImageElement,
   frame: SourceFrame | undefined,
-  cropToContent: boolean,
+  crop: ContentCrop | undefined,
 ): TexelSource | undefined {
   rasterCanvas ??= new OffscreenCanvas(TEX_SIZE, TEX_SIZE);
   const context = rasterCanvas.getContext("2d", { willReadFrequently: true });
@@ -359,53 +470,75 @@ function rasterize(
 
   const imageWidth = image.naturalWidth || image.width;
   const imageHeight = image.naturalHeight || image.height;
-  const sourceX = (frame?.[0] ?? 0) * imageWidth;
-  const sourceY = (frame?.[1] ?? 0) * imageHeight;
-  const sourceWidth = (frame?.[2] ?? 1) * imageWidth;
-  const sourceHeight = (frame?.[3] ?? 1) * imageHeight;
+  let sourceX = (frame?.[0] ?? 0) * imageWidth;
+  let sourceY = (frame?.[1] ?? 0) * imageHeight;
+  let sourceWidth = (frame?.[2] ?? 1) * imageWidth;
+  let sourceHeight = (frame?.[3] ?? 1) * imageHeight;
+  if (crop !== undefined) {
+    sourceX += (crop.left / TEX_SIZE) * sourceWidth;
+    sourceY += (crop.top / TEX_SIZE) * sourceHeight;
+    sourceWidth *= crop.size / TEX_SIZE;
+    sourceHeight *= crop.size / TEX_SIZE;
+  }
 
-  const draw = (x: number, y: number, width: number, height: number): ImageData => {
-    context.clearRect(0, 0, TEX_SIZE, TEX_SIZE);
-    context.imageSmoothingEnabled = true;
-    context.drawImage(image, x, y, width, height, 0, 0, TEX_SIZE, TEX_SIZE);
-    return context.getImageData(0, 0, TEX_SIZE, TEX_SIZE);
-  };
+  context.clearRect(0, 0, TEX_SIZE, TEX_SIZE);
+  context.imageSmoothingEnabled = true;
+  context.drawImage(image, sourceX, sourceY, sourceWidth, sourceHeight, 0, 0, TEX_SIZE, TEX_SIZE);
+  return context.getImageData(0, 0, TEX_SIZE, TEX_SIZE);
+}
 
-  const pixels = draw(sourceX, sourceY, sourceWidth, sourceHeight);
-  if (!cropToContent) return pixels;
-
+/**
+ * Measure a frame's opaque bounding box, expanded to a square with margin
+ * that keeps the content's feet at the bottom edge, so sprites fill their
+ * billboard quad instead of floating in sheet padding.
+ */
+function measureContentCrop(image: HTMLImageElement, frame: SourceFrame | undefined): ContentCrop | undefined {
+  const pixels = rasterize(image, frame, undefined);
+  if (pixels === undefined) return undefined;
   const bounds = opaqueBounds(pixels);
-  if (bounds === undefined) return pixels;
+  if (bounds === undefined) return undefined;
 
-  const margin = 1;
+  // Extra margin absorbs pose-to-pose size differences under a shared crop.
+  const margin = 3;
   const size = Math.max(bounds.right - bounds.left, bounds.bottom - bounds.top) + 1 + margin * 2;
-  let cropLeft = (bounds.left + bounds.right + 1) / 2 - size / 2;
-  let cropTop = bounds.bottom + 1 + margin - size;
-  if (cropLeft < 0) cropLeft = 0;
-  if (cropLeft + size > TEX_SIZE) cropLeft = TEX_SIZE - size;
-  if (cropTop < 0) cropTop = 0;
-  if (cropTop + size > TEX_SIZE) cropTop = TEX_SIZE - size;
-
-  const scaleX = sourceWidth / TEX_SIZE;
-  const scaleY = sourceHeight / TEX_SIZE;
-  return draw(sourceX + cropLeft * scaleX, sourceY + cropTop * scaleY, size * scaleX, size * scaleY);
+  let left = (bounds.left + bounds.right + 1) / 2 - size / 2;
+  let top = bounds.bottom + 1 + margin - size;
+  if (left < 0) left = 0;
+  if (left + size > TEX_SIZE) left = TEX_SIZE - size;
+  if (top < 0) top = 0;
+  if (top + size > TEX_SIZE) top = TEX_SIZE - size;
+  return { left, top, size };
 }
 
 function bakeLoadedAssets(ctx: CanvasRenderingContext2D, onAssetLoad?: () => void): void {
   for (const entry of MANAGED_ASSETS) {
-    if (entry.baked) continue;
     const image = loadedImage(ctx, entry.asset, onAssetLoad);
     if (image === undefined) continue;
 
+    let sharedCrop: ContentCrop | undefined;
+    let sharedCropMeasured = false;
     for (const target of entry.targets) {
-      const source = rasterize(image, target.frame, target.layer === "sprites");
+      if (target.baked) continue;
+      let crop: ContentCrop | undefined;
+      if (target.layer === "sprites") {
+        if (entry.cropFrame !== undefined) {
+          if (!sharedCropMeasured) {
+            sharedCrop = measureContentCrop(image, entry.cropFrame);
+            sharedCropMeasured = true;
+          }
+          crop = sharedCrop;
+        } else {
+          crop = measureContentCrop(image, target.frame);
+        }
+      }
+      const source = rasterize(image, target.frame, crop);
       if (source === undefined) continue;
       atlas[target.layer][target.slot] = bakeTexture(source, {
         transpose: target.layer !== "planes",
         ...(target.tint === undefined ? {} : { tint: target.tint }),
       });
+      target.baked = true;
     }
-    entry.baked = true;
   }
 }
 
@@ -419,7 +552,82 @@ function orbSprite(color: string): number {
   return id;
 }
 
-function sceneForMap(map: GameMap): RaycastScene {
+function isTexturePack(value: string): value is TexturePack {
+  return value === TexturePack.Pack1 || value === TexturePack.Pack2 || value === TexturePack.Pack3;
+}
+
+function parseTexturePackRef(texture: TexturePackRef): {
+  readonly pack: TexturePack;
+  readonly column: number;
+  readonly row: number;
+} {
+  const packParts = texture.split(":");
+  const packText = packParts[0];
+  const cellText = packParts[1];
+  if (packParts.length !== 2 || packText === undefined || cellText === undefined || !isTexturePack(packText)) {
+    throw new Error(`Unknown texture pack ref: ${texture}`);
+  }
+
+  const cellParts = cellText.split(",");
+  const columnText = cellParts[0];
+  const rowText = cellParts[1];
+  const column = Number(columnText);
+  const row = Number(rowText);
+  const entry = TEXTURE_PACK_ASSETS[packText];
+  if (
+    cellParts.length !== 2 ||
+    !Number.isInteger(column) ||
+    !Number.isInteger(row) ||
+    column < 0 ||
+    row < 0 ||
+    column >= entry.columns ||
+    row >= entry.rows
+  ) {
+    throw new Error(`Texture pack ref "${texture}" must address a ${entry.columns}x${entry.rows} grid.`);
+  }
+
+  return { pack: packText, column, row };
+}
+
+function texturePackFrame(texture: TexturePackRef, entry: TexturePackAsset): SourceFrame {
+  const { column, row } = parseTexturePackRef(texture);
+  return [column / entry.columns, row / entry.rows, 1 / entry.columns, 1 / entry.rows];
+}
+
+function texturePackSlot(
+  layer: "walls" | "planes",
+  texture: TexturePackRef,
+  fallback: BakedTexture,
+): number {
+  const slots = layer === "walls" ? packWallSlots : packPlaneSlots;
+  const existing = slots.get(texture);
+  if (existing !== undefined) return existing;
+
+  const { pack } = parseTexturePackRef(texture);
+  const slot = (layer === "walls" ? FIRST_PACK_WALL_TEX : FIRST_PACK_PLANE_TEX) + slots.size;
+  const entry = TEXTURE_PACK_ASSETS[pack];
+  slots.set(texture, slot);
+  atlas[layer][slot] = fallback;
+  addBakeTarget(entry, { layer, slot, frame: texturePackFrame(texture, entry) });
+  return slot;
+}
+
+function wallTextureSlot(texture: WallTexture | undefined): number {
+  if (texture === undefined || texture === "wall") return WALL_TEX;
+  return texturePackSlot("walls", texture, atlas.walls[WALL_TEX]!);
+}
+
+function floorTextureSlot(texture: FloorTexture): number {
+  if (texture === "floor") return FLOOR_TEX;
+  return texturePackSlot("planes", texture, atlas.planes[FLOOR_TEX]!);
+}
+
+function ceilingTextureSlot(texture: CeilingTexture): number {
+  if (texture === "ceiling") return CEILING_TEX;
+  return texturePackSlot("planes", texture, atlas.planes[CEILING_TEX]!);
+}
+
+export function sceneForMap(map: GameMap): RaycastScene {
   const cached = sceneByMap.get(map);
   if (cached !== undefined) return cached;
 
@@ -430,12 +638,16 @@ function sceneForMap(map: GameMap): RaycastScene {
       const cell = y * width + x;
       const terrain = terrainAt(map, x, y);
       // Missing terrain blocks movement, so render it as wall to match.
-      if (terrain === undefined || terrain.blocking === true) {
-        scene.walls[cell] = WALL_TEX + 1;
+      if (terrain === undefined) {
+        scene.walls[cell] = wallTextureSlot(undefined) + 1;
         continue;
       }
-      scene.floors[cell] = FLOOR_TEX + 1;
-      scene.ceilings[cell] = CEILING_TEX + 1;
+      if (terrain.blocking === true) {
+        scene.walls[cell] = wallTextureSlot("wall_texture" in terrain ? terrain.wall_texture : undefined) + 1;
+        continue;
+      }
+      scene.floors[cell] = floorTextureSlot(terrain.floor_texture) + 1;
+      scene.ceilings[cell] = ceilingTextureSlot(terrain.ceiling_texture) + 1;
     }
   }
   sceneByMap.set(map, scene);
@@ -506,9 +718,16 @@ function itemSprite(icon: ItemIcon): number {
   }
 }
 
-function enemySprite(archetype: EnemyArchetype, dir: number, cameraDir: CardinalDirection): number {
+function enemySprite(archetype: EnemyArchetype, dir: number, cameraDir: CardinalDirection, row: number): number {
   const relative = (normalizeDirection(dir) - cameraDir + 4) & 3;
-  return ENEMY_SPRITES[archetype] + REL_DIR_TO_SHEET_COLUMN[relative]!;
+  return ENEMY_SPRITES[archetype] + row * SHEET_COLUMNS + REL_DIR_TO_SHEET_COLUMN[relative]!;
+}
+
+/** Pick the sheet row for an enemy: attack pose, mid-stride gait, or idle. */
+function enemySheetRow(entity: DrawableEntity["entity"], moving: boolean, nowMs: number): number {
+  if (nowMs < (attackPoseUntil.get(entity) ?? 0)) return ROW_ATTACK;
+  if (moving && ((nowMs / WALK_FRAME_MS) & 1) === 1) return ROW_WALK;
+  return ROW_IDLE;
 }
 
 /** Tweened world position for a moving entity; updates spritePoint. */
@@ -542,12 +761,24 @@ function addDrawable(
       addSprite(scene, centerX, centerY, SPRITE_NPC, ACTOR_SCALE);
       return false;
     case DrawableKind.Enemy: {
-      const sprite = drawable.enemyArchetype === undefined ?
-        SPRITE_NPC :
-        enemySprite(drawable.enemyArchetype, drawable.dir, cameraDir);
       tweenedSpritePosition(drawable, nowMs);
+      if (drawable.enemyArchetype === undefined) {
+        addSprite(scene, spritePoint.x, spritePoint.y, SPRITE_NPC, ACTOR_SCALE);
+        return !spritePoint.settled;
+      }
+      const attacking = nowMs < (attackPoseUntil.get(drawable.entity) ?? 0);
+      const row = enemySheetRow(drawable.entity, !spritePoint.settled, nowMs);
+      const sprite = enemySprite(drawable.enemyArchetype, drawable.dir, cameraDir, row);
+      let seen = lastSeenEnemies.get(drawable.entity);
+      if (seen === undefined) {
+        seen = { x: 0, y: 0, base: 0 };
+        lastSeenEnemies.set(drawable.entity, seen);
+      }
+      seen.x = spritePoint.x;
+      seen.y = spritePoint.y;
+      seen.base = ENEMY_SPRITES[drawable.enemyArchetype];
       addSprite(scene, spritePoint.x, spritePoint.y, sprite, ACTOR_SCALE);
-      return !spritePoint.settled;
+      return !spritePoint.settled || attacking;
     }
     case DrawableKind.Door: {
       tweenedDoorOpenness(drawable, nowMs);
@@ -585,10 +816,9 @@ export function renderFirstPersonView(
   session: GameSession,
   repaint?: () => void,
 ): void {
-  bakeLoadedAssets(ctx, repaint);
-
   const map = session.map;
   const scene = sceneForMap(map);
+  bakeLoadedAssets(ctx, repaint);
   clearSceneDynamic(scene);
 
   // Two passes over the drawables: the camera pose must be known before
@@ -612,21 +842,45 @@ export function renderFirstPersonView(
   const targetAngle = Math.atan2(forward.dy, forward.dx);
   const nowMs = performance.now();
   lastRepaint = repaint;
-  if (poseTweenMap !== map) {
-    // New map (or first render): spawn poses snap instead of animating,
+  if (lastSession !== session) {
+    // New session (map load, retry): spawn poses snap instead of animating,
     // and entity ids from the previous session no longer mean anything.
-    poseTweenMap = map;
+    lastSession = session;
     snapPoseTween(poseTween, playerX + 0.5, playerY + 0.5, targetAngle);
     nudgeTween.active = false;
     spriteTweens.clear();
     doorTweens.clear();
+    attackPoseUntil.clear();
+    lastSeenEnemies.clear();
+    deathEffects.length = 0;
+    corpses.length = 0;
   } else {
     retargetPoseTween(poseTween, playerX + 0.5, playerY + 0.5, targetAngle, nowMs);
+  }
+
+  // Corpses first so anything else on the tile draws over them.
+  for (const corpse of corpses) {
+    addSprite(scene, corpse.x, corpse.y, SPRITE_CORPSE, CORPSE_SCALE);
   }
 
   let spritesAnimating = false;
   for (const drawable of drawableScratch) {
     spritesAnimating = addDrawable(scene, map, drawable, playerDir, nowMs) || spritesAnimating;
+  }
+
+  // Death sequences play out where the entity last stood, then settle into
+  // corpses that persist for the rest of the session.
+  for (let i = deathEffects.length - 1; i >= 0; i--) {
+    const death = deathEffects[i]!;
+    const frame = ((nowMs - death.startMs) / DEATH_FRAME_MS) | 0;
+    if (frame >= SHEET_COLUMNS) {
+      if (corpses.length >= MAX_CORPSES) corpses.shift();
+      corpses.push({ x: death.x, y: death.y });
+      deathEffects.splice(i, 1);
+      continue;
+    }
+    addSprite(scene, death.x, death.y, death.base + ROW_DEATH * SHEET_COLUMNS + frame, ACTOR_SCALE);
+    spritesAnimating = true;
   }
 
   samplePoseTween(poseTween, nowMs, poseSample);
