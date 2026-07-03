@@ -2,6 +2,8 @@ import type { GameCommand } from "@/src/game/commands.ts";
 import Keyboard from "@/src/input/keyboard.ts";
 import Pointer from "@/src/input/pointer.ts";
 import type { CanvasPointerInput } from "@/src/input/pointer.ts";
+import TouchGestures, { windowTouchGestureScheduler } from "@/src/input/touch_gestures.ts";
+import type { TouchGestureEnabled } from "@/src/input/touch_gestures.ts";
 import type { GameCanvasSize } from "@/src/render/canvas.ts";
 
 export type GameCommandReceiver = (command: GameCommand) => void;
@@ -61,13 +63,24 @@ export function setupInput(
   canvasSize: () => GameCanvasSize,
   commandReceiver: GameCommandReceiver,
   pointerReceiver: PointerInputReceiver,
+  touchGesturesEnabled?: TouchGestureEnabled,
 ): Disposable {
   const keyboard = setupKeyboard(window, commandReceiver);
-  const pointer = setupPointer(canvas, canvasSize, pointerReceiver);
+  const touchGestures = new TouchGestures(
+    canvasSize,
+    commandReceiver,
+    windowTouchGestureScheduler(window),
+    touchGesturesEnabled,
+  );
+  const pointer = setupPointer(canvas, canvasSize, (input) => {
+    pointerReceiver(input);
+    touchGestures.handle(input);
+  });
 
   return {
     [Symbol.dispose]() {
       keyboard[Symbol.dispose]();
+      touchGestures[Symbol.dispose]();
       pointer[Symbol.dispose]();
     },
   };

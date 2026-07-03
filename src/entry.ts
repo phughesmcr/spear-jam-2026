@@ -218,6 +218,7 @@ class Game implements Disposable {
       () => this.canvasSize,
       (command) => this.handleGameCommand(command),
       (input) => this.handlePointerInput(input),
+      () => this.model.mode.type === "playing",
     );
   }
 
