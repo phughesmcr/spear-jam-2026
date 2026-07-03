@@ -14,8 +14,9 @@ import {
   IDLE_AWARENESS,
   TurnTaker,
 } from "@/src/ecs/components.ts";
-import type { AttackSchema } from "@/src/ecs/components.ts";
+import type { AttackSchema, HealthSchema } from "@/src/ecs/components.ts";
 import { enemyTurnSystem } from "@/src/ecs/enemy.ts";
+import { createEnemy, createPlayer } from "@/src/ecs/prefabs.ts";
 import { Player } from "@/src/ecs/player.ts";
 import { SpatialIndex } from "@/src/ecs/spatial.ts";
 import { createWorld } from "@/src/ecs/world.ts";
@@ -23,7 +24,7 @@ import type { GameEvent } from "@/src/game/events.ts";
 import type { NoiseStimulus } from "@/src/game/perception.ts";
 import { DisplayName } from "@/src/game/names.ts";
 import { Direction } from "@/src/grid/direction.ts";
-import { createEntity, createTestEnemy, createTestPlayer, flatTestMap } from "@/tests/ecs/helpers.ts";
+import { createEntity, flatTestMap } from "@/tests/ecs/helpers.ts";
 
 Deno.test("enemyTurnSystem moves enemies without an attack component", async () => {
   const world = await createWorld();
@@ -58,15 +59,13 @@ Deno.test("enemyTurnSystem moves enemies without an attack component", async () 
 
 Deno.test("enemyTurnSystem leaves unaware enemies idle", async () => {
   const world = await createWorld();
-  const playerEntity = createTestPlayer(world, {
+  const playerEntity = spawnPlayer(world, {
     x: 4,
     y: 1,
     dir: Direction.West,
-    blocking: true,
-    tag: true,
     health: { current: 5, max: 5 },
   });
-  const enemy = createTestEnemy(world, {
+  const enemy = spawnEnemy(world, {
     x: 1,
     y: 1,
     dir: Direction.West,
@@ -85,15 +84,13 @@ Deno.test("enemyTurnSystem leaves unaware enemies idle", async () => {
 
 Deno.test("enemyTurnSystem investigates heard noises instead of omniscient player position", async () => {
   const world = await createWorld();
-  const playerEntity = createTestPlayer(world, {
+  const playerEntity = spawnPlayer(world, {
     x: 4,
     y: 1,
     dir: Direction.West,
-    blocking: true,
-    tag: true,
     health: { current: 5, max: 5 },
   });
-  const enemy = createTestEnemy(world, {
+  const enemy = spawnEnemy(world, {
     x: 1,
     y: 1,
     dir: Direction.West,
@@ -112,15 +109,13 @@ Deno.test("enemyTurnSystem investigates heard noises instead of omniscient playe
 
 Deno.test("melee dogs investigate noise with a two-step pounce", async () => {
   const world = await createWorld();
-  const playerEntity = createTestPlayer(world, {
+  const playerEntity = spawnPlayer(world, {
     x: 5,
     y: 1,
     dir: Direction.West,
-    blocking: true,
-    tag: true,
     health: { current: 5, max: 5 },
   });
-  const dog = createTestEnemy(world, {
+  const dog = spawnEnemy(world, {
     x: 1,
     y: 1,
     dir: Direction.West,
@@ -139,15 +134,13 @@ Deno.test("melee dogs investigate noise with a two-step pounce", async () => {
 
 Deno.test("system sentinels investigate noise by watching without moving", async () => {
   const world = await createWorld();
-  const playerEntity = createTestPlayer(world, {
+  const playerEntity = spawnPlayer(world, {
     x: 5,
     y: 1,
     dir: Direction.West,
-    blocking: true,
-    tag: true,
     health: { current: 5, max: 5 },
   });
-  const sentinel = createTestEnemy(world, {
+  const sentinel = spawnEnemy(world, {
     x: 1,
     y: 1,
     dir: Direction.West,
@@ -166,15 +159,13 @@ Deno.test("system sentinels investigate noise by watching without moving", async
 
 Deno.test("enemyTurnSystem keeps investigating the last known position after noise stops", async () => {
   const world = await createWorld();
-  const playerEntity = createTestPlayer(world, {
+  const playerEntity = spawnPlayer(world, {
     x: 5,
     y: 1,
     dir: Direction.West,
-    blocking: true,
-    tag: true,
     health: { current: 5, max: 5 },
   });
-  const enemy = createTestEnemy(world, {
+  const enemy = spawnEnemy(world, {
     x: 1,
     y: 1,
     dir: Direction.West,
@@ -208,15 +199,13 @@ Deno.test("enemyTurnSystem keeps investigating the last known position after noi
 
 Deno.test("melee dogs close two tiles and bite when they reach the player", async () => {
   const world = await createWorld();
-  const playerEntity = createTestPlayer(world, {
+  const playerEntity = spawnPlayer(world, {
     x: 4,
     y: 1,
     dir: 3,
-    blocking: true,
-    tag: true,
     health: { current: 5, max: 5 },
   });
-  const dog = createTestEnemy(world, {
+  const dog = spawnEnemy(world, {
     x: 1,
     y: 1,
     dir: 1,
@@ -241,15 +230,13 @@ Deno.test("melee dogs close two tiles and bite when they reach the player", asyn
 
 Deno.test("gunslingers shoot from range instead of closing", async () => {
   const world = await createWorld();
-  const playerEntity = createTestPlayer(world, {
+  const playerEntity = spawnPlayer(world, {
     x: 4,
     y: 1,
     dir: 3,
-    blocking: true,
-    tag: true,
     health: { current: 5, max: 5 },
   });
-  const gunslinger = createTestEnemy(world, {
+  const gunslinger = spawnEnemy(world, {
     x: 1,
     y: 1,
     dir: Direction.East,
@@ -274,15 +261,13 @@ Deno.test("gunslingers shoot from range instead of closing", async () => {
 
 Deno.test("enemyTurnSystem stops the enemy phase after player defeat", async () => {
   const world = await createWorld();
-  const playerEntity = createTestPlayer(world, {
+  const playerEntity = spawnPlayer(world, {
     x: 2,
     y: 1,
     dir: Direction.West,
-    blocking: true,
-    tag: true,
     health: { current: 1, max: 1 },
   });
-  const killingEnemy = createTestEnemy(world, {
+  const killingEnemy = spawnEnemy(world, {
     x: 1,
     y: 1,
     dir: Direction.East,
@@ -290,7 +275,7 @@ Deno.test("enemyTurnSystem stops the enemy phase after player defeat", async () 
     attack: MELEE_ATTACK,
     archetype: EnemyArchetype.NetworkNeophyte,
   });
-  const laterEnemy = createTestEnemy(world, {
+  const laterEnemy = spawnEnemy(world, {
     x: 4,
     y: 1,
     dir: Direction.West,
@@ -331,15 +316,13 @@ Deno.test("enemyTurnSystem stops the enemy phase after player defeat", async () 
 
 Deno.test("gunslingers back away when adjacent", async () => {
   const world = await createWorld();
-  const playerEntity = createTestPlayer(world, {
+  const playerEntity = spawnPlayer(world, {
     x: 3,
     y: 1,
     dir: 3,
-    blocking: true,
-    tag: true,
     health: { current: 5, max: 5 },
   });
-  const gunslinger = createTestEnemy(world, {
+  const gunslinger = spawnEnemy(world, {
     x: 2,
     y: 1,
     dir: 1,
@@ -364,15 +347,13 @@ Deno.test("gunslingers back away when adjacent", async () => {
 
 Deno.test("network neophytes use standard one-step pursuit", async () => {
   const world = await createWorld();
-  const playerEntity = createTestPlayer(world, {
+  const playerEntity = spawnPlayer(world, {
     x: 4,
     y: 1,
     dir: 3,
-    blocking: true,
-    tag: true,
     health: { current: 5, max: 5 },
   });
-  const neophyte = createTestEnemy(world, {
+  const neophyte = spawnEnemy(world, {
     x: 1,
     y: 1,
     dir: Direction.East,
@@ -397,15 +378,13 @@ Deno.test("network neophytes use standard one-step pursuit", async () => {
 
 Deno.test("system sentinels hold position and face the player when out of range", async () => {
   const world = await createWorld();
-  const playerEntity = createTestPlayer(world, {
+  const playerEntity = spawnPlayer(world, {
     x: 4,
     y: 1,
     dir: 3,
-    blocking: true,
-    tag: true,
     health: { current: 5, max: 5 },
   });
-  const sentinel = createTestEnemy(world, {
+  const sentinel = spawnEnemy(world, {
     x: 1,
     y: 1,
     dir: Direction.East,
@@ -430,15 +409,13 @@ Deno.test("system sentinels hold position and face the player when out of range"
 
 Deno.test("agentic acolytes attack nearby cardinal targets without facing first", async () => {
   const world = await createWorld();
-  const playerEntity = createTestPlayer(world, {
+  const playerEntity = spawnPlayer(world, {
     x: 3,
     y: 1,
     dir: 3,
-    blocking: true,
-    tag: true,
     health: { current: 5, max: 5 },
   });
-  const acolyte = createTestEnemy(world, {
+  const acolyte = spawnEnemy(world, {
     x: 1,
     y: 1,
     dir: Direction.East,
@@ -479,6 +456,45 @@ function runEnemyTurn(
     spatial: new SpatialIndex(world, map),
     random: () => 0,
     noises,
+  });
+}
+
+type SpawnPlayerOptions = {
+  readonly x?: number;
+  readonly y?: number;
+  readonly dir?: number;
+  readonly health?: HealthSchema;
+};
+
+function spawnPlayer(world: World, opts: SpawnPlayerOptions = {}): Entity {
+  const entity = createPlayer(world, {
+    x: opts.x ?? 1,
+    y: opts.y ?? 1,
+    dir: opts.dir ?? Direction.East,
+  });
+  if (opts.health !== undefined) {
+    world.components.setEntityData(Health, entity, opts.health);
+  }
+  return entity;
+}
+
+type SpawnEnemyOptions = {
+  readonly x: number;
+  readonly y: number;
+  readonly dir?: number;
+  readonly displayName: DisplayName;
+  readonly attack: Partial<AttackSchema>;
+  readonly archetype?: EnemyArchetype;
+};
+
+function spawnEnemy(world: World, opts: SpawnEnemyOptions): Entity {
+  return createEnemy(world, {
+    x: opts.x,
+    y: opts.y,
+    dir: opts.dir ?? Direction.East,
+    displayName: opts.displayName,
+    attack: opts.attack,
+    archetype: opts.archetype,
   });
 }
 

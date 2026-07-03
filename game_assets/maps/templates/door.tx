@@ -1,9 +1,0 @@
-<?xml version="1.0" encoding="UTF-8"?>
-<template>
-  <tileset firstgid="1" source="../entity_markers.tiled.xml" />
-  <object id="1" gid="4" type="door" x="0" y="16" width="16" height="16">
-    <properties>
-      <property name="prefab" propertytype="Prefab" type="string" value="door" />
-    </properties>
-  </object>
-</template>

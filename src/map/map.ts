@@ -218,16 +218,46 @@ export function mapDimensions(map: GameMap): MapDimensions {
 }
 
 /** Decoded palette lookup per map, so terrain reads avoid a linear palette scan. */
-const TERRAIN_GRIDS = new WeakMap<GameMap, ReadonlyArray<TerrainTile | undefined>>();
+const TERRAIN_GRIDS = new WeakMap<GameMap, readonly TerrainTile[]>();
 
-function terrainGrid(map: GameMap): ReadonlyArray<TerrainTile | undefined> {
+function terrainGrid(map: GameMap): readonly TerrainTile[] {
   const existing = TERRAIN_GRIDS.get(map);
   if (existing !== undefined) return existing;
 
-  const paletteById = new Map(map.terrain.palette.map((entry) => [entry.id, entry]));
-  const grid = map.terrain.tiles.flatMap((row) => row.map((tile) => paletteById.get(tile)));
+  const width = mapDimensions(map).width;
+  const paletteById = terrainPaletteById(map);
+  const grid: TerrainTile[] = [];
+  for (let y = 0; y < map.terrain.tiles.length; y++) {
+    const row = map.terrain.tiles[y]!;
+    if (row.length !== width) {
+      throw new Error(
+        `Map "${map.name}" terrain must be rectangular: row ${y} has ${row.length} tiles, expected ${width}.`,
+      );
+    }
+
+    for (let x = 0; x < row.length; x++) {
+      const tileId = row[x]!;
+      const terrain = paletteById.get(tileId);
+      if (terrain === undefined) {
+        throw new Error(`Map "${map.name}" terrain tile ${tileId} at (${x},${y}) is missing from its palette.`);
+      }
+      grid.push(terrain);
+    }
+  }
+
   TERRAIN_GRIDS.set(map, grid);
   return grid;
+}
+
+function terrainPaletteById(map: GameMap): ReadonlyMap<number, TerrainTile> {
+  const paletteById = new Map<number, TerrainTile>();
+  for (const entry of map.terrain.palette) {
+    if (paletteById.has(entry.id)) {
+      throw new Error(`Map "${map.name}" terrain palette has duplicate tile id ${entry.id}.`);
+    }
+    paletteById.set(entry.id, entry);
+  }
+  return paletteById;
 }
 
 export function terrainAt(map: GameMap, x: number, y: number): TerrainTile | undefined {
@@ -255,7 +285,7 @@ export function createGameMap(
       } tiles, expected ${width}.`,
     );
   }
-  return {
+  const map: GameMap = {
     name,
     terrain: {
       palette: options.palette ?? DEFAULT_TERRAIN_PALETTE,
@@ -263,4 +293,6 @@ export function createGameMap(
     },
     entities,
   };
+  terrainGrid(map);
+  return map;
 }

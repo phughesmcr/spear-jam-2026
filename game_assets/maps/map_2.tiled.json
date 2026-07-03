@@ -881,7 +881,7 @@
     },
     {
       "firstgid": 7,
-      "source": "entity_markers.tiled.xml"
+      "source": "entity_markers.tsj"
     }
   ],
   "tilewidth": 16,

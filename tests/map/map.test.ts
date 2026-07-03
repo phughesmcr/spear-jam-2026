@@ -27,6 +27,14 @@ Deno.test("createGameMap rejects empty terrain", () => {
   assertThrows(() => createGameMap("Empty rows", [[]], []), Error, "no terrain");
 });
 
+Deno.test("createGameMap rejects terrain tiles missing from the palette", () => {
+  assertThrows(
+    () => createGameMap("Missing Palette Tile", [[2]], []),
+    Error,
+    'Map "Missing Palette Tile" terrain tile 2 at (0,0) is missing from its palette.',
+  );
+});
+
 Deno.test("terrainAt resolves palette tiles and rejects out-of-bounds reads", () => {
   const map = createGameMap("Tiny", [
     [1, 0],

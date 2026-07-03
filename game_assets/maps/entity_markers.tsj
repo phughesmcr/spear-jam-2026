@@ -1,0 +1,91 @@
+{
+  "columns": 9,
+  "image": "entity_markers.png",
+  "imageheight": 16,
+  "imagewidth": 160,
+  "margin": 0,
+  "name": "entity_markers",
+  "spacing": 0,
+  "tilecount": 9,
+  "tiledversion": "1.11.2",
+  "tileheight": 16,
+  "tiles": [
+    {
+      "id": 0,
+      "type": "player",
+      "properties": [
+        { "name": "prefab", "propertytype": "Prefab", "type": "string", "value": "player" },
+        { "name": "facing", "propertytype": "Facing", "type": "string", "value": "north" }
+      ]
+    },
+    {
+      "id": 1,
+      "type": "npc",
+      "properties": [
+        { "name": "prefab", "propertytype": "Prefab", "type": "string", "value": "npc" },
+        { "name": "facing", "propertytype": "Facing", "type": "string", "value": "north" },
+        { "name": "displayName", "propertytype": "DisplayName", "type": "string", "value": "John" }
+      ]
+    },
+    {
+      "id": 2,
+      "type": "enemy",
+      "properties": [
+        { "name": "prefab", "propertytype": "Prefab", "type": "string", "value": "enemy" },
+        { "name": "facing", "propertytype": "Facing", "type": "string", "value": "north" },
+        { "name": "displayName", "propertytype": "DisplayName", "type": "string", "value": "DigitalDog" },
+        { "name": "archetype", "propertytype": "EnemyArchetype", "type": "string", "value": "MeleeDog" }
+      ]
+    },
+    {
+      "id": 3,
+      "type": "door",
+      "properties": [
+        { "name": "prefab", "propertytype": "Prefab", "type": "string", "value": "door" }
+      ]
+    },
+    {
+      "id": 4,
+      "type": "key",
+      "properties": [
+        { "name": "prefab", "propertytype": "Prefab", "type": "string", "value": "key" },
+        { "name": "color", "propertytype": "KeyColor", "type": "string", "value": "red" }
+      ]
+    },
+    {
+      "id": 5,
+      "type": "uplinkCode",
+      "properties": [
+        { "name": "prefab", "propertytype": "Prefab", "type": "string", "value": "uplinkCode" }
+      ]
+    },
+    {
+      "id": 6,
+      "type": "uplinkTerminal",
+      "properties": [
+        { "name": "prefab", "propertytype": "Prefab", "type": "string", "value": "uplinkTerminal" },
+        { "name": "goto", "type": "string", "value": "victory" }
+      ]
+    },
+    {
+      "id": 7,
+      "type": "weaponPickup",
+      "properties": [
+        { "name": "prefab", "propertytype": "Prefab", "type": "string", "value": "weaponPickup" },
+        { "name": "slot", "type": "int", "value": 2 }
+      ]
+    },
+    {
+      "id": 8,
+      "type": "item",
+      "properties": [
+        { "name": "prefab", "propertytype": "Prefab", "type": "string", "value": "item" },
+        { "name": "item", "propertytype": "ItemKind", "type": "string", "value": "HealthPatch" },
+        { "name": "amount", "type": "int", "value": 1 }
+      ]
+    }
+  ],
+  "tilewidth": 16,
+  "type": "tileset",
+  "version": "1.10"
+}

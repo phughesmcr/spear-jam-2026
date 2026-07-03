@@ -14,7 +14,7 @@ import {
   validatePropertyNames,
 } from "@/src/map/authoring/properties.ts";
 import type { PropertyMap } from "@/src/map/authoring/properties.ts";
-import type { TiledLayer, TiledMap, TiledObject, TiledTemplate } from "@/src/map/authoring/tiled_types.ts";
+import type { TiledLayer, TiledMap, TiledObject } from "@/src/map/authoring/tiled_types.ts";
 import {
   type AuthoringPrefab,
   mapAttackFacingRequirement,
@@ -34,7 +34,6 @@ import {
 export type CompileTiledMapOptions = {
   readonly palettes: Readonly<Record<string, readonly TerrainTile[]>>;
   readonly tilesets?: TilesetSources;
-  readonly templates?: Readonly<Record<string, TiledTemplate>>;
 };
 
 export type CompiledTiledMap = {
@@ -156,7 +155,7 @@ export function compileTiledMap(source: TiledMap, options: CompileTiledMapOption
   const layers = requiredLayers(source);
   const registry = createTilesetRegistry(source.tilesets, options.tilesets);
   const terrain = compileTerrain(source, layers.terrain, registry);
-  const entities = compileEntities(source, layers.objects, registry, options);
+  const entities = compileEntities(source, layers.objects, registry);
 
   return {
     gameMap: createGameMap(name, terrain, entities, { palette }),
@@ -247,9 +246,8 @@ function compileEntities(
   source: TiledMap,
   layer: TiledLayer,
   registry: TilesetRegistry,
-  options: CompileTiledMapOptions,
 ): readonly EntityDef[] {
-  return (layer.objects ?? []).map((object, index) => compileEntity(source, object, index, registry, options));
+  return (layer.objects ?? []).map((object, index) => compileEntity(source, object, index, registry));
 }
 
 function compileEntity(
@@ -257,10 +255,9 @@ function compileEntity(
   object: TiledObject,
   index: number,
   registry: TilesetRegistry,
-  options: CompileTiledMapOptions,
 ): EntityDef {
   const context = objectContext(object, index);
-  const resolved = resolveObject(source, object, context, registry, options);
+  const resolved = resolveObject(source, object, context, registry);
   const prefab = mapPrefab(requiredString(resolved.properties, "prefab", context), context);
   validatePropertyNames(resolved.properties, PREFAB_PROPERTY_NAMES[prefab], context);
 
@@ -326,35 +323,15 @@ function resolveObject(
   object: TiledObject,
   context: string,
   registry: TilesetRegistry,
-  options: CompileTiledMapOptions,
 ): ResolvedObject {
   validateObjectAuthoringState(object, context);
 
-  const template = templateFor(object.template, options, context);
-  if (template !== undefined) validateObjectAuthoringState(template.object, `${context} template`);
-
-  const mergedObject = template === undefined ? object : { ...template.object, ...object };
-  const markerRegistry = object.gid === undefined && template?.tileset !== undefined ?
-    createTilesetRegistry([template.tileset], options.tilesets) :
-    registry;
-  const templateProperties = propertiesFromObjectSource(template?.object, `${context} template`);
-  const markerProperties = propertiesFromMarker(mergedObject, markerRegistry, context);
+  const markerProperties = propertiesFromMarker(object, registry, context);
   const objectProperties = propertiesFromObjectSource(object, context);
-  const properties = mergeProperties(templateProperties, markerProperties, objectProperties);
-  const position = objectGridPosition(mergedObject, source.tilewidth, source.tileheight, context);
+  const properties = mergeProperties(markerProperties, objectProperties);
+  const position = objectGridPosition(object, source.tilewidth, source.tileheight, context);
 
   return { ...position, properties };
-}
-
-function templateFor(
-  templateName: string | undefined,
-  options: CompileTiledMapOptions,
-  context: string,
-): TiledTemplate | undefined {
-  if (templateName === undefined) return undefined;
-  const template = options.templates?.[templateName];
-  if (template === undefined) throw new Error(`${context}: Missing parsed template "${templateName}".`);
-  return template;
 }
 
 function propertiesFromObjectSource(object: TiledObject | undefined, context: string): Map<string, unknown> {
@@ -407,6 +384,7 @@ function objectGridPosition(
 }
 
 function validateObjectAuthoringState(object: TiledObject, context: string): void {
+  if (object.template !== undefined) throw new Error(`${context}: object templates are unsupported.`);
   if (object.visible === false) throw new Error(`${context}: hidden objects are unsupported.`);
   if (object.rotation !== undefined && object.rotation !== 0) {
     throw new Error(`${context}: object rotation is unsupported.`);

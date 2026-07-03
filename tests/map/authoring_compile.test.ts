@@ -8,7 +8,7 @@ import { ItemKind } from "@/src/game/items.ts";
 import { compileTiledMap } from "@/src/map/authoring/mod.ts";
 import { KeyColor, TexturePack, VICTORY_GOTO } from "@/src/map/map.ts";
 import type { TerrainTile } from "@/src/map/map.ts";
-import type { TiledMap, TiledObject, TiledProperty, TiledTemplate } from "@/src/map/authoring/mod.ts";
+import type { TiledMap, TiledObject, TiledProperty } from "@/src/map/authoring/mod.ts";
 
 const TILE_SIZE = 16;
 const FIRST_GID = 17;
@@ -34,6 +34,14 @@ Deno.test("compileTiledMap preserves terrain tileset-local IDs", () => {
   assertEquals(compiled.gameMap.name, "Fixture");
   assertEquals(compiled.gameMap.terrain.tiles, [[0, 1, 5]]);
   assertEquals(compiled.gameMap.terrain.palette, TEST_PALETTE);
+});
+
+Deno.test("compileTiledMap rejects terrain IDs missing from the selected palette", () => {
+  assertThrows(
+    () => compileTiledMap(tiledMap({ terrainData: [FIRST_GID + 2] }), compileOptions()),
+    Error,
+    'Map "Fixture" terrain tile 2 at (0,0) is missing from its palette.',
+  );
 });
 
 Deno.test("compileTiledMap rejects empty and transformed terrain GIDs", () => {
@@ -167,20 +175,11 @@ Deno.test("compileTiledMap treats tile objects as bottom-left anchored", () => {
   ]);
 });
 
-Deno.test("compileTiledMap applies template, marker, then object override precedence", () => {
-  const templates: Readonly<Record<string, TiledTemplate>> = {
-    "supply.tx": {
-      object: object({
-        type: "item",
-        properties: [property("item", "pistolAmmo"), property("amount", 1)],
-      }),
-    },
-  };
+Deno.test("compileTiledMap applies marker defaults before object overrides", () => {
   const compiled = compileTiledMap(
     tiledMap({
       objects: [
         object({
-          template: "supply.tx",
           gid: FIRST_GID + 2,
           x: 0,
           y: TILE_SIZE,
@@ -190,7 +189,7 @@ Deno.test("compileTiledMap applies template, marker, then object override preced
         }),
       ],
     }),
-    compileOptions({ templates }),
+    compileOptions(),
   );
 
   assertEquals(compiled.gameMap.entities, [
@@ -327,10 +326,6 @@ Deno.test("compileTiledMap compiles representative prefabs and enemy attack over
   ]);
 });
 
-type CompileOptionOverrides = {
-  readonly templates?: Readonly<Record<string, TiledTemplate>>;
-};
-
 type TiledMapOverrides = {
   readonly width?: number;
   readonly height?: number;
@@ -339,7 +334,7 @@ type TiledMapOverrides = {
   readonly properties?: readonly TiledProperty[];
 };
 
-function compileOptions(overrides: CompileOptionOverrides = {}) {
+function compileOptions() {
   return {
     palettes: { test: TEST_PALETTE },
     tilesets: {
@@ -355,7 +350,6 @@ function compileOptions(overrides: CompileOptionOverrides = {}) {
         ],
       },
     },
-    templates: overrides.templates ?? {},
   };
 }
 

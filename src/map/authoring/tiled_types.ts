@@ -73,8 +73,3 @@ export type TiledMap = {
   readonly tilesets?: readonly TiledTilesetReference[];
   readonly layers: readonly TiledLayer[];
 };
-
-export type TiledTemplate = {
-  readonly object: TiledObject;
-  readonly tileset?: TiledTilesetReference;
-};
