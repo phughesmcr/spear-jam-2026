@@ -4,6 +4,7 @@ import type { GameMode } from "@/src/game/state.ts";
 import type { GameCanvasSize } from "@/src/render/canvas.ts";
 import { renderCombatFeedback } from "@/src/render/combat_feedback.ts";
 import { renderDrawableEntities } from "@/src/render/drawables.ts";
+import { preloadFirstPersonAssets, renderFirstPersonView } from "@/src/render/first_person.ts";
 import { renderHud } from "@/src/render/hud.ts";
 import { renderMap } from "@/src/render/map.ts";
 import { renderMessageLog } from "@/src/render/messages.ts";
@@ -13,7 +14,10 @@ import { preloadVerbMenuAssets, renderVerbMenu } from "@/src/render/verb_menu.ts
 const BACKGROUND_COLOR = "#101217";
 
 export async function preloadGameAssets(document: Document, onAssetLoad?: () => void): Promise<void> {
-  await preloadVerbMenuAssets(document, onAssetLoad);
+  await Promise.all([
+    preloadVerbMenuAssets(document, onAssetLoad),
+    preloadFirstPersonAssets(document, onAssetLoad),
+  ]);
 }
 
 export function renderGameFrame(
@@ -29,9 +33,21 @@ export function renderGameFrame(
   ctx.fillRect(0, 0, canvasSize.width, canvasSize.height);
   if (session) {
     const { map } = session;
-    const metrics = renderMap(ctx, canvasSize, map, session.getVisibility());
+    const viewHeight = Math.min(canvasSize.width, Math.floor(canvasSize.height / 2));
+    renderFirstPersonView(
+      ctx,
+      { x: 0, y: 0, width: canvasSize.width, height: viewHeight },
+      session,
+      onAssetLoad,
+    );
+
+    const mapArea: GameCanvasSize = { width: canvasSize.width, height: canvasSize.height - viewHeight };
+    ctx.save();
+    ctx.translate(0, viewHeight);
+    const metrics = renderMap(ctx, mapArea, map, session.getVisibility());
     renderDrawableEntities(ctx, session, metrics);
     renderCombatFeedback(ctx, metrics, combatFeedback);
+    ctx.restore();
     renderHud(ctx, canvasSize, session);
   }
   renderMessageLog(ctx, canvasSize, messages);

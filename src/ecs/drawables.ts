@@ -9,6 +9,8 @@ import type { KeyColor } from "@/src/map/map.ts";
 export { DrawableKind };
 
 type DrawableBase = {
+  /** Stable ECS entity id, e.g. for animating an entity across turns. */
+  readonly entity: Entity;
   readonly x: number;
   readonly y: number;
 };
@@ -76,6 +78,7 @@ export const drawableSystem = new System({
 
     for (const entity of ordered) {
       const drawable = drawableEntityFor(components, entity, kind[entity]!, {
+        entity,
         x: positionX[entity]!,
         y: positionY[entity]!,
       });

@@ -169,6 +169,12 @@ class FakeSession implements Disposable {
     getEntity(): Entity {
       return PLAYER_ENTITY;
     },
+    getPosition(): { x: number; y: number } {
+      return { x: 0, y: 0 };
+    },
+    getFacing(): { dir: 0 } {
+      return { dir: 0 };
+    },
   };
   readonly commands: PlayerCommand[] = [];
   readonly results: PlayerCommandResult[] = [];

@@ -1,6 +1,8 @@
 import { createGameSession as createRealGameSession, type GameSession } from "@/src/ecs/session.ts";
+import { relativeMoveDirectionOffset } from "@/src/game/commands.ts";
 import type { GameCommand } from "@/src/game/commands.ts";
 import type { PlayerCommand, PlayerCommandResult } from "@/src/game/commands.ts";
+import { directionDelta, normalizeDirection } from "@/src/grid/direction.ts";
 import type { CombatFeedback } from "@/src/game/combat_feedback.ts";
 import { SplitMix32 } from "@/src/game/rng.ts";
 import { createGameModel, transition } from "@/src/game/transition.ts";
@@ -11,6 +13,7 @@ import type { CanvasPointerInput } from "@/src/input/pointer.ts";
 import { getMap as getRealMap, START_MAP_NAME } from "@/src/map/maps.ts";
 import { configureCanvasDpi as configureRealCanvasDpi, DEFAULT_GAME_CANVAS_SIZE } from "@/src/render/canvas.ts";
 import type { GameCanvasSize } from "@/src/render/canvas.ts";
+import { bumpFirstPersonView } from "@/src/render/first_person.ts";
 import {
   preloadGameAssets as preloadRealGameAssets,
   renderGameFrame as renderRealGameFrame,
@@ -19,7 +22,7 @@ import { verbMenuHotspotIndexAt } from "@/src/render/verb_menu.ts";
 
 interface GameSessionHandle extends Disposable {
   readonly map: GameSession["map"];
-  readonly player: Pick<GameSession["player"], "getEntity">;
+  readonly player: Pick<GameSession["player"], "getEntity" | "getPosition" | "getFacing">;
   getPlayerState(): PlayerState;
   handlePlayerCommand(command: PlayerCommand): PlayerCommandResult;
 }
@@ -160,7 +163,19 @@ class Game implements Disposable {
   private handlePlayerCommand(command: PlayerCommand): void {
     if (!this.session) return;
 
+    const moveFrom = command.type === "move" ? this.session.player.getPosition() : undefined;
     const result = this.session.handlePlayerCommand(command);
+    if (command.type === "move" && moveFrom !== undefined) {
+      const position = this.session.player.getPosition();
+      if (position.x === moveFrom.x && position.y === moveFrom.y) {
+        // The move was blocked: play a recoil lunge toward the obstacle.
+        const worldDir = normalizeDirection(
+          this.session.player.getFacing().dir + relativeMoveDirectionOffset(command.direction),
+        );
+        const delta = directionDelta(worldDir);
+        bumpFirstPersonView(delta.dx, delta.dy);
+      }
+    }
     this.apply({
       type: "playerCommandResult",
       result,
