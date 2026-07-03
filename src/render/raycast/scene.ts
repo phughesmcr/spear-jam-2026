@@ -382,6 +382,7 @@ function renderWalls(
     const thinBase = x * MAX_THIN_HITS;
 
     for (let step = 0; step < maxSteps; step++) {
+      const previousCell = mapY * mapWidth + mapX;
       if (sideDistX < sideDistY) {
         sideDistX += deltaDistX;
         mapX += stepX;
@@ -402,7 +403,7 @@ function renderWalls(
         const wallX = side === 0 ? camera.y + hitDistance * rayY : camera.x + hitDistance * rayX;
         let texX = ((wallX - Math.floor(wallX)) * TEX_SIZE) | 0;
         if ((side === 0 && rayX > 0) || (side === 1 && rayY < 0)) texX = TEX_MASK - texX;
-        hitTexture = atlas.walls[wallId - 1];
+        hitTexture = jambTextureFromPreviousCell(scene, atlas, previousCell, side) ?? atlas.walls[wallId - 1];
         hitTexX = texX;
         break;
       }
@@ -484,6 +485,22 @@ function renderWalls(
       true,
     );
   }
+}
+
+function jambTextureFromPreviousCell(
+  scene: RaycastScene,
+  atlas: RaycastAtlas,
+  previousCell: number,
+  side: number,
+): BakedTexture | undefined {
+  const thinIndex = scene.thinByCell[previousCell]!;
+  if (thinIndex < 0) return undefined;
+
+  const thinSide = scene.thinAxis[thinIndex]! === THIN_AXIS_Y ? 1 : 0;
+  if (side === thinSide) return undefined;
+
+  const texture = atlas.walls[scene.thinTex[thinIndex]!];
+  return texture?.opaque === true ? texture : undefined;
 }
 
 function thinShadeBand(distance: number, sideOffset: number): number {

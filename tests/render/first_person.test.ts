@@ -1,7 +1,84 @@
 import { assert, assertEquals, assertNotEquals, assertThrows } from "@std/assert";
+import { DrawableKind } from "@/src/ecs/drawables.ts";
+import type { DrawableEntity } from "@/src/ecs/drawables.ts";
+import { Direction } from "@/src/grid/direction.ts";
 import { createGameMap, TexturePack } from "@/src/map/map.ts";
 import { GAME_MAPS } from "@/src/map/maps.ts";
-import { sceneForMap } from "@/src/render/first_person.ts";
+import { createFirstPersonRenderer, sceneForMap } from "@/src/render/first_person.ts";
+import type { FirstPersonRenderSession } from "@/src/render/first_person.ts";
+
+type FakeImageEvent = "load" | "error";
+type FakeImageListener = () => void;
+
+class FakeImage {
+  decoding: "async" | "auto" | "sync" = "auto";
+  src = "";
+  private readonly listeners: Record<FakeImageEvent, FakeImageListener[]> = {
+    load: [],
+    error: [],
+  };
+
+  addEventListener(type: FakeImageEvent, listener: FakeImageListener): void {
+    this.listeners[type].push(listener);
+  }
+}
+
+class FakeDocument {
+  createElement(tagName: string): FakeImage {
+    if (tagName !== "img") throw new Error(`Unexpected tag ${tagName}.`);
+    return new FakeImage();
+  }
+}
+
+class FakeCanvasContext {
+  imageSmoothingEnabled = true;
+  readonly canvas = { ownerDocument: new FakeDocument() };
+
+  drawImage(..._args: unknown[]): void {
+  }
+}
+
+class FakeOffscreenCanvasRenderingContext2D {
+  createImageData(width: number, height: number): ImageData {
+    return new ImageData(width, height);
+  }
+
+  putImageData(_imageData: ImageData, _dx: number, _dy: number): void {
+  }
+}
+
+class FakeOffscreenCanvas {
+  readonly width: number;
+  readonly height: number;
+  private readonly context = new FakeOffscreenCanvasRenderingContext2D();
+
+  constructor(width: number, height: number) {
+    this.width = width;
+    this.height = height;
+  }
+
+  getContext(contextId: string): FakeOffscreenCanvasRenderingContext2D | null {
+    return contextId === "2d" ? this.context : null;
+  }
+}
+
+function withFakeOffscreenCanvas(run: () => void): void {
+  const original = globalThis.OffscreenCanvas;
+  Object.defineProperty(globalThis, "OffscreenCanvas", {
+    configurable: true,
+    writable: true,
+    value: FakeOffscreenCanvas as unknown as typeof OffscreenCanvas,
+  });
+  try {
+    run();
+  } finally {
+    Object.defineProperty(globalThis, "OffscreenCanvas", {
+      configurable: true,
+      writable: true,
+      value: original,
+    });
+  }
+}
 
 Deno.test("sceneForMap uses terrain palette texture refs for wall and plane slots", () => {
   const map = createGameMap(
@@ -56,4 +133,49 @@ Deno.test("sceneForMap builds static scenes for authored textured maps", () => {
     assert(scene.ceilings.some((texture) => texture > 0), `${map.name} should have ceiling textures.`);
     assert(scene.walls.some((texture) => texture > 0), `${map.name} should have wall textures.`);
   }
+});
+
+Deno.test("first-person rendering keeps open doors in the raycast scene for jambs", () => {
+  withFakeOffscreenCanvas((): void => {
+    const map = createGameMap(
+      "Open Door Jambs",
+      [
+        [2, 2, 2, 2, 2],
+        [2, 1, 1, 1, 2],
+        [2, 2, 2, 2, 2],
+      ],
+      [],
+      {
+        palette: [
+          { id: 1, color: "#000000", floor_texture: "floor", ceiling_texture: "ceiling" },
+          { id: 2, color: "#ffffff", wall_texture: "wall", blocking: true },
+        ],
+      },
+    );
+    const drawables: DrawableEntity[] = [
+      { kind: DrawableKind.Player, entity: 1, x: 1, y: 1, dir: Direction.East, enemyArchetype: undefined },
+      { kind: DrawableKind.Door, entity: 2, x: 2, y: 1, open: true, locked: false, openMs: 0 },
+    ];
+    const session: FirstPersonRenderSession = {
+      map,
+      forEachDrawable(visit): void {
+        for (const drawable of drawables) visit(drawable);
+      },
+    };
+    const renderer = createFirstPersonRenderer();
+
+    renderer.render(
+      new FakeCanvasContext() as unknown as CanvasRenderingContext2D,
+      { x: 0, y: 0, width: 64, height: 64 },
+      session,
+    );
+
+    const scene = renderer.sceneForMap(map);
+    const cell = 1 * 5 + 2;
+    const thinIndex = scene.thinByCell[cell]!;
+
+    assertNotEquals(thinIndex, -1);
+    assertEquals(scene.thinCount, 1);
+    assertEquals(scene.thinOffset[thinIndex], 1);
+  });
 });

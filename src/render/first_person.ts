@@ -945,7 +945,6 @@ function addDrawable(
     }
     case DrawableKind.Door: {
       tweenedDoorOpenness(state, drawable, nowMs);
-      if (state.doorSample.value >= 1) return false;
       const axis = doorAxis(map, drawable.x, drawable.y);
       addThinWall(
         scene,

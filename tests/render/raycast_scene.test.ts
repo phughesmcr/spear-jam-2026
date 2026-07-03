@@ -198,6 +198,30 @@ Deno.test("renderFrame stops rays at opaque thin walls (doors)", () => {
   assertEquals(pixel(frame, CENTER, CENTER), texel(atlas, "walls", DOOR, 0));
 });
 
+Deno.test("renderFrame uses the door texture for flanking jamb faces", () => {
+  const atlas = testAtlas();
+  const scene = corridorScene();
+  addThinWall(scene, 2, 1, DOOR, THIN_AXIS_X);
+  const frame = createFrame(VIEW, VIEW);
+
+  renderFrame(frame, scene, atlas, CAMERA);
+
+  assertEquals(pixel(frame, 0, CENTER), texel(atlas, "walls", DOOR, 1));
+});
+
+Deno.test("renderFrame keeps the wall beyond a door cell on its wall texture", () => {
+  const atlas = testAtlas();
+  const scene = corridorScene();
+  scene.walls[1 * 5 + 3] = WALL + 1;
+  addThinWall(scene, 2, 1, DOOR, THIN_AXIS_X, THIN_SLIDE_NEG, 0.75);
+  const frame = createFrame(VIEW, VIEW);
+
+  renderFrame(frame, scene, atlas, CAMERA);
+
+  assertAlmostEquals(frame.zbuffer[CENTER]!, 1.5, 1e-9);
+  assertEquals(pixel(frame, CENTER, CENTER), texel(atlas, "walls", WALL, 1));
+});
+
 Deno.test("renderFrame draws see-through thin walls without stopping rays", () => {
   const atlas = testAtlas();
   const scene = corridorScene();
