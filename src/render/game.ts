@@ -2,13 +2,16 @@ import type { GameSession } from "@/src/ecs/session.ts";
 import type { CombatFeedback } from "@/src/game/combat_feedback.ts";
 import type { GameMode, ViewMode } from "@/src/game/state.ts";
 import type { GameCanvasSize } from "@/src/render/canvas.ts";
-import { renderCombatFeedback } from "@/src/render/combat_feedback.ts";
+import {
+  preloadCombatFeedbackAssets,
+  renderCombatFeedback,
+  renderFirstPersonCombatFeedback,
+} from "@/src/render/combat_feedback.ts";
 import { renderDrawableEntities } from "@/src/render/drawables.ts";
 import { createFirstPersonRenderer, type FirstPersonRenderer } from "@/src/render/first_person.ts";
 import { preloadHudAssets, renderFirstPersonHud, renderHud } from "@/src/render/hud.ts";
 import type { FirstPersonHudOptions } from "@/src/render/hud.ts";
 import { renderMap } from "@/src/render/map.ts";
-import type { MapRenderMetrics } from "@/src/render/map.ts";
 import { renderMessageLog } from "@/src/render/messages.ts";
 import { renderOverlay } from "@/src/render/overlay.ts";
 import { preloadVerbMenuAssets, renderVerbMenu } from "@/src/render/verb_menu.ts";
@@ -35,12 +38,9 @@ export async function preloadGameAssets(
     firstPersonRenderer.preloadAssets(document, onAssetLoad),
     preloadWeaponHudAssets(document, onAssetLoad),
     preloadHudAssets(document, onAssetLoad),
+    preloadCombatFeedbackAssets(document, onAssetLoad),
   ]);
 }
-
-/** Where the combat feedback strip sits in the lower first-person view, full width. */
-const FEEDBACK_MARGIN = 12;
-const FEEDBACK_BOTTOM_OFFSET = 150;
 
 export function playCanvasSize(canvasSize: GameCanvasSize, viewMode: ViewMode): GameCanvasSize {
   void viewMode;
@@ -59,17 +59,6 @@ export function gameRenderRect(canvasSize: GameCanvasSize, viewMode: ViewMode): 
     y,
     width: playSize.width,
     height: Math.max(1, playSize.height - y),
-  };
-}
-
-/** Synthetic map metrics so the feedback strip can render without a map. */
-function firstPersonFeedbackMetrics(canvasSize: GameCanvasSize): MapRenderMetrics {
-  return {
-    mapWidth: 1,
-    mapHeight: 0,
-    tileSize: canvasSize.width - FEEDBACK_MARGIN * 2,
-    offsetX: FEEDBACK_MARGIN,
-    offsetY: canvasSize.height - FEEDBACK_BOTTOM_OFFSET,
   };
 }
 
@@ -93,6 +82,7 @@ export function renderGameFrame(
     const { map } = session;
     if (viewMode === "firstPerson") {
       const playRect = gameRenderRect(canvasSize, viewMode);
+      const playerState = session.getPlayerState();
       firstPersonRenderer.render(
         ctx,
         playRect,
@@ -101,9 +91,15 @@ export function renderGameFrame(
         onAssetLoad,
       );
       renderFirstPersonVignette(ctx, playRect);
-      renderWeaponHud(ctx, playSize, session.getPlayerState().selectedWeapon, weaponHudPhase, onAssetLoad);
-      renderFirstPersonHud(ctx, playSize, session.getPlayerState(), firstPersonHud, onAssetLoad);
-      renderCombatFeedback(ctx, firstPersonFeedbackMetrics(playSize), combatFeedback);
+      renderWeaponHud(ctx, playSize, playerState.selectedWeapon, weaponHudPhase, onAssetLoad);
+      renderFirstPersonHud(
+        ctx,
+        playSize,
+        playerState,
+        { ...firstPersonHud, facing: session.player.getFacing().dir },
+        onAssetLoad,
+      );
+      renderFirstPersonCombatFeedback(ctx, playSize, combatFeedback, onAssetLoad);
     } else {
       const metrics = renderMap(ctx, canvasSize, map, session.getVisibility());
       renderDrawableEntities(ctx, session, metrics);

@@ -7,13 +7,15 @@ const ENEMY = 2;
 Deno.test("combatFeedbackForEvents reports misses, hits, crits, and defeats", () => {
   assertEquals(
     combatFeedbackForEvents(PLAYER, [
-      { type: "attackMissed", actor: PLAYER, actorName: "You" },
+      { type: "attackMissed", actor: PLAYER, actorName: "You", roll: 3, total: 5 },
       {
         type: "damageDealt",
         actor: PLAYER,
         actorName: "You",
         target: ENEMY,
         targetName: "Digital Dog",
+        roll: 12,
+        total: 16,
         amount: 2,
         critical: false,
       },
@@ -23,16 +25,18 @@ Deno.test("combatFeedbackForEvents reports misses, hits, crits, and defeats", ()
         actorName: "You",
         target: ENEMY,
         targetName: "Digital Dog",
+        roll: 20,
+        total: 24,
         amount: 4,
         critical: true,
       },
       { type: "entityDefeated", actor: PLAYER, entity: ENEMY, entityName: "Digital Dog" },
     ]),
     [
-      { text: "MISS", tone: "miss" },
-      { text: "HIT 2", tone: "hit" },
-      { text: "CRIT 4", tone: "crit" },
-      { text: "DOWN", tone: "defeat" },
+      { text: "MISS", tone: "miss", side: "player", roll: 3, total: 5 },
+      { text: "HIT 2", tone: "hit", side: "player", roll: 12, total: 16 },
+      { text: "CRIT 4", tone: "crit", side: "player", roll: 20, total: 24 },
+      { text: "DOWN", tone: "defeat", side: "player" },
     ],
   );
 });
@@ -46,11 +50,13 @@ Deno.test("combatFeedbackForEvents marks enemy damage as hurt", () => {
         actorName: "Digital Dog",
         target: PLAYER,
         targetName: "You",
+        roll: 17,
+        total: 19,
         amount: 1,
         critical: false,
       },
     ]),
-    [{ text: "HIT 1", tone: "hurt" }],
+    [{ text: "HIT 1", tone: "hurt", side: "enemy", roll: 17, total: 19 }],
   );
 });
 

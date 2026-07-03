@@ -299,6 +299,8 @@ Deno.test("enemyTurnSystem stops the enemy phase after player defeat", async () 
       actorName: "Imp",
       target: playerEntity,
       targetName: "You",
+      roll: 1,
+      total: 21,
       amount: 1,
       critical: false,
     },

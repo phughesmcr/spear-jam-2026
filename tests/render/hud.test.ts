@@ -1,11 +1,55 @@
 import { assertEquals } from "@std/assert";
 import type { PlayerStateSnapshot } from "@/src/ecs/progression.ts";
+import { Direction } from "@/src/grid/direction.ts";
 import { KeyColor } from "@/src/map/map.ts";
-import { firstPersonHudPanels, preloadHudAssets, renderFirstPersonHud } from "@/src/render/hud.ts";
+import {
+  firstPersonCompassMarkers,
+  firstPersonCompassRect,
+  firstPersonHudPanels,
+  preloadHudAssets,
+  renderFirstPersonCompass,
+  renderFirstPersonHud,
+} from "@/src/render/hud.ts";
 import type { FirstPersonHudPanel } from "@/src/render/hud.ts";
 
 const CANVAS = { width: 720, height: 1280 };
 const HUD_MARGIN = 12;
+
+Deno.test("firstPersonCompassRect anchors the compass to the top center", () => {
+  assertEquals(firstPersonCompassRect(CANVAS), {
+    x: 150,
+    y: 32,
+    width: 420,
+    height: 54,
+  });
+});
+
+Deno.test("firstPersonCompassMarkers centers the player's facing direction", () => {
+  assertEquals(firstPersonCompassMarkers(Direction.North), [
+    { direction: Direction.West, label: "W", offset: -1, active: false },
+    { direction: Direction.North, label: "N", offset: 0, active: true },
+    { direction: Direction.East, label: "E", offset: 1, active: false },
+  ]);
+  assertEquals(firstPersonCompassMarkers(Direction.South), [
+    { direction: Direction.East, label: "E", offset: -1, active: false },
+    { direction: Direction.South, label: "S", offset: 0, active: true },
+    { direction: Direction.West, label: "W", offset: 1, active: false },
+  ]);
+});
+
+Deno.test("renderFirstPersonCompass draws the current facing label at top center", () => {
+  const ctx = new FakeHudContext(new FakeHudDocument());
+  renderFirstPersonCompass(ctx as unknown as CanvasRenderingContext2D, CANVAS, Direction.South);
+
+  const foregroundLabels = ctx.fillTexts
+    .filter((_, index) => index % 2 === 1)
+    .map(({ text, x, y }) => ({ text, x, y }));
+  assertEquals(foregroundLabels, [
+    { text: "E", x: 247, y: 46 },
+    { text: "S", x: 360, y: 46 },
+    { text: "W", x: 473, y: 46 },
+  ]);
+});
 
 Deno.test("firstPersonHudPanels anchors health to the bottom-left edge", () => {
   const panels = firstPersonHudPanels(CANVAS, playerSnapshot());
@@ -168,15 +212,26 @@ type FakeEllipseCall = {
   readonly radiusY: number;
 };
 
+type FakeTextCall = {
+  readonly text: string;
+  readonly x: number;
+  readonly y: number;
+  readonly fillStyle: string;
+};
+
 class FakeHudContext {
   readonly canvas: { readonly ownerDocument: FakeHudDocument };
   fillStyle = "";
   font = "";
   globalAlpha = 1;
   imageSmoothingEnabled = true;
+  lineCap: CanvasLineCap = "butt";
+  lineWidth = 1;
+  strokeStyle = "";
   textAlign: CanvasTextAlign = "start";
   textBaseline: CanvasTextBaseline = "alphabetic";
   readonly ellipses: FakeEllipseCall[] = [];
+  readonly fillTexts: FakeTextCall[] = [];
 
   constructor(document: FakeHudDocument) {
     this.canvas = { ownerDocument: document };
@@ -188,17 +243,27 @@ class FakeHudContext {
 
   beginPath(): void {}
 
+  closePath(): void {}
+
   fill(): void {}
 
   fillRect(_x: number, _y: number, _width: number, _height: number): void {}
 
   drawImage(_image: CanvasImageSource, _x: number, _y: number, _width: number, _height: number): void {}
 
-  fillText(_text: string, _x: number, _y: number): void {}
+  fillText(text: string, x: number, y: number): void {
+    this.fillTexts.push({ text, x, y, fillStyle: this.fillStyle });
+  }
+
+  lineTo(_x: number, _y: number): void {}
 
   measureText(text: string): TextMetrics {
     return { width: text.length * 7 } as TextMetrics;
   }
+
+  moveTo(_x: number, _y: number): void {}
+
+  stroke(): void {}
 
   ellipse(
     x: number,

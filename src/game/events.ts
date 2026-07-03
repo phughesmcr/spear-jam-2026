@@ -25,6 +25,8 @@ export type GameEvent =
     readonly actorName: string;
     readonly target: Entity;
     readonly targetName: string;
+    readonly roll: number;
+    readonly total: number;
     readonly amount: number;
     readonly critical: boolean;
   }

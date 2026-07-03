@@ -161,6 +161,8 @@ export function attackEntity(
     actorName: attackerName,
     target: defender,
     targetName: defenderName,
+    roll: outcome.roll,
+    total: outcome.total,
     amount: outcome.damage,
     critical: outcome.critical,
   }];

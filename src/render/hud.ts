@@ -1,6 +1,8 @@
 import type { GameSession } from "@/src/ecs/session.ts";
 import type { PlayerStateSnapshot } from "@/src/ecs/progression.ts";
 import type { AmmoKind, PlayerHealthState } from "@/src/game/state.ts";
+import { Direction, normalizeDirection } from "@/src/grid/direction.ts";
+import type { CardinalDirection } from "@/src/grid/direction.ts";
 import { KeyColor } from "@/src/map/map.ts";
 import { createImageAsset, loadedImage, preloadImageAssets } from "@/src/render/assets.ts";
 import type { GameCanvasSize } from "@/src/render/canvas.ts";
@@ -26,13 +28,25 @@ const FIRST_PERSON_PANEL_TEXT = "#dffcff";
 const FIRST_PERSON_PANEL_MUTED = "#7f8c95";
 const FIRST_PERSON_PANEL_SHADOW = "rgba(0, 0, 0, 0.76)";
 const FIRST_PERSON_PANEL_FILL_BACKGROUND = "rgba(4, 8, 11, 0.62)";
-const FIRST_PERSON_HEALTH_FILL = "#e33c45";
-const FIRST_PERSON_HEALTH_WARNING_FILL = "#f59e0b";
-const FIRST_PERSON_HEALTH_GOOD_FILL = "#21d4d8";
+const FIRST_PERSON_HEALTH_FILL = "rgba(34, 211, 238, 0.45)";
+const FIRST_PERSON_HEALTH_WARNING_FILL = "rgba(96%, 62%, 42%, 0.45)";
+const FIRST_PERSON_HEALTH_GOOD_FILL = "rgb(12.9%,83.1%,84.7%,0.45)";
 const FIRST_PERSON_AMMO_FILL = "rgba(34, 211, 238, 0.45)";
 const FIRST_PERSON_RED_KEY = "#ef4444";
 const FIRST_PERSON_BLUE_KEY = "#60a5fa";
 const FIRST_PERSON_YELLOW_KEY = "#facc15";
+const FIRST_PERSON_COMPASS_TOP = 32;
+const FIRST_PERSON_COMPASS_HEIGHT = 54;
+const FIRST_PERSON_COMPASS_MAX_WIDTH = 420;
+const FIRST_PERSON_COMPASS_MIN_WIDTH = 180;
+const FIRST_PERSON_COMPASS_WIDTH_FRACTION = 0.6;
+const FIRST_PERSON_COMPASS_CARDINAL_SPACING_FRACTION = 0.27;
+const FIRST_PERSON_COMPASS_LINE_EXTENT = 1.78;
+const FIRST_PERSON_COMPASS_LINE = "rgba(199, 220, 211, 0.52)";
+const FIRST_PERSON_COMPASS_TEXT = "#dffcff";
+const FIRST_PERSON_COMPASS_MUTED = "rgba(195, 213, 205, 0.62)";
+const FIRST_PERSON_COMPASS_SHADOW = "rgba(0, 0, 0, 0.74)";
+const FIRST_PERSON_COMPASS_NEEDLE = "rgba(240, 200, 75, 0.78)";
 
 const HEALTH_BAR_IMAGE_SIZE = { width: 1230, height: 454 };
 const AMMO_BAR_IMAGE_SIZE = { width: 1221, height: 472 };
@@ -78,6 +92,16 @@ type HudImageSize = {
   readonly height: number;
 };
 
+type CompassMarkerOffset = -1 | 0 | 1;
+type CompassDirectionLabel = "N" | "E" | "S" | "W";
+
+export type FirstPersonCompassMarker = {
+  readonly direction: CardinalDirection;
+  readonly label: CompassDirectionLabel;
+  readonly offset: CompassMarkerOffset;
+  readonly active: boolean;
+};
+
 function keySlotRect(x: number, y: number, width: number, height: number): UnitRect {
   return {
     x: x / KEY_BAR_IMAGE_SIZE.width,
@@ -89,6 +113,7 @@ function keySlotRect(x: number, y: number, width: number, height: number): UnitR
 
 export type FirstPersonHudOptions = {
   readonly showKeys?: boolean;
+  readonly facing?: CardinalDirection;
 };
 
 export type FirstPersonHudPanel =
@@ -148,6 +173,10 @@ export function renderFirstPersonHud(
   options: FirstPersonHudOptions = {},
   onAssetLoad?: () => void,
 ): void {
+  if (options.facing !== undefined) {
+    renderFirstPersonCompass(ctx, canvasSize, options.facing);
+  }
+
   const panels = firstPersonHudPanels(canvasSize, playerState, options);
   if (panels.length === 0) return;
 
@@ -202,6 +231,160 @@ export function firstPersonHudPanels(
   }
 
   return panels;
+}
+
+export function firstPersonCompassRect(canvasSize: GameCanvasSize): HudRect {
+  const availableWidth = Math.max(1, canvasSize.width - HUD_MARGIN * 2);
+  const width = Math.min(
+    availableWidth,
+    Math.max(
+      Math.min(FIRST_PERSON_COMPASS_MIN_WIDTH, availableWidth),
+      Math.min(FIRST_PERSON_COMPASS_MAX_WIDTH, Math.round(canvasSize.width * FIRST_PERSON_COMPASS_WIDTH_FRACTION)),
+    ),
+  );
+  const height = Math.max(1, Math.min(FIRST_PERSON_COMPASS_HEIGHT, canvasSize.height - HUD_MARGIN * 2));
+  return {
+    x: Math.round((canvasSize.width - width) / 2),
+    y: Math.min(FIRST_PERSON_COMPASS_TOP, Math.max(0, canvasSize.height - height - HUD_MARGIN)),
+    width,
+    height,
+  };
+}
+
+export function firstPersonCompassMarkers(facing: CardinalDirection): readonly FirstPersonCompassMarker[] {
+  const direction = normalizeDirection(facing);
+  return [
+    compassMarker(normalizeDirection(direction - 1), -1, false),
+    compassMarker(direction, 0, true),
+    compassMarker(normalizeDirection(direction + 1), 1, false),
+  ];
+}
+
+export function renderFirstPersonCompass(
+  ctx: CanvasRenderingContext2D,
+  canvasSize: GameCanvasSize,
+  facing: CardinalDirection,
+): void {
+  const rect = firstPersonCompassRect(canvasSize);
+  if (rect.width <= 0 || rect.height <= 0) return;
+
+  const centerX = rect.x + rect.width / 2;
+  const lineY = rect.y + Math.round(rect.height * 0.63);
+  const spacing = Math.max(24, Math.round(rect.width * FIRST_PERSON_COMPASS_CARDINAL_SPACING_FRACTION));
+  const lineStart = Math.max(rect.x, centerX - spacing * FIRST_PERSON_COMPASS_LINE_EXTENT);
+  const lineEnd = Math.min(rect.x + rect.width, centerX + spacing * FIRST_PERSON_COMPASS_LINE_EXTENT);
+
+  ctx.save();
+  ctx.lineCap = "round";
+  drawCompassLine(ctx, lineStart, lineEnd, lineY);
+  drawCompassTicks(ctx, centerX, lineY, spacing);
+  drawCompassNeedle(ctx, centerX, lineY);
+  drawCompassLabels(ctx, firstPersonCompassMarkers(facing), centerX, spacing, rect.y + 14);
+  ctx.restore();
+}
+
+function compassMarker(
+  direction: CardinalDirection,
+  offset: CompassMarkerOffset,
+  active: boolean,
+): FirstPersonCompassMarker {
+  return {
+    direction,
+    label: directionLabel(direction),
+    offset,
+    active,
+  };
+}
+
+function directionLabel(direction: CardinalDirection): CompassDirectionLabel {
+  switch (direction) {
+    case Direction.North:
+      return "N";
+    case Direction.East:
+      return "E";
+    case Direction.South:
+      return "S";
+    case Direction.West:
+      return "W";
+  }
+}
+
+function drawCompassLine(ctx: CanvasRenderingContext2D, startX: number, endX: number, y: number): void {
+  ctx.strokeStyle = FIRST_PERSON_COMPASS_SHADOW;
+  ctx.lineWidth = 5;
+  ctx.beginPath();
+  ctx.moveTo(startX, y + 1);
+  ctx.lineTo(endX, y + 1);
+  ctx.stroke();
+
+  ctx.strokeStyle = FIRST_PERSON_COMPASS_LINE;
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  ctx.moveTo(startX, y);
+  ctx.lineTo(endX, y);
+  ctx.stroke();
+}
+
+function drawCompassTicks(ctx: CanvasRenderingContext2D, centerX: number, lineY: number, spacing: number): void {
+  for (const offset of [-1.5, -1, -0.5, 0.5, 1, 1.5]) {
+    const isMajor = Math.abs(offset) === 1;
+    const x = centerX + spacing * offset;
+    const tickHeight = isMajor ? 16 : 10;
+    ctx.strokeStyle = FIRST_PERSON_COMPASS_SHADOW;
+    ctx.lineWidth = 4;
+    ctx.beginPath();
+    ctx.moveTo(x, lineY - tickHeight / 2 + 1);
+    ctx.lineTo(x, lineY + tickHeight / 2 + 1);
+    ctx.stroke();
+
+    ctx.strokeStyle = FIRST_PERSON_COMPASS_LINE;
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.moveTo(x, lineY - tickHeight / 2);
+    ctx.lineTo(x, lineY + tickHeight / 2);
+    ctx.stroke();
+  }
+}
+
+function drawCompassNeedle(ctx: CanvasRenderingContext2D, centerX: number, lineY: number): void {
+  const radius = 6;
+  ctx.fillStyle = FIRST_PERSON_COMPASS_SHADOW;
+  ctx.beginPath();
+  ctx.moveTo(centerX, lineY - radius + 1);
+  ctx.lineTo(centerX + radius, lineY + 1);
+  ctx.lineTo(centerX, lineY + radius + 1);
+  ctx.lineTo(centerX - radius, lineY + 1);
+  ctx.closePath();
+  ctx.fill();
+
+  ctx.fillStyle = FIRST_PERSON_COMPASS_NEEDLE;
+  ctx.beginPath();
+  ctx.moveTo(centerX, lineY - radius);
+  ctx.lineTo(centerX + radius, lineY);
+  ctx.lineTo(centerX, lineY + radius);
+  ctx.lineTo(centerX - radius, lineY);
+  ctx.closePath();
+  ctx.fill();
+}
+
+function drawCompassLabels(
+  ctx: CanvasRenderingContext2D,
+  markers: readonly FirstPersonCompassMarker[],
+  centerX: number,
+  spacing: number,
+  y: number,
+): void {
+  ctx.textAlign = "center";
+  ctx.textBaseline = "middle";
+
+  for (const marker of markers) {
+    const x = centerX + marker.offset * spacing;
+    ctx.font = monoFont(marker.active ? 800 : 700, marker.active ? 19 : 17);
+    ctx.fillStyle = FIRST_PERSON_COMPASS_SHADOW;
+    ctx.fillText(marker.label, x + 1, y + 1);
+    ctx.fillStyle = marker.active ? FIRST_PERSON_COMPASS_TEXT : FIRST_PERSON_COMPASS_MUTED;
+    ctx.fillText(marker.label, x, y);
+  }
 }
 
 type HudLine = {
