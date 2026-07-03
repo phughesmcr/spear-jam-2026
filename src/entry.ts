@@ -6,6 +6,7 @@ import type { PlayerCommand, PlayerCommandResult } from "@/src/game/commands.ts"
 import { directionDelta, normalizeDirection } from "@/src/grid/direction.ts";
 import type { CombatFeedback } from "@/src/game/combat_feedback.ts";
 import type { GameEvent } from "@/src/game/events.ts";
+import { messageForEvent } from "@/src/game/messages.ts";
 import { SplitMix32 } from "@/src/game/rng.ts";
 import { createGameModel, transition } from "@/src/game/transition.ts";
 import type { GameEffect, GameModel, GameTransitionEvent } from "@/src/game/transition.ts";
@@ -20,10 +21,14 @@ import {
   preloadGameAssets as preloadRealGameAssets,
   renderGameFrame as renderRealGameFrame,
 } from "@/src/render/game.ts";
+import type { FirstPersonHudOptions } from "@/src/render/hud.ts";
 import { verbMenuHotspotIndexAt } from "@/src/render/verb_menu.ts";
 import type { WeaponHudPhase } from "@/src/render/weapon_hud.ts";
 
 const WEAPON_HUD_ACTIVE_MS = 140;
+const KEY_HUD_VISIBLE_MS = 1400;
+const MESSAGE_HUD_VISIBLE_MS = 2200;
+const MESSAGE_HUD_MAX_LINES = 2;
 
 interface GameSessionHandle extends Disposable {
   readonly map: GameSession["map"];
@@ -47,8 +52,15 @@ type GameFrameRenderer = (
   combatFeedback: readonly CombatFeedback[],
   viewMode: ViewMode,
   weaponHudPhase: WeaponHudPhase,
+  firstPersonHud: FirstPersonHudOptions,
   onAssetLoad?: () => void,
 ) => void;
+
+type MessageHudEntry = {
+  readonly id: number;
+  readonly text: string;
+  readonly timeoutId: number;
+};
 
 export interface GameRuntime {
   readonly configureCanvasDpi: typeof configureRealCanvasDpi;
@@ -84,6 +96,10 @@ class Game implements Disposable {
   private canvasSize: GameCanvasSize = DEFAULT_GAME_CANVAS_SIZE;
   private weaponHudPhase: WeaponHudPhase = "idle";
   private weaponHudTimeoutId?: number;
+  private keyHudVisible = false;
+  private keyHudTimeoutId?: number;
+  private messageHudEntries: MessageHudEntry[] = [];
+  private nextMessageHudId = 1;
   private inputController?: Disposable;
   private session?: GameSessionHandle;
   private started = false;
@@ -122,10 +138,11 @@ class Game implements Disposable {
       this.canvasSize,
       this.session,
       this.model.mode,
-      this.model.recentMessages,
+      this.messageHudEntries.map((entry) => entry.text),
       this.model.combatFeedback,
       this.model.viewMode,
       this.weaponHudPhase,
+      { showKeys: this.keyHudVisible },
       this.renderLoadedAssets,
     );
   }
@@ -143,7 +160,10 @@ class Game implements Disposable {
     const previousSession = this.session;
     this.session = session;
     this.clearWeaponHudTimeout();
+    this.clearKeyHudTimeout();
+    this.clearMessageHudEntries();
     this.weaponHudPhase = "idle";
+    this.keyHudVisible = false;
     previousSession?.[Symbol.dispose]();
     this.apply({ type: "mapLoaded", mapName, playerState });
   }
@@ -192,6 +212,12 @@ class Game implements Disposable {
     }
     if (playerAttackOccurred(result.events, playerEntity)) {
       this.flashWeaponHud();
+    }
+    if (keyHudShouldFlash(result.events)) {
+      this.flashKeyHud();
+    }
+    if (result.events.length > 0) {
+      this.addMessageHudMessages(result.events.map((event) => messageForEvent(playerEntity, event)));
     }
     for (const event of result.events) {
       // First-person sprite animation: enemies strike a pose when they
@@ -262,9 +288,61 @@ class Game implements Disposable {
     this.weaponHudTimeoutId = undefined;
   }
 
+  private flashKeyHud(): void {
+    this.clearKeyHudTimeout();
+    this.keyHudVisible = true;
+    this.keyHudTimeoutId = this.spec.window.setTimeout(() => {
+      this.keyHudTimeoutId = undefined;
+      this.keyHudVisible = false;
+      this.render();
+    }, KEY_HUD_VISIBLE_MS);
+  }
+
+  private clearKeyHudTimeout(): void {
+    if (this.keyHudTimeoutId === undefined) return;
+    this.spec.window.clearTimeout(this.keyHudTimeoutId);
+    this.keyHudTimeoutId = undefined;
+  }
+
+  private addMessageHudMessages(messages: readonly string[]): void {
+    const activeTexts = new Set(this.messageHudEntries.map((entry) => entry.text));
+    for (const text of messages) {
+      if (activeTexts.has(text)) continue;
+      activeTexts.add(text);
+      const id = this.nextMessageHudId;
+      this.nextMessageHudId++;
+      const timeoutId = this.spec.window.setTimeout(() => this.expireMessageHudEntry(id), MESSAGE_HUD_VISIBLE_MS);
+      this.messageHudEntries.push({ id, text, timeoutId });
+    }
+    this.trimMessageHudEntries();
+  }
+
+  private trimMessageHudEntries(): void {
+    while (this.messageHudEntries.length > MESSAGE_HUD_MAX_LINES) {
+      const entry = this.messageHudEntries[0];
+      if (entry === undefined) return;
+      this.spec.window.clearTimeout(entry.timeoutId);
+      this.messageHudEntries = this.messageHudEntries.slice(1);
+    }
+  }
+
+  private expireMessageHudEntry(id: number): void {
+    this.messageHudEntries = this.messageHudEntries.filter((entry) => entry.id !== id);
+    this.render();
+  }
+
+  private clearMessageHudEntries(): void {
+    for (const entry of this.messageHudEntries) {
+      this.spec.window.clearTimeout(entry.timeoutId);
+    }
+    this.messageHudEntries = [];
+  }
+
   [Symbol.dispose](): void {
     this.controller.abort();
     this.clearWeaponHudTimeout();
+    this.clearKeyHudTimeout();
+    this.clearMessageHudEntries();
     this.inputController?.[Symbol.dispose]();
     this.session?.[Symbol.dispose]();
     this.canvasController?.[Symbol.dispose]();
@@ -282,6 +360,10 @@ function playerAttackOccurred(events: readonly GameEvent[], playerEntity: Entity
         return false;
     }
   });
+}
+
+function keyHudShouldFlash(events: readonly GameEvent[]): boolean {
+  return events.some((event) => event.type === "keyPickedUp" || event.type === "doorLocked");
 }
 
 function gameRuntime(): GameRuntime {
@@ -312,6 +394,7 @@ function renderRuntimeGameFrame(
   combatFeedback: readonly CombatFeedback[],
   viewMode: ViewMode,
   weaponHudPhase: WeaponHudPhase,
+  firstPersonHud: FirstPersonHudOptions,
   onAssetLoad?: () => void,
 ): void {
   renderRealGameFrame(
@@ -323,6 +406,7 @@ function renderRuntimeGameFrame(
     combatFeedback,
     viewMode,
     weaponHudPhase,
+    firstPersonHud,
     onAssetLoad,
   );
 }

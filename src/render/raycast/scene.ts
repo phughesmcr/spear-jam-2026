@@ -43,10 +43,10 @@ export type ThinWallSlide =
   | typeof THIN_SLIDE_DOWN;
 
 /** Half the horizontal field of view, as camera plane length. */
-export const CAMERA_PLANE_LENGTH = 1.2;
+export const CAMERA_PLANE_LENGTH = 1.0;
 
-/** Vertical projection scale; lower than the ray plane to avoid excess floor stretch. */
-const PROJECTION_PLANE_LENGTH = 0.95;
+/** Neutral projection scale: one world tile maps to one texture span. */
+const PROJECTION_PLANE_LENGTH = 1.0;
 
 const MAX_THIN_WALLS = 64;
 const MAX_SPRITES = 128;

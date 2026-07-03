@@ -6,9 +6,9 @@ Deno.test("canvasPointerPosition converts browser coordinates into logical canva
     canvasPointerPosition(
       { clientX: 190, clientY: 308 },
       { left: 10, top: 20, width: 360, height: 576 },
-      { width: 720, height: 1152 },
+      { width: 720, height: 1280 },
     ),
-    { x: 360, y: 576 },
+    { x: 360, y: 640 },
   );
 });
 
@@ -17,7 +17,7 @@ Deno.test("canvasPointerPosition handles collapsed element bounds", () => {
     canvasPointerPosition(
       { clientX: 20, clientY: 20 },
       { left: 10, top: 10, width: 0, height: 0 },
-      { width: 720, height: 1152 },
+      { width: 720, height: 1280 },
     ),
     { x: 0, y: 0 },
   );

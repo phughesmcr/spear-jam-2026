@@ -4,9 +4,7 @@ export interface GameCanvasSize {
 }
 
 export const GAME_WIDTH = 720;
-export const GAME_HEIGHT = 1152;
-export const COMPACT_GAME_WIDTH = 360;
-export const COMPACT_GAME_HEIGHT = 576;
+export const GAME_HEIGHT = 1280;
 export const MAX_DPR = 2;
 export const DEFAULT_GAME_CANVAS_SIZE: GameCanvasSize = { width: GAME_WIDTH, height: GAME_HEIGHT };
 
@@ -15,9 +13,8 @@ interface GameCanvasDisplaySize extends GameCanvasSize {
 }
 
 export function selectGameCanvasSize(viewportWidth: number, viewportHeight: number): GameCanvasSize {
-  if (viewportWidth < GAME_WIDTH || viewportHeight < GAME_HEIGHT) {
-    return { width: COMPACT_GAME_WIDTH, height: COMPACT_GAME_HEIGHT };
-  }
+  void viewportWidth;
+  void viewportHeight;
   return { width: GAME_WIDTH, height: GAME_HEIGHT };
 }
 

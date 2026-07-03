@@ -3,7 +3,7 @@
 :root {
   --game-aspect-ratio: 0.625;
   --game-display-width: 720px;
-  --game-display-height: 1152px;
+  --game-display-height: 1280px;
 }
 
 * {

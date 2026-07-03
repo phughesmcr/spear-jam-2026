@@ -3,15 +3,15 @@ import { VERBS } from "@/src/game/verbs.ts";
 import { verbMenuHotspotIndexAt, verbMenuSpriteRect } from "@/src/render/verb_menu.ts";
 
 Deno.test("verbMenuSpriteRect presents the sprite full width on portrait canvases", () => {
-  assertEquals(verbMenuSpriteRect({ width: 720, height: 1152 }), {
+  assertEquals(verbMenuSpriteRect({ width: 720, height: 1280 }), {
     x: 0,
-    y: 216,
+    y: 280,
     size: 720,
   });
 });
 
 Deno.test("verbMenuHotspotIndexAt maps body parts to verbs", () => {
-  const canvasSize = { width: 720, height: 1152 };
+  const canvasSize = { width: 720, height: 1280 };
   const rect = verbMenuSpriteRect(canvasSize);
 
   const verbAt = (x: number, y: number): string | undefined => {

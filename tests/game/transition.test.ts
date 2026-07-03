@@ -29,7 +29,7 @@ Deno.test("transition moves loaded maps into playing mode and requests input set
   assertEquals(result.effects, [{ type: "ensureInput" }, { type: "render" }]);
 });
 
-Deno.test("transition derives command result messages and intermission state", () => {
+Deno.test("transition derives command result intermission state", () => {
   const playing = transition(createGameModel("Level 1"), {
     type: "mapLoaded",
     mapName: "Level 1",
@@ -46,7 +46,6 @@ Deno.test("transition derives command result messages and intermission state", (
     },
   });
 
-  assertEquals(result.model.recentMessages, ["The uplink hums."]);
   assertEquals(result.model.mode, {
     type: "intermission",
     message: "Entering Level 2. Space to continue.",
@@ -112,7 +111,6 @@ Deno.test("transition retries defeat from the current level entry snapshot", () 
   }));
 
   const result = transition(model, { type: "gameCommand", command: { type: "wait" } });
-  assertEquals(result.model.recentMessages, []);
   assertEquals(result.model.combatFeedback, []);
   assertEquals(result.model.mode, { type: "loading" });
   assertEquals(result.effects, [

@@ -6,12 +6,13 @@ import { createPlayerState } from "@/src/game/state.ts";
 import type { GameMode, PlayerState, PlayerStateInput, ViewMode } from "@/src/game/state.ts";
 import type { CanvasPointerInput } from "@/src/input/pointer.ts";
 import type { GameCanvasSize } from "@/src/render/canvas.ts";
+import type { FirstPersonHudOptions } from "@/src/render/hud.ts";
 import { verbMenuSpriteRect } from "@/src/render/verb_menu.ts";
 import type { WeaponHudPhase } from "@/src/render/weapon_hud.ts";
 import { KeyColor } from "@/src/map/map.ts";
 import type { GameMap } from "@/src/map/map.ts";
 
-const CANVAS_SIZE: GameCanvasSize = { width: 720, height: 1152 };
+const CANVAS_SIZE: GameCanvasSize = { width: 720, height: 1280 };
 const PLAYER_ENTITY = 1 as Entity;
 
 Deno.test("Game toggles overlay modes and advances dialogue with scripted commands", async () => {
@@ -203,7 +204,118 @@ Deno.test("Game does not flash the weapon HUD when an attack has no ammo", async
 
     harness.command({ type: "attack" });
     assertEquals(harness.latestFrame().weaponHudPhase, "idle");
-    assertEquals(harness.pendingTimerCount(), 0);
+    assertEquals(harness.latestFrame().messages, ["No pistol ammo."]);
+    assertEquals(harness.pendingTimerCount(), 1);
+  } finally {
+    harness[Symbol.dispose]();
+  }
+});
+
+Deno.test("Game does not repeat active top ephemeral messages", async () => {
+  const harness = await startHarness();
+  try {
+    for (let i = 0; i < 10; i++) {
+      harness.latestSession().enqueue({
+        events: [{
+          type: "attackMissed",
+          actor: PLAYER_ENTITY,
+          actorName: "You",
+        }],
+      });
+      harness.command({ type: "attack" });
+    }
+
+    assertEquals(harness.latestFrame().messages, ["Nothing in range."]);
+    assertEquals(harness.pendingTimerCount(), 2);
+
+    harness.runNextTimer();
+    assertEquals(harness.latestFrame().messages, []);
+  } finally {
+    harness[Symbol.dispose]();
+  }
+});
+
+Deno.test("Game briefly shows the first-person key HUD after key pickup", async () => {
+  const harness = await startHarness();
+  try {
+    harness.latestSession().enqueue({
+      events: [{ type: "keyPickedUp", entity: 2 as Entity }],
+    });
+
+    harness.command({ type: "wait" });
+    assertEquals(harness.latestFrame().firstPersonHud.showKeys, true);
+
+    harness.runNextTimer();
+    assertEquals(harness.latestFrame().firstPersonHud.showKeys, false);
+  } finally {
+    harness[Symbol.dispose]();
+  }
+});
+
+Deno.test("Game briefly shows top ephemeral messages after player events", async () => {
+  const harness = await startHarness();
+  try {
+    harness.latestSession().enqueue({
+      events: [{ type: "ammoPickedUp", entity: 2 as Entity, ammo: "pistol", amount: 5 }],
+    });
+
+    harness.command({ type: "wait" });
+    assertEquals(harness.latestFrame().messages, ["Picked up 5 pistol ammo."]);
+
+    harness.runNextTimer();
+    assertEquals(harness.latestFrame().messages, []);
+  } finally {
+    harness[Symbol.dispose]();
+  }
+});
+
+Deno.test("Game expires top ephemeral messages independently", async () => {
+  const harness = await startHarness();
+  try {
+    harness.latestSession().enqueue({
+      events: [{ type: "ammoPickedUp", entity: 2 as Entity, ammo: "pistol", amount: 5 }],
+    });
+    harness.command({ type: "wait" });
+
+    harness.latestSession().enqueue({
+      events: [{ type: "healthPickedUp", entity: 2 as Entity, amount: 4, healed: 3 }],
+    });
+    harness.command({ type: "wait" });
+    assertEquals(harness.latestFrame().messages, [
+      "Picked up 5 pistol ammo.",
+      "Restored 3 HP.",
+    ]);
+
+    harness.runNextTimer();
+    assertEquals(harness.latestFrame().messages, ["Restored 3 HP."]);
+
+    harness.runNextTimer();
+    assertEquals(harness.latestFrame().messages, []);
+  } finally {
+    harness[Symbol.dispose]();
+  }
+});
+
+Deno.test("Game keeps only the newest top ephemeral messages", async () => {
+  const harness = await startHarness();
+  try {
+    harness.latestSession().enqueue({
+      events: [{ type: "ammoPickedUp", entity: 2 as Entity, ammo: "pistol", amount: 5 }],
+    });
+    harness.command({ type: "wait" });
+
+    harness.latestSession().enqueue({
+      events: [{ type: "healthPickedUp", entity: 2 as Entity, amount: 4, healed: 3 }],
+    });
+    harness.command({ type: "wait" });
+
+    harness.latestSession().enqueue({
+      events: [{ type: "doorOpened", entity: 2 as Entity }],
+    });
+    harness.command({ type: "wait" });
+
+    assertEquals(harness.latestFrame().messages, ["Restored 3 HP.", "Opened the door."]);
+    assertEquals(harness.pendingTimerCount(), 2);
   } finally {
     harness[Symbol.dispose]();
   }
@@ -211,7 +323,9 @@ Deno.test("Game does not flash the weapon HUD when an attack has no ammo", async
 
 type RenderSnapshot = {
   readonly mode: GameMode;
+  readonly messages: readonly string[];
   readonly weaponHudPhase: WeaponHudPhase;
+  readonly firstPersonHud: FirstPersonHudOptions;
 };
 
 type LoadSnapshot = {
@@ -314,13 +428,14 @@ class EntryHarness implements Disposable {
           _canvasSize: GameCanvasSize,
           _session: unknown,
           mode: GameMode,
-          _messages: readonly string[],
+          messages: readonly string[],
           _combatFeedback: readonly unknown[],
           _viewMode: ViewMode,
           weaponHudPhase: WeaponHudPhase,
+          firstPersonHud: FirstPersonHudOptions,
           _onAssetLoad?: () => void,
         ): void => {
-          this.frames.push({ mode, weaponHudPhase });
+          this.frames.push({ mode, messages, weaponHudPhase, firstPersonHud });
         },
         setupInput: (
           _window: Window,

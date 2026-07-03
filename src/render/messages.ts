@@ -2,58 +2,61 @@ import type { GameCanvasSize } from "@/src/render/canvas.ts";
 import { fitText, monoFont } from "@/src/render/text.ts";
 
 const LOG_MARGIN = 12;
-const LOG_PADDING_X = 12;
-const LOG_PADDING_Y = 5;
-const LOG_FONT_SIZE = 13;
-const LOG_LINE_HEIGHT = 16;
-const LOG_BACKGROUND = "rgba(3, 6, 10, 0.66)";
-const LOG_BORDER = "rgba(148, 163, 184, 0.28)";
+const LOG_FONT_SIZE = 14;
+const LOG_LINE_HEIGHT = 18;
 const LOG_TEXT = "#f3f4f6";
-const MAX_VISIBLE_LOG_LINES = 4;
+const LOG_OLDER_TEXT = "#aeb7c2";
+const LOG_SHADOW = "rgba(0, 0, 0, 0.86)";
+const LOG_MAX_VISIBLE_LINES = 2;
+
+export type MessageLogOptions = {
+  readonly maxLines?: number;
+};
 
 export function renderMessageLog(
   ctx: CanvasRenderingContext2D,
   canvasSize: GameCanvasSize,
   messages: readonly string[],
-  bandTop?: number,
+  options: MessageLogOptions = {},
 ): void {
   if (messages.length === 0) return;
-  const visibleMessages = visibleMessageLogLines(messages);
+  const visibleMessages = visibleMessageLogLines(messages, options.maxLines ?? LOG_MAX_VISIBLE_LINES);
+  if (visibleMessages.length === 0) return;
 
-  const width = canvasSize.width - LOG_MARGIN * 2;
-  if (width <= LOG_PADDING_X * 2) return;
-
-  const height = visibleMessages.length * LOG_LINE_HEIGHT + LOG_PADDING_Y * 2;
-  const x = LOG_MARGIN;
-  const y = messageLogY(canvasSize.height, height, bandTop);
+  const maxTextWidth = canvasSize.width - LOG_MARGIN * 2;
+  if (maxTextWidth <= 0) return;
 
   ctx.save();
-  ctx.fillStyle = LOG_BACKGROUND;
-  ctx.fillRect(x, y, width, height);
-  ctx.strokeStyle = LOG_BORDER;
-  ctx.strokeRect(x + 0.5, y + 0.5, width - 1, height - 1);
-  ctx.font = monoFont(400, LOG_FONT_SIZE);
+  ctx.font = monoFont(700, LOG_FONT_SIZE);
   ctx.textAlign = "left";
   ctx.textBaseline = "middle";
-  ctx.fillStyle = LOG_TEXT;
 
-  const maxTextWidth = width - LOG_PADDING_X * 2;
   for (let i = 0; i < visibleMessages.length; i++) {
-    const lineY = y + LOG_PADDING_Y + LOG_LINE_HEIGHT * i + LOG_LINE_HEIGHT / 2;
-    ctx.fillText(fitText(ctx, visibleMessages[i]!, maxTextWidth), x + LOG_PADDING_X, lineY);
+    const lineY = messageLogLineY(i);
+    const text = fitText(ctx, visibleMessages[i]!, maxTextWidth);
+    ctx.fillStyle = LOG_SHADOW;
+    ctx.fillText(text, LOG_MARGIN + 1, lineY + 1);
+    ctx.fillStyle = messageLogTextColor(i, visibleMessages.length);
+    ctx.fillText(text, LOG_MARGIN, lineY);
   }
 
   ctx.restore();
 }
 
-export function visibleMessageLogLines(messages: readonly string[]): readonly string[] {
-  return messages.slice(-MAX_VISIBLE_LOG_LINES);
+export function visibleMessageLogLines(messages: readonly string[], maxLines?: number): readonly string[] {
+  const limit = maxLines ?? LOG_MAX_VISIBLE_LINES;
+  if (limit <= 0) return [];
+  const lines = messages.slice(-limit);
+  lines.reverse();
+  return lines;
 }
 
-export function messageLogY(canvasHeight: number, logHeight: number, bandTop?: number): number {
-  if (bandTop === undefined) return canvasHeight - logHeight - LOG_MARGIN;
+export function messageLogLineY(lineIndex: number): number {
+  if (lineIndex <= 0) return LOG_MARGIN + LOG_LINE_HEIGHT / 2 + 2;
+  return messageLogLineY(0) + LOG_LINE_HEIGHT * lineIndex;
+}
 
-  const bandHeight = canvasHeight - bandTop;
-  if (bandHeight <= logHeight) return bandTop;
-  return bandTop + Math.floor((bandHeight - logHeight) / 2);
+export function messageLogTextColor(lineIndex: number, lineCount: number): string {
+  if (lineCount <= 1 || lineIndex === 0) return LOG_TEXT;
+  return LOG_OLDER_TEXT;
 }

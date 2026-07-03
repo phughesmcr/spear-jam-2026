@@ -5,15 +5,15 @@ import TouchGestures from "@/src/input/touch_gestures.ts";
 import type { TouchGestureScheduler } from "@/src/input/touch_gestures.ts";
 import type { GameCanvasSize } from "@/src/render/canvas.ts";
 
-const CANVAS_SIZE: GameCanvasSize = { width: 720, height: 1152 };
+const CANVAS_SIZE: GameCanvasSize = { width: 720, height: 1280 };
 
 Deno.test("TouchGestures maps swipes to movement commands", () => {
   const harness = gestureHarness();
 
-  harness.swipe({ x: 360, y: 576 }, { x: 360, y: 476 });
-  harness.swipe({ x: 360, y: 576 }, { x: 360, y: 676 });
-  harness.swipe({ x: 360, y: 576 }, { x: 260, y: 576 });
-  harness.swipe({ x: 360, y: 576 }, { x: 460, y: 576 });
+  harness.swipe({ x: 360, y: 640 }, { x: 360, y: 540 });
+  harness.swipe({ x: 360, y: 640 }, { x: 360, y: 740 });
+  harness.swipe({ x: 360, y: 640 }, { x: 260, y: 640 });
+  harness.swipe({ x: 360, y: 640 }, { x: 460, y: 640 });
 
   assertEquals(harness.commands, [
     { type: "move", direction: "forward" },
@@ -26,14 +26,14 @@ Deno.test("TouchGestures maps swipes to movement commands", () => {
 Deno.test("TouchGestures maps single taps to delayed turn and action commands", () => {
   const harness = gestureHarness();
 
-  harness.tap({ x: 120, y: 576 });
+  harness.tap({ x: 120, y: 640 });
   assertEquals(harness.commands, []);
   harness.scheduler.advance(220);
   assertEquals(harness.commands, [{ type: "turn", direction: "left" }]);
 
-  harness.tap({ x: 600, y: 576 });
+  harness.tap({ x: 600, y: 640 });
   harness.scheduler.advance(220);
-  harness.tap({ x: 360, y: 576 });
+  harness.tap({ x: 360, y: 640 });
   harness.scheduler.advance(220);
 
   assertEquals(harness.commands, [
@@ -46,7 +46,7 @@ Deno.test("TouchGestures maps single taps to delayed turn and action commands", 
 Deno.test("TouchGestures maps a double tap to smart action without emitting the pending single tap", () => {
   const harness = gestureHarness();
 
-  harness.tap({ x: 360, y: 576 });
+  harness.tap({ x: 360, y: 640 });
   harness.scheduler.advance(100);
   harness.tap({ x: 370, y: 586 });
   harness.scheduler.advance(220);
@@ -57,10 +57,10 @@ Deno.test("TouchGestures maps a double tap to smart action without emitting the 
 Deno.test("TouchGestures ignores mouse pointers and disabled touch gestures", () => {
   const harness = gestureHarness(false);
 
-  harness.tap({ x: 360, y: 576 });
+  harness.tap({ x: 360, y: 640 });
   harness.scheduler.advance(220);
-  harness.pointer({ phase: "down", x: 120, y: 576, pointerType: "mouse" });
-  harness.pointer({ phase: "up", x: 120, y: 576, pointerType: "mouse" });
+  harness.pointer({ phase: "down", x: 120, y: 640, pointerType: "mouse" });
+  harness.pointer({ phase: "up", x: 120, y: 640, pointerType: "mouse" });
   harness.scheduler.advance(220);
 
   assertEquals(harness.commands, []);

@@ -3,12 +3,9 @@ import { combatFeedbackForEvents } from "@/src/game/combat_feedback.ts";
 import type { CombatFeedback } from "@/src/game/combat_feedback.ts";
 import { isPlayerCommand } from "@/src/game/commands.ts";
 import type { GameCommand, PlayerCommand, PlayerCommandResult } from "@/src/game/commands.ts";
-import { messageForEvent } from "@/src/game/messages.ts";
 import { createPlayerState } from "@/src/game/state.ts";
 import type { GameMode, PlayerState, ViewMode } from "@/src/game/state.ts";
 import { VERBS, verbToCommand } from "@/src/game/verbs.ts";
-
-const MESSAGE_LOG_LIMIT = 5;
 
 type IntermissionMode = Extract<GameMode, { readonly type: "intermission" }>;
 type DialogueMode = Extract<GameMode, { readonly type: "dialogue" }>;
@@ -20,7 +17,6 @@ export type GameModel = {
   readonly startMapName: string;
   readonly currentMapName: string;
   readonly currentLevelEntryState?: PlayerState;
-  readonly recentMessages: readonly string[];
   readonly combatFeedback: readonly CombatFeedback[];
   readonly mode: GameMode;
   readonly viewMode: ViewMode;
@@ -56,7 +52,6 @@ export function createGameModel(startMapName: string): GameModel {
   return {
     startMapName,
     currentMapName: startMapName,
-    recentMessages: [],
     combatFeedback: [],
     mode: { type: "loading" },
     viewMode: "firstPerson",
@@ -141,7 +136,6 @@ function outcomeCommand(
 
   const resetModel = {
     ...model,
-    recentMessages: [],
     combatFeedback: [],
     mode: { type: "loading" },
   } satisfies GameModel;
@@ -224,18 +218,18 @@ function playerCommandResult(
   playerEntity: Entity,
   playerState: PlayerState,
 ): GameTransition {
-  const modelWithMessages = appendEventMessages(model, playerEntity, result);
+  const modelWithFeedback = applyCombatFeedback(model, playerEntity, result);
   if (result.outcome) {
-    return done({ ...modelWithMessages, mode: { type: result.outcome } }, [{ type: "render" }]);
+    return done({ ...modelWithFeedback, mode: { type: result.outcome } }, [{ type: "render" }]);
   }
   if (result.mapChange) {
-    return done(enterIntermission(modelWithMessages, result.mapChange.goto, playerState), [{ type: "render" }]);
+    return done(enterIntermission(modelWithFeedback, result.mapChange.goto, playerState), [{ type: "render" }]);
   }
   if (result.dialogue) {
-    return done({ ...modelWithMessages, mode: { type: "dialogue", ...result.dialogue } }, [{ type: "render" }]);
+    return done({ ...modelWithFeedback, mode: { type: "dialogue", ...result.dialogue } }, [{ type: "render" }]);
   }
 
-  return done(modelWithMessages, [{ type: "render" }]);
+  return done(modelWithFeedback, [{ type: "render" }]);
 }
 
 function toggleMenu(model: GameModel): GameTransition {
@@ -289,18 +283,13 @@ function confirmVerbSelection(model: GameModel, mode: VerbMenuMode): GameTransit
   }, [{ type: "runPlayerCommand", command: verbToCommand(selectedIndex) }]);
 }
 
-function appendEventMessages(
+function applyCombatFeedback(
   model: GameModel,
   playerEntity: Entity,
   result: PlayerCommandResult,
 ): GameModel {
-  const recentMessages = [
-    ...model.recentMessages,
-    ...result.events.map((event) => messageForEvent(playerEntity, event)),
-  ];
   return {
     ...model,
-    recentMessages: recentMessages.slice(Math.max(0, recentMessages.length - MESSAGE_LOG_LIMIT)),
     combatFeedback: combatFeedbackForEvents(playerEntity, result.events),
   };
 }

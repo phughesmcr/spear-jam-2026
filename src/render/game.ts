@@ -5,7 +5,8 @@ import type { GameCanvasSize } from "@/src/render/canvas.ts";
 import { renderCombatFeedback } from "@/src/render/combat_feedback.ts";
 import { renderDrawableEntities } from "@/src/render/drawables.ts";
 import { preloadFirstPersonAssets, renderFirstPersonView } from "@/src/render/first_person.ts";
-import { renderHud } from "@/src/render/hud.ts";
+import { preloadHudAssets, renderFirstPersonHud, renderHud } from "@/src/render/hud.ts";
+import type { FirstPersonHudOptions } from "@/src/render/hud.ts";
 import { renderMap } from "@/src/render/map.ts";
 import type { MapRenderMetrics } from "@/src/render/map.ts";
 import { renderMessageLog } from "@/src/render/messages.ts";
@@ -15,12 +16,9 @@ import { preloadWeaponHudAssets, renderWeaponHud } from "@/src/render/weapon_hud
 import type { WeaponHudPhase } from "@/src/render/weapon_hud.ts";
 
 const BACKGROUND_COLOR = "#101217";
-const MESSAGE_BAND_COLOR = "#0b0f16";
-const MESSAGE_BAND_BORDER = "rgba(148, 163, 184, 0.18)";
-export const GAME_RENDER_TOP_OFFSET = 49;
-export const MESSAGE_LOG_BAND_HEIGHT = 79;
+export const GAME_RENDER_TOP_OFFSET = 0;
 
-export type GameRenderRect = {
+type GameRenderRect = {
   readonly x: number;
   readonly y: number;
   readonly width: number;
@@ -32,22 +30,25 @@ export async function preloadGameAssets(document: Document, onAssetLoad?: () => 
     preloadVerbMenuAssets(document, onAssetLoad),
     preloadFirstPersonAssets(document, onAssetLoad),
     preloadWeaponHudAssets(document, onAssetLoad),
+    preloadHudAssets(document, onAssetLoad),
   ]);
 }
 
-/** Where the combat feedback strip sits above the message log, full width. */
+/** Where the combat feedback strip sits in the lower first-person view, full width. */
 const FEEDBACK_MARGIN = 12;
 const FEEDBACK_BOTTOM_OFFSET = 150;
 
-export function playCanvasSize(canvasSize: GameCanvasSize): GameCanvasSize {
-  return {
-    width: canvasSize.width,
-    height: Math.max(1, canvasSize.height - MESSAGE_LOG_BAND_HEIGHT),
-  };
+export function playCanvasSize(canvasSize: GameCanvasSize, viewMode: ViewMode): GameCanvasSize {
+  void viewMode;
+  return canvasSize;
 }
 
-export function gameRenderRect(canvasSize: GameCanvasSize): GameRenderRect {
-  const playSize = playCanvasSize(canvasSize);
+export function gameRenderRect(canvasSize: GameCanvasSize, viewMode: ViewMode): GameRenderRect {
+  if (viewMode === "topDown") {
+    return { x: 0, y: 0, width: canvasSize.width, height: canvasSize.height };
+  }
+
+  const playSize = playCanvasSize(canvasSize, viewMode);
   const y = Math.min(GAME_RENDER_TOP_OFFSET, Math.max(0, playSize.height - 1));
   return {
     x: 0,
@@ -58,13 +59,13 @@ export function gameRenderRect(canvasSize: GameCanvasSize): GameRenderRect {
 }
 
 /** Synthetic map metrics so the feedback strip can render without a map. */
-function firstPersonFeedbackMetrics(rect: GameRenderRect): MapRenderMetrics {
+function firstPersonFeedbackMetrics(canvasSize: GameCanvasSize): MapRenderMetrics {
   return {
     mapWidth: 1,
     mapHeight: 0,
-    tileSize: rect.width - FEEDBACK_MARGIN * 2,
-    offsetX: rect.x + FEEDBACK_MARGIN,
-    offsetY: rect.y + rect.height - FEEDBACK_BOTTOM_OFFSET,
+    tileSize: canvasSize.width - FEEDBACK_MARGIN * 2,
+    offsetX: FEEDBACK_MARGIN,
+    offsetY: canvasSize.height - FEEDBACK_BOTTOM_OFFSET,
   };
 }
 
@@ -77,48 +78,34 @@ export function renderGameFrame(
   combatFeedback: readonly CombatFeedback[] = [],
   viewMode: ViewMode = "firstPerson",
   weaponHudPhase: WeaponHudPhase = "idle",
+  firstPersonHud: FirstPersonHudOptions = {},
   onAssetLoad?: () => void,
 ): void {
   ctx.fillStyle = BACKGROUND_COLOR;
   ctx.fillRect(0, 0, canvasSize.width, canvasSize.height);
-  const playSize = playCanvasSize(canvasSize);
-  const renderRect = gameRenderRect(canvasSize);
-  const renderSize = { width: renderRect.width, height: renderRect.height };
-  renderMessageBand(ctx, canvasSize, playSize.height);
+  const playSize = playCanvasSize(canvasSize, viewMode);
   if (session) {
     const { map } = session;
     if (viewMode === "firstPerson") {
+      const playRect = gameRenderRect(canvasSize, viewMode);
       renderFirstPersonView(
         ctx,
-        renderRect,
+        playRect,
         session,
         onAssetLoad,
       );
-      renderFirstPersonVignette(ctx, renderRect);
-      renderInRect(ctx, renderRect, () => {
-        renderWeaponHud(
-          ctx,
-          renderSize,
-          session.getPlayerState().selectedWeapon,
-          weaponHudPhase,
-          onAssetLoad,
-        );
-      });
-      renderCombatFeedback(ctx, firstPersonFeedbackMetrics(renderRect), combatFeedback);
+      renderFirstPersonVignette(ctx, playRect);
+      renderWeaponHud(ctx, playSize, session.getPlayerState().selectedWeapon, weaponHudPhase, onAssetLoad);
+      renderFirstPersonHud(ctx, playSize, session.getPlayerState(), firstPersonHud, onAssetLoad);
+      renderCombatFeedback(ctx, firstPersonFeedbackMetrics(playSize), combatFeedback);
     } else {
-      const metrics = renderMap(
-        ctx,
-        renderSize,
-        map,
-        session.getVisibility(),
-        { x: renderRect.x, y: renderRect.y },
-      );
+      const metrics = renderMap(ctx, canvasSize, map, session.getVisibility());
       renderDrawableEntities(ctx, session, metrics);
       renderCombatFeedback(ctx, metrics, combatFeedback);
+      renderHud(ctx, canvasSize, session);
     }
-    renderHud(ctx, canvasSize, session);
   }
-  renderMessageLog(ctx, canvasSize, messages, playSize.height);
+  renderMessageLog(ctx, canvasSize, messages);
   switch (mode.type) {
     case "loading":
       renderOverlay(ctx, canvasSize, "LOADING");
@@ -150,23 +137,6 @@ export function renderGameFrame(
     case "playing":
       return;
   }
-}
-
-function renderInRect(ctx: CanvasRenderingContext2D, rect: GameRenderRect, render: () => void): void {
-  ctx.save();
-  ctx.translate(rect.x, rect.y);
-  render();
-  ctx.restore();
-}
-
-function renderMessageBand(ctx: CanvasRenderingContext2D, canvasSize: GameCanvasSize, top: number): void {
-  ctx.fillStyle = MESSAGE_BAND_COLOR;
-  ctx.fillRect(0, top, canvasSize.width, canvasSize.height - top);
-  ctx.strokeStyle = MESSAGE_BAND_BORDER;
-  ctx.beginPath();
-  ctx.moveTo(0, top + 0.5);
-  ctx.lineTo(canvasSize.width, top + 0.5);
-  ctx.stroke();
 }
 
 function renderFirstPersonVignette(ctx: CanvasRenderingContext2D, rect: GameRenderRect): void {

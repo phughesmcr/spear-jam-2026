@@ -105,25 +105,33 @@ Deno.test("renderFrame textures floor below and mirrored ceiling above", () => {
   assertEquals(pixel(frame, CENTER, 3), texel(atlas, "planes", CEILING, 2));
 });
 
-Deno.test("renderFrame shows the player's current floor tile in a portrait view", () => {
+Deno.test("renderFrame shows the player's current floor and ceiling tile across a portrait view", () => {
   const atlas = testAtlas();
   const scene = corridorScene();
   scene.floors[1 * 5 + 1] = CURRENT_FLOOR + 1;
+  scene.ceilings[1 * 5 + 1] = CURRENT_FLOOR + 1;
   scene.floors[1 * 5 + 2] = AHEAD_FLOOR + 1;
+  scene.ceilings[1 * 5 + 2] = AHEAD_FLOOR + 1;
   const frame = createFrame(360, 640);
 
   renderFrame(frame, scene, atlas, CAMERA);
 
-  assertEquals(
-    pixel(frame, frame.width >> 1, Math.floor(frame.height * 0.875)),
-    texel(atlas, "planes", CURRENT_FLOOR, 0),
-  );
+  const aheadY = Math.floor(frame.height * 0.75);
+  assertEquals(pixel(frame, frame.width >> 1, aheadY), texel(atlas, "planes", AHEAD_FLOOR, 0));
+  assertEquals(pixel(frame, frame.width >> 1, frame.height - 1 - aheadY), texel(atlas, "planes", AHEAD_FLOOR, 2));
+
+  const sampleY = Math.floor(frame.height * 0.875);
+  const sampleXs = [Math.floor(frame.width * 0.2), frame.width >> 1, Math.floor(frame.width * 0.8)];
+  for (const x of sampleXs) {
+    assertEquals(pixel(frame, x, sampleY), texel(atlas, "planes", CURRENT_FLOOR, 0));
+    assertEquals(pixel(frame, x, frame.height - 1 - sampleY), texel(atlas, "planes", CURRENT_FLOOR, 2));
+  }
 });
 
-Deno.test("renderFrame shows the side wall of the player's current tile", () => {
+Deno.test("renderFrame keeps side wall context near the edge of a portrait view", () => {
   const atlas = testAtlas();
   const scene = corridorScene();
-  scene.walls[1] = CURRENT_SIDE_WALL + 1;
+  scene.walls[2] = CURRENT_SIDE_WALL + 1;
   const frame = createFrame(360, 640);
 
   renderFrame(frame, scene, atlas, CAMERA);
@@ -219,8 +227,8 @@ Deno.test("a rising door draws the slab on top and the wall behind below", () =>
   // The ray passes under the half-risen slab and registers the end wall.
   assertAlmostEquals(frame.zbuffer[CENTER]!, 2.5, 1e-9);
   // Upper half of the doorway: the slab. Below it: the wall behind.
-  assertEquals(pixel(frame, CENTER, CENTER >> 1), texel(atlas, "walls", DOOR, 0));
-  assertEquals(pixel(frame, CENTER, CENTER + 6), texel(atlas, "walls", WALL, 2));
+  assertEquals(pixel(frame, CENTER, CENTER - (CENTER >> 2)), texel(atlas, "walls", DOOR, 0));
+  assertEquals(pixel(frame, CENTER, CENTER + (CENTER >> 3)), texel(atlas, "walls", WALL, 2));
 });
 
 Deno.test("clearSceneDynamic removes thin walls and sprites", () => {
