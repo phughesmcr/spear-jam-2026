@@ -88,33 +88,48 @@ Deno.test("transition passes smart action through as a player command", () => {
   assertEquals(result.effects, [{ type: "runPlayerCommand", command: { type: "smartAction" } }]);
 });
 
-Deno.test("transition lets dialogue close from space or numbered choices", () => {
-  const model = {
-    ...createGameModel("Level 1"),
-    mode: { type: "dialogue", title: "John", message: "Stay sharp." },
-  } as const;
+const DIALOGUE_MODE = {
+  type: "dialogue",
+  title: "John",
+  treeKey: "john_intro",
+  message: "Stay sharp.",
+  choices: [
+    { label: "WHAT'S GOING ON?", next: "briefing" },
+    { label: "BYE!" },
+  ],
+} as const;
 
-  const space = transition(model, { type: "gameCommand", command: { type: "wait" } });
-  assertEquals(space.model.mode, { type: "playing" });
-  assertEquals(space.effects, [{ type: "render" }]);
+Deno.test("transition lets dialogue choices advance or close the conversation", () => {
+  const model = { ...createGameModel("Level 1"), mode: DIALOGUE_MODE } as const;
 
-  const numbered = transition(model, { type: "gameCommand", command: { type: "selectWeapon", slot: 2 } });
-  assertEquals(numbered.model.mode, { type: "playing" });
-  assertEquals(numbered.effects, [{ type: "render" }]);
+  const advanced = transition(model, { type: "gameCommand", command: { type: "wait" } });
+  assertEquals(advanced.model.mode, {
+    type: "dialogue",
+    title: "John",
+    treeKey: "john_intro",
+    message: "The uplink is down. Find the code and get to the terminal.",
+    choices: [{ label: "GOT IT." }],
+  });
+  assertEquals(advanced.effects, [{ type: "render" }]);
+
+  const closed = transition(model, { type: "gameCommand", command: { type: "selectWeapon", slot: 2 } });
+  assertEquals(closed.model.mode, { type: "playing" });
+  assertEquals(closed.effects, [{ type: "render" }]);
+
+  const outOfRange = transition(model, { type: "gameCommand", command: { type: "selectWeapon", slot: 3 } });
+  assertEquals(outOfRange.model.mode, DIALOGUE_MODE);
+  assertEquals(outOfRange.effects, []);
 });
 
 Deno.test("transition confirms dialogue pointer only when down and up hit the same option", () => {
-  let model: GameModel = {
-    ...createGameModel("Level 1"),
-    mode: { type: "dialogue", title: "John", message: "Stay sharp." },
-  };
+  let model: GameModel = { ...createGameModel("Level 1"), mode: DIALOGUE_MODE };
 
   ({ model } = transition(model, { type: "dialoguePointer", phase: "down", optionSlot: 1 }));
   assertEquals(model.dialoguePointerDownSlot, 1);
 
   let result = transition(model, { type: "dialoguePointer", phase: "up", optionSlot: 2 });
   model = result.model;
-  assertEquals(model.mode, { type: "dialogue", title: "John", message: "Stay sharp." });
+  assertEquals(model.mode, DIALOGUE_MODE);
   assertEquals(model.dialoguePointerDownSlot, undefined);
   assertEquals(result.effects, []);
 

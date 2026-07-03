@@ -153,11 +153,12 @@ class Game implements Disposable {
   }
 
   private handlePointerInput(input: CanvasPointerInput): void {
-    if (this.model.mode.type === "dialogue") {
+    const mode = this.model.mode;
+    if (mode.type === "dialogue") {
       this.apply({
         type: "dialoguePointer",
         phase: input.phase,
-        optionSlot: dialogueOptionSlotAt(this.canvasSize, input),
+        optionSlot: dialogueOptionSlotAt(this.canvasSize, mode.choices, input),
       });
       return;
     }

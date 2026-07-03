@@ -1,3 +1,4 @@
+import type { DialogueChoice } from "@/src/dialogue/dialogue.ts";
 import type { KeyColor } from "@/src/map/map.ts";
 import type { TurnEffectState } from "@/src/game/turn_effects.ts";
 
@@ -47,6 +48,9 @@ export type PlayerStateInput = {
 export type DialogueState = {
   readonly title: string;
   readonly message: string;
+  readonly choices: readonly DialogueChoice[];
+  /** Tree that resolves choice "next" links; absent for one-off dialogues that always close. */
+  readonly treeKey?: string;
 };
 
 export type GameMode =

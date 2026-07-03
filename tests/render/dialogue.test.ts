@@ -2,6 +2,7 @@ import { assertEquals } from "@std/assert";
 import { dialogueLayout, dialogueOptionSlotAt, dialoguePanelRect, wrapDialogueText } from "@/src/render/dialogue.ts";
 
 const CANVAS = { width: 720, height: 1280 };
+const THREE_CHOICES = [{ label: "CONTINUE." }, { label: "END TRANSMISSION." }, { label: "BYE!" }];
 
 Deno.test("dialoguePanelRect centers a Strife-style panel over the first-person canvas", () => {
   assertEquals(dialoguePanelRect(CANVAS), {
@@ -13,7 +14,7 @@ Deno.test("dialoguePanelRect centers a Strife-style panel over the first-person 
 });
 
 Deno.test("dialogueLayout keeps speaker text, portrait, and choices in stacked bands", () => {
-  const layout = dialogueLayout(CANVAS);
+  const layout = dialogueLayout(CANVAS, THREE_CHOICES);
 
   assertEquals(layout.header, { x: 72, y: 290, width: 576, height: 29 });
   assertEquals(layout.message, { x: 72, y: 327, width: 576, height: 97 });
@@ -37,11 +38,31 @@ Deno.test("dialogueLayout keeps speaker text, portrait, and choices in stacked b
   ]);
 });
 
+Deno.test("dialogueLayout grows the portrait when fewer choices are offered", () => {
+  const layout = dialogueLayout(CANVAS, [{ label: "GOT IT." }]);
+
+  assertEquals(layout.portrait, { x: 72, y: 434, width: 576, height: 340 });
+  assertEquals(layout.choices.map((choice) => ({ slot: choice.slot, label: choice.label, rect: choice.rect })), [
+    {
+      slot: 1,
+      label: "GOT IT.",
+      rect: { x: 72, y: 786, width: 576, height: 44 },
+    },
+  ]);
+});
+
 Deno.test("dialogueOptionSlotAt maps pointer hits to 44px dialogue buttons", () => {
-  assertEquals(dialogueOptionSlotAt(CANVAS, { x: 100, y: 700 }), 1);
-  assertEquals(dialogueOptionSlotAt(CANVAS, { x: 100, y: 750 }), 2);
-  assertEquals(dialogueOptionSlotAt(CANVAS, { x: 100, y: 800 }), 3);
-  assertEquals(dialogueOptionSlotAt(CANVAS, { x: 100, y: 733 }), undefined);
+  assertEquals(dialogueOptionSlotAt(CANVAS, THREE_CHOICES, { x: 100, y: 700 }), 1);
+  assertEquals(dialogueOptionSlotAt(CANVAS, THREE_CHOICES, { x: 100, y: 750 }), 2);
+  assertEquals(dialogueOptionSlotAt(CANVAS, THREE_CHOICES, { x: 100, y: 800 }), 3);
+  assertEquals(dialogueOptionSlotAt(CANVAS, THREE_CHOICES, { x: 100, y: 733 }), undefined);
+});
+
+Deno.test("dialogueOptionSlotAt ignores rows that have no choice", () => {
+  const oneChoice = [{ label: "GOT IT." }];
+
+  assertEquals(dialogueOptionSlotAt(CANVAS, oneChoice, { x: 100, y: 700 }), undefined);
+  assertEquals(dialogueOptionSlotAt(CANVAS, oneChoice, { x: 100, y: 800 }), 1);
 });
 
 Deno.test("wrapDialogueText wraps without exceeding the configured line count", () => {

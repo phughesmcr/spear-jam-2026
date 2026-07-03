@@ -1,4 +1,5 @@
 import type { Entity } from "@phughesmcr/miski";
+import { dialogueTreeNode } from "@/src/dialogue/dialogue.ts";
 import { combatFeedbackForEvents } from "@/src/game/combat_feedback.ts";
 import type { CombatFeedback } from "@/src/game/combat_feedback.ts";
 import { isPlayerCommand } from "@/src/game/commands.ts";
@@ -126,9 +127,29 @@ function intermissionCommand(model: GameModel, mode: IntermissionMode, command: 
   );
 }
 
-function dialogueCommand(model: GameModel, _mode: DialogueMode, command: GameCommand): GameTransition {
-  if (command.type !== "wait" && command.type !== "selectWeapon") return done(model);
-  return closeDialogue(model);
+function dialogueCommand(model: GameModel, mode: DialogueMode, command: GameCommand): GameTransition {
+  if (command.type === "wait") return selectDialogueChoice(model, mode, 1);
+  if (command.type === "selectWeapon") return selectDialogueChoice(model, mode, command.slot);
+  return done(model);
+}
+
+function selectDialogueChoice(model: GameModel, mode: DialogueMode, slot: number): GameTransition {
+  const choice = mode.choices[slot - 1];
+  if (choice === undefined) return done(model);
+  if (choice.next === undefined || mode.treeKey === undefined) return closeDialogue(model);
+
+  const node = dialogueTreeNode(mode.treeKey, choice.next);
+  return done({
+    ...model,
+    dialoguePointerDownSlot: undefined,
+    mode: {
+      type: "dialogue",
+      title: mode.title,
+      treeKey: mode.treeKey,
+      message: node.text,
+      choices: node.choices,
+    },
+  }, [{ type: "render" }]);
 }
 
 function outcomeCommand(
@@ -221,7 +242,8 @@ function dialoguePointer(
   phase: DialoguePointerPhase,
   optionSlot: number | undefined,
 ): GameTransition {
-  if (model.mode.type !== "dialogue") return done(model);
+  const mode = model.mode;
+  if (mode.type !== "dialogue") return done(model);
 
   switch (phase) {
     case "down":
@@ -229,7 +251,7 @@ function dialoguePointer(
     case "up": {
       const downSlot = model.dialoguePointerDownSlot;
       const upModel = { ...model, dialoguePointerDownSlot: undefined };
-      if (optionSlot !== undefined && downSlot === optionSlot) return closeDialogue(upModel);
+      if (optionSlot !== undefined && downSlot === optionSlot) return selectDialogueChoice(upModel, mode, optionSlot);
       return done(upModel);
     }
     case "cancel":

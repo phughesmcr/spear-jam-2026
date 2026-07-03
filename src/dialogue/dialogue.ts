@@ -6,9 +6,30 @@ export const DialogueTreeId = {
 } as const;
 export type DialogueTreeId = (typeof DialogueTreeId)[keyof typeof DialogueTreeId];
 
-type DialogueTree = {
-  readonly lines: readonly string[];
+export type DialogueChoice = {
+  readonly label: string;
+  /** Node id within the same tree; omitted means the choice ends the dialogue. */
+  readonly next?: string;
 };
+
+export type DialogueNode = {
+  readonly text: string;
+  readonly choices: readonly DialogueChoice[];
+};
+
+type DialogueTree = {
+  readonly start: string;
+  readonly nodes: Readonly<Record<string, DialogueNode>>;
+};
+
+export type DialogueTreeStart = {
+  readonly treeKey: string;
+  readonly node: DialogueNode;
+};
+
+export const MAX_DIALOGUE_CHOICES = 3;
+
+const DEFAULT_CHOICES: readonly DialogueChoice[] = Object.freeze([{ label: "CONTINUE." }]);
 
 const DIALOGUE_TREE_KEYS = {
   [DialogueTreeId.None]: undefined,
@@ -28,21 +49,7 @@ export function validateDialogueTrees(
   for (const key of requiredKeys) {
     const rawTree = rawTrees[key];
     if (rawTree === undefined) throw new Error(`Missing dialogue tree "${key}".`);
-    if (!recordLike(rawTree)) throw new Error(`Dialogue tree "${key}" must be a JSON object.`);
-
-    const lines = rawTree.lines;
-    if (!Array.isArray(lines) || lines.length === 0) {
-      throw new Error(`Dialogue tree "${key}" must have at least one line.`);
-    }
-
-    trees[key] = {
-      lines: lines.map((line, index) => {
-        if (typeof line !== "string" || line.trim().length === 0) {
-          throw new Error(`Dialogue tree "${key}" line ${index} must be a non-empty string.`);
-        }
-        return line;
-      }),
-    };
+    trees[key] = validateDialogueTree(key, rawTree);
   }
 
   for (const key of Object.keys(rawTrees)) {
@@ -52,13 +59,87 @@ export function validateDialogueTrees(
   return trees;
 }
 
-export function dialogueTreeText(dialogueTreeId: number): string | undefined {
+export function dialogueTreeStart(dialogueTreeId: number): DialogueTreeStart | undefined {
   if (dialogueTreeId === DialogueTreeId.None) return undefined;
 
   const treeKey = DIALOGUE_TREE_KEYS[dialogueTreeId as DialogueTreeId];
   if (treeKey === undefined) throw new Error(`Unknown dialogue tree id: ${dialogueTreeId}.`);
 
-  return DIALOGUE_TREES[treeKey].lines.join(" ");
+  const tree = DIALOGUE_TREES[treeKey];
+  return { treeKey, node: dialogueTreeNode(treeKey, tree.start) };
+}
+
+export function dialogueTreeNode(treeKey: string, nodeId: string): DialogueNode {
+  const node = DIALOGUE_TREES[treeKey]?.nodes[nodeId];
+  if (node === undefined) throw new Error(`Unknown dialogue node "${nodeId}" in tree "${treeKey}".`);
+  return node;
+}
+
+function validateDialogueTree(key: string, rawTree: unknown): DialogueTree {
+  if (!recordLike(rawTree)) throw new Error(`Dialogue tree "${key}" must be a JSON object.`);
+
+  const rawNodes = rawTree.nodes;
+  if (!recordLike(rawNodes) || Object.keys(rawNodes).length === 0) {
+    throw new Error(`Dialogue tree "${key}" must have at least one node.`);
+  }
+
+  const nodes: Record<string, DialogueNode> = {};
+  for (const [nodeId, rawNode] of Object.entries(rawNodes)) {
+    nodes[nodeId] = validateDialogueNode(key, nodeId, rawNode);
+  }
+
+  const start = rawTree.start;
+  if (typeof start !== "string" || nodes[start] === undefined) {
+    throw new Error(`Dialogue tree "${key}" start must name one of its nodes.`);
+  }
+
+  for (const [nodeId, node] of Object.entries(nodes)) {
+    for (const choice of node.choices) {
+      if (choice.next !== undefined && nodes[choice.next] === undefined) {
+        throw new Error(`Dialogue tree "${key}" node "${nodeId}" links to unknown node "${choice.next}".`);
+      }
+    }
+  }
+
+  return { start, nodes };
+}
+
+function validateDialogueNode(key: string, nodeId: string, rawNode: unknown): DialogueNode {
+  if (!recordLike(rawNode)) throw new Error(`Dialogue tree "${key}" node "${nodeId}" must be a JSON object.`);
+
+  const text = rawNode.text;
+  if (typeof text !== "string" || text.trim().length === 0) {
+    throw new Error(`Dialogue tree "${key}" node "${nodeId}" must have non-empty text.`);
+  }
+
+  const rawChoices = rawNode.choices;
+  if (rawChoices === undefined) return { text, choices: DEFAULT_CHOICES };
+  if (!Array.isArray(rawChoices) || rawChoices.length === 0 || rawChoices.length > MAX_DIALOGUE_CHOICES) {
+    throw new Error(`Dialogue tree "${key}" node "${nodeId}" must have 1 to ${MAX_DIALOGUE_CHOICES} choices.`);
+  }
+
+  return {
+    text,
+    choices: rawChoices.map((rawChoice, index) => validateDialogueChoice(key, nodeId, index, rawChoice)),
+  };
+}
+
+function validateDialogueChoice(key: string, nodeId: string, index: number, rawChoice: unknown): DialogueChoice {
+  if (!recordLike(rawChoice)) {
+    throw new Error(`Dialogue tree "${key}" node "${nodeId}" choice ${index} must be a JSON object.`);
+  }
+
+  const label = rawChoice.label;
+  if (typeof label !== "string" || label.trim().length === 0) {
+    throw new Error(`Dialogue tree "${key}" node "${nodeId}" choice ${index} must have a non-empty label.`);
+  }
+
+  const next = rawChoice.next;
+  if (next !== undefined && typeof next !== "string") {
+    throw new Error(`Dialogue tree "${key}" node "${nodeId}" choice ${index} next must be a node id.`);
+  }
+
+  return next === undefined ? { label } : { label, next };
 }
 
 function recordLike(value: unknown): value is Record<string, unknown> {

@@ -16,6 +16,10 @@ export type DialoguePoint = {
 
 export type DialogueOptionSlot = 1 | 2 | 3;
 
+export type DialogueChoiceLabel = {
+  readonly label: string;
+};
+
 export type DialogueChoiceLayout = {
   readonly slot: DialogueOptionSlot;
   readonly label: string;
@@ -56,20 +60,14 @@ const CHOICE_MUTED_TEXT = "#d8d4c4";
 const CHOICE_HELP = "SPACE OR 1-3";
 const CHOICE_HEIGHT = 44;
 const CHOICE_GAP = 6;
-const CHOICE_LABELS = Object.freeze(
-  [
-    { slot: 1, label: "CONTINUE." },
-    { slot: 2, label: "END TRANSMISSION." },
-    { slot: 3, label: "BYE!" },
-  ] as const satisfies readonly Pick<DialogueChoiceLayout, "slot" | "label">[],
-);
+const DIALOGUE_OPTION_SLOTS = [1, 2, 3] as const satisfies readonly DialogueOptionSlot[];
 
 export function renderDialogue(
   ctx: CanvasRenderingContext2D,
   canvasSize: GameCanvasSize,
   dialogue: DialogueState,
 ): void {
-  const layout = dialogueLayout(canvasSize);
+  const layout = dialogueLayout(canvasSize, dialogue.choices);
 
   ctx.save();
   ctx.fillStyle = SCRIM;
@@ -84,12 +82,16 @@ export function renderDialogue(
   ctx.restore();
 }
 
-export function dialogueLayout(canvasSize: GameCanvasSize): DialogueLayout {
+export function dialogueLayout(
+  canvasSize: GameCanvasSize,
+  dialogueChoices: readonly DialogueChoiceLabel[],
+): DialogueLayout {
+  const slottedChoices = dialogueChoices.slice(0, DIALOGUE_OPTION_SLOTS.length);
   const panel = dialoguePanelRect(canvasSize);
   const inset = Math.max(14, Math.round(panel.width * 0.035));
   const headerHeight = Math.max(24, Math.round(panel.height * 0.05));
   const messageHeight = Math.max(78, Math.round(panel.height * 0.17));
-  const choiceStackHeight = CHOICE_LABELS.length * CHOICE_HEIGHT + (CHOICE_LABELS.length - 1) * CHOICE_GAP;
+  const choiceStackHeight = slottedChoices.length * CHOICE_HEIGHT + (slottedChoices.length - 1) * CHOICE_GAP;
 
   const header = {
     x: panel.x + inset,
@@ -111,8 +113,8 @@ export function dialogueLayout(canvasSize: GameCanvasSize): DialogueLayout {
     width: panel.width - inset * 2,
     height: Math.max(1, choicesY - portraitY - 12),
   };
-  const choices = CHOICE_LABELS.map(({ slot, label }, index) => ({
-    slot,
+  const choices = slottedChoices.map(({ label }, index) => ({
+    slot: DIALOGUE_OPTION_SLOTS[index]!,
     label,
     rect: {
       x: panel.x + inset,
@@ -127,9 +129,10 @@ export function dialogueLayout(canvasSize: GameCanvasSize): DialogueLayout {
 
 export function dialogueOptionSlotAt(
   canvasSize: GameCanvasSize,
+  dialogueChoices: readonly DialogueChoiceLabel[],
   point: DialoguePoint,
 ): DialogueOptionSlot | undefined {
-  for (const choice of dialogueLayout(canvasSize).choices) {
+  for (const choice of dialogueLayout(canvasSize, dialogueChoices).choices) {
     if (point.x < choice.rect.x || point.x > choice.rect.x + choice.rect.width) continue;
     if (point.y < choice.rect.y || point.y > choice.rect.y + choice.rect.height) continue;
     return choice.slot;

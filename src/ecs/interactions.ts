@@ -1,5 +1,5 @@
 import type { Entity, World } from "@phughesmcr/miski";
-import { dialogueTreeText } from "@/src/dialogue/dialogue.ts";
+import { dialogueTreeStart } from "@/src/dialogue/dialogue.ts";
 import {
   Dialogue,
   DisplayNameComponent,
@@ -156,14 +156,10 @@ function interactWithDoor(
 function interactWithNpc(world: World, npc: Entity): PlayerInteractionResult {
   const { displayName } = world.components.getEntityData(DisplayNameComponent, npc);
   const displayNameLabel = displayNameText(displayName);
-  const dialogueText = dialogueTextFor(world, npc) ?? `${displayNameLabel} stayed silent.`;
   return {
     type: "dialogue",
     events: [],
-    dialogue: {
-      title: displayNameLabel,
-      message: dialogueText,
-    },
+    dialogue: npcDialogueState(world, npc, displayNameLabel),
   };
 }
 
@@ -198,9 +194,22 @@ function failedVerb(verb: InteractVerb): PlayerInteractionResult {
   };
 }
 
-function dialogueTextFor(world: World, entity: Entity): string | undefined {
-  if (!world.components.entityHas(Dialogue, entity)) return undefined;
+function npcDialogueState(world: World, npc: Entity, title: string): DialogueState {
+  const start = world.components.entityHas(Dialogue, npc) ?
+    dialogueTreeStart(world.components.getEntityData(Dialogue, npc).dialogueTreeId) :
+    undefined;
+  if (start === undefined) {
+    return {
+      title,
+      message: `${title} stayed silent.`,
+      choices: [{ label: "BYE!" }],
+    };
+  }
 
-  const { dialogueTreeId } = world.components.getEntityData(Dialogue, entity);
-  return dialogueTreeText(dialogueTreeId);
+  return {
+    title,
+    treeKey: start.treeKey,
+    message: start.node.text,
+    choices: start.node.choices,
+  };
 }

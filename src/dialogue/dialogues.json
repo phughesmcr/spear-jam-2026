@@ -1,5 +1,20 @@
 {
   "john_intro": {
-    "lines": ["Stay sharp."]
+    "start": "greet",
+    "nodes": {
+      "greet": {
+        "text": "Stay sharp.",
+        "choices": [
+          { "label": "WHAT'S GOING ON?", "next": "briefing" },
+          { "label": "BYE!" }
+        ]
+      },
+      "briefing": {
+        "text": "The uplink is down. Find the code and get to the terminal.",
+        "choices": [
+          { "label": "GOT IT." }
+        ]
+      }
+    }
   }
 }
