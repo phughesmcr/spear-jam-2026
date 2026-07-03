@@ -9,8 +9,15 @@ type DialogueRect = {
   readonly height: number;
 };
 
+export type DialoguePoint = {
+  readonly x: number;
+  readonly y: number;
+};
+
+export type DialogueOptionSlot = 1 | 2 | 3;
+
 export type DialogueChoiceLayout = {
-  readonly slot: 1 | 2 | 3;
+  readonly slot: DialogueOptionSlot;
   readonly label: string;
   readonly rect: DialogueRect;
 };
@@ -31,14 +38,12 @@ const PANEL_BACKGROUND = "rgba(6, 8, 13, 0.88)";
 const PANEL_SHADOW = "rgba(0, 0, 0, 0.72)";
 const PANEL_BORDER_DARK = "rgba(28, 38, 47, 0.95)";
 const PANEL_BORDER_LIGHT = "rgba(232, 214, 151, 0.88)";
-const PANEL_SCANLINE = "rgba(242, 210, 122, 0.12)";
 const SCRIM = "rgba(0, 0, 0, 0.38)";
 const TITLE_TEXT = "#e8d697";
 const MESSAGE_TEXT = "#f6a24f";
 const MESSAGE_SHADOW = "rgba(0, 0, 0, 0.86)";
 const PORTRAIT_BACKGROUND_TOP = "#40435d";
 const PORTRAIT_BACKGROUND_BOTTOM = "#1b2438";
-const PORTRAIT_SCANLINE = "rgba(255, 255, 255, 0.08)";
 const PORTRAIT_FACE = "#d5b19b";
 const PORTRAIT_FACE_SHADOW = "#8f5f57";
 const PORTRAIT_UNIFORM = "#4d251f";
@@ -49,6 +54,7 @@ const CHOICE_INDEX = "#f3f4f6";
 const CHOICE_TEXT = "#8ef7a6";
 const CHOICE_MUTED_TEXT = "#d8d4c4";
 const CHOICE_HELP = "SPACE OR 1-3";
+const CHOICE_HEIGHT = 44;
 const CHOICE_GAP = 6;
 const CHOICE_LABELS = Object.freeze(
   [
@@ -83,8 +89,7 @@ export function dialogueLayout(canvasSize: GameCanvasSize): DialogueLayout {
   const inset = Math.max(14, Math.round(panel.width * 0.035));
   const headerHeight = Math.max(24, Math.round(panel.height * 0.05));
   const messageHeight = Math.max(78, Math.round(panel.height * 0.17));
-  const choiceHeight = Math.max(28, Math.round(panel.height * 0.055));
-  const choiceStackHeight = CHOICE_LABELS.length * choiceHeight + (CHOICE_LABELS.length - 1) * CHOICE_GAP;
+  const choiceStackHeight = CHOICE_LABELS.length * CHOICE_HEIGHT + (CHOICE_LABELS.length - 1) * CHOICE_GAP;
 
   const header = {
     x: panel.x + inset,
@@ -111,13 +116,26 @@ export function dialogueLayout(canvasSize: GameCanvasSize): DialogueLayout {
     label,
     rect: {
       x: panel.x + inset,
-      y: choicesY + index * (choiceHeight + CHOICE_GAP),
+      y: choicesY + index * (CHOICE_HEIGHT + CHOICE_GAP),
       width: panel.width - inset * 2,
-      height: choiceHeight,
+      height: CHOICE_HEIGHT,
     },
   }));
 
   return { panel, header, message, portrait, choices };
+}
+
+export function dialogueOptionSlotAt(
+  canvasSize: GameCanvasSize,
+  point: DialoguePoint,
+): DialogueOptionSlot | undefined {
+  for (const choice of dialogueLayout(canvasSize).choices) {
+    if (point.x < choice.rect.x || point.x > choice.rect.x + choice.rect.width) continue;
+    if (point.y < choice.rect.y || point.y > choice.rect.y + choice.rect.height) continue;
+    return choice.slot;
+  }
+
+  return undefined;
 }
 
 export function dialoguePanelRect(canvasSize: GameCanvasSize): DialogueRect {
@@ -187,11 +205,6 @@ function drawPanel(ctx: CanvasRenderingContext2D, rect: DialogueRect): void {
   ctx.strokeStyle = PANEL_BORDER_LIGHT;
   ctx.lineWidth = 2;
   ctx.strokeRect(rect.x + 5.5, rect.y + 5.5, rect.width - 11, rect.height - 11);
-
-  ctx.fillStyle = PANEL_SCANLINE;
-  for (let y = rect.y + 12; y < rect.y + rect.height - 12; y += 6) {
-    ctx.fillRect(rect.x + 8, y, rect.width - 16, 1);
-  }
 }
 
 function drawHeader(ctx: CanvasRenderingContext2D, rect: DialogueRect, title: string): void {
@@ -246,30 +259,12 @@ function drawPortrait(ctx: CanvasRenderingContext2D, rect: DialogueRect, title: 
   ctx.fillStyle = background;
   ctx.fillRect(rect.x, rect.y, rect.width, rect.height);
 
-  drawPortraitSignal(ctx, rect);
   drawPortraitBust(ctx, rect, title);
 
   ctx.restore();
   ctx.strokeStyle = "rgba(232, 214, 151, 0.58)";
   ctx.lineWidth = 2;
   ctx.strokeRect(rect.x + 0.5, rect.y + 0.5, rect.width - 1, rect.height - 1);
-}
-
-function drawPortraitSignal(ctx: CanvasRenderingContext2D, rect: DialogueRect): void {
-  ctx.fillStyle = PORTRAIT_SCANLINE;
-  for (let y = rect.y + 2; y < rect.y + rect.height; y += 5) {
-    ctx.fillRect(rect.x, y, rect.width, 1);
-  }
-
-  ctx.strokeStyle = "rgba(142, 247, 166, 0.14)";
-  ctx.lineWidth = 1;
-  const step = Math.max(24, Math.round(rect.width * 0.09));
-  for (let x = rect.x + step; x < rect.x + rect.width; x += step) {
-    ctx.beginPath();
-    ctx.moveTo(x, rect.y);
-    ctx.lineTo(x, rect.y + rect.height);
-    ctx.stroke();
-  }
 }
 
 function drawPortraitBust(ctx: CanvasRenderingContext2D, rect: DialogueRect, title: string): void {

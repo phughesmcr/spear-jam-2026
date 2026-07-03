@@ -11,6 +11,7 @@ type DialogueMode = Extract<GameMode, { readonly type: "dialogue" }>;
 type VerbMenuMode = Extract<GameMode, { readonly type: "verbMenu" }>;
 
 export type VerbPointerPhase = "move" | "down" | "up" | "cancel";
+export type DialoguePointerPhase = VerbPointerPhase;
 
 export type GameModel = {
   readonly startMapName: string;
@@ -21,6 +22,7 @@ export type GameModel = {
   readonly viewMode: ViewMode;
   readonly lastVerbIndex: number;
   readonly verbPointerDownIndex?: number;
+  readonly dialoguePointerDownSlot?: number;
 };
 
 export type GameEffect =
@@ -35,6 +37,7 @@ export type GameTransitionEvent =
   | { readonly type: "loadFailed"; readonly message: string }
   | { readonly type: "gameCommand"; readonly command: GameCommand }
   | { readonly type: "verbPointer"; readonly phase: VerbPointerPhase; readonly hotspotIndex?: number }
+  | { readonly type: "dialoguePointer"; readonly phase: DialoguePointerPhase; readonly optionSlot?: number }
   | {
     readonly type: "playerCommandResult";
     readonly result: PlayerCommandResult;
@@ -73,6 +76,8 @@ export function transition(model: GameModel, event: GameTransitionEvent): GameTr
       return gameCommand(model, event.command);
     case "verbPointer":
       return verbPointer(model, event.phase, event.hotspotIndex);
+    case "dialoguePointer":
+      return dialoguePointer(model, event.phase, event.optionSlot);
     case "playerCommandResult":
       return playerCommandResult(model, event.result, event.playerEntity, event.playerState);
   }
@@ -123,7 +128,7 @@ function intermissionCommand(model: GameModel, mode: IntermissionMode, command: 
 
 function dialogueCommand(model: GameModel, _mode: DialogueMode, command: GameCommand): GameTransition {
   if (command.type !== "wait" && command.type !== "selectWeapon") return done(model);
-  return done({ ...model, mode: { type: "playing" } }, [{ type: "render" }]);
+  return closeDialogue(model);
 }
 
 function outcomeCommand(
@@ -211,6 +216,29 @@ function verbPointer(
   }
 }
 
+function dialoguePointer(
+  model: GameModel,
+  phase: DialoguePointerPhase,
+  optionSlot: number | undefined,
+): GameTransition {
+  if (model.mode.type !== "dialogue") return done(model);
+
+  switch (phase) {
+    case "down":
+      return done({ ...model, dialoguePointerDownSlot: optionSlot });
+    case "up": {
+      const downSlot = model.dialoguePointerDownSlot;
+      const upModel = { ...model, dialoguePointerDownSlot: undefined };
+      if (optionSlot !== undefined && downSlot === optionSlot) return closeDialogue(upModel);
+      return done(upModel);
+    }
+    case "cancel":
+      return done({ ...model, dialoguePointerDownSlot: undefined });
+    case "move":
+      return done(model);
+  }
+}
+
 function playerCommandResult(
   model: GameModel,
   result: PlayerCommandResult,
@@ -225,7 +253,11 @@ function playerCommandResult(
     return done(enterIntermission(modelWithFeedback, result.mapChange.goto, playerState), [{ type: "render" }]);
   }
   if (result.dialogue) {
-    return done({ ...modelWithFeedback, mode: { type: "dialogue", ...result.dialogue } }, [{ type: "render" }]);
+    return done({
+      ...modelWithFeedback,
+      dialoguePointerDownSlot: undefined,
+      mode: { type: "dialogue", ...result.dialogue },
+    }, [{ type: "render" }]);
   }
 
   return done(modelWithFeedback, [{ type: "render" }]);
@@ -261,6 +293,7 @@ function togglePause(model: GameModel): GameTransition {
 function openVerbMenu(model: GameModel): GameModel {
   return {
     ...model,
+    dialoguePointerDownSlot: undefined,
     verbPointerDownIndex: undefined,
     mode: { type: "verbMenu", selectedIndex: model.lastVerbIndex },
   };
@@ -276,10 +309,19 @@ function confirmVerbSelection(model: GameModel, mode: VerbMenuMode): GameTransit
   const selectedIndex = mode.selectedIndex;
   return done({
     ...model,
+    dialoguePointerDownSlot: undefined,
     verbPointerDownIndex: undefined,
     lastVerbIndex: selectedIndex,
     mode: { type: "playing" },
   }, [{ type: "runPlayerCommand", command: verbToCommand(selectedIndex) }]);
+}
+
+function closeDialogue(model: GameModel): GameTransition {
+  return done({
+    ...model,
+    dialoguePointerDownSlot: undefined,
+    mode: { type: "playing" },
+  }, [{ type: "render" }]);
 }
 
 function applyCombatFeedback(

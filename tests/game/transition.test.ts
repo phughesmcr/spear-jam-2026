@@ -1,6 +1,6 @@
 import { assertEquals } from "@std/assert";
 import type { Entity } from "@phughesmcr/miski";
-import { createGameModel, transition } from "@/src/game/transition.ts";
+import { createGameModel, type GameModel, transition } from "@/src/game/transition.ts";
 import { KeyColor } from "@/src/map/map.ts";
 
 const PLAYER = 1 as Entity;
@@ -101,6 +101,27 @@ Deno.test("transition lets dialogue close from space or numbered choices", () =>
   const numbered = transition(model, { type: "gameCommand", command: { type: "selectWeapon", slot: 2 } });
   assertEquals(numbered.model.mode, { type: "playing" });
   assertEquals(numbered.effects, [{ type: "render" }]);
+});
+
+Deno.test("transition confirms dialogue pointer only when down and up hit the same option", () => {
+  let model: GameModel = {
+    ...createGameModel("Level 1"),
+    mode: { type: "dialogue", title: "John", message: "Stay sharp." },
+  };
+
+  ({ model } = transition(model, { type: "dialoguePointer", phase: "down", optionSlot: 1 }));
+  assertEquals(model.dialoguePointerDownSlot, 1);
+
+  let result = transition(model, { type: "dialoguePointer", phase: "up", optionSlot: 2 });
+  model = result.model;
+  assertEquals(model.mode, { type: "dialogue", title: "John", message: "Stay sharp." });
+  assertEquals(model.dialoguePointerDownSlot, undefined);
+  assertEquals(result.effects, []);
+
+  ({ model } = transition(model, { type: "dialoguePointer", phase: "down", optionSlot: 2 }));
+  result = transition(model, { type: "dialoguePointer", phase: "up", optionSlot: 2 });
+  assertEquals(result.model.mode, { type: "playing" });
+  assertEquals(result.effects, [{ type: "render" }]);
 });
 
 Deno.test("transition retries defeat from the current level entry snapshot", () => {

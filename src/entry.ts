@@ -15,6 +15,7 @@ import type { CanvasPointerInput } from "@/src/input/pointer.ts";
 import { getMap, START_MAP_NAME } from "@/src/map/maps.ts";
 import { configureCanvasDpi, DEFAULT_GAME_CANVAS_SIZE } from "@/src/render/canvas.ts";
 import type { GameCanvasSize } from "@/src/render/canvas.ts";
+import { dialogueOptionSlotAt } from "@/src/render/dialogue.ts";
 import { createFirstPersonRenderer } from "@/src/render/first_person.ts";
 import type { FirstPersonRenderer } from "@/src/render/first_person.ts";
 import { preloadGameAssets, renderGameFrame } from "@/src/render/game.ts";
@@ -152,6 +153,15 @@ class Game implements Disposable {
   }
 
   private handlePointerInput(input: CanvasPointerInput): void {
+    if (this.model.mode.type === "dialogue") {
+      this.apply({
+        type: "dialoguePointer",
+        phase: input.phase,
+        optionSlot: dialogueOptionSlotAt(this.canvasSize, input),
+      });
+      return;
+    }
+
     this.apply({
       type: "verbPointer",
       phase: input.phase,
