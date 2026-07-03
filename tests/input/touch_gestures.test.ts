@@ -43,7 +43,7 @@ Deno.test("TouchGestures maps single taps to delayed turn and action commands", 
   ]);
 });
 
-Deno.test("TouchGestures maps a double tap to attack without emitting the pending single tap", () => {
+Deno.test("TouchGestures maps a double tap to smart action without emitting the pending single tap", () => {
   const harness = gestureHarness();
 
   harness.tap({ x: 360, y: 640 });
@@ -51,7 +51,7 @@ Deno.test("TouchGestures maps a double tap to attack without emitting the pendin
   harness.tap({ x: 370, y: 650 });
   harness.scheduler.advance(220);
 
-  assertEquals(harness.commands, [{ type: "attack" }]);
+  assertEquals(harness.commands, [{ type: "smartAction" }]);
 });
 
 Deno.test("TouchGestures ignores mouse pointers and disabled touch gestures", () => {

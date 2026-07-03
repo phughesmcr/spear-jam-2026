@@ -174,6 +174,7 @@ function verbMenuCommand(model: GameModel, mode: VerbMenuMode, command: GameComm
     case "interact":
     case "examine":
     case "attack":
+    case "smartAction":
     case "selectWeapon":
     case "pause":
     case "toggleView":

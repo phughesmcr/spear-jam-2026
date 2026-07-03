@@ -1,5 +1,5 @@
 import type { Entity, World } from "@phughesmcr/miski";
-import { Door, Health, healthFor } from "@/src/ecs/components.ts";
+import { Door, Health, healthFor, Interactable, Npc, UplinkTerminal } from "@/src/ecs/components.ts";
 import { directionDelta } from "@/src/grid/direction.ts";
 import type { GridDelta } from "@/src/grid/direction.ts";
 import { attackWithSelectedWeapon, weaponAmmoKind, weaponLabel, weaponNoiseRadius } from "@/src/ecs/combat.ts";
@@ -144,6 +144,8 @@ export class GameSession implements Disposable {
         return { events: [examineEntity(this.world, this.spatial.facedEntity(this.player))] };
       case "attack":
         return this.handlePlayerAttackCommand();
+      case "smartAction":
+        return this.handlePlayerSmartActionCommand();
       case "selectWeapon":
         return this.handlePlayerSelectWeaponCommand(command.slot);
     }
@@ -184,10 +186,21 @@ export class GameSession implements Disposable {
   }
 
   private handlePlayerInteractCommand(verb?: InteractVerb): PlayerCommandResult {
+    return this.handlePlayerInteraction(this.spatial.facedEntity(this.player), verb);
+  }
+
+  private handlePlayerSmartActionCommand(): PlayerCommandResult {
+    const target = this.smartActionInteractionTarget();
+    if (target !== undefined) return this.handlePlayerInteraction(target);
+
+    return this.handlePlayerAttackCommand();
+  }
+
+  private handlePlayerInteraction(target: Entity | undefined, verb?: InteractVerb): PlayerCommandResult {
     const interaction = interactWithEntity(
       this.world,
       this.spatial,
-      this.spatial.facedEntity(this.player),
+      target,
       this.progression.heldKeys,
       this.progression.hasUplinkCode,
       verb,
@@ -205,6 +218,18 @@ export class GameSession implements Disposable {
       case "uplinkTerminal":
         return this.activateUplinkTerminal(interaction.terminal, interaction.events);
     }
+  }
+
+  private smartActionInteractionTarget(): Entity | undefined {
+    const target = this.spatial.facedEntity(this.player);
+    if (target === undefined || !this.world.components.entityHas(Interactable, target)) return undefined;
+
+    const door = this.world.components.readEntityData(Door, target);
+    if (door !== undefined) return door.open === 0 ? target : undefined;
+
+    if (this.world.components.entityHas(Npc, target)) return target;
+    if (this.world.components.entityHas(UplinkTerminal, target)) return target;
+    return undefined;
   }
 
   private activateUplinkTerminal(terminal: Entity, events: readonly GameEvent[]): PlayerCommandResult {

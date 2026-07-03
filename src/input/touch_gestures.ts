@@ -98,7 +98,7 @@ export default class TouchGestures implements Disposable {
     const pendingTap = this.pendingTap;
     if (pendingTap !== undefined && isDoubleTap(pendingTap, tap, this.canvasSize())) {
       this.clearPendingTap();
-      this.receiver({ type: "attack" });
+      this.receiver({ type: "smartAction" });
       return;
     }
 

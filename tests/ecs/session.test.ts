@@ -13,6 +13,7 @@ import {
   Health,
   Interactable,
   Locked,
+  TurnTaker,
 } from "@/src/ecs/components.ts";
 import { ExamineTextId } from "@/src/game/examine.ts";
 import { ItemKind } from "@/src/game/items.ts";
@@ -250,6 +251,83 @@ Deno.test("opening an already-open door reports that it is open", async () => {
     type: "doorAlreadyOpen",
     entity: door,
   }]);
+});
+
+Deno.test("smart action uses default interactions for doors, NPCs, and terminals", async () => {
+  const doorWorld = await createWorld();
+  const doorPlayer = createTestPlayer(doorWorld);
+  const door = createTestDoor(doorWorld, { x: 2, y: 1, blocking: true, interactable: true });
+  const doorSession = createTestSession(doorWorld, doorPlayer);
+  assertEquals(doorSession.handlePlayerCommand({ type: "smartAction" }).events, [{
+    type: "doorOpened",
+    entity: door,
+  }]);
+
+  const npcWorld = await createWorld();
+  const npcPlayer = createTestPlayer(npcWorld);
+  createTestNpc(npcWorld, {
+    x: 2,
+    y: 1,
+    displayName: DisplayName.John,
+    dialogueTreeId: DialogueTreeId.JohnIntro,
+    interactable: true,
+  });
+  const npcSession = createTestSession(npcWorld, npcPlayer);
+  assertEquals(npcSession.handlePlayerCommand({ type: "smartAction" }), {
+    events: [],
+    dialogue: {
+      title: "John",
+      message: "Stay sharp. Space to continue.",
+    },
+  });
+
+  const terminalWorld = await createWorld();
+  const terminalPlayer = createTestPlayer(terminalWorld);
+  const terminal = createTestUplinkTerminal(terminalWorld, { x: 2, y: 1, blocking: true, interactable: true });
+  const terminalSession = createTestSession(terminalWorld, terminalPlayer);
+  assertEquals(terminalSession.handlePlayerCommand({ type: "smartAction" }).events, [{
+    type: "uplinkTerminalLocked",
+    entity: terminal,
+  }]);
+});
+
+Deno.test("smart action ignores already-open doors and attacks through them", async () => {
+  const world = await createWorld();
+  const playerEntity = createTestPlayer(world, { blocking: true, tag: true });
+  createTestDoor(world, { x: 2, y: 1, open: 1, interactable: true });
+  const enemy = createTestEnemy(world, {
+    x: 3,
+    y: 1,
+    dir: Direction.West,
+    displayName: DisplayName.Imp,
+    health: { current: 3, max: 3 },
+    attack: TEST_ATTACK,
+  });
+  world.components.removeFromEntity(TurnTaker, enemy);
+  const session = createTestSession(world, playerEntity, flatTestMap(4, 2), {
+    playerState: {
+      heldKeys: [],
+      selectedWeapon: 2,
+      unlockedWeapons: [1, 2],
+      ammo: { pistol: 1, cannon: 0 },
+    },
+  });
+
+  const result = session.handlePlayerCommand({ type: "smartAction" });
+
+  assertEquals(result.events, [
+    { type: "ammoSpent", ammo: "pistol", amount: 1 },
+    {
+      type: "attackMissed",
+      actor: playerEntity,
+      actorName: "You",
+      target: enemy,
+      targetName: "Imp",
+      roll: 1,
+      total: 3,
+    },
+  ]);
+  assertEquals(session.getPlayerState().ammo, { pistol: 0, cannon: 0 });
 });
 
 Deno.test("visibility refreshes after player movement", async () => {

@@ -79,6 +79,17 @@ Deno.test("transition confirms pointer verbs only when down and up hit the same 
   assertEquals(result.effects, [{ type: "runPlayerCommand", command: { type: "interact", verb: "open" } }]);
 });
 
+Deno.test("transition passes smart action through as a player command", () => {
+  const model = transition(createGameModel("Level 1"), {
+    type: "mapLoaded",
+    mapName: "Level 1",
+  }).model;
+
+  const result = transition(model, { type: "gameCommand", command: { type: "smartAction" } });
+
+  assertEquals(result.effects, [{ type: "runPlayerCommand", command: { type: "smartAction" } }]);
+});
+
 Deno.test("transition retries defeat from the current level entry snapshot", () => {
   const entryState = createPlayerState({
     heldKeys: [KeyColor.Yellow],

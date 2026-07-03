@@ -13,6 +13,7 @@ export type PlayerCommand =
   | { readonly type: "interact"; readonly verb?: InteractVerb }
   | { readonly type: "examine" }
   | { readonly type: "attack" }
+  | { readonly type: "smartAction" }
   | { readonly type: "selectWeapon"; readonly slot: CommandSlot };
 
 export type GameCommand =
@@ -63,6 +64,7 @@ export function isPlayerCommand(command: GameCommand): command is PlayerCommand 
     case "interact":
     case "examine":
     case "attack":
+    case "smartAction":
     case "selectWeapon":
       return true;
     case "action":
