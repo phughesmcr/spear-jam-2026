@@ -81,6 +81,7 @@ export function renderGameFrame(
   ctx.fillRect(0, 0, canvasSize.width, canvasSize.height);
   const playSize = playCanvasSize(canvasSize, viewMode);
   if (session) {
+    const spritesAnimating = session.advanceSpriteAnimations(performance.now());
     const { map } = session;
     if (viewMode === "firstPerson") {
       if (firstPersonRenderer === undefined) {
@@ -110,6 +111,7 @@ export function renderGameFrame(
       renderDrawableEntities(ctx, session, metrics);
       renderCombatFeedback(ctx, metrics, combatFeedback);
       renderHud(ctx, canvasSize, session);
+      if (spritesAnimating) scheduleRepaint(onAssetLoad);
     }
   }
   renderMessageLog(ctx, canvasSize, messages);
@@ -144,6 +146,11 @@ export function renderGameFrame(
     case "playing":
       return;
   }
+}
+
+function scheduleRepaint(repaint: (() => void) | undefined): void {
+  if (repaint === undefined || typeof requestAnimationFrame !== "function") return;
+  requestAnimationFrame((): void => repaint());
 }
 
 function renderFirstPersonVignette(ctx: CanvasRenderingContext2D, rect: GameRenderRect): void {

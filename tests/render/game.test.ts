@@ -2,6 +2,7 @@ import { assert, assertEquals } from "@std/assert";
 import type { PlayerStateSnapshot } from "@/src/ecs/progression.ts";
 import type { GameSession } from "@/src/ecs/session.ts";
 import { Direction } from "@/src/grid/direction.ts";
+import { createGameMap } from "@/src/map/map.ts";
 import { GAME_RENDER_TOP_OFFSET, gameRenderRect, playCanvasSize, renderGameFrame } from "@/src/render/game.ts";
 import type { FirstPersonRenderer } from "@/src/render/first_person.ts";
 
@@ -59,6 +60,49 @@ Deno.test("renderGameFrame draws a visible first-person vignette over the play a
   assertEquals(vignetteFill.globalCompositeOperation, "source-over");
 });
 
+Deno.test("renderGameFrame schedules top-down repaint while ECS sprite animations are active", () => {
+  const callbacks: FrameRequestCallback[] = [];
+  const hadOwnRaf = Object.hasOwn(globalThis, "requestAnimationFrame");
+  const ownRaf = Object.getOwnPropertyDescriptor(globalThis, "requestAnimationFrame");
+  Object.defineProperty(globalThis, "requestAnimationFrame", {
+    configurable: true,
+    writable: true,
+    value: (callback: FrameRequestCallback): number => {
+      callbacks.push(callback);
+      return callbacks.length;
+    },
+  });
+
+  let repaints = 0;
+  try {
+    renderGameFrame(
+      new FakeGameContext() as unknown as CanvasRenderingContext2D,
+      FULL_CANVAS,
+      fakeSession(true),
+      { type: "playing" },
+      [],
+      [],
+      "topDown",
+      "idle",
+      undefined,
+      {},
+      () => {
+        repaints++;
+      },
+    );
+
+    assertEquals(callbacks.length, 1);
+    callbacks[0]?.(0);
+    assertEquals(repaints, 1);
+  } finally {
+    if (hadOwnRaf && ownRaf !== undefined) {
+      Object.defineProperty(globalThis, "requestAnimationFrame", ownRaf);
+    } else {
+      delete (globalThis as { requestAnimationFrame?: typeof requestAnimationFrame }).requestAnimationFrame;
+    }
+  }
+});
+
 function fakeFirstPersonRenderer(): FirstPersonRenderer {
   return {
     preloadAssets: () => Promise.resolve(),
@@ -71,11 +115,16 @@ function fakeFirstPersonRenderer(): FirstPersonRenderer {
   };
 }
 
-function fakeSession(): GameSession {
+function fakeSession(spriteAnimationsActive = false): GameSession {
   return {
-    map: { name: "Fake Map" },
+    map: createGameMap("Fake Map", [[1]], [], {
+      palette: [{ id: 1, color: "#000000", floor_texture: "floor", ceiling_texture: "ceiling" }],
+    }),
     getPlayerState: () => playerSnapshot(),
+    getVisibility: () => undefined,
+    forEachDrawable: () => {},
     targetMarkerTone: () => undefined,
+    advanceSpriteAnimations: () => spriteAnimationsActive,
     player: {
       getFacing: () => ({ dir: Direction.North }),
     },
@@ -212,6 +261,7 @@ class FakeGameContext {
   moveTo(): void {}
   rect(): void {}
   stroke(): void {}
+  strokeRect(): void {}
 
   measureText(text: string): TextMetrics {
     return { width: text.length * 8 } as TextMetrics;

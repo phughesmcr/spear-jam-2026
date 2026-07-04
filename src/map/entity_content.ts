@@ -1,6 +1,11 @@
 import { z } from "zod";
 import { DialogueTreeId, type DialogueTreeId as DialogueTreeIdType } from "@/src/dialogue/dialogue.ts";
-import { ItemKind, type ItemKind as ItemKindType } from "@/src/ecs/components.ts";
+import {
+  DecorationKind,
+  type DecorationKind as DecorationKindType,
+  ItemKind,
+  type ItemKind as ItemKindType,
+} from "@/src/ecs/components.ts";
 import { EnemyArchetype, type EnemyArchetype as EnemyArchetypeType } from "@/src/ecs/enemy_catalog.ts";
 import {
   AttackFacingRequirement,
@@ -32,6 +37,7 @@ const DIALOGUE_TREE_ID_SCHEMA = numberEnumSchema<DialogueTreeIdType>(
 const ENEMY_ARCHETYPE_SCHEMA = numberEnumSchema<EnemyArchetypeType>(Object.values(EnemyArchetype), "archetype");
 const EXAMINE_TEXT_ID_SCHEMA = numberEnumSchema<ExamineTextIdType>(Object.values(ExamineTextId), "examineTextId");
 const ITEM_KIND_SCHEMA = numberEnumSchema<ItemKindType>(Object.values(ItemKind), "item");
+const DECORATION_KIND_SCHEMA = numberEnumSchema<DecorationKindType>(Object.values(DecorationKind), "decoration");
 const ATTACK_FACING_REQUIREMENT_SCHEMA = numberEnumSchema<AttackFacingRequirementType>(
   Object.values(AttackFacingRequirement),
   "attack.requiresFacing",
@@ -125,6 +131,9 @@ const ENTITY_DEFINITIONS = [
     item: ITEM_KIND_SCHEMA,
     amount: POSITIVE_INTEGER_SCHEMA,
   }),
+  entityDefinition("decoration", ["prefab", "decoration"], {
+    decoration: DECORATION_KIND_SCHEMA,
+  }),
   entityDefinition("light", ["prefab", "color", "radius", "flickerAmount", "flickerSpeed"], {
     color: LIGHT_COLOR_SCHEMA,
     radius: POSITIVE_INTEGER_SCHEMA,
@@ -144,6 +153,7 @@ const ENTITY_SCHEMAS = ENTITY_DEFINITIONS.map((definition) => definition.schema)
   (typeof ENTITY_DEFINITIONS)[7]["schema"],
   (typeof ENTITY_DEFINITIONS)[8]["schema"],
   (typeof ENTITY_DEFINITIONS)[9]["schema"],
+  (typeof ENTITY_DEFINITIONS)[10]["schema"],
 ];
 
 export const ENTITY_SCHEMA = z.discriminatedUnion("prefab", ENTITY_SCHEMAS);
@@ -160,6 +170,7 @@ export type UplinkCodeDef = EntityDefFor<"uplinkCode">;
 export type UplinkTerminalDef = EntityDefFor<"uplinkTerminal">;
 export type WeaponPickupDef = EntityDefFor<"weaponPickup">;
 export type ItemDef = EntityDefFor<"item">;
+export type DecorationDef = EntityDefFor<"decoration">;
 export type LightDef = EntityDefFor<"light">;
 
 const ENTITY_PREFABS = ENTITY_DEFINITIONS.map((definition) => definition.prefab) as readonly EntityPrefab[];

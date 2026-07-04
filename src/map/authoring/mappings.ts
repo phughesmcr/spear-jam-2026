@@ -7,7 +7,12 @@ import {
   AttackTargetMode,
   type AttackTargetMode as AttackTargetModeType,
 } from "@/src/game/attack.ts";
-import { ItemKind, type ItemKind as ItemKindType } from "@/src/ecs/components.ts";
+import {
+  DecorationKind,
+  type DecorationKind as DecorationKindType,
+  ItemKind,
+  type ItemKind as ItemKindType,
+} from "@/src/ecs/components.ts";
 import {
   ENEMY_ARCHETYPE_CODES,
   type EnemyArchetype as EnemyArchetypeType,
@@ -70,6 +75,14 @@ const ITEM_KINDS: Readonly<Record<string, ItemKindType>> = {
   weapon: ItemKind.Weapon,
 };
 
+const DECORATION_KINDS: Readonly<Record<string, DecorationKindType>> = {
+  serverPile: DecorationKind.ServerPile,
+  cyborg: DecorationKind.Cyborg,
+  ceilingHook: DecorationKind.CeilingHook,
+  ceilingLight: DecorationKind.CeilingLight,
+  ceilingWires: DecorationKind.CeilingWires,
+};
+
 const ATTACK_PATTERNS: Readonly<Record<string, AttackPatternType>> = {
   line: AttackPattern.Line,
   adjacent: AttackPattern.Adjacent,
@@ -115,6 +128,10 @@ export function mapDoorSlide(value: string, context: string): DoorSlide {
 
 export function mapItemKind(value: string, context: string): ItemKindType {
   return lookup(ITEM_KINDS, value, "item kind", context);
+}
+
+export function mapDecorationKind(value: string, context: string): DecorationKindType {
+  return lookup(DECORATION_KINDS, value, "decoration kind", context);
 }
 
 export function mapAttackPattern(value: string, context: string): AttackPatternType {

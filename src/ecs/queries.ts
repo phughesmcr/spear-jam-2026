@@ -11,6 +11,7 @@ import {
   Locked,
   Secret,
   Sprite,
+  SpriteAnimation,
   TurnTaker,
 } from "./components.ts";
 
@@ -29,7 +30,14 @@ export const drawableRenderQuery = new Query({
     locked: Locked,
     secret: Secret,
     sprite: Sprite,
+    spriteAnimation: SpriteAnimation,
   },
+});
+
+/** All short-lived sprite presentation animations */
+export const spriteAnimationQuery = new Query({
+  all: { spriteAnimation: SpriteAnimation },
+  include: { gridPos: GridPos },
 });
 
 /** All map-authored light emitters */

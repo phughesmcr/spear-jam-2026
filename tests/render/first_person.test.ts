@@ -1,4 +1,5 @@
 import { assert, assertAlmostEquals, assertEquals, assertNotEquals, assertThrows } from "@std/assert";
+import { SPRITE_ATTACK_MS, SPRITE_DEATH_MS, SPRITE_WALK_MS, SpriteAnimationKind } from "@/src/ecs/components.ts";
 import { DrawableKind, spriteAppearance, SpriteId } from "@/src/ecs/drawables.ts";
 import type { DrawableEntity, LightEntity } from "@/src/ecs/drawables.ts";
 import type { SpriteId as SpriteIdType } from "@/src/ecs/components.ts";
@@ -15,6 +16,11 @@ type FakeImageEvent = "load" | "error";
 type FakeImageListener = () => void;
 
 const SPRITE_JOHN = firstPersonSlot(SpriteId.John);
+const SPRITE_DECOR_CEILING_LIGHT = firstPersonSlot(SpriteId.DecorCeilingLight);
+const ENEMY_SHEET_COLUMNS = 4;
+const ROW_WALK = 1;
+const ROW_ATTACK = 2;
+const ROW_DEATH = 3;
 
 function firstPersonSlot(spriteId: SpriteIdType): number {
   const slot = spriteAppearance(spriteId).firstPersonSlot;
@@ -445,6 +451,187 @@ Deno.test("first-person rendering uses John's single-frame NPC sprite", () => {
         image.src.includes("/assets/game/sprites/john.png")
       ),
     );
+  });
+});
+
+Deno.test("first-person rendering places ceiling decorations near the ceiling", () => {
+  withFakeOffscreenCanvas((): void => {
+    const map = createGameMap(
+      "Ceiling Decoration",
+      [
+        [2, 2, 2],
+        [2, 1, 2],
+        [2, 1, 2],
+        [2, 2, 2],
+      ],
+      [],
+      {
+        palette: [
+          { id: 1, color: "#000000", floor_texture: "floor", ceiling_texture: "ceiling" },
+          { id: 2, color: "#ffffff", wall_texture: "wall", blocking: true },
+        ],
+      },
+    );
+    const drawables: DrawableEntity[] = [
+      playerDrawable(1, 2, Direction.North),
+      { kind: DrawableKind.Sprite, entity: 2, x: 1, y: 1, spriteId: SpriteId.DecorCeilingLight },
+    ];
+    const session = sessionFor(map, drawables);
+    const renderer = createFirstPersonRenderer();
+    const ctx = new FakeCanvasContext() as unknown as CanvasRenderingContext2D;
+
+    renderer.render(ctx, { x: 0, y: 0, width: 64, height: 64 }, session);
+
+    const scene = renderer.sceneForMap(map);
+
+    assertEquals(scene.spriteCount, 1);
+    assertEquals(scene.spriteTex[0], SPRITE_DECOR_CEILING_LIGHT);
+    assertAlmostEquals(scene.spriteElevation[0]!, 0.55, 1e-6);
+    assert(
+      (ctx.canvas.ownerDocument as unknown as FakeDocument).images.some((image) =>
+        image.src.includes("/assets/game/sprites/decor_ceiling_light.png")
+      ),
+    );
+  });
+});
+
+Deno.test("first-person rendering uses ECS attack animation sheet row", () => {
+  withFakeOffscreenCanvas((): void => {
+    withFakePerformanceNow(100, (): void => {
+      const map = createGameMap(
+        "Attack Animation",
+        [
+          [2, 2, 2],
+          [2, 1, 2],
+          [2, 1, 2],
+          [2, 2, 2],
+        ],
+        [],
+        {
+          palette: [
+            { id: 1, color: "#000000", floor_texture: "floor", ceiling_texture: "ceiling" },
+            { id: 2, color: "#ffffff", wall_texture: "wall", blocking: true },
+          ],
+        },
+      );
+      const base = firstPersonSlot(SpriteId.DigitalDog);
+      const session = sessionFor(map, [
+        playerDrawable(1, 2, Direction.North),
+        {
+          kind: DrawableKind.Actor,
+          entity: 2,
+          x: 1,
+          y: 1,
+          dir: Direction.South,
+          spriteId: SpriteId.DigitalDog,
+          animation: { kind: SpriteAnimationKind.Attack, startedAtMs: 100, durationMs: SPRITE_ATTACK_MS },
+        },
+      ]);
+      const renderer = createFirstPersonRenderer();
+
+      renderer.render(
+        new FakeCanvasContext() as unknown as CanvasRenderingContext2D,
+        { x: 0, y: 0, width: 64, height: 64 },
+        session,
+      );
+      const scene = renderer.sceneForMap(map);
+
+      assertEquals(scene.spriteCount, 1);
+      assertEquals(scene.spriteTex[0], base + ROW_ATTACK * ENEMY_SHEET_COLUMNS);
+    });
+  });
+});
+
+Deno.test("first-person rendering uses ECS walk animation sheet row", () => {
+  withFakeOffscreenCanvas((): void => {
+    withFakePerformanceNow(SPRITE_WALK_MS / 2, (): void => {
+      const map = createGameMap(
+        "Walk Animation",
+        [
+          [2, 2, 2],
+          [2, 1, 2],
+          [2, 1, 2],
+          [2, 2, 2],
+        ],
+        [],
+        {
+          palette: [
+            { id: 1, color: "#000000", floor_texture: "floor", ceiling_texture: "ceiling" },
+            { id: 2, color: "#ffffff", wall_texture: "wall", blocking: true },
+          ],
+        },
+      );
+      const base = firstPersonSlot(SpriteId.DigitalDog);
+      const session = sessionFor(map, [
+        playerDrawable(1, 2, Direction.North),
+        {
+          kind: DrawableKind.Actor,
+          entity: 2,
+          x: 1,
+          y: 1,
+          dir: Direction.South,
+          spriteId: SpriteId.DigitalDog,
+          animation: { kind: SpriteAnimationKind.Walk, startedAtMs: 0, durationMs: SPRITE_WALK_MS },
+        },
+      ]);
+      const renderer = createFirstPersonRenderer();
+
+      renderer.render(
+        new FakeCanvasContext() as unknown as CanvasRenderingContext2D,
+        { x: 0, y: 0, width: 64, height: 64 },
+        session,
+      );
+      const scene = renderer.sceneForMap(map);
+
+      assertEquals(scene.spriteCount, 1);
+      assertEquals(scene.spriteTex[0], base + ROW_WALK * ENEMY_SHEET_COLUMNS);
+    });
+  });
+});
+
+Deno.test("first-person rendering uses ECS death animation sheet frames", () => {
+  withFakeOffscreenCanvas((): void => {
+    withFakePerformanceNow(SPRITE_DEATH_MS / 2, (): void => {
+      const map = createGameMap(
+        "Death Animation",
+        [
+          [2, 2, 2],
+          [2, 1, 2],
+          [2, 1, 2],
+          [2, 2, 2],
+        ],
+        [],
+        {
+          palette: [
+            { id: 1, color: "#000000", floor_texture: "floor", ceiling_texture: "ceiling" },
+            { id: 2, color: "#ffffff", wall_texture: "wall", blocking: true },
+          ],
+        },
+      );
+      const base = firstPersonSlot(SpriteId.DigitalDog);
+      const session = sessionFor(map, [
+        playerDrawable(1, 2, Direction.North),
+        {
+          kind: DrawableKind.Sprite,
+          entity: 2,
+          x: 1,
+          y: 1,
+          spriteId: SpriteId.DigitalDog,
+          animation: { kind: SpriteAnimationKind.Death, startedAtMs: 0, durationMs: SPRITE_DEATH_MS },
+        },
+      ]);
+      const renderer = createFirstPersonRenderer();
+
+      renderer.render(
+        new FakeCanvasContext() as unknown as CanvasRenderingContext2D,
+        { x: 0, y: 0, width: 64, height: 64 },
+        session,
+      );
+      const scene = renderer.sceneForMap(map);
+
+      assertEquals(scene.spriteCount, 1);
+      assertEquals(scene.spriteTex[0], base + ROW_DEATH * ENEMY_SHEET_COLUMNS + 2);
+    });
   });
 });
 

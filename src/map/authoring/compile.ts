@@ -27,6 +27,7 @@ import {
   mapAttackFacingRequirement,
   mapAttackPattern,
   mapAttackTargets,
+  mapDecorationKind,
   mapDialogueTreeId,
   mapDirection,
   mapDisplayName,
@@ -296,6 +297,14 @@ function compileEntity(
         amount: requiredInteger(resolved.properties, "amount", context),
       };
       break;
+    case "decoration":
+      entity = {
+        prefab: "decoration",
+        x: resolved.x,
+        y: resolved.y,
+        decoration: requiredDecorationKind(resolved.properties, context),
+      };
+      break;
     case "light":
       entity = compileLightEntity(resolved, resolved.properties, context);
       break;
@@ -507,6 +516,10 @@ function optionalKeyColor(properties: PropertyMap, context: string): ReturnType<
 
 function requiredItemKind(properties: PropertyMap, context: string): ReturnType<typeof mapItemKind> {
   return mapItemKind(requiredString(properties, "item", context), `${context} property "item"`);
+}
+
+function requiredDecorationKind(properties: PropertyMap, context: string): ReturnType<typeof mapDecorationKind> {
+  return mapDecorationKind(requiredString(properties, "decoration", context), `${context} property "decoration"`);
 }
 
 function requiredWeaponSlot(properties: PropertyMap, context: string): 2 | 3 {

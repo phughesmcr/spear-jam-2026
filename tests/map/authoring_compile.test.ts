@@ -1,7 +1,7 @@
 import { assertEquals, assertThrows } from "@std/assert";
 import { AttackFacingRequirement, AttackPattern, AttackTargetMode } from "@/src/game/attack.ts";
 import { DialogueTreeId } from "@/src/dialogue/dialogue.ts";
-import { ItemKind } from "@/src/ecs/components.ts";
+import { DecorationKind, ItemKind } from "@/src/ecs/components.ts";
 import { EnemyArchetype } from "@/src/ecs/enemy_catalog.ts";
 import { ExamineTextId } from "@/src/game/examine.ts";
 import { DisplayName } from "@/src/game/names.ts";
@@ -387,6 +387,12 @@ Deno.test("compileTiledMap compiles representative prefabs and enemy attack over
           type: "item",
           properties: [property("item", "healthPatch"), property("amount", 4)],
         }),
+        object({
+          x: 0,
+          y: TILE_SIZE * 3,
+          type: "decoration",
+          properties: [property("decoration", "ceilingLight")],
+        }),
       ],
     }),
     compileOptions(),
@@ -446,6 +452,7 @@ Deno.test("compileTiledMap compiles representative prefabs and enemy attack over
     },
     { prefab: "weaponPickup", x: 1, y: 2, slot: 3 },
     { prefab: "item", x: 2, y: 2, item: ItemKind.HealthPatch, amount: 4 },
+    { prefab: "decoration", x: 0, y: 3, decoration: DecorationKind.CeilingLight },
   ]);
 });
 

@@ -84,6 +84,9 @@ function renderSpriteDrawable(
 ): void {
   const appearance = spriteAppearance(drawable.spriteId);
   switch (appearance.topDownShape) {
+    case "actor":
+      renderActorSymbol(ctx, drawable.x, drawable.y, 0, appearance.topDownColor, appearance.topDownSymbol, metrics);
+      return;
     case "badge":
       renderBadge(ctx, drawable.x, drawable.y, appearance.topDownColor, appearance.topDownSymbol ?? "", metrics);
       return;

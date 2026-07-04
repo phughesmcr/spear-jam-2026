@@ -11,10 +11,12 @@ import {
   GridPos,
   Health,
   Player as PlayerTag,
+  Sprite,
 } from "@/src/ecs/components.ts";
 import type { AttackSchema } from "@/src/ecs/components.ts";
+import type { SpriteId } from "@/src/ecs/components.ts";
 import type { Player } from "@/src/ecs/player.ts";
-import { createCorpse } from "@/src/ecs/prefabs.ts";
+import { createDeathEffect } from "@/src/ecs/prefabs.ts";
 import type { SpatialAccess, SpatialLookup, SpatialMutations } from "@/src/ecs/spatial.ts";
 import { CARDINAL_DELTAS, directionDelta } from "@/src/grid/direction.ts";
 import { DEFAULT_ATTACK } from "@/src/game/attack.ts";
@@ -180,7 +182,8 @@ export function attackEntity(
   // everything else is removed from play immediately.
   if (!world.components.entityHas(PlayerTag, defender)) {
     const position = world.components.readEntityData(GridPos, defender);
-    if (position !== undefined) createCorpse(world, position);
+    const sprite = world.components.readEntityData(Sprite, defender);
+    if (position !== undefined && sprite !== undefined) createDeathEffect(world, position, sprite.id as SpriteId);
     spatial.removeEntity(defender);
   }
   return events;

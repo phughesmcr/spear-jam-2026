@@ -1,5 +1,21 @@
 import type { Entity, World } from "@phughesmcr/miski";
-import { Door, healthFor, Interactable, Locked, Npc, Secret, UplinkTerminal } from "@/src/ecs/components.ts";
+import {
+  Door,
+  Drawable,
+  GridPos,
+  healthFor,
+  Interactable,
+  Locked,
+  Npc,
+  PENDING_SPRITE_ANIMATION_START_MS,
+  Secret,
+  SPRITE_ATTACK_MS,
+  SPRITE_WALK_MS,
+  SpriteAnimation,
+  SpriteAnimationKind,
+  UplinkTerminal,
+} from "@/src/ecs/components.ts";
+import type { SpriteAnimationSchema } from "@/src/ecs/components.ts";
 import { directionDelta } from "@/src/grid/direction.ts";
 import type { GridDelta } from "@/src/grid/direction.ts";
 import {
@@ -26,8 +42,9 @@ import type {
 import { enemyTurnSystem } from "@/src/ecs/enemy.ts";
 import type { EnemyTurnSystem } from "@/src/ecs/enemy.ts";
 import { collectItemAt, interactWithEntity } from "@/src/ecs/interactions.ts";
-import { createMapEntity } from "@/src/ecs/prefabs.ts";
+import { createCorpse, createMapEntity } from "@/src/ecs/prefabs.ts";
 import { Player } from "@/src/ecs/player.ts";
+import { drawableRenderQuery, spriteAnimationQuery } from "@/src/ecs/queries.ts";
 import { SpatialIndex } from "@/src/ecs/spatial.ts";
 import { createWorld } from "@/src/ecs/world.ts";
 import { examineEntity } from "@/src/game/examine.ts";
@@ -77,6 +94,7 @@ type ConsumedPlayerAction = {
   readonly events: readonly GameEvent[];
   readonly noise?: NoiseStimulus;
 };
+type ActorPositionSnapshot = Map<Entity, { readonly x: number; readonly y: number }>;
 
 type PlayerActionResolution =
   | { readonly type: "immediate"; readonly events: readonly GameEvent[] }
@@ -186,6 +204,39 @@ export class GameSession implements Disposable {
 
   getVisibility(): TileVisibility {
     return this.visibility;
+  }
+
+  advanceSpriteAnimations(nowMs: number): boolean {
+    let changed = false;
+    let active = false;
+    for (const entity of this.world.entities.query(spriteAnimationQuery)) {
+      const animation = this.world.components.getEntityData(SpriteAnimation, entity);
+      if (animation.startedAtMs === PENDING_SPRITE_ANIMATION_START_MS) {
+        this.world.components.setEntityData(SpriteAnimation, entity, {
+          kind: animation.kind as SpriteAnimationSchema["kind"],
+          startedAtMs: nowMs,
+          durationMs: animation.durationMs,
+        });
+        changed = true;
+        active = true;
+        continue;
+      }
+      if (nowMs < animation.startedAtMs + animation.durationMs) {
+        active = true;
+        continue;
+      }
+
+      if (animation.kind === SpriteAnimationKind.Death) {
+        const position = this.world.components.readEntityData(GridPos, entity);
+        this.world.entities.destroy(entity);
+        if (position !== undefined) createCorpse(this.world, position);
+      } else {
+        this.world.components.removeFromEntity(SpriteAnimation, entity);
+      }
+      changed = true;
+    }
+    if (changed) this.world.refresh();
+    return active;
   }
 
   handlePlayerCommand(command: PlayerCommand): PlayerCommandResult {
@@ -442,6 +493,7 @@ export class GameSession implements Disposable {
   }
 
   private commitConsumedPlayerAction(action: ConsumedPlayerAction): PlayerCommandResult {
+    const actorPositions = this.actorPositionSnapshot();
     const actionEvents = this.applyPlayerActionReactions(action.events);
     const enemyEvents = this.enemyTurnSystem({
       world: this.world,
@@ -452,9 +504,13 @@ export class GameSession implements Disposable {
       noises: this.noisesForPlayerAction(actionEvents, action.noise),
     });
     tickPlayerTurnEffects(this.world, this.player.getEntity());
-    this.world.refresh();
-    this.refreshVisibility();
     const allEvents = [...actionEvents, ...enemyEvents];
+    const nowMs = performance.now();
+    this.applyWalkAnimations(actorPositions, nowMs);
+    this.applySpriteAnimations(allEvents, nowMs);
+    this.world.refresh();
+    this.advanceSpriteAnimations(nowMs);
+    this.refreshVisibility();
     return this.isPlayerDefeated() ? { events: allEvents, outcome: "defeat" } : { events: allEvents };
   }
 
@@ -464,6 +520,51 @@ export class GameSession implements Disposable {
 
   private applyPlayerActionReactions(events: readonly GameEvent[]): readonly GameEvent[] {
     return awardCreditsForDefeats(this.world, this.player.getEntity(), events);
+  }
+
+  private applySpriteAnimations(events: readonly GameEvent[], nowMs: number): void {
+    for (const event of events) {
+      if ((event.type === "damageDealt" || event.type === "attackMissed") && event.actor !== this.player.getEntity()) {
+        this.setSpriteAnimation(event.actor, {
+          kind: SpriteAnimationKind.Attack,
+          startedAtMs: nowMs,
+          durationMs: SPRITE_ATTACK_MS,
+        });
+      }
+    }
+  }
+
+  private actorPositionSnapshot(): ActorPositionSnapshot {
+    const positions: ActorPositionSnapshot = new Map();
+    for (const entity of this.world.entities.query(drawableRenderQuery)) {
+      const drawable = this.world.components.readEntityData(Drawable, entity);
+      if (drawable?.kind !== DrawableKind.Actor) continue;
+      const position = this.world.components.readEntityData(GridPos, entity);
+      if (position !== undefined) positions.set(entity, { x: position.x, y: position.y });
+    }
+    return positions;
+  }
+
+  private applyWalkAnimations(positions: ActorPositionSnapshot, nowMs: number): void {
+    for (const [entity, from] of positions) {
+      if (!this.world.entities.isActive(entity)) continue;
+      const to = this.world.components.readEntityData(GridPos, entity);
+      if (to === undefined || (to.x === from.x && to.y === from.y)) continue;
+      this.setSpriteAnimation(entity, {
+        kind: SpriteAnimationKind.Walk,
+        startedAtMs: nowMs,
+        durationMs: SPRITE_WALK_MS,
+      });
+    }
+  }
+
+  private setSpriteAnimation(entity: Entity, animation: SpriteAnimationSchema): void {
+    if (!this.world.entities.isActive(entity)) return;
+    if (this.world.components.entityHas(SpriteAnimation, entity)) {
+      this.world.components.setEntityData(SpriteAnimation, entity, animation);
+      return;
+    }
+    this.world.components.addToEntity(SpriteAnimation, entity, animation);
   }
 
   private refreshVisibility(): void {

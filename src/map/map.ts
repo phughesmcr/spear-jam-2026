@@ -2,6 +2,7 @@ import type { EntityDef } from "@/src/map/entity_content.ts";
 import { TERRAIN_CATALOG } from "@/src/map/terrain_palettes.ts";
 
 export type {
+  DecorationDef,
   DoorDef,
   EnemyDef,
   EntityDef,

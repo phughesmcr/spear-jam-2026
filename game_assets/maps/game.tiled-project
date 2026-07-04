@@ -90,7 +90,8 @@
         "uplinkCode",
         "uplinkTerminal",
         "weaponPickup",
-        "item"
+        "item",
+        "decoration"
       ],
       "valuesAsFlags": false
     },
@@ -298,6 +299,20 @@
         "pack3:2,3",
         "pack3:3,3",
         "pack3:4,3"
+      ],
+      "valuesAsFlags": false
+    },
+    {
+      "id": 15,
+      "name": "DecorationKind",
+      "storageType": "string",
+      "type": "enum",
+      "values": [
+        "serverPile",
+        "cyborg",
+        "ceilingHook",
+        "ceilingLight",
+        "ceilingWires"
       ],
       "valuesAsFlags": false
     },
@@ -587,6 +602,30 @@
         }
       ],
       "name": "item",
+      "type": "class",
+      "useAs": [
+        "object"
+      ]
+    },
+    {
+      "color": "#ff64748b",
+      "drawFill": false,
+      "id": 39,
+      "members": [
+        {
+          "name": "prefab",
+          "propertyType": "Prefab",
+          "type": "string",
+          "value": "decoration"
+        },
+        {
+          "name": "decoration",
+          "propertyType": "DecorationKind",
+          "type": "string",
+          "value": "serverPile"
+        }
+      ],
+      "name": "decoration",
       "type": "class",
       "useAs": [
         "object"

@@ -19,7 +19,8 @@ import type {
   LightEntityVisitor,
   SpriteAppearance,
 } from "@/src/ecs/drawables.ts";
-import type { SpriteId as SpriteIdType } from "@/src/ecs/components.ts";
+import { SpriteAnimationKind } from "@/src/ecs/components.ts";
+import type { SpriteAnimationSchema, SpriteId as SpriteIdType } from "@/src/ecs/components.ts";
 import { type CardinalDirection, directionDelta, normalizeDirection } from "@/src/grid/direction.ts";
 import type { TargetMarkerTone } from "@/src/game/target_marker.ts";
 import { KeyColor, mapDimensions, terrainAt, TexturePack } from "@/src/map/map.ts";
@@ -126,11 +127,11 @@ const SHEET_COLUMNS = 4;
 const SHEET_SLOTS = 16;
 const ROW_IDLE = 0;
 const ROW_WALK = 1;
+const ROW_ATTACK = 2;
+const ROW_DEATH = 3;
 /** Relative facing (entity dir - camera dir) to enemy sheet column. */
 const REL_DIR_TO_SHEET_COLUMN: readonly [number, number, number, number] = [2, 3, 0, 1];
 
-/** Alternate walk and idle poses at this cadence while an enemy moves. */
-const WALK_FRAME_MS = 90;
 const ITEM_BOB_PERIOD_MS = 1_200;
 const ITEM_BOB_BASE_ELEVATION = 0.03;
 const ITEM_BOB_ELEVATION_AMPLITUDE = 0.025;
@@ -291,6 +292,21 @@ function createAssetCatalog(): AssetCatalog {
     managedAsset(new URL("../../assets/game/sprites/uplink_code.png", import.meta.url).href, [
       { layer: "sprites", slot: firstPersonSlot(SpriteId.UplinkCode) },
     ]),
+    managedAsset(new URL("../../assets/game/sprites/decor_server_pile.png", import.meta.url).href, [
+      { layer: "sprites", slot: firstPersonSlot(SpriteId.DecorServerPile) },
+    ]),
+    managedAsset(new URL("../../assets/game/sprites/decor_cyborg.png", import.meta.url).href, [
+      { layer: "sprites", slot: firstPersonSlot(SpriteId.DecorCyborg) },
+    ]),
+    managedAsset(new URL("../../assets/game/sprites/decor_ceiling_hook.png", import.meta.url).href, [
+      { layer: "sprites", slot: firstPersonSlot(SpriteId.DecorCeilingHook) },
+    ]),
+    managedAsset(new URL("../../assets/game/sprites/decor_ceiling_light.png", import.meta.url).href, [
+      { layer: "sprites", slot: firstPersonSlot(SpriteId.DecorCeilingLight) },
+    ]),
+    managedAsset(new URL("../../assets/game/sprites/decor_ceiling_wires.png", import.meta.url).href, [
+      { layer: "sprites", slot: firstPersonSlot(SpriteId.DecorCeilingWires) },
+    ]),
     texturePackAssets[TexturePack.Pack1],
     texturePackAssets[TexturePack.Pack2],
     texturePackAssets[TexturePack.Pack3],
@@ -331,6 +347,11 @@ function buildAtlas(): RaycastAtlas {
   sprites[firstPersonSlot(SpriteId.Corpse)] = bakeOrb("#4b5563");
   sprites[firstPersonSlot(SpriteId.PistolAmmo)] = bakeOrb("#38bdf8");
   sprites[firstPersonSlot(SpriteId.CannonAmmo)] = bakeOrb("#f97316");
+  sprites[firstPersonSlot(SpriteId.DecorServerPile)] = bakeOrb("#64748b");
+  sprites[firstPersonSlot(SpriteId.DecorCyborg)] = bakeOrb("#94a3b8");
+  sprites[firstPersonSlot(SpriteId.DecorCeilingHook)] = bakeOrb("#9f7a5d");
+  sprites[firstPersonSlot(SpriteId.DecorCeilingLight)] = bakeOrb("#facc15");
+  sprites[firstPersonSlot(SpriteId.DecorCeilingWires)] = bakeOrb("#64748b");
 
   return { walls, planes, sprites, spriteLightmaps };
 }
@@ -886,7 +907,7 @@ function addAppearanceSprite(
     y,
     appearance.firstPersonSlot,
     appearance.firstPersonScale,
-    appearance.itemBob ? itemElevation(nowMs) : 0,
+    appearance.firstPersonElevation + (appearance.itemBob ? itemElevation(nowMs) : 0),
   );
   return appearance.itemBob;
 }
@@ -896,9 +917,24 @@ function enemySprite(baseSlot: number, dir: number, cameraDir: CardinalDirection
   return baseSlot + row * SHEET_COLUMNS + REL_DIR_TO_SHEET_COLUMN[relative]!;
 }
 
-/** Pick the sheet row for an enemy: mid-stride gait or idle. */
-function enemySheetRow(moving: boolean, nowMs: number): number {
-  if (moving && ((nowMs / WALK_FRAME_MS) & 1) === 1) return ROW_WALK;
+function animationIsActive(animation: SpriteAnimationSchema | undefined, nowMs: number): boolean {
+  return animation !== undefined && nowMs < animation.startedAtMs + animation.durationMs;
+}
+
+function animationFrame(animation: SpriteAnimationSchema, nowMs: number, frameCount: number): number {
+  if (animation.durationMs <= 0) return frameCount - 1;
+  const elapsed = Math.max(0, nowMs - animation.startedAtMs);
+  const progress = Math.min(1, elapsed / animation.durationMs);
+  return Math.min(frameCount - 1, (progress * frameCount) | 0);
+}
+
+/** Pick the sheet row for an enemy: ECS presentation state or default idle. */
+function enemySheetRow(animation: SpriteAnimationSchema | undefined, nowMs: number): number {
+  if (animation === undefined || !animationIsActive(animation, nowMs)) return ROW_IDLE;
+  if (animation.kind === SpriteAnimationKind.Attack) return ROW_ATTACK;
+  if (animation.kind === SpriteAnimationKind.Walk) {
+    return animationFrame(animation, nowMs, 2) === 0 ? ROW_IDLE : ROW_WALK;
+  }
   return ROW_IDLE;
 }
 
@@ -968,10 +1004,10 @@ function addDrawable(
         return !state.spritePoint.settled;
       }
       if (appearance.firstPersonSlot === undefined) return !state.spritePoint.settled;
-      const row = enemySheetRow(!state.spritePoint.settled, nowMs);
+      const row = enemySheetRow(drawable.animation, nowMs);
       const sprite = enemySprite(appearance.firstPersonSlot, drawable.dir, cameraDir, row);
       addSprite(scene, state.spritePoint.x, state.spritePoint.y, sprite, appearance.firstPersonScale);
-      return !state.spritePoint.settled;
+      return !state.spritePoint.settled || animationIsActive(drawable.animation, nowMs);
     }
     case DrawableKind.Door: {
       // A secret door stays disguised as its surrounding wall for its whole
@@ -1003,8 +1039,25 @@ function addDrawable(
       );
       return !state.doorSample.settled;
     }
-    case DrawableKind.Sprite:
-      return addAppearanceSprite(scene, centerX, centerY, spriteAppearance(drawable.spriteId), nowMs);
+    case DrawableKind.Sprite: {
+      const appearance = spriteAppearance(drawable.spriteId);
+      if (
+        appearance.enemySheet &&
+        appearance.firstPersonSlot !== undefined &&
+        drawable.animation?.kind === SpriteAnimationKind.Death
+      ) {
+        const frame = animationFrame(drawable.animation, nowMs, SHEET_COLUMNS);
+        addSprite(
+          scene,
+          centerX,
+          centerY,
+          appearance.firstPersonSlot + ROW_DEATH * SHEET_COLUMNS + frame,
+          appearance.firstPersonScale,
+        );
+        return animationIsActive(drawable.animation, nowMs);
+      }
+      return addAppearanceSprite(scene, centerX, centerY, appearance, nowMs);
+    }
   }
 }
 

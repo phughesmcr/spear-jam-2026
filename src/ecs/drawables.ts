@@ -1,6 +1,6 @@
 import { type Entity, System } from "@phughesmcr/miski";
 import { DrawableKind, SpriteId } from "@/src/ecs/components.ts";
-import type { LightEmitterSchema, SpriteId as SpriteIdType } from "@/src/ecs/components.ts";
+import type { LightEmitterSchema, SpriteAnimationSchema, SpriteId as SpriteIdType } from "@/src/ecs/components.ts";
 import { drawableRenderQuery, lightRenderQuery } from "@/src/ecs/queries.ts";
 import { DEFAULT_DOOR_OPEN_MS, doorSlideForCode, keyColorForCode } from "@/src/map/map.ts";
 import type { DoorSlide, KeyColor as KeyColorType } from "@/src/map/map.ts";
@@ -20,6 +20,7 @@ type TopDownShape =
 export type SpriteAppearance = {
   readonly firstPersonSlot?: number;
   readonly firstPersonScale: number;
+  readonly firstPersonElevation: number;
   readonly enemySheet: boolean;
   readonly itemBob: boolean;
   readonly topDownShape: TopDownShape;
@@ -31,6 +32,10 @@ const FIRST_PERSON_SCALE_ACTOR = 0.75;
 const FIRST_PERSON_SCALE_CORPSE = 0.6;
 const FIRST_PERSON_SCALE_ITEM = 0.4;
 const FIRST_PERSON_SCALE_TERMINAL = 0.9;
+const FIRST_PERSON_SCALE_DECOR_LARGE = 0.85;
+const FIRST_PERSON_SCALE_DECOR_TALL = 0.95;
+const FIRST_PERSON_SCALE_DECOR_CEILING_LIGHT = 0.45;
+const FIRST_PERSON_SCALE_DECOR_CEILING_LONG = 0.75;
 
 const SPRITE_APPEARANCES: Readonly<Record<SpriteIdType, SpriteAppearance>> = {
   [SpriteId.Player]: appearance(undefined, FIRST_PERSON_SCALE_ACTOR, "player", "#f0c84b"),
@@ -52,6 +57,29 @@ const SPRITE_APPEARANCES: Readonly<Record<SpriteIdType, SpriteAppearance>> = {
   [SpriteId.Corpse]: appearance(90, FIRST_PERSON_SCALE_CORPSE, "corpse", "#4b5563"),
   [SpriteId.PistolAmmo]: itemAppearance(91, "badge", "#38bdf8", "P"),
   [SpriteId.CannonAmmo]: itemAppearance(92, "badge", "#f97316", "C"),
+  [SpriteId.DecorServerPile]: decorationAppearance(93, FIRST_PERSON_SCALE_DECOR_LARGE, 0, "#64748b", "S"),
+  [SpriteId.DecorCyborg]: decorationAppearance(94, FIRST_PERSON_SCALE_DECOR_TALL, 0, "#94a3b8", "C"),
+  [SpriteId.DecorCeilingHook]: decorationAppearance(
+    95,
+    FIRST_PERSON_SCALE_DECOR_CEILING_LONG,
+    1 - FIRST_PERSON_SCALE_DECOR_CEILING_LONG,
+    "#9f7a5d",
+    "H",
+  ),
+  [SpriteId.DecorCeilingLight]: decorationAppearance(
+    96,
+    FIRST_PERSON_SCALE_DECOR_CEILING_LIGHT,
+    1 - FIRST_PERSON_SCALE_DECOR_CEILING_LIGHT,
+    "#facc15",
+    "L",
+  ),
+  [SpriteId.DecorCeilingWires]: decorationAppearance(
+    97,
+    FIRST_PERSON_SCALE_DECOR_CEILING_LONG,
+    1 - FIRST_PERSON_SCALE_DECOR_CEILING_LONG,
+    "#64748b",
+    "W",
+  ),
 };
 
 export function spriteAppearance(id: SpriteIdType): SpriteAppearance {
@@ -68,6 +96,7 @@ function appearance(
   return {
     firstPersonSlot,
     firstPersonScale,
+    firstPersonElevation: 0,
     enemySheet: false,
     itemBob: false,
     topDownShape,
@@ -95,6 +124,19 @@ function itemAppearance(
   };
 }
 
+function decorationAppearance(
+  firstPersonSlot: number,
+  firstPersonScale: number,
+  firstPersonElevation: number,
+  topDownColor: string,
+  topDownSymbol: string,
+): SpriteAppearance {
+  return {
+    ...appearance(firstPersonSlot, firstPersonScale, "badge", topDownColor, topDownSymbol),
+    firstPersonElevation,
+  };
+}
+
 type DrawableBase = {
   readonly entity: Entity;
   readonly x: number;
@@ -111,6 +153,7 @@ export type ActorDrawableEntity = DrawableBase & {
   readonly kind: typeof DrawableKind.Actor;
   readonly dir: number;
   readonly spriteId: SpriteIdType;
+  readonly animation?: SpriteAnimationSchema;
   readonly health?: {
     readonly current: number;
     readonly max: number;
@@ -133,6 +176,7 @@ export type DoorDrawableEntity = DrawableBase & {
 export type SpriteDrawableEntity = DrawableBase & {
   readonly kind: typeof DrawableKind.Sprite;
   readonly spriteId: SpriteIdType;
+  readonly animation?: SpriteAnimationSchema;
 };
 
 export type DrawableEntity =
@@ -150,6 +194,8 @@ type DrawableHealthScratch = {
   max: number;
 };
 
+type DrawableAnimationScratch = SpriteAnimationSchema;
+
 type DrawableEntityScratch = {
   entity: Entity;
   x: number;
@@ -157,6 +203,7 @@ type DrawableEntityScratch = {
   kind: DrawableKind;
   dir: number;
   spriteId: SpriteIdType;
+  animation: DrawableAnimationScratch | undefined;
   health: DrawableHealthScratch | undefined;
   open: boolean;
   locked: boolean;
@@ -170,6 +217,7 @@ type DrawableRenderScratch = {
   orderedEntities: Uint32Array;
   readonly drawables: DrawableEntityScratch[];
   readonly health: DrawableHealthScratch[];
+  readonly animations: DrawableAnimationScratch[];
 };
 
 type LightEntityScratch = {
@@ -211,6 +259,7 @@ export function createDrawableRenderScratch(): DrawableRenderScratch {
     orderedEntities: new Uint32Array(INITIAL_DRAWABLE_CAPACITY),
     drawables: [],
     health: [],
+    animations: [],
   };
   ensureDrawableScratchCapacity(scratch, INITIAL_DRAWABLE_CAPACITY);
   return scratch;
@@ -255,6 +304,7 @@ export const drawableSystem = new System({
         positionY[entity]!,
         scratch.drawables[i]!,
         scratch.health[i]!,
+        scratch.animations[i]!,
       );
       if (drawable !== undefined) context.visit(drawable);
     }
@@ -298,7 +348,12 @@ function ensureDrawableScratchCapacity(scratch: DrawableRenderScratch, count: nu
   for (let i = scratch.drawables.length; i < count; i++) {
     scratch.drawables[i] = createDrawableEntityScratch();
     scratch.health[i] = { current: 0, max: 0 };
+    scratch.animations[i] = createDrawableAnimationScratch();
   }
+}
+
+function createDrawableAnimationScratch(): DrawableAnimationScratch {
+  return { kind: 0 as SpriteAnimationSchema["kind"], startedAtMs: 0, durationMs: 0 };
 }
 
 function createDrawableEntityScratch(): DrawableEntityScratch {
@@ -309,6 +364,7 @@ function createDrawableEntityScratch(): DrawableEntityScratch {
     kind: DrawableKind.Sprite,
     dir: 0,
     spriteId: SpriteId.Npc,
+    animation: undefined,
     health: undefined,
     open: false,
     locked: false,
@@ -354,6 +410,7 @@ function resetDrawableScratch(
   drawable.y = y;
   drawable.dir = 0;
   drawable.spriteId = SpriteId.Npc;
+  drawable.animation = undefined;
   drawable.health = undefined;
   drawable.open = false;
   drawable.locked = false;
@@ -371,6 +428,7 @@ function drawableEntityFor(
   y: number,
   drawable: DrawableEntityScratch,
   health: DrawableHealthScratch,
+  animation: DrawableAnimationScratch,
 ): DrawableEntity | undefined {
   resetDrawableScratch(drawable, entity, kind, x, y);
 
@@ -378,11 +436,11 @@ function drawableEntityFor(
     case DrawableKind.Player:
       return playerDrawableEntityFor(components, entity, drawable);
     case DrawableKind.Actor:
-      return actorDrawableEntityFor(components, entity, drawable, health);
+      return actorDrawableEntityFor(components, entity, drawable, health, animation);
     case DrawableKind.Door:
       return doorDrawableEntityFor(components, entity, drawable);
     case DrawableKind.Sprite:
-      return spriteDrawableEntityFor(components, entity, drawable);
+      return spriteDrawableEntityFor(components, entity, drawable, animation);
     default:
       return undefined;
   }
@@ -404,11 +462,13 @@ function actorDrawableEntityFor(
   entity: Entity,
   drawable: DrawableEntityScratch,
   health: DrawableHealthScratch,
+  animation: DrawableAnimationScratch,
 ): ActorDrawableEntity | undefined {
   if (!components.facing.has(entity) || !components.sprite.has(entity)) return undefined;
 
   drawable.dir = components.facing.partitions.dir[entity]!;
   drawable.spriteId = components.sprite.partitions.id[entity]! as SpriteIdType;
+  drawable.animation = writeAnimationForEntity(components, entity, animation) ? animation : undefined;
   drawable.health = writeHealthForEntity(components, entity, health) ? health : undefined;
   return drawable as ActorDrawableEntity;
 }
@@ -436,10 +496,24 @@ function spriteDrawableEntityFor(
   components: DrawableComponents,
   entity: Entity,
   drawable: DrawableEntityScratch,
+  animation: DrawableAnimationScratch,
 ): SpriteDrawableEntity | undefined {
   if (!components.sprite.has(entity)) return undefined;
   drawable.spriteId = components.sprite.partitions.id[entity]! as SpriteIdType;
+  drawable.animation = writeAnimationForEntity(components, entity, animation) ? animation : undefined;
   return drawable as SpriteDrawableEntity;
+}
+
+function writeAnimationForEntity(
+  components: DrawableComponents,
+  entity: Entity,
+  animation: DrawableAnimationScratch,
+): boolean {
+  if (!components.spriteAnimation.has(entity)) return false;
+  animation.kind = components.spriteAnimation.partitions.kind[entity]! as SpriteAnimationSchema["kind"];
+  animation.startedAtMs = components.spriteAnimation.partitions.startedAtMs[entity]!;
+  animation.durationMs = components.spriteAnimation.partitions.durationMs[entity]!;
+  return true;
 }
 
 function writeHealthForEntity(

@@ -4,19 +4,27 @@ import {
   Attack,
   AttackFacingRequirement,
   AttackPattern,
+  Blocking,
+  DecorationKind,
   Defense,
   Dialogue,
   DisplayNameComponent,
+  Drawable,
+  DrawableKind,
+  DrawableLayer,
   Enemy,
   EnemyArchetypeComponent,
   Examine,
   Health,
+  Item,
   Npc,
+  Sprite,
+  SpriteId,
 } from "@/src/ecs/components.ts";
 import { EnemyArchetype } from "@/src/ecs/enemy_catalog.ts";
 import { ExamineTextId } from "@/src/game/examine.ts";
 import { DisplayName } from "@/src/game/names.ts";
-import { createDoor, createEnemy, createNpc, createUplinkTerminal } from "@/src/ecs/prefabs.ts";
+import { createDecoration, createDoor, createEnemy, createNpc, createUplinkTerminal } from "@/src/ecs/prefabs.ts";
 import { createWorld } from "@/src/ecs/world.ts";
 
 Deno.test("neutral NPCs and enemies share display names without sharing NPC identity", async () => {
@@ -77,6 +85,23 @@ Deno.test("prefabs attach authored examine text when provided", async () => {
       examineTextId: ExamineTextId.BootSectorUplinkTerminal,
     });
   }
+});
+
+Deno.test("decorations spawn as non-blocking structure sprites", async () => {
+  const world = await createWorld();
+  const decoration = createDecoration(world, {
+    x: 1,
+    y: 1,
+    decoration: DecorationKind.ServerPile,
+  });
+
+  assertEquals(world.components.getEntityData(Drawable, decoration), {
+    kind: DrawableKind.Sprite,
+    layer: DrawableLayer.Structure,
+  });
+  assertEquals(world.components.getEntityData(Sprite, decoration), { id: SpriteId.DecorServerPile });
+  assertEquals(world.components.entityHas(Blocking, decoration), false);
+  assertEquals(world.components.entityHas(Item, decoration), false);
 });
 
 Deno.test("enemy archetypes apply top-down tuning defaults", async () => {

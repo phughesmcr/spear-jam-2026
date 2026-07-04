@@ -1,6 +1,13 @@
 import { assertEquals, assertRejects } from "@std/assert";
-import { ItemKind } from "@/src/ecs/components.ts";
-import { DrawableKind } from "@/src/ecs/drawables.ts";
+import {
+  ItemKind,
+  SPRITE_ATTACK_MS,
+  SPRITE_DEATH_MS,
+  SPRITE_WALK_MS,
+  SpriteAnimationKind,
+} from "@/src/ecs/components.ts";
+import { DrawableKind, SpriteId } from "@/src/ecs/drawables.ts";
+import type { ActorDrawableEntity, DrawableEntity } from "@/src/ecs/drawables.ts";
 import { EnemyArchetype } from "@/src/ecs/enemy_catalog.ts";
 import { createGameSession } from "@/src/ecs/session.ts";
 import type { PlayerCommandResult } from "@/src/game/commands.ts";
@@ -265,6 +272,112 @@ Deno.test("ranged attacks spend ammo before resolving combat and level credit", 
   }
 });
 
+Deno.test("enemy attacks expose short-lived ECS sprite animation state", async () => {
+  await withFakePerformanceNow(100, async () => {
+    const session = await createGameSession(
+      testMap([{
+        prefab: "enemy",
+        x: 2,
+        y: 1,
+        dir: Direction.West,
+        displayName: DisplayName.DigitalDog,
+        archetype: EnemyArchetype.MeleeDog,
+      }]),
+      sequenceRandom([0.999, 0]),
+    );
+    try {
+      const result = session.handlePlayerCommand({ type: "wait" });
+      assertEquals(eventTypes(result), ["damageDealt"]);
+
+      assertEquals(actorAt(sessionDrawables(session), 2, 1)?.animation, {
+        kind: SpriteAnimationKind.Attack,
+        startedAtMs: 100,
+        durationMs: SPRITE_ATTACK_MS,
+      });
+
+      session.advanceSpriteAnimations(100 + SPRITE_ATTACK_MS);
+      assertEquals(actorAt(sessionDrawables(session), 2, 1)?.animation, undefined);
+    } finally {
+      session[Symbol.dispose]();
+    }
+  });
+});
+
+Deno.test("moving enemies expose short-lived ECS walk animation state", async () => {
+  await withFakePerformanceNow(100, async () => {
+    const session = await createGameSession(
+      testMap([{
+        prefab: "enemy",
+        x: 4,
+        y: 1,
+        dir: Direction.West,
+        displayName: DisplayName.NetworkNeophyte,
+        archetype: EnemyArchetype.NetworkNeophyte,
+      }], 6),
+      sequenceRandom([]),
+    );
+    try {
+      const result = session.handlePlayerCommand({ type: "wait" });
+      assertEquals(eventTypes(result), []);
+
+      assertEquals(actorAt(sessionDrawables(session), 3, 1)?.animation, {
+        kind: SpriteAnimationKind.Walk,
+        startedAtMs: 100,
+        durationMs: SPRITE_WALK_MS,
+      });
+
+      session.advanceSpriteAnimations(100 + SPRITE_WALK_MS);
+      assertEquals(actorAt(sessionDrawables(session), 3, 1)?.animation, undefined);
+    } finally {
+      session[Symbol.dispose]();
+    }
+  });
+});
+
+Deno.test("defeated enemies render as ECS death effects before becoming corpses", async () => {
+  await withFakePerformanceNow(200, async () => {
+    const session = await createGameSession(
+      testMap([{
+        prefab: "enemy",
+        x: 2,
+        y: 1,
+        dir: Direction.West,
+        displayName: DisplayName.DigitalDog,
+        archetype: EnemyArchetype.MeleeDog,
+        health: 1,
+      }]),
+      sequenceRandom([0.999, 0]),
+    );
+    try {
+      const result = session.handlePlayerCommand({ type: "attack" });
+      assertEquals(eventTypes(result), ["damageDealt", "entityDefeated", "creditsEarned"]);
+
+      assertEquals(spriteAt(sessionDrawables(session), 2, 1), {
+        kind: DrawableKind.Sprite,
+        x: 2,
+        y: 1,
+        spriteId: SpriteId.DigitalDog,
+        animation: {
+          kind: SpriteAnimationKind.Death,
+          startedAtMs: 200,
+          durationMs: SPRITE_DEATH_MS,
+        },
+      });
+
+      session.advanceSpriteAnimations(200 + SPRITE_DEATH_MS);
+      assertEquals(spriteAt(sessionDrawables(session), 2, 1), {
+        kind: DrawableKind.Sprite,
+        x: 2,
+        y: 1,
+        spriteId: SpriteId.Corpse,
+        animation: undefined,
+      });
+    } finally {
+      session[Symbol.dispose]();
+    }
+  });
+});
+
 Deno.test("only consumed player turns tick active turn effects", async () => {
   const session = await createGameSession(
     testMap([]),
@@ -297,6 +410,51 @@ function testMap(entities: readonly EntityDef[], width = 5): GameMap {
 
 function eventTypes(result: PlayerCommandResult): readonly string[] {
   return result.events.map((event) => event.type);
+}
+
+function sessionDrawables(session: { forEachDrawable(visit: (drawable: DrawableEntity) => void): void }) {
+  const drawables: DrawableEntity[] = [];
+  session.forEachDrawable((drawable) => drawables.push({ ...drawable }));
+  return drawables;
+}
+
+function actorAt(drawables: readonly DrawableEntity[], x: number, y: number): ActorDrawableEntity | undefined {
+  return drawables.find((drawable): drawable is ActorDrawableEntity =>
+    drawable.kind === DrawableKind.Actor && drawable.x === x && drawable.y === y
+  );
+}
+
+function spriteAt(drawables: readonly DrawableEntity[], x: number, y: number) {
+  const sprite = drawables.find((drawable) =>
+    drawable.kind === DrawableKind.Sprite && drawable.x === x && drawable.y === y
+  );
+  if (sprite?.kind !== DrawableKind.Sprite) return undefined;
+  return {
+    kind: sprite.kind,
+    x: sprite.x,
+    y: sprite.y,
+    spriteId: sprite.spriteId,
+    animation: sprite.animation,
+  };
+}
+
+async function withFakePerformanceNow(nowMs: number, run: () => Promise<void>): Promise<void> {
+  const hadOwnNow = Object.hasOwn(performance, "now");
+  const ownNow = Object.getOwnPropertyDescriptor(performance, "now");
+  Object.defineProperty(performance, "now", {
+    configurable: true,
+    writable: true,
+    value: (): number => nowMs,
+  });
+  try {
+    await run();
+  } finally {
+    if (hadOwnNow && ownNow !== undefined) {
+      Object.defineProperty(performance, "now", ownNow);
+    } else {
+      delete (performance as { now?: () => number }).now;
+    }
+  }
 }
 
 function sequenceRandom(values: readonly number[]): () => number {

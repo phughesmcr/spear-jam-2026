@@ -3,6 +3,7 @@ import { DialogueTreeId } from "@/src/dialogue/dialogue.ts";
 import {
   Attack,
   Blocking,
+  DecorationKind,
   Defense,
   Dialogue,
   DisplayNameComponent,
@@ -24,9 +25,13 @@ import {
   LightEmitter,
   Locked,
   Npc,
+  PENDING_SPRITE_ANIMATION_START_MS,
   Player,
   Secret,
   Sprite,
+  SPRITE_DEATH_MS,
+  SpriteAnimation,
+  SpriteAnimationKind,
   SpriteId,
   TurnTaker,
   UplinkTerminal,
@@ -44,6 +49,7 @@ import { DisplayName } from "@/src/game/names.ts";
 import { normalizeDirection } from "@/src/grid/direction.ts";
 import { doorSlideCode, KeyColor, keyColorCode, keyColorForCode } from "@/src/map/map.ts";
 import type {
+  DecorationDef,
   DoorDef,
   EnemyDef,
   EntityDef,
@@ -217,6 +223,18 @@ export function createItem(world: World, prefab: ItemPrefab): Entity {
   return createPickup(world, prefab, prefab.item, prefab.amount);
 }
 
+export type DecorationPrefab = Omit<DecorationDef, "prefab">;
+
+export function createDecoration(world: World, prefab: DecorationPrefab): Entity {
+  return world.entities.createWithOrThrow(
+    [
+      [GridPos, { x: prefab.x, y: prefab.y }],
+      [Drawable, { kind: DrawableKind.Sprite, layer: DrawableLayer.Structure }],
+      [Sprite, { id: spriteIdForDecoration(prefab.decoration) }],
+    ] as const,
+  );
+}
+
 export type LightPrefab = Omit<LightDef, "prefab">;
 
 export function createLight(world: World, prefab: LightPrefab): Entity {
@@ -252,6 +270,7 @@ const MAP_ENTITY_CREATORS = {
   uplinkTerminal: createUplinkTerminal,
   weaponPickup: createWeaponPickup,
   item: createItem,
+  decoration: createDecoration,
   light: createLight,
 } satisfies MapEntityCreators;
 
@@ -306,6 +325,21 @@ export function createCorpse(world: World, position: PositionedPrefab): Entity {
   );
 }
 
+export function createDeathEffect(world: World, position: PositionedPrefab, sprite: SpriteId): Entity {
+  return world.entities.createWithOrThrow(
+    [
+      [GridPos, position],
+      [Drawable, { kind: DrawableKind.Sprite, layer: DrawableLayer.Item }],
+      [Sprite, { id: sprite }],
+      [SpriteAnimation, {
+        kind: SpriteAnimationKind.Death,
+        startedAtMs: PENDING_SPRITE_ANIMATION_START_MS,
+        durationMs: SPRITE_DEATH_MS,
+      }],
+    ] as const,
+  );
+}
+
 function spriteIdForNpc(displayName: number): SpriteId {
   return displayName === DisplayName.John ? SpriteId.John : SpriteId.Npc;
 }
@@ -348,6 +382,21 @@ function spriteIdForItem(item: ItemKind, value: number): SpriteId {
       return SpriteId.UplinkCode;
     case ItemKind.Weapon:
       return value === 2 ? SpriteId.Weapon2 : SpriteId.Weapon3;
+  }
+}
+
+function spriteIdForDecoration(decoration: DecorationKind): SpriteId {
+  switch (decoration) {
+    case DecorationKind.ServerPile:
+      return SpriteId.DecorServerPile;
+    case DecorationKind.Cyborg:
+      return SpriteId.DecorCyborg;
+    case DecorationKind.CeilingHook:
+      return SpriteId.DecorCeilingHook;
+    case DecorationKind.CeilingLight:
+      return SpriteId.DecorCeilingLight;
+    case DecorationKind.CeilingWires:
+      return SpriteId.DecorCeilingWires;
   }
 }
 

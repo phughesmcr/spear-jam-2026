@@ -1,5 +1,5 @@
 import { DialogueTreeId } from "@/src/dialogue/dialogue.ts";
-import { ItemKind } from "@/src/ecs/components.ts";
+import { DecorationKind, ItemKind } from "@/src/ecs/components.ts";
 import { ENEMY_ARCHETYPE_CODES, enemyCatalogEntry } from "@/src/ecs/enemy_catalog.ts";
 import { AttackPattern } from "@/src/game/attack.ts";
 import { ExamineTextId } from "@/src/game/examine.ts";
@@ -76,6 +76,11 @@ export const ENTITY_MARKER_TYPES = [
 
 export type EntityMarkerType = (typeof ENTITY_MARKER_TYPES)[number];
 
+const PREFAB_AUTHORING_VALUES = [
+  ...ENTITY_MARKER_TYPES,
+  "decoration",
+] as const satisfies readonly EntityPrefab[];
+
 export type TiledProjectCommand = {
   readonly command: string;
   readonly executable: string;
@@ -135,7 +140,7 @@ const TEMPLATE_MARKER_FIRST_GID = 1;
 
 export const PROPERTY_TYPES: readonly TiledPropertyType[] = [
   enumPropertyType(1, "TerrainPalette", PALETTE_KEYS),
-  enumPropertyType(2, "Prefab", ENTITY_MARKER_TYPES),
+  enumPropertyType(2, "Prefab", PREFAB_AUTHORING_VALUES),
   enumPropertyType(3, "Facing", ["north", "east", "south", "west"]),
   enumPropertyType(4, "KeyColor", Object.values(KeyColor)),
   enumPropertyType(5, "DoorSlide", ["north", "east", "south", "west", "up", "down"]),
@@ -152,6 +157,7 @@ export const PROPERTY_TYPES: readonly TiledPropertyType[] = [
   enumPropertyType(12, "AttackTargets", ["first", "all"]),
   enumPropertyType(13, "AttackRequiresFacing", ["required", "none"]),
   enumPropertyType(14, "TextureRef", TEXTURE_REFS),
+  enumPropertyType(15, "DecorationKind", authoringKeys(DecorationKind)),
   classPropertyType(20, "map_metadata", "#ff0ea5e9", true, ["map"], [
     classMember("name", "string", "Boot Sector"),
     classMember("palette", "string", "boot_sector", "TerrainPalette"),
@@ -199,6 +205,10 @@ export const PROPERTY_TYPES: readonly TiledPropertyType[] = [
     classMember("prefab", "string", "item", "Prefab"),
     classMember("item", "string", "healthPatch", "ItemKind"),
     classMember("amount", "int", 1),
+  ]),
+  classPropertyType(39, "decoration", "#ff64748b", false, ["object"], [
+    classMember("prefab", "string", "decoration", "Prefab"),
+    classMember("decoration", "string", "serverPile", "DecorationKind"),
   ]),
 ];
 
@@ -282,6 +292,7 @@ export const TEMPLATE_DEFINITIONS: readonly TemplateDefinition[] = [
     property("item", "cannonAmmo", "ItemKind"),
     property("amount", 3),
   ]),
+  ...decorationTemplateDefinitions(),
 ];
 
 export function floorTilesetPath(): string {
@@ -417,6 +428,23 @@ function textureRef(pack: TexturePack, column: number, row: number): string {
 function property(name: string, value: TiledProperty["value"], propertytype?: string): TiledProperty {
   const type = propertyTypeForValue(value);
   return propertytype === undefined ? { name, type, value } : { name, propertytype, type, value };
+}
+
+function decorationTemplateDefinitions(): readonly TemplateDefinition[] {
+  return [
+    decorationTemplateDefinition("serverPile", "Server pile"),
+    decorationTemplateDefinition("cyborg", "Cyborg"),
+    decorationTemplateDefinition("ceilingHook", "Ceiling hook"),
+    decorationTemplateDefinition("ceilingLight", "Ceiling light"),
+    decorationTemplateDefinition("ceilingWires", "Ceiling wires"),
+  ];
+}
+
+function decorationTemplateDefinition(decoration: string, name: string): TemplateDefinition {
+  return templateDefinition(`decor_${snakeCase(decoration)}.tx`, "item", "decoration", name, [
+    property("prefab", "decoration", "Prefab"),
+    property("decoration", decoration, "DecorationKind"),
+  ]);
 }
 
 function propertyTypeForValue(value: TiledProperty["value"]): "bool" | "int" | "string" {

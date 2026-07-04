@@ -191,8 +191,22 @@ export const SpriteId = {
   Corpse: 17,
   PistolAmmo: 18,
   CannonAmmo: 19,
+  DecorServerPile: 20,
+  DecorCyborg: 21,
+  DecorCeilingHook: 22,
+  DecorCeilingLight: 23,
+  DecorCeilingWires: 24,
 } as const;
 export type SpriteId = (typeof SpriteId)[keyof typeof SpriteId];
+
+export const DecorationKind = {
+  ServerPile: 1,
+  Cyborg: 2,
+  CeilingHook: 3,
+  CeilingLight: 4,
+  CeilingWires: 5,
+} as const;
+export type DecorationKind = (typeof DecorationKind)[keyof typeof DecorationKind];
 
 const SPRITE_STORAGE = { id: Uint8Array };
 export type SpriteSchema = { id: SpriteId };
@@ -202,6 +216,36 @@ export const Sprite: Component<SpriteSchema, typeof SPRITE_STORAGE> = new Compon
 >({
   name: "sprite",
   schema: SPRITE_STORAGE,
+});
+
+export const SpriteAnimationKind = {
+  Walk: 1,
+  Attack: 2,
+  Death: 3,
+} as const;
+export type SpriteAnimationKind = (typeof SpriteAnimationKind)[keyof typeof SpriteAnimationKind];
+
+export const SPRITE_WALK_MS = 170;
+export const SPRITE_ATTACK_MS = 380;
+export const SPRITE_DEATH_MS = 560;
+export const PENDING_SPRITE_ANIMATION_START_MS = -1;
+
+export type SpriteAnimationSchema = {
+  kind: SpriteAnimationKind;
+  startedAtMs: number;
+  durationMs: number;
+};
+const SPRITE_ANIMATION_STORAGE = {
+  kind: Uint8Array,
+  startedAtMs: Float64Array,
+  durationMs: Uint16Array,
+};
+export const SpriteAnimation: Component<SpriteAnimationSchema, typeof SPRITE_ANIMATION_STORAGE> = new Component<
+  SpriteAnimationSchema,
+  typeof SPRITE_ANIMATION_STORAGE
+>({
+  name: "spriteAnimation",
+  schema: SPRITE_ANIMATION_STORAGE,
 });
 
 export type DoorSchema = {
@@ -394,6 +438,7 @@ export const ALL_COMPONENTS: DynamicComponent[] = [
   Interactable,
   Drawable,
   Sprite,
+  SpriteAnimation,
   Door,
   Locked,
   Secret,
