@@ -8,6 +8,7 @@ import {
   terrainAt,
   TexturePack,
 } from "@/src/map/map.ts";
+import { DEFAULT_WALL_TERRAIN_ID } from "@/src/map/terrain_palettes.ts";
 
 Deno.test("createGameMap rejects ragged terrain rows", () => {
   assertThrows(
@@ -29,16 +30,16 @@ Deno.test("createGameMap rejects empty terrain", () => {
 
 Deno.test("createGameMap rejects terrain tiles missing from the palette", () => {
   assertThrows(
-    () => createGameMap("Missing Palette Tile", [[2]], []),
+    () => createGameMap("Missing Palette Tile", [[999]], []),
     Error,
-    'Map "Missing Palette Tile" terrain tile 2 at (0,0) is missing from its palette.',
+    'Map "Missing Palette Tile" terrain tile 999 at (0,0) is missing from its palette.',
   );
 });
 
 Deno.test("terrainAt resolves palette tiles and rejects out-of-bounds reads", () => {
   const map = createGameMap("Tiny", [
-    [1, 0],
-    [0, 1],
+    [DEFAULT_WALL_TERRAIN_ID, 0],
+    [0, DEFAULT_WALL_TERRAIN_ID],
   ], []);
 
   assertEquals(mapDimensions(map), { width: 2, height: 2 });

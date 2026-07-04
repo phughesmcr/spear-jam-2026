@@ -4,15 +4,14 @@ import { AttackPattern } from "@/src/game/attack.ts";
 import { ExamineTextId } from "@/src/game/examine.ts";
 import { ItemKind } from "@/src/game/items.ts";
 import { DisplayName } from "@/src/game/names.ts";
-import { KeyColor, VICTORY_GOTO } from "@/src/map/map.ts";
+import { KeyColor, TexturePack, VICTORY_GOTO } from "@/src/map/map.ts";
 import {
-  BOOT_SECTOR_PALETTE,
-  DATA_CONDUIT_PALETTE,
-  FIREWALL_PALETTE,
-  MAINFRAME_CORE_PALETTE,
-  NEXUS_PALETTE,
+  PALETTE_KEYS,
+  TERRAIN_CATALOG_TILE_COLUMNS,
+  TERRAIN_CATALOG_TILE_COUNT,
+  TEXTURE_TERRAIN_COUNT,
 } from "@/src/map/terrain_palettes.ts";
-import type { EntityPrefab, TerrainTile } from "@/src/map/map.ts";
+import type { EntityPrefab } from "@/src/map/map.ts";
 import type { TiledObject, TiledProperty, TiledTilesetReference } from "@/src/map/authoring/tiled_types.ts";
 
 export const MAPS_DIR = "game_assets/maps";
@@ -20,46 +19,48 @@ export const TEMPLATE_DIR = `${MAPS_DIR}/templates`;
 export const AUTOMAP_DIR = `${MAPS_DIR}/automap`;
 export const AUTOMAP_RULES_FILE = `${AUTOMAP_DIR}/rules.txt`;
 export const TILED_PROJECT_AUTOMAP_RULES_FILE = "automap/rules.txt";
+export const TERRAIN_TILESETS_DIR = `${MAPS_DIR}/terrain`;
 export const COMPILED_MAPS_PATH = "src/map/compiled_maps.json";
 export const TILED_PROJECT_PATH = `${MAPS_DIR}/game.tiled-project`;
 export const ENTITY_MARKERS_TILESET = "entity_markers.tsj";
 export const ENTITY_MARKERS_IMAGE = "entity_markers.png";
-export const TERRAIN_AUTHORING_TILES = "terrain_authoring_tiles.png";
 export const AUTHORING_TILE_SIZE = 16;
-export const TERRAIN_AUTHORING_TILE_COUNT = 6;
-export const TERRAIN_TILESET_FIRST_GID = 1;
-export const ENTITY_MARKERS_FIRST_GID = 7;
+export const TERRAIN_ATLAS_TILE_COLUMNS = TERRAIN_CATALOG_TILE_COLUMNS;
+export const TERRAIN_ATLAS_TILE_COUNT = TERRAIN_CATALOG_TILE_COUNT;
+export const FLOOR_TILESET = "floors.tsj";
+export const FLOOR_TILESET_IMAGE = "floors.png";
+export const WALL_TILESET = "walls.tsj";
+export const WALL_TILESET_IMAGE = "walls.png";
+export const FLOOR_TILESET_FIRST_GID = 1;
+export const WALL_TILESET_FIRST_GID = FLOOR_TILESET_FIRST_GID + TEXTURE_TERRAIN_COUNT;
+export const TERRAIN_TILESET_FIRST_GID = FLOOR_TILESET_FIRST_GID;
+export const ENTITY_MARKERS_FIRST_GID = TERRAIN_ATLAS_TILE_COUNT + 1;
 export const TERRAIN_PASSABLE_TILE_ID = 0;
-export const TERRAIN_BLOCKING_TILE_ID = 1;
+export const TERRAIN_BLOCKING_TILE_ID = WALL_TILESET_FIRST_GID - 1;
+export const TEXTURE_PACK_TILE_SIZE = 128;
+export const TEXTURE_PACK_COLUMNS = 5;
+export const TEXTURE_PACK_ROWS = 4;
 export const PNG_SIGNATURE = [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a] as const;
 
-export type RgbaColor = readonly [number, number, number, number];
-
-export type TerrainAuthoringTile = {
-  readonly id: number;
-  readonly blocking: boolean;
-  readonly color: RgbaColor;
-  readonly accent: RgbaColor;
+export type TexturePackDefinition = {
+  readonly pack: TexturePack;
+  readonly label: string;
+  readonly image: string;
 };
 
-export const TERRAIN_AUTHORING_TILE_DEFINITIONS: readonly TerrainAuthoringTile[] = [
-  terrainAuthoringTile(0, false, [0x00, 0xb8, 0x94, 0xff], [0x7d, 0xff, 0xe7, 0xff]),
-  terrainAuthoringTile(1, true, [0xff, 0x3b, 0x30, 0xff], [0xff, 0xb3, 0xae, 0xff]),
-  terrainAuthoringTile(2, false, [0x00, 0xb8, 0x94, 0xff], [0x7d, 0xff, 0xe7, 0xff]),
-  terrainAuthoringTile(3, false, [0x00, 0xb8, 0x94, 0xff], [0x7d, 0xff, 0xe7, 0xff]),
-  terrainAuthoringTile(4, true, [0xff, 0x3b, 0x30, 0xff], [0xff, 0xb3, 0xae, 0xff]),
-  terrainAuthoringTile(5, true, [0xff, 0x3b, 0x30, 0xff], [0xff, 0xb3, 0xae, 0xff]),
+export const TEXTURE_PACK_DEFINITIONS: readonly TexturePackDefinition[] = [
+  texturePackDefinition(TexturePack.Pack1, "Pack 1", "pack1.png"),
+  texturePackDefinition(TexturePack.Pack2, "Pack 2", "pack2.png"),
+  texturePackDefinition(TexturePack.Pack3, "Pack 3", "pack3.png"),
 ];
 
-export const PALETTES = {
-  boot_sector: BOOT_SECTOR_PALETTE,
-  data_conduit: DATA_CONDUIT_PALETTE,
-  firewall: FIREWALL_PALETTE,
-  nexus: NEXUS_PALETTE,
-  mainframe_core: MAINFRAME_CORE_PALETTE,
-} as const satisfies Readonly<Record<string, readonly TerrainTile[]>>;
-
-export type PaletteKey = keyof typeof PALETTES;
+export const TEXTURE_REFS: readonly string[] = TEXTURE_PACK_DEFINITIONS.flatMap((definition) =>
+  Array.from(
+    { length: TEXTURE_PACK_COLUMNS * TEXTURE_PACK_ROWS },
+    (_value, tileId) =>
+      textureRef(definition.pack, tileId % TEXTURE_PACK_COLUMNS, Math.floor(tileId / TEXTURE_PACK_COLUMNS)),
+  )
+);
 
 export const ENTITY_MARKER_TYPES = [
   "player",
@@ -133,7 +134,7 @@ export type TemplateFile = {
 const TEMPLATE_MARKER_FIRST_GID = 1;
 
 export const PROPERTY_TYPES: readonly TiledPropertyType[] = [
-  enumPropertyType(1, "TerrainPalette", Object.keys(PALETTES)),
+  enumPropertyType(1, "TerrainPalette", PALETTE_KEYS),
   enumPropertyType(2, "Prefab", ENTITY_MARKER_TYPES),
   enumPropertyType(3, "Facing", ["north", "east", "south", "west"]),
   enumPropertyType(4, "KeyColor", Object.values(KeyColor)),
@@ -150,6 +151,7 @@ export const PROPERTY_TYPES: readonly TiledPropertyType[] = [
   enumPropertyType(11, "AttackPattern", authoringKeys(AttackPattern)),
   enumPropertyType(12, "AttackTargets", ["first", "all"]),
   enumPropertyType(13, "AttackRequiresFacing", ["required", "none"]),
+  enumPropertyType(14, "TextureRef", TEXTURE_REFS),
   classPropertyType(20, "map_metadata", "#ff0ea5e9", true, ["map"], [
     classMember("name", "string", "Boot Sector"),
     classMember("palette", "string", "boot_sector", "TerrainPalette"),
@@ -276,36 +278,34 @@ export const TEMPLATE_DEFINITIONS: readonly TemplateDefinition[] = [
   ]),
 ];
 
-export function terrainTilesetReference(): TiledTilesetReference {
+export function floorTilesetPath(): string {
+  return `${TERRAIN_TILESETS_DIR}/${FLOOR_TILESET}`;
+}
+
+export function floorTilesetImagePath(): string {
+  return `${TERRAIN_TILESETS_DIR}/${FLOOR_TILESET_IMAGE}`;
+}
+
+export function wallTilesetPath(): string {
+  return `${TERRAIN_TILESETS_DIR}/${WALL_TILESET}`;
+}
+
+export function wallTilesetImagePath(): string {
+  return `${TERRAIN_TILESETS_DIR}/${WALL_TILESET_IMAGE}`;
+}
+
+export function floorTilesetReference(): TiledTilesetReference {
   return {
-    columns: TERRAIN_AUTHORING_TILE_COUNT,
-    firstgid: TERRAIN_TILESET_FIRST_GID,
-    image: TERRAIN_AUTHORING_TILES,
-    imageheight: AUTHORING_TILE_SIZE,
-    imagewidth: AUTHORING_TILE_SIZE * TERRAIN_AUTHORING_TILE_COUNT,
-    margin: 0,
-    name: "terrain",
-    spacing: 0,
-    tilecount: TERRAIN_AUTHORING_TILE_COUNT,
-    tileheight: AUTHORING_TILE_SIZE,
-    tiles: TERRAIN_AUTHORING_TILE_DEFINITIONS.map((tile) => ({
-      id: tile.id,
-      properties: [
-        property("terrainId", tile.id),
-        property("blocking", tile.blocking),
-      ],
-    })),
-    tilewidth: AUTHORING_TILE_SIZE,
+    firstgid: FLOOR_TILESET_FIRST_GID,
+    source: `terrain/${FLOOR_TILESET}`,
   };
 }
 
-function terrainAuthoringTile(
-  id: number,
-  blocking: boolean,
-  color: RgbaColor,
-  accent: RgbaColor,
-): TerrainAuthoringTile {
-  return { id, blocking, color, accent };
+export function wallTilesetReference(): TiledTilesetReference {
+  return {
+    firstgid: WALL_TILESET_FIRST_GID,
+    source: `terrain/${WALL_TILESET}`,
+  };
 }
 
 export function entityMarkersTilesetReference(): TiledTilesetReference {
@@ -380,8 +380,8 @@ function classMember(
 function tiledCommand(command: string, args: string): TiledProjectCommand {
   return {
     command,
-    executable: "deno",
-    arguments: args,
+    executable: "/bin/zsh",
+    arguments: `-lc ${JSON.stringify(`deno ${args}`)}`,
     workingDirectory: "%projectpath/../..",
     shortcut: "",
     showOutput: true,
@@ -398,6 +398,14 @@ function templateDefinition(
   properties: readonly TiledProperty[],
 ): TemplateDefinition {
   return { path: `${TEMPLATE_DIR}/${path}`, marker, objectType, name, properties };
+}
+
+function texturePackDefinition(pack: TexturePack, label: string, image: string): TexturePackDefinition {
+  return { pack, label, image };
+}
+
+function textureRef(pack: TexturePack, column: number, row: number): string {
+  return `${pack}:${column},${row}`;
 }
 
 function property(name: string, value: TiledProperty["value"], propertytype?: string): TiledProperty {

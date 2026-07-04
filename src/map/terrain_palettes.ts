@@ -1,122 +1,81 @@
-import { TexturePack } from "@/src/map/map.ts";
-import type { TerrainTile } from "@/src/map/map.ts";
+import type { TerrainTile, TexturePack } from "@/src/map/map.ts";
 
-export const BOOT_SECTOR_PALETTE: readonly TerrainTile[] = [
-  {
-    id: 0,
-    color: "#0b5152",
-    floor_texture: `${TexturePack.Pack1}:1,3`,
-    ceiling_texture: `${TexturePack.Pack1}:2,0`,
-  },
-  {
-    id: 2,
-    color: "#1f5a30",
-    floor_texture: `${TexturePack.Pack1}:0,3`,
-    ceiling_texture: `${TexturePack.Pack1}:1,2`,
-  },
-  {
-    id: 3,
-    color: "#694b1f",
-    floor_texture: `${TexturePack.Pack1}:3,3`,
-    ceiling_texture: `${TexturePack.Pack1}:3,3`,
-  },
-  { id: 1, color: "#185757", wall_texture: `${TexturePack.Pack1}:0,2`, blocking: true },
-  { id: 4, color: "#5f4f31", wall_texture: `${TexturePack.Pack1}:2,1`, blocking: true },
-  { id: 5, color: "#304757", wall_texture: `${TexturePack.Pack1}:3,2`, blocking: true },
+export const TEXTURE_PACK_COLUMNS = 5;
+export const TEXTURE_PACK_ROWS = 4;
+export const TEXTURE_PACKS = ["pack1", "pack2", "pack3"] as const satisfies readonly TexturePack[];
+export const TEXTURE_PACK_TILE_COUNT = TEXTURE_PACK_COLUMNS * TEXTURE_PACK_ROWS;
+export const TEXTURE_TERRAIN_COUNT = TEXTURE_PACKS.length * TEXTURE_PACK_TILE_COUNT;
+
+export const FLOOR_TERRAIN_BASE_ID = 0;
+export const WALL_TERRAIN_BASE_ID = FLOOR_TERRAIN_BASE_ID + TEXTURE_TERRAIN_COUNT;
+export const TERRAIN_CATALOG_TILE_COUNT = WALL_TERRAIN_BASE_ID + TEXTURE_TERRAIN_COUNT;
+export const TERRAIN_CATALOG_TILE_COLUMNS = TEXTURE_PACK_COLUMNS * TEXTURE_PACK_ROWS;
+
+export const DEFAULT_FLOOR_TERRAIN_ID = FLOOR_TERRAIN_BASE_ID;
+export const DEFAULT_WALL_TERRAIN_ID = WALL_TERRAIN_BASE_ID;
+
+export const TERRAIN_CATALOG: readonly TerrainTile[] = [
+  ...textureRefs().map((texture, index) => ({
+    id: FLOOR_TERRAIN_BASE_ID + index,
+    color: terrainColor(index, false),
+    floor_texture: texture,
+    ceiling_texture: texture,
+  })),
+  ...textureRefs().map((texture, index) => ({
+    id: WALL_TERRAIN_BASE_ID + index,
+    color: terrainColor(index, true),
+    wall_texture: texture,
+    blocking: true as const,
+  })),
 ];
 
-export const DATA_CONDUIT_PALETTE: readonly TerrainTile[] = [
-  {
-    id: 0,
-    color: "#12555d",
-    floor_texture: `${TexturePack.Pack2}:2,1`,
-    ceiling_texture: `${TexturePack.Pack2}:3,0`,
-  },
-  {
-    id: 2,
-    color: "#6a4c17",
-    floor_texture: `${TexturePack.Pack2}:0,1`,
-    ceiling_texture: `${TexturePack.Pack2}:4,0`,
-  },
-  {
-    id: 3,
-    color: "#6a3224",
-    floor_texture: `${TexturePack.Pack2}:3,1`,
-    ceiling_texture: `${TexturePack.Pack2}:4,3`,
-  },
-  { id: 1, color: "#174f47", wall_texture: `${TexturePack.Pack2}:0,0`, blocking: true },
-  { id: 4, color: "#225257", wall_texture: `${TexturePack.Pack2}:2,0`, blocking: true },
-  { id: 5, color: "#4d5f1f", wall_texture: `${TexturePack.Pack2}:4,1`, blocking: true },
-];
+export const PALETTE_KEYS = [
+  "boot_sector",
+  "data_conduit",
+  "firewall",
+  "nexus",
+  "mainframe_core",
+] as const;
 
-export const FIREWALL_PALETTE: readonly TerrainTile[] = [
-  {
-    id: 0,
-    color: "#6f4a12",
-    floor_texture: `${TexturePack.Pack2}:0,1`,
-    ceiling_texture: `${TexturePack.Pack2}:4,0`,
-  },
-  {
-    id: 2,
-    color: "#7c3422",
-    floor_texture: `${TexturePack.Pack2}:3,1`,
-    ceiling_texture: `${TexturePack.Pack2}:3,0`,
-  },
-  {
-    id: 3,
-    color: "#254f51",
-    floor_texture: `${TexturePack.Pack2}:2,1`,
-    ceiling_texture: `${TexturePack.Pack2}:2,3`,
-  },
-  { id: 1, color: "#5a2e1c", wall_texture: `${TexturePack.Pack2}:3,1`, blocking: true },
-  { id: 4, color: "#475c20", wall_texture: `${TexturePack.Pack2}:4,1`, blocking: true },
-  { id: 5, color: "#21484b", wall_texture: `${TexturePack.Pack2}:2,0`, blocking: true },
-];
+export type PaletteKey = (typeof PALETTE_KEYS)[number];
 
-export const NEXUS_PALETTE: readonly TerrainTile[] = [
-  {
-    id: 0,
-    color: "#31451b",
-    floor_texture: `${TexturePack.Pack3}:3,2`,
-    ceiling_texture: `${TexturePack.Pack3}:0,2`,
-  },
-  {
-    id: 2,
-    color: "#60472f",
-    floor_texture: `${TexturePack.Pack3}:2,1`,
-    ceiling_texture: `${TexturePack.Pack3}:4,2`,
-  },
-  {
-    id: 3,
-    color: "#4a4433",
-    floor_texture: `${TexturePack.Pack3}:0,3`,
-    ceiling_texture: `${TexturePack.Pack3}:2,0`,
-  },
-  { id: 1, color: "#133327", wall_texture: `${TexturePack.Pack3}:1,0`, blocking: true },
-  { id: 4, color: "#201713", wall_texture: `${TexturePack.Pack3}:4,0`, blocking: true },
-  { id: 5, color: "#112c25", wall_texture: `${TexturePack.Pack3}:0,1`, blocking: true },
-];
+function textureRefs(): readonly `${TexturePack}:${number},${number}`[] {
+  return TEXTURE_PACKS.flatMap((pack) =>
+    Array.from(
+      { length: TEXTURE_PACK_TILE_COUNT },
+      (_value, tileId) =>
+        `${pack}:${tileId % TEXTURE_PACK_COLUMNS},${Math.floor(tileId / TEXTURE_PACK_COLUMNS)}` as const,
+    )
+  );
+}
 
-export const MAINFRAME_CORE_PALETTE: readonly TerrainTile[] = [
-  {
-    id: 0,
-    color: "#4c3424",
-    floor_texture: `${TexturePack.Pack3}:2,3`,
-    ceiling_texture: `${TexturePack.Pack3}:0,3`,
-  },
-  {
-    id: 2,
-    color: "#31451b",
-    floor_texture: `${TexturePack.Pack3}:3,2`,
-    ceiling_texture: `${TexturePack.Pack3}:0,2`,
-  },
-  {
-    id: 3,
-    color: "#4a4433",
-    floor_texture: `${TexturePack.Pack3}:0,3`,
-    ceiling_texture: `${TexturePack.Pack3}:4,2`,
-  },
-  { id: 1, color: "#201713", wall_texture: `${TexturePack.Pack3}:4,0`, blocking: true },
-  { id: 4, color: "#112c25", wall_texture: `${TexturePack.Pack3}:1,0`, blocking: true },
-  { id: 5, color: "#442116", wall_texture: `${TexturePack.Pack3}:4,3`, blocking: true },
-];
+function terrainColor(index: number, blocking: boolean): string {
+  const hue = (index * 47) % 360;
+  const saturation = blocking ? 48 : 58;
+  const lightness = blocking ? 34 : 42;
+  return hslToHex(hue, saturation, lightness);
+}
+
+function hslToHex(hue: number, saturationPercent: number, lightnessPercent: number): string {
+  const saturation = saturationPercent / 100;
+  const lightness = lightnessPercent / 100;
+  const chroma = (1 - Math.abs(2 * lightness - 1)) * saturation;
+  const x = chroma * (1 - Math.abs((hue / 60) % 2 - 1));
+  const match = lightness - chroma / 2;
+  const [red, green, blue] = hue < 60 ?
+    [chroma, x, 0] :
+    hue < 120 ?
+    [x, chroma, 0] :
+    hue < 180 ?
+    [0, chroma, x] :
+    hue < 240 ?
+    [0, x, chroma] :
+    hue < 300 ?
+    [x, 0, chroma] :
+    [chroma, 0, x];
+  return `#${hexChannel(red + match)}${hexChannel(green + match)}${hexChannel(blue + match)}`;
+}
+
+function hexChannel(value: number): string {
+  return Math.round(value * 255).toString(16).padStart(2, "0");
+}

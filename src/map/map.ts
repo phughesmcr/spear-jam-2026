@@ -1,4 +1,5 @@
 import type { EntityDef } from "@/src/map/entity_content.ts";
+import { TERRAIN_CATALOG } from "@/src/map/terrain_palettes.ts";
 
 export type {
   DoorDef,
@@ -44,10 +45,7 @@ export type FloorTile = {
 
 export type TerrainTile = WallTile | FloorTile;
 
-export const DEFAULT_TERRAIN_PALETTE: readonly TerrainTile[] = [
-  { id: 0, color: "#000000", ceiling_texture: "ceiling", floor_texture: "floor" },
-  { id: 1, color: "#FFFFFF", wall_texture: "wall", blocking: true },
-];
+export const DEFAULT_TERRAIN_PALETTE: readonly TerrainTile[] = TERRAIN_CATALOG;
 
 export const KeyColor = {
   Red: "red",

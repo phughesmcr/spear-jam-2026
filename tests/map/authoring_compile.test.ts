@@ -6,26 +6,20 @@ import { ExamineTextId } from "@/src/game/examine.ts";
 import { DisplayName } from "@/src/game/names.ts";
 import { ItemKind } from "@/src/game/items.ts";
 import { compileTiledMap } from "@/src/map/authoring/mod.ts";
-import { KeyColor, TexturePack, VICTORY_GOTO } from "@/src/map/map.ts";
-import type { TerrainTile } from "@/src/map/map.ts";
+import { KeyColor, VICTORY_GOTO } from "@/src/map/map.ts";
+import { DEFAULT_WALL_TERRAIN_ID, TERRAIN_CATALOG } from "@/src/map/terrain_palettes.ts";
 import type { TiledMap, TiledObject, TiledProperty, TiledTemplate } from "@/src/map/authoring/mod.ts";
 
 const TILE_SIZE = 16;
 const TERRAIN_FIRST_GID = 17;
-const MARKER_FIRST_GID = 23;
-
-const TEST_PALETTE: readonly TerrainTile[] = [
-  { id: 0, color: "#111111", floor_texture: `${TexturePack.Pack1}:0,0`, ceiling_texture: "ceiling" },
-  { id: 1, color: "#eeeeee", wall_texture: "wall", blocking: true },
-  { id: 5, color: "#444444", floor_texture: "floor", ceiling_texture: "ceiling" },
-];
+const MARKER_FIRST_GID = 200;
 
 Deno.test("compileTiledMap preserves authored terrain IDs", () => {
   const compiled = compileTiledMap(
     tiledMap({
       width: 3,
       height: 1,
-      terrainData: [TERRAIN_FIRST_GID, TERRAIN_FIRST_GID + 1, TERRAIN_FIRST_GID + 5],
+      terrainData: [TERRAIN_FIRST_GID, TERRAIN_FIRST_GID + DEFAULT_WALL_TERRAIN_ID, TERRAIN_FIRST_GID + 5],
     }),
     compileOptions(),
   );
@@ -33,15 +27,15 @@ Deno.test("compileTiledMap preserves authored terrain IDs", () => {
   assertEquals(compiled.paletteKey, "test");
   assertEquals(compiled.campaignOrder, 7);
   assertEquals(compiled.gameMap.name, "Fixture");
-  assertEquals(compiled.gameMap.terrain.tiles, [[0, 1, 5]]);
-  assertEquals(compiled.gameMap.terrain.palette, TEST_PALETTE);
+  assertEquals(compiled.gameMap.terrain.tiles, [[0, DEFAULT_WALL_TERRAIN_ID, 5]]);
+  assertEquals(compiled.gameMap.terrain.palette, TERRAIN_CATALOG);
 });
 
-Deno.test("compileTiledMap rejects terrain IDs missing from the selected palette", () => {
+Deno.test("compileTiledMap rejects terrain IDs missing from the global catalog", () => {
   assertThrows(
     () => compileTiledMap(tiledMap({ terrainData: [TERRAIN_FIRST_GID + 2] }), compileOptions()),
     Error,
-    'Map "Fixture" terrain tile 2 at (0,0) is missing from its palette.',
+    "Unknown terrainId 999.",
   );
 });
 
@@ -501,7 +495,6 @@ type CompileOptionOverrides = {
 
 function compileOptions(overrides: CompileOptionOverrides = {}) {
   return {
-    palettes: { test: TEST_PALETTE },
     ...overrides,
     tilesets: {
       "markers.tsj": {
@@ -539,14 +532,15 @@ function tiledMap(overrides: TiledMapOverrides = {}): TiledMap {
       {
         firstgid: TERRAIN_FIRST_GID,
         name: "terrain",
-        tilecount: 6,
+        tilecount: 120,
         tiles: [
-          { id: 0, properties: [property("terrainId", 0)] },
-          { id: 1, properties: [property("terrainId", 1)] },
-          { id: 2, properties: [property("terrainId", 2)] },
-          { id: 3, properties: [property("terrainId", 3)] },
-          { id: 4, properties: [property("terrainId", 4)] },
-          { id: 5, properties: [property("terrainId", 5)] },
+          { id: 0, properties: [property("terrainId", 0), property("blocking", false)] },
+          { id: 2, properties: [property("terrainId", 999), property("blocking", false)] },
+          { id: 5, properties: [property("terrainId", 5), property("blocking", false)] },
+          {
+            id: DEFAULT_WALL_TERRAIN_ID,
+            properties: [property("terrainId", DEFAULT_WALL_TERRAIN_ID), property("blocking", true)],
+          },
         ],
       },
       {

@@ -3,28 +3,13 @@ import { ENTITY_SCHEMA } from "@/src/map/entity_content.ts";
 import { createGameMap, type GameMap } from "@/src/map/map.ts";
 import compiledMapsData from "@/src/map/compiled_maps.json" with { type: "json" };
 import { validateGameMaps } from "@/src/map/map_validation.ts";
-import {
-  BOOT_SECTOR_PALETTE,
-  DATA_CONDUIT_PALETTE,
-  FIREWALL_PALETTE,
-  MAINFRAME_CORE_PALETTE,
-  NEXUS_PALETTE,
-} from "@/src/map/terrain_palettes.ts";
+import { PALETTE_KEYS } from "@/src/map/terrain_palettes.ts";
 
 export type LoadedGameMaps = {
   readonly startMapName: string;
   readonly gameMaps: readonly GameMap[];
 };
 
-const PALETTES = {
-  boot_sector: BOOT_SECTOR_PALETTE,
-  data_conduit: DATA_CONDUIT_PALETTE,
-  firewall: FIREWALL_PALETTE,
-  nexus: NEXUS_PALETTE,
-  mainframe_core: MAINFRAME_CORE_PALETTE,
-} as const;
-
-const PALETTE_KEYS = ["boot_sector", "data_conduit", "firewall", "nexus", "mainframe_core"] as const;
 const INTEGER_SCHEMA = z.number().int();
 const NON_NEGATIVE_INTEGER_SCHEMA = INTEGER_SCHEMA.nonnegative();
 const PALETTE_SCHEMA = z.enum(PALETTE_KEYS);
@@ -83,7 +68,7 @@ export function loadGameMapsData(data: unknown): LoadedGameMaps {
 }
 
 function gameMapFromCompiledMap(map: CompiledMap): GameMap {
-  return createGameMap(map.name, map.tiles, map.entities, { palette: PALETTES[map.palette] });
+  return createGameMap(map.name, map.tiles, map.entities);
 }
 
 function formatZodError(error: z.ZodError): string {

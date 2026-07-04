@@ -1,8 +1,9 @@
 import { assert, assertEquals } from "@std/assert";
-import { createGameMap, KeyColor, mapDimensions, terrainAt, TexturePack, VICTORY_GOTO } from "@/src/map/map.ts";
+import { createGameMap, KeyColor, TexturePack, VICTORY_GOTO } from "@/src/map/map.ts";
 import type { TerrainTile } from "@/src/map/map.ts";
 import { GAME_MAPS } from "@/src/map/maps.ts";
 import { validateGameMaps } from "@/src/map/map_validation.ts";
+import { DEFAULT_WALL_TERRAIN_ID } from "@/src/map/terrain_palettes.ts";
 
 Deno.test("authored game maps pass softlock validation", () => {
   assertEquals(validateGameMaps(GAME_MAPS), []);
@@ -19,20 +20,20 @@ Deno.test("authored game maps use texture pack terrain palettes", () => {
   }
 });
 
-Deno.test("authored game maps use varied floor, ceiling, and wall textures", () => {
+Deno.test("authored terrain palettes use varied floor, ceiling, and wall textures", () => {
   for (const map of GAME_MAPS) {
-    const textures = usedTerrainTextures(map);
+    const textures = paletteTerrainTextures(map.terrain.palette);
     assert(
       textures.floors.size >= 3,
-      `${map.name} should use at least 3 floor textures, got ${textures.floors.size}.`,
+      `${map.name} palette should define at least 3 floor textures, got ${textures.floors.size}.`,
     );
     assert(
       textures.ceilings.size >= 3,
-      `${map.name} should use at least 3 ceiling textures, got ${textures.ceilings.size}.`,
+      `${map.name} palette should define at least 3 ceiling textures, got ${textures.ceilings.size}.`,
     );
     assert(
       textures.walls.size >= 3,
-      `${map.name} should use at least 3 wall textures, got ${textures.walls.size}.`,
+      `${map.name} palette should define at least 3 wall textures, got ${textures.walls.size}.`,
     );
   }
 });
@@ -69,7 +70,7 @@ function isTexturePackRef(texture: string): boolean {
   return Object.values(TexturePack).some((pack) => texture.startsWith(`${pack}:`));
 }
 
-function usedTerrainTextures(map: (typeof GAME_MAPS)[number]): {
+function paletteTerrainTextures(palette: readonly TerrainTile[]): {
   readonly floors: ReadonlySet<string>;
   readonly ceilings: ReadonlySet<string>;
   readonly walls: ReadonlySet<string>;
@@ -77,18 +78,13 @@ function usedTerrainTextures(map: (typeof GAME_MAPS)[number]): {
   const floors = new Set<string>();
   const ceilings = new Set<string>();
   const walls = new Set<string>();
-  const { width, height } = mapDimensions(map);
-  for (let y = 0; y < height; y++) {
-    for (let x = 0; x < width; x++) {
-      const tile = terrainAt(map, x, y);
-      if (tile === undefined) continue;
-      if (tile.blocking === true) {
-        if (tile.wall_texture !== undefined) walls.add(tile.wall_texture);
-        continue;
-      }
-      floors.add(tile.floor_texture);
-      ceilings.add(tile.ceiling_texture);
+  for (const tile of palette) {
+    if (tile.blocking === true) {
+      if (tile.wall_texture !== undefined) walls.add(tile.wall_texture);
+      continue;
     }
+    floors.add(tile.floor_texture);
+    ceilings.add(tile.ceiling_texture);
   }
   return { floors, ceilings, walls };
 }
@@ -129,7 +125,7 @@ Deno.test("map validation requires locked door keys to be obtainable", () => {
     validateGameMaps([
       createGameMap("Missing Key", [
         [0, 0, 0],
-        [1, 0, 1],
+        [DEFAULT_WALL_TERRAIN_ID, 0, DEFAULT_WALL_TERRAIN_ID],
         [0, 0, 0],
       ], [
         { prefab: "player", x: 0, y: 0, dir: 1 },
@@ -149,7 +145,7 @@ Deno.test("map validation reports entities on blocking terrain and invalid doorw
     validateGameMaps([
       createGameMap("Bad Door", [
         [0, 0, 0],
-        [0, 1, 0],
+        [0, DEFAULT_WALL_TERRAIN_ID, 0],
         [0, 0, 0],
       ], [
         { prefab: "player", x: 0, y: 0, dir: 1 },
@@ -168,7 +164,7 @@ Deno.test("map validation reports entities on blocking terrain and invalid doorw
     validateGameMaps([
       createGameMap("Good Door", [
         [0, 0, 0],
-        [1, 0, 1],
+        [DEFAULT_WALL_TERRAIN_ID, 0, DEFAULT_WALL_TERRAIN_ID],
         [0, 0, 0],
       ], [
         { prefab: "player", x: 0, y: 0, dir: 1 },
@@ -185,9 +181,9 @@ Deno.test("map validation requires a terminal to be reachable after collecting c
   assertEquals(
     validateGameMaps([
       createGameMap("Blocked Terminal", [
-        [0, 1, 0],
-        [0, 1, 0],
-        [0, 1, 0],
+        [0, DEFAULT_WALL_TERRAIN_ID, 0],
+        [0, DEFAULT_WALL_TERRAIN_ID, 0],
+        [0, DEFAULT_WALL_TERRAIN_ID, 0],
       ], [
         { prefab: "player", x: 0, y: 0, dir: 1 },
         { prefab: "uplinkCode", x: 0, y: 2 },

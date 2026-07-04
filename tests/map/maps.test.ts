@@ -1,5 +1,5 @@
 import { assertEquals, assertThrows } from "@std/assert";
-import { BOOT_SECTOR_PALETTE } from "@/src/map/terrain_palettes.ts";
+import { TERRAIN_CATALOG } from "@/src/map/terrain_palettes.ts";
 import { loadGameMapsData } from "@/src/map/maps.ts";
 
 Deno.test("loadGameMapsData validates compact compiled map data", () => {
@@ -20,7 +20,7 @@ Deno.test("loadGameMapsData validates compact compiled map data", () => {
   });
 
   assertEquals(loaded.startMapName, "Fixture");
-  assertEquals(loaded.gameMaps[0]?.terrain.palette, BOOT_SECTOR_PALETTE);
+  assertEquals(loaded.gameMaps[0]?.terrain.palette, TERRAIN_CATALOG);
 });
 
 Deno.test("loadGameMapsData rejects malformed compiled map data", () => {

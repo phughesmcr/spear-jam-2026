@@ -1,6 +1,7 @@
 import type { AttackDef } from "@/src/game/attack.ts";
 import { createGameMap } from "@/src/map/map.ts";
-import type { EntityDef, GameMap, TerrainTile } from "@/src/map/map.ts";
+import type { EntityDef, GameMap } from "@/src/map/map.ts";
+import { TERRAIN_CATALOG } from "@/src/map/terrain_palettes.ts";
 import { createTilesetRegistry, decodeObjectGid, decodeTerrainGid } from "@/src/map/authoring/gid.ts";
 import type { TilesetRegistry, TilesetSources } from "@/src/map/authoring/gid.ts";
 import {
@@ -35,7 +36,6 @@ import {
 } from "@/src/map/authoring/mappings.ts";
 
 export type CompileTiledMapOptions = {
-  readonly palettes: Readonly<Record<string, readonly TerrainTile[]>>;
   readonly sourcePath?: string;
   readonly templates?: Readonly<Record<string, TiledTemplate>>;
   readonly tilesets?: TilesetSources;
@@ -68,7 +68,14 @@ type ResolvedTemplate = {
 
 const NO_PROPERTY_NAMES: ReadonlySet<string> = new Set();
 const MAP_PROPERTY_NAMES: ReadonlySet<string> = new Set(["name", "palette", "campaignOrder"]);
-const TERRAIN_PROPERTY_NAMES: ReadonlySet<string> = new Set(["terrainId"]);
+const TERRAIN_PROPERTY_NAMES: ReadonlySet<string> = new Set([
+  "terrainId",
+  "blocking",
+  "label",
+  "floorTexture",
+  "ceilingTexture",
+  "wallTexture",
+]);
 
 export function compileTiledMap(source: TiledMap, options: CompileTiledMapOptions): CompiledTiledMap {
   validateMapShape(source);
@@ -77,8 +84,6 @@ export function compileTiledMap(source: TiledMap, options: CompileTiledMapOption
   const name = requiredString(mapProperties, "name", "map");
   const paletteKey = requiredString(mapProperties, "palette", "map");
   const campaignOrder = requiredInteger(mapProperties, "campaignOrder", "map");
-  const palette = options.palettes[paletteKey];
-  if (palette === undefined) throw new Error(`map: Unknown terrain palette "${paletteKey}".`);
 
   const layers = requiredLayers(source);
   const registry = createTilesetRegistry(source.tilesets, options.tilesets);
@@ -86,7 +91,7 @@ export function compileTiledMap(source: TiledMap, options: CompileTiledMapOption
   const entities = compileEntities(source, layers.objects, registry, options);
 
   return {
-    gameMap: createGameMap(name, terrain, entities, { palette }),
+    gameMap: createGameMap(name, terrain, entities, { palette: TERRAIN_CATALOG }),
     paletteKey,
     campaignOrder,
   };
@@ -175,6 +180,12 @@ function terrainIdFromGid(gid: number, registry: TilesetRegistry, context: strin
   const properties = readProperties(decoded.tile?.properties, TERRAIN_PROPERTY_NAMES, context);
   const terrainId = requiredInteger(properties, "terrainId", context);
   if (terrainId < 0) throw new Error(`${context}: Property "terrainId" must be non-negative.`);
+  const catalogTile = TERRAIN_CATALOG.find((tile) => tile.id === terrainId);
+  if (catalogTile === undefined) throw new Error(`${context}: Unknown terrainId ${terrainId}.`);
+  const blocking = optionalBoolean(properties, "blocking", context);
+  if ((blocking ?? false) !== (catalogTile.blocking === true)) {
+    throw new Error(`${context}: Property "blocking" does not match terrainId ${terrainId}.`);
+  }
   return terrainId;
 }
 

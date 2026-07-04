@@ -5,11 +5,11 @@
   "layers": [
     {
       "data": [
-        2,
+        61,
         0,
-        5,
+        62,
         0,
-        6,
+        63,
         0,
         0
       ],
@@ -25,11 +25,11 @@
     },
     {
       "data": [
-        2,
+        61,
         0,
-        2,
+        61,
         0,
-        2,
+        61,
         0,
         0
       ],
@@ -64,109 +64,12 @@
   "tileheight": 16,
   "tilesets": [
     {
-      "columns": 6,
       "firstgid": 1,
-      "image": "../terrain_authoring_tiles.png",
-      "imageheight": 16,
-      "imagewidth": 96,
-      "margin": 0,
-      "name": "terrain",
-      "spacing": 0,
-      "tilecount": 6,
-      "tileheight": 16,
-      "tiles": [
-        {
-          "id": 0,
-          "properties": [
-            {
-              "name": "terrainId",
-              "type": "int",
-              "value": 0
-            },
-            {
-              "name": "blocking",
-              "type": "bool",
-              "value": false
-            }
-          ]
-        },
-        {
-          "id": 1,
-          "properties": [
-            {
-              "name": "terrainId",
-              "type": "int",
-              "value": 1
-            },
-            {
-              "name": "blocking",
-              "type": "bool",
-              "value": true
-            }
-          ]
-        },
-        {
-          "id": 2,
-          "properties": [
-            {
-              "name": "terrainId",
-              "type": "int",
-              "value": 2
-            },
-            {
-              "name": "blocking",
-              "type": "bool",
-              "value": false
-            }
-          ]
-        },
-        {
-          "id": 3,
-          "properties": [
-            {
-              "name": "terrainId",
-              "type": "int",
-              "value": 3
-            },
-            {
-              "name": "blocking",
-              "type": "bool",
-              "value": false
-            }
-          ]
-        },
-        {
-          "id": 4,
-          "properties": [
-            {
-              "name": "terrainId",
-              "type": "int",
-              "value": 4
-            },
-            {
-              "name": "blocking",
-              "type": "bool",
-              "value": true
-            }
-          ]
-        },
-        {
-          "id": 5,
-          "properties": [
-            {
-              "name": "terrainId",
-              "type": "int",
-              "value": 5
-            },
-            {
-              "name": "blocking",
-              "type": "bool",
-              "value": true
-            }
-          ]
-        }
-      ],
-      "tilewidth": 16
+      "source": "../terrain/floors.tsj"
+    },
+    {
+      "firstgid": 61,
+      "source": "../terrain/walls.tsj"
     }
   ],
   "tilewidth": 16,

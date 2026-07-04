@@ -3,9 +3,10 @@ import {
   buildScaffoldMap,
   generatedAutomappingSources,
   generatedTemplateSources,
-  generatedTerrainAuthoringPng,
+  generatedTerrainSources,
   generatedTiledProjectSource,
   mapNameForTiledMap,
+  type RgbaImage,
   startMapUrlPath,
 } from "@/scripts/maps.ts";
 
@@ -27,29 +28,33 @@ Deno.test("buildScaffoldMap creates a bordered Tiled map ready for authoring", (
     ["objects", "objectgroup"],
   ]);
   assertEquals(map.layers[0]?.data, [
-    2,
-    2,
-    2,
-    2,
-    2,
-    2,
+    61,
+    61,
+    61,
+    61,
+    61,
+    61,
     1,
     1,
     1,
-    2,
-    2,
+    61,
+    61,
     1,
     1,
     1,
-    2,
-    2,
-    2,
-    2,
-    2,
-    2,
+    61,
+    61,
+    61,
+    61,
+    61,
+    61,
   ]);
   assertEquals(map.layers[1]?.objects, []);
-  assertEquals(map.tilesets?.map((tileset) => tileset.source ?? tileset.name), ["terrain", "entity_markers.tsj"]);
+  assertEquals(map.tilesets?.map((tileset) => tileset.source ?? tileset.name), [
+    "terrain/floors.tsj",
+    "terrain/walls.tsj",
+    "entity_markers.tsj",
+  ]);
   assertEquals(map.properties?.map((property) => [property.name, property.value]), [
     ["campaignOrder", 6],
     ["name", "Cache Node"],
@@ -78,13 +83,16 @@ Deno.test("generatedTemplateSources includes all mapper-facing templates", () =>
 Deno.test("generatedTiledProjectSource includes one-click play and automapping", () => {
   const project = JSON.parse(generatedTiledProjectSource()) as {
     automappingRulesFile: string;
-    commands: readonly { readonly command: string; readonly arguments: string }[];
+    commands: readonly { readonly command: string; readonly executable: string; readonly arguments: string }[];
+    folders: readonly string[];
   };
 
   assertEquals(project.automappingRulesFile, "automap/rules.txt");
+  assert(project.folders.includes("terrain"));
   assert(
     project.commands.some((command) =>
-      command.command === "Play current map" && command.arguments === 'task maps:play -- "%mapfile"'
+      command.command === "Play current map" && command.executable === "/bin/zsh" &&
+      command.arguments === '-lc "deno task maps:play -- \\"%mapfile\\""'
     ),
   );
 });
@@ -102,17 +110,63 @@ Deno.test("generatedAutomappingSources includes reset and wall variant rules", (
     layers: readonly { readonly name: string; readonly data: readonly number[] }[];
   };
   assertEquals(map.layers.map((layer) => layer.name), ["input_terrain", "output_terrain"]);
-  assert(map.layers[1]!.data.includes(5));
-  assert(map.layers[1]!.data.includes(6));
+  assert(map.layers[1]!.data.includes(62));
+  assert(map.layers[1]!.data.includes(63));
 });
 
-Deno.test("generatedTerrainAuthoringPng creates the expected Tiled terrain strip", () => {
-  const png = generatedTerrainAuthoringPng();
-  const view = new DataView(png.buffer, png.byteOffset, png.byteLength);
+Deno.test("generatedTerrainSources creates shared texture-backed terrain tilesets", async () => {
+  const sources = await generatedTerrainSources(fakeTexturePackImages());
+  const floorsTileset = sources["game_assets/maps/terrain/floors.tsj"];
+  const floorsPng = sources["game_assets/maps/terrain/floors.png"];
+  const wallsTileset = sources["game_assets/maps/terrain/walls.tsj"];
+  const wallsPng = sources["game_assets/maps/terrain/walls.png"];
 
-  assertEquals([...png.subarray(0, 8)], [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);
-  assertEquals(view.getUint32(16), 96);
-  assertEquals(view.getUint32(20), 16);
+  assert(typeof floorsTileset === "string");
+  assert(floorsPng instanceof Uint8Array);
+  assert(typeof wallsTileset === "string");
+  assert(wallsPng instanceof Uint8Array);
+
+  const floors = JSON.parse(floorsTileset) as {
+    image: string;
+    columns: number;
+    tilecount: number;
+    tiles: readonly {
+      readonly id: number;
+      readonly properties: readonly { readonly name: string; readonly value: unknown }[];
+    }[];
+  };
+  const walls = JSON.parse(wallsTileset) as typeof floors;
+  assertEquals(floors.image, "floors.png");
+  assertEquals(floors.columns, 20);
+  assertEquals(floors.tilecount, 60);
+  assertEquals(
+    floors.tiles[0]!.properties.find((property) => property.name === "floorTexture")?.value,
+    "pack1:0,0",
+  );
+  assertEquals(
+    floors.tiles[0]!.properties.find((property) => property.name === "terrainId")?.value,
+    0,
+  );
+  assertEquals(walls.image, "walls.png");
+  assertEquals(walls.tilecount, 60);
+  assertEquals(
+    walls.tiles[0]!.properties.find((property) => property.name === "wallTexture")?.value,
+    "pack1:0,0",
+  );
+  assertEquals(
+    walls.tiles[0]!.properties.find((property) => property.name === "terrainId")?.value,
+    60,
+  );
+  assertEquals(
+    new DataView(floorsPng.buffer, floorsPng.byteOffset, floorsPng.byteLength).getUint32(16),
+    320,
+  );
+  assertEquals(
+    new DataView(floorsPng.buffer, floorsPng.byteOffset, floorsPng.byteLength).getUint32(20),
+    48,
+  );
+  assert(!includesBytes(floorsPng, [255, 0, 255, 255]));
+  assert(includesBytes(wallsPng, [255, 0, 255, 255]));
 });
 
 Deno.test("mapNameForTiledMap and startMapUrlPath support current-map smoke testing", () => {
@@ -127,3 +181,37 @@ Deno.test("mapNameForTiledMap and startMapUrlPath support current-map smoke test
   assertEquals(mapNameForTiledMap("cache.tiled.json", map), "Cache Node");
   assertEquals(startMapUrlPath("Cache Node"), "/?map=Cache%20Node");
 });
+
+function fakeTexturePackImages(): ReadonlyMap<string, RgbaImage> {
+  return new Map(["pack1", "pack2", "pack3"].map((pack, index) => [pack, fakeTexturePackImage(index)]));
+}
+
+function fakeTexturePackImage(packIndex: number): RgbaImage {
+  const width = 320;
+  const height = 256;
+  const pixels = new Uint8Array(width * height * 4);
+  for (let y = 0; y < height; y++) {
+    for (let x = 0; x < width; x++) {
+      const offset = ((y * width) + x) * 4;
+      pixels[offset] = (packIndex * 70 + x) % 256;
+      pixels[offset + 1] = (packIndex * 50 + y) % 256;
+      pixels[offset + 2] = (x + y) % 256;
+      pixels[offset + 3] = 255;
+    }
+  }
+  return { width, height, pixels };
+}
+
+function includesBytes(source: Uint8Array, needle: readonly number[]): boolean {
+  for (let index = 0; index <= source.length - needle.length; index++) {
+    let matches = true;
+    for (let offset = 0; offset < needle.length; offset++) {
+      if (source[index + offset] !== needle[offset]) {
+        matches = false;
+        break;
+      }
+    }
+    if (matches) return true;
+  }
+  return false;
+}

@@ -15,25 +15,37 @@ import {
   ENTITY_MARKERS_IMAGE,
   ENTITY_MARKERS_TILESET,
   entityMarkersTilesetReference,
+  FLOOR_TILESET_FIRST_GID,
+  floorTilesetImagePath,
+  floorTilesetPath,
+  floorTilesetReference,
   MAPS_DIR,
-  PALETTES,
   PNG_SIGNATURE,
   PROPERTY_TYPES,
   TEMPLATE_DEFINITIONS,
   TEMPLATE_DIR,
   templateFile,
-  TERRAIN_AUTHORING_TILE_COUNT,
-  TERRAIN_AUTHORING_TILE_DEFINITIONS,
-  TERRAIN_AUTHORING_TILES,
+  TERRAIN_ATLAS_TILE_COLUMNS,
   TERRAIN_BLOCKING_TILE_ID,
   TERRAIN_PASSABLE_TILE_ID,
-  terrainTilesetReference,
+  TERRAIN_TILESET_FIRST_GID,
+  TERRAIN_TILESETS_DIR,
+  TEXTURE_PACK_COLUMNS,
+  TEXTURE_PACK_DEFINITIONS,
+  TEXTURE_PACK_ROWS,
+  TEXTURE_PACK_TILE_SIZE,
   TILED_PROJECT_AUTOMAP_RULES_FILE,
   TILED_PROJECT_COMMANDS,
   TILED_PROJECT_PATH,
+  WALL_TILESET_FIRST_GID,
+  wallTilesetImagePath,
+  wallTilesetPath,
+  wallTilesetReference,
 } from "@/src/map/authoring/catalog.ts";
-import type { PaletteKey, TiledProjectCommand } from "@/src/map/authoring/catalog.ts";
-import type { EntityDef } from "@/src/map/map.ts";
+import type { TiledProjectCommand } from "@/src/map/authoring/catalog.ts";
+import type { EntityDef, TerrainTile, TexturePackRef } from "@/src/map/map.ts";
+import { PALETTE_KEYS, TERRAIN_CATALOG } from "@/src/map/terrain_palettes.ts";
+import type { PaletteKey } from "@/src/map/terrain_palettes.ts";
 import { validateGameMaps } from "@/src/map/map_validation.ts";
 
 type GeneratedMap = CompiledTiledMap & {
@@ -65,7 +77,14 @@ type ParsedNewMapArgs = Omit<NewMapOptions, "campaignOrder"> & {
   readonly output?: string;
 };
 
+export type RgbaImage = {
+  readonly width: number;
+  readonly height: number;
+  readonly pixels: Uint8Array;
+};
+
 const JSON_INDENT = 2;
+const WALL_TILE_BORDER_COLOR = [255, 0, 255, 255] as const;
 
 if (import.meta.main) {
   main().catch((error) => {
@@ -122,7 +141,7 @@ async function playCurrentMap(args: readonly string[]): Promise<void> {
 
   await compileMaps();
   const mapName = await mapNameForTiledMapPath(mapPath);
-  const command = new Deno.Command("deno", {
+  const command = new Deno.Command(Deno.execPath(), {
     args: ["task", "dev", "--", "--open", startMapUrlPath(mapName)],
     stdin: "inherit",
     stdout: "inherit",
@@ -135,7 +154,6 @@ async function playCurrentMap(args: readonly string[]): Promise<void> {
 async function syncAuthoring(): Promise<void> {
   await Deno.writeTextFile(TILED_PROJECT_PATH, generatedTiledProjectSource());
   await Deno.writeTextFile(`${MAPS_DIR}/${ENTITY_MARKERS_TILESET}`, generatedEntityMarkersTilesetSource());
-  await Deno.writeFile(`${MAPS_DIR}/${TERRAIN_AUTHORING_TILES}`, generatedTerrainAuthoringPng());
 
   await Deno.mkdir(TEMPLATE_DIR, { recursive: true });
   const expectedPaths = new Set<string>();
@@ -162,6 +180,131 @@ async function syncAuthoring(): Promise<void> {
     const path = `${AUTOMAP_DIR}/${entry.name}`;
     if (!expectedAutomapPaths.has(path)) await Deno.remove(path);
   }
+
+  await Deno.mkdir(TERRAIN_TILESETS_DIR, { recursive: true });
+  const expectedTerrainPaths = new Set<string>();
+  const terrainSources = await generatedTerrainSources();
+  for (const [path, source] of Object.entries(terrainSources)) {
+    expectedTerrainPaths.add(path);
+    if (typeof source === "string") {
+      await Deno.writeTextFile(path, source);
+    } else {
+      await Deno.writeFile(path, source);
+    }
+  }
+
+  await syncAuthoredMapTerrainTilesets();
+
+  for await (const entry of Deno.readDir(TERRAIN_TILESETS_DIR)) {
+    if (!entry.isFile) continue;
+    const path = `${TERRAIN_TILESETS_DIR}/${entry.name}`;
+    if (!expectedTerrainPaths.has(path)) await Deno.remove(path);
+  }
+
+  try {
+    await Deno.remove(`${MAPS_DIR}/texture_packs`, { recursive: true });
+  } catch (error) {
+    if (!(error instanceof Deno.errors.NotFound)) throw error;
+  }
+}
+
+async function syncAuthoredMapTerrainTilesets(): Promise<void> {
+  for await (const entry of Deno.readDir(MAPS_DIR)) {
+    if (!entry.isFile || !entry.name.endsWith(".tiled.json")) continue;
+    const path = `${MAPS_DIR}/${entry.name}`;
+    const map = parseJson<TiledMap>(path, await Deno.readTextFile(path));
+    const existingTilesets = map.tilesets ?? [];
+    const terrainTileset = existingTilesets.find((tileset) => tileset.firstgid === TERRAIN_TILESET_FIRST_GID);
+    const entityTileset = existingTilesets.find((tileset) => tileset.source === ENTITY_MARKERS_TILESET);
+    const terrainIdMap = terrainTileset === undefined ?
+      new Map<number, number>() :
+      await terrainIdMigrationMap(terrainTileset);
+    const migratedLayers = terrainTileset === undefined ?
+      map.layers :
+      migrateTerrainLayerGids(map.layers, terrainTileset, terrainIdMap);
+    const migratedObjectLayers = entityTileset === undefined ?
+      migratedLayers :
+      migrateEntityObjectGids(migratedLayers, entityTileset.firstgid, entityMarkersTilesetReference().firstgid);
+    const nonTerrainTilesets = existingTilesets.filter((tileset) =>
+      tileset.firstgid !== TERRAIN_TILESET_FIRST_GID &&
+      tileset.firstgid !== FLOOR_TILESET_FIRST_GID &&
+      tileset.firstgid !== WALL_TILESET_FIRST_GID &&
+      tileset.source !== ENTITY_MARKERS_TILESET
+    );
+    const nextTilesets = [
+      floorTilesetReference(),
+      wallTilesetReference(),
+      entityMarkersTilesetReference(),
+      ...nonTerrainTilesets,
+    ];
+    if (JSON.stringify(existingTilesets) === JSON.stringify(nextTilesets) && migratedObjectLayers === map.layers) {
+      continue;
+    }
+    await Deno.writeTextFile(path, jsonSource({ ...map, layers: migratedObjectLayers, tilesets: nextTilesets }));
+  }
+}
+
+async function terrainIdMigrationMap(
+  terrainTileset: NonNullable<TiledMap["tilesets"]>[number],
+): Promise<ReadonlyMap<number, number>> {
+  if (
+    terrainTileset.source === floorTilesetReference().source || terrainTileset.source === wallTilesetReference().source
+  ) {
+    return new Map();
+  }
+  const source = terrainTileset.source === undefined ? terrainTileset : parseJson<TiledTileset>(
+    `${MAPS_DIR}/${terrainTileset.source}`,
+    await Deno.readTextFile(`${MAPS_DIR}/${terrainTileset.source}`),
+  );
+  return new Map((source.tiles ?? []).map((tile) => [tile.id, globalTerrainIdForTile(tile)]));
+}
+
+function globalTerrainIdForTile(tile: NonNullable<TiledTileset["tiles"]>[number]): number {
+  const blocking = tile.properties?.find((property) => property.name === "blocking")?.value === true;
+  const textureProperty = blocking ? "wallTexture" : "floorTexture";
+  const texture = tile.properties?.find((property) => property.name === textureProperty)?.value;
+  if (typeof texture !== "string") return tile.id;
+  const terrain = TERRAIN_CATALOG.find((candidate) => {
+    if (candidate.blocking === true) return blocking && candidate.wall_texture === texture;
+    return !blocking && candidate.floor_texture === texture;
+  });
+  return terrain?.id ?? tile.id;
+}
+
+function migrateTerrainLayerGids(
+  layers: readonly TiledMap["layers"][number][],
+  terrainTileset: NonNullable<TiledMap["tilesets"]>[number],
+  terrainIdMap: ReadonlyMap<number, number>,
+): readonly TiledMap["layers"][number][] {
+  const firstgid = terrainTileset.firstgid;
+  return layers.map((layer) => {
+    if (layer.name !== "terrain" || layer.data === undefined) return layer;
+    return {
+      ...layer,
+      data: layer.data.map((gid) => {
+        if (gid === 0) return gid;
+        const localId = gid - firstgid;
+        return (terrainIdMap.get(localId) ?? localId) + 1;
+      }),
+    };
+  });
+}
+
+function migrateEntityObjectGids(
+  layers: readonly TiledMap["layers"][number][],
+  oldFirstGid: number,
+  nextFirstGid: number,
+): readonly TiledMap["layers"][number][] {
+  if (oldFirstGid === nextFirstGid) return layers;
+  return layers.map((layer) => {
+    if (layer.name !== "objects" || layer.objects === undefined) return layer;
+    return {
+      ...layer,
+      objects: layer.objects.map((object) =>
+        object.gid === undefined ? object : { ...object, gid: object.gid - oldFirstGid + nextFirstGid }
+      ),
+    };
+  });
 }
 
 async function createNewMap(args: readonly string[]): Promise<void> {
@@ -228,7 +371,8 @@ export function buildScaffoldMap(options: NewMapOptions): TiledMap {
     tiledversion: "1.12.2",
     tileheight: AUTHORING_TILE_SIZE,
     tilesets: [
-      terrainTilesetReference(),
+      floorTilesetReference(),
+      wallTilesetReference(),
       entityMarkersTilesetReference(),
     ],
     tilewidth: AUTHORING_TILE_SIZE,
@@ -247,6 +391,7 @@ export function generatedTiledProjectSource(): string {
     folders: [
       ".",
       "automap",
+      "terrain",
       "templates",
     ],
     properties: [],
@@ -297,14 +442,189 @@ export function generatedTemplateSources(): Readonly<Record<string, string>> {
   ]));
 }
 
-export function generatedTerrainAuthoringPng(): Uint8Array {
-  const width = AUTHORING_TILE_SIZE * TERRAIN_AUTHORING_TILE_COUNT;
-  const height = AUTHORING_TILE_SIZE;
+export async function generatedTerrainSources(
+  packImages?: ReadonlyMap<string, RgbaImage>,
+): Promise<Readonly<Record<string, string | Uint8Array>>> {
+  const images = packImages ?? await readTexturePackImages();
+  return {
+    [floorTilesetPath()]: jsonSource(terrainTileset("floors", "floors.png", floorTerrainTiles())),
+    [floorTilesetImagePath()]: terrainAtlasImage(floorTerrainTiles(), images),
+    [wallTilesetPath()]: jsonSource(terrainTileset("walls", "walls.png", wallTerrainTiles())),
+    [wallTilesetImagePath()]: terrainAtlasImage(wallTerrainTiles(), images, { border: WALL_TILE_BORDER_COLOR }),
+  };
+}
+
+function terrainTileset(name: string, image: string, terrain: readonly TerrainTile[]): unknown {
+  const imageHeight = AUTHORING_TILE_SIZE * Math.ceil(terrain.length / TERRAIN_ATLAS_TILE_COLUMNS);
+  return {
+    columns: TERRAIN_ATLAS_TILE_COLUMNS,
+    image,
+    imageheight: imageHeight,
+    imagewidth: AUTHORING_TILE_SIZE * TERRAIN_ATLAS_TILE_COLUMNS,
+    margin: 0,
+    name,
+    spacing: 0,
+    tilecount: terrain.length,
+    tiledversion: "1.12.2",
+    tileheight: AUTHORING_TILE_SIZE,
+    tiles: terrain.map((tile, localId) => {
+      const texture = terrainDisplayTexture(tile);
+      return {
+        id: localId,
+        type: tile.blocking === true ? "wallTerrain" : "floorTerrain",
+        properties: [
+          property("terrainId", tile.id),
+          property("blocking", tile.blocking === true),
+          property("label", `${tile.id}: ${texture}`),
+          ...(tile.blocking === true ?
+            tile.wall_texture === undefined ? [] : [property("wallTexture", tile.wall_texture, "TextureRef")] :
+            [
+              property("floorTexture", tile.floor_texture, "TextureRef"),
+              property("ceilingTexture", tile.ceiling_texture, "TextureRef"),
+            ]),
+        ],
+      };
+    }),
+    tilewidth: AUTHORING_TILE_SIZE,
+    type: "tileset",
+    version: "1.10",
+  };
+}
+
+function terrainAtlasImage(
+  terrain: readonly TerrainTile[],
+  packImages: ReadonlyMap<string, RgbaImage>,
+  options: { readonly border?: readonly [number, number, number, number] } = {},
+): Uint8Array {
+  const width = AUTHORING_TILE_SIZE * TERRAIN_ATLAS_TILE_COLUMNS;
+  const height = AUTHORING_TILE_SIZE * Math.ceil(terrain.length / TERRAIN_ATLAS_TILE_COLUMNS);
   const pixels = new Uint8Array(width * height * 4);
-  for (let index = 0; index < TERRAIN_AUTHORING_TILE_DEFINITIONS.length; index++) {
-    drawTerrainAuthoringTile(pixels, width, index, TERRAIN_AUTHORING_TILE_DEFINITIONS[index]!);
+  for (let index = 0; index < terrain.length; index++) {
+    const tile = terrain[index]!;
+    drawTextureThumbnail(pixels, width, index, TERRAIN_ATLAS_TILE_COLUMNS, terrainDisplayTexture(tile), packImages);
+    if (options.border !== undefined) {
+      drawTileBorder(pixels, width, index, TERRAIN_ATLAS_TILE_COLUMNS, options.border);
+    }
   }
   return encodePng(width, height, pixels);
+}
+
+function floorTerrainTiles(): readonly TerrainTile[] {
+  return TERRAIN_CATALOG.filter((tile) => tile.blocking !== true);
+}
+
+function wallTerrainTiles(): readonly TerrainTile[] {
+  return TERRAIN_CATALOG.filter((tile) => tile.blocking === true);
+}
+
+function terrainDisplayTexture(tile: TerrainTile): TexturePackRef {
+  if (tile.blocking === true) {
+    if (tile.wall_texture === undefined || !isTexturePackRef(tile.wall_texture)) {
+      throw new Error(`Terrain tile ${tile.id} must use a texture pack wall texture for Tiled authoring.`);
+    }
+    return tile.wall_texture;
+  }
+  if (!isTexturePackRef(tile.floor_texture)) {
+    throw new Error(`Terrain tile ${tile.id} must use a texture pack floor texture for Tiled authoring.`);
+  }
+  return tile.floor_texture;
+}
+
+function drawTextureThumbnail(
+  target: Uint8Array,
+  targetWidth: number,
+  tileIndex: number,
+  columns: number,
+  texture: TexturePackRef,
+  packImages: ReadonlyMap<string, RgbaImage>,
+): void {
+  const ref = parseTexturePackRef(texture);
+  const image = packImages.get(ref.pack);
+  if (image === undefined) throw new Error(`Missing texture pack image for ${ref.pack}.`);
+
+  const sourceLeft = ref.column * TEXTURE_PACK_TILE_SIZE;
+  const sourceTop = ref.row * TEXTURE_PACK_TILE_SIZE;
+  const targetLeft = (tileIndex % columns) * AUTHORING_TILE_SIZE;
+  const targetTop = Math.floor(tileIndex / columns) * AUTHORING_TILE_SIZE;
+  const sampleSize = TEXTURE_PACK_TILE_SIZE / AUTHORING_TILE_SIZE;
+  for (let y = 0; y < AUTHORING_TILE_SIZE; y++) {
+    for (let x = 0; x < AUTHORING_TILE_SIZE; x++) {
+      const color = averageSourcePixel(image, sourceLeft + x * sampleSize, sourceTop + y * sampleSize, sampleSize);
+      const offset = (((targetTop + y) * targetWidth) + targetLeft + x) * 4;
+      target[offset] = color[0];
+      target[offset + 1] = color[1];
+      target[offset + 2] = color[2];
+      target[offset + 3] = color[3];
+    }
+  }
+}
+
+function drawTileBorder(
+  target: Uint8Array,
+  targetWidth: number,
+  tileIndex: number,
+  columns: number,
+  color: readonly [number, number, number, number],
+): void {
+  const left = (tileIndex % columns) * AUTHORING_TILE_SIZE;
+  const top = Math.floor(tileIndex / columns) * AUTHORING_TILE_SIZE;
+  for (let offset = 0; offset < AUTHORING_TILE_SIZE; offset++) {
+    setPixel(target, targetWidth, left + offset, top, color);
+    setPixel(target, targetWidth, left + offset, top + AUTHORING_TILE_SIZE - 1, color);
+    setPixel(target, targetWidth, left, top + offset, color);
+    setPixel(target, targetWidth, left + AUTHORING_TILE_SIZE - 1, top + offset, color);
+  }
+}
+
+function setPixel(
+  target: Uint8Array,
+  targetWidth: number,
+  x: number,
+  y: number,
+  color: readonly [number, number, number, number],
+): void {
+  const offset = ((y * targetWidth) + x) * 4;
+  target[offset] = color[0];
+  target[offset + 1] = color[1];
+  target[offset + 2] = color[2];
+  target[offset + 3] = color[3];
+}
+
+function averageSourcePixel(
+  image: RgbaImage,
+  left: number,
+  top: number,
+  size: number,
+): readonly [number, number, number, number] {
+  let red = 0;
+  let green = 0;
+  let blue = 0;
+  let alpha = 0;
+  let count = 0;
+  for (let y = top; y < top + size; y++) {
+    for (let x = left; x < left + size; x++) {
+      const offset = ((y * image.width) + x) * 4;
+      red += image.pixels[offset]!;
+      green += image.pixels[offset + 1]!;
+      blue += image.pixels[offset + 2]!;
+      alpha += image.pixels[offset + 3]!;
+      count++;
+    }
+  }
+  return [
+    Math.round(red / count),
+    Math.round(green / count),
+    Math.round(blue / count),
+    Math.round(alpha / count),
+  ];
+}
+
+async function readTexturePackImages(): Promise<ReadonlyMap<string, RgbaImage>> {
+  const images = new Map<string, RgbaImage>();
+  for (const definition of TEXTURE_PACK_DEFINITIONS) {
+    images.set(definition.pack, await readPngImage(`assets/game/textures/${definition.image}`));
+  }
+  return images;
 }
 
 function resetWallsAutomapRuleMap(): TiledMap {
@@ -315,9 +635,9 @@ function resetWallsAutomapRuleMap(): TiledMap {
   const output = emptyTileData(width, height);
   for (
     const [x, terrainId] of [
-      [0, 1],
-      [2, 4],
-      [4, 5],
+      [0, TERRAIN_BLOCKING_TILE_ID],
+      [2, TERRAIN_BLOCKING_TILE_ID + 1],
+      [4, TERRAIN_BLOCKING_TILE_ID + 2],
     ] as const
   ) {
     input[x] = terrainGid(terrainId);
@@ -339,12 +659,12 @@ function wallVariantsAutomapRuleMap(): TiledMap {
   setTile(input, width, 0, 1, wall);
   setTile(input, width, 1, 1, wall);
   setTile(input, width, 2, 1, wall);
-  setTile(output, width, 1, 1, terrainGid(4));
+  setTile(output, width, 1, 1, terrainGid(TERRAIN_BLOCKING_TILE_ID + 1));
 
   setTile(input, width, 5, 0, wall);
   setTile(input, width, 5, 1, wall);
   setTile(input, width, 5, 2, wall);
-  setTile(output, width, 5, 1, terrainGid(5));
+  setTile(output, width, 5, 1, terrainGid(TERRAIN_BLOCKING_TILE_ID + 2));
 
   return automapRuleMap(width, height, [
     tileLayer(1, "input_terrain", width, height, input),
@@ -368,7 +688,7 @@ function automapRuleMap(width: number, height: number, layers: TiledMap["layers"
     renderorder: "right-down",
     tiledversion: "1.12.2",
     tileheight: AUTHORING_TILE_SIZE,
-    tilesets: [automapTerrainTilesetReference()],
+    tilesets: [automapFloorTilesetReference(), automapWallTilesetReference()],
     tilewidth: AUTHORING_TILE_SIZE,
     type: "map",
     version: "1.10",
@@ -409,10 +729,48 @@ function terrainGid(terrainId: number): number {
   return terrainId + 1;
 }
 
-function automapTerrainTilesetReference(): ReturnType<typeof terrainTilesetReference> {
+function isTexturePackRef(value: string): value is TexturePackRef {
+  try {
+    parseTexturePackRef(value);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+function parseTexturePackRef(value: string): { readonly pack: string; readonly column: number; readonly row: number } {
+  const [pack, cell, extra] = value.split(":");
+  const [columnText, rowText, extraCell] = cell?.split(",") ?? [];
+  const column = Number(columnText);
+  const row = Number(rowText);
+  const knownPack = TEXTURE_PACK_DEFINITIONS.some((definition) => definition.pack === pack);
+  if (
+    !knownPack ||
+    extra !== undefined ||
+    extraCell !== undefined ||
+    !Number.isInteger(column) ||
+    !Number.isInteger(row) ||
+    column < 0 ||
+    row < 0 ||
+    column >= TEXTURE_PACK_COLUMNS ||
+    row >= TEXTURE_PACK_ROWS
+  ) {
+    throw new Error(`Invalid texture pack ref "${value}".`);
+  }
+  return { pack: pack!, column, row };
+}
+
+function automapFloorTilesetReference(): ReturnType<typeof floorTilesetReference> {
   return {
-    ...terrainTilesetReference(),
-    image: `../${TERRAIN_AUTHORING_TILES}`,
+    ...floorTilesetReference(),
+    source: `../${floorTilesetReference().source}`,
+  };
+}
+
+function automapWallTilesetReference(): ReturnType<typeof wallTilesetReference> {
+  return {
+    ...wallTilesetReference(),
+    source: `../${wallTilesetReference().source}`,
   };
 }
 
@@ -438,7 +796,7 @@ async function compiledMaps(): Promise<readonly GeneratedMap[]> {
     validateRawMap(sourcePath, raw);
     try {
       maps.push({
-        ...compileTiledMap(raw, { palettes: PALETTES, sourcePath, templates, tilesets }),
+        ...compileTiledMap(raw, { sourcePath, templates, tilesets }),
         sourcePath,
       });
     } catch (error) {
@@ -454,13 +812,27 @@ async function compiledMaps(): Promise<readonly GeneratedMap[]> {
 
 async function loadTilesets(): Promise<Readonly<Record<string, TiledTileset>>> {
   const tilesets: Record<string, TiledTileset> = {};
-  for await (const entry of Deno.readDir(MAPS_DIR)) {
-    if (!entry.isFile || !entry.name.endsWith(".tsj")) continue;
-    const path = `${MAPS_DIR}/${entry.name}`;
-    tilesets[entry.name] = parseJson<TiledTileset>(path, await Deno.readTextFile(path));
-  }
+  await loadTilesetsFromDir(MAPS_DIR, "", tilesets);
   await validateAuthoringAssets(tilesets);
   return tilesets;
+}
+
+async function loadTilesetsFromDir(
+  absoluteDir: string,
+  relativeDir: string,
+  tilesets: Record<string, TiledTileset>,
+): Promise<void> {
+  for await (const entry of Deno.readDir(absoluteDir)) {
+    const path = `${absoluteDir}/${entry.name}`;
+    const relativePath = relativeDir.length === 0 ? entry.name : `${relativeDir}/${entry.name}`;
+    if (entry.isDirectory) {
+      await loadTilesetsFromDir(path, relativePath, tilesets);
+      continue;
+    }
+    if (!entry.isFile || !entry.name.endsWith(".tsj")) continue;
+    tilesets[relativePath] = parseJson<TiledTileset>(path, await Deno.readTextFile(path));
+    tilesets[entry.name] = tilesets[relativePath];
+  }
 }
 
 async function loadTemplates(): Promise<Readonly<Record<string, TiledTemplate>>> {
@@ -485,7 +857,7 @@ async function validateAuthoringAssets(tilesets: Readonly<Record<string, TiledTi
   } else {
     await validateEntityMarkers(markers, issues);
   }
-  await validateTerrainAuthoringTiles(issues);
+  await validateTexturePackImages(issues);
   if (issues.length > 0) throw new Error(`Authoring assets failed validation:\n${issues.join("\n")}`);
 }
 
@@ -493,11 +865,19 @@ async function generatedAuthoringIssues(): Promise<string[]> {
   const issues: string[] = [];
   await checkGeneratedText(TILED_PROJECT_PATH, generatedTiledProjectSource(), issues);
   await checkGeneratedText(`${MAPS_DIR}/${ENTITY_MARKERS_TILESET}`, generatedEntityMarkersTilesetSource(), issues);
-  await checkGeneratedBytes(`${MAPS_DIR}/${TERRAIN_AUTHORING_TILES}`, generatedTerrainAuthoringPng(), issues);
 
   const expectedAutomap = generatedAutomappingSources();
   for (const [path, source] of Object.entries(expectedAutomap)) {
     await checkGeneratedText(path, source, issues);
+  }
+
+  const expectedTerrainSources = await generatedTerrainSources();
+  for (const [path, source] of Object.entries(expectedTerrainSources)) {
+    if (typeof source === "string") {
+      await checkGeneratedText(path, source, issues);
+    } else {
+      await checkGeneratedBytes(path, source, issues);
+    }
   }
 
   const expectedTemplates = generatedTemplateSources();
@@ -528,6 +908,20 @@ async function generatedAuthoringIssues(): Promise<string[]> {
   } catch (error) {
     if (error instanceof Deno.errors.NotFound) {
       issues.push(`${AUTOMAP_DIR} is missing. Run deno task maps:sync-authoring.`);
+    } else {
+      throw error;
+    }
+  }
+
+  try {
+    for await (const entry of Deno.readDir(TERRAIN_TILESETS_DIR)) {
+      if (!entry.isFile) continue;
+      const path = `${TERRAIN_TILESETS_DIR}/${entry.name}`;
+      if (expectedTerrainSources[path] === undefined) issues.push(`${path} is not generated by the authoring catalog.`);
+    }
+  } catch (error) {
+    if (error instanceof Deno.errors.NotFound) {
+      issues.push(`${TERRAIN_TILESETS_DIR} is missing. Run deno task maps:sync-authoring.`);
     } else {
       throw error;
     }
@@ -565,17 +959,15 @@ async function validateEntityMarkers(tileset: TiledTileset, issues: string[]): P
   }
 }
 
-async function validateTerrainAuthoringTiles(issues: string[]): Promise<void> {
-  const dimensions = await pngDimensions(`${MAPS_DIR}/${TERRAIN_AUTHORING_TILES}`);
-  if (
-    dimensions.width !== AUTHORING_TILE_SIZE * TERRAIN_AUTHORING_TILE_COUNT ||
-    dimensions.height !== AUTHORING_TILE_SIZE
-  ) {
-    issues.push(
-      `${TERRAIN_AUTHORING_TILES} must be ${
-        AUTHORING_TILE_SIZE * TERRAIN_AUTHORING_TILE_COUNT
-      }x${AUTHORING_TILE_SIZE}.`,
-    );
+async function validateTexturePackImages(issues: string[]): Promise<void> {
+  const expectedWidth = TEXTURE_PACK_COLUMNS * TEXTURE_PACK_TILE_SIZE;
+  const expectedHeight = TEXTURE_PACK_ROWS * TEXTURE_PACK_TILE_SIZE;
+  for (const definition of TEXTURE_PACK_DEFINITIONS) {
+    const path = `assets/game/textures/${definition.image}`;
+    const dimensions = await pngDimensions(path);
+    if (dimensions.width !== expectedWidth || dimensions.height !== expectedHeight) {
+      issues.push(`${path} must be ${expectedWidth}x${expectedHeight}.`);
+    }
   }
 }
 
@@ -596,6 +988,19 @@ function validateRawMap(path: string, map: TiledMap): void {
     if (layer.class !== undefined && layer.class !== "object_layer") {
       issues.push(`${path}: layer "objects" class must be "object_layer" when set.`);
     }
+  }
+  try {
+    mapPaletteKey(path, map);
+    const floorTileset = map.tilesets?.find((tileset) => tileset.firstgid === FLOOR_TILESET_FIRST_GID);
+    const wallTileset = map.tilesets?.find((tileset) => tileset.firstgid === WALL_TILESET_FIRST_GID);
+    if (floorTileset?.source !== floorTilesetReference().source) {
+      issues.push(`${path}: floor terrain tileset must be "${floorTilesetReference().source}".`);
+    }
+    if (wallTileset?.source !== wallTilesetReference().source) {
+      issues.push(`${path}: wall terrain tileset must be "${wallTilesetReference().source}".`);
+    }
+  } catch (error) {
+    issues.push(error instanceof Error ? error.message : String(error));
   }
   if (issues.length > 0) throw new Error(issues.join("\n"));
 }
@@ -635,7 +1040,7 @@ function compiledMapData(map: GeneratedMap): CompiledMapData {
 }
 
 function paletteKey(value: string): PaletteKey {
-  if (value in PALETTES) return value as PaletteKey;
+  if ((PALETTE_KEYS as readonly string[]).includes(value)) return value as PaletteKey;
   throw new Error(`Compiled map used unknown terrain palette "${value}".`);
 }
 
@@ -694,7 +1099,7 @@ function requiredArg(values: ReadonlyMap<string, string>, name: string): string 
 }
 
 function parsePalette(value: string): PaletteKey {
-  if (value in PALETTES) return value as PaletteKey;
+  if ((PALETTE_KEYS as readonly string[]).includes(value)) return value as PaletteKey;
   throw new Error(`Unknown palette "${value}".`);
 }
 
@@ -719,6 +1124,12 @@ function mapCampaignOrder(path: string, map: TiledMap): number {
   const raw = map.properties?.find((candidate) => candidate.name === "campaignOrder")?.value;
   if (typeof raw !== "number" || !Number.isInteger(raw)) throw new Error(`${path}: missing integer campaignOrder.`);
   return raw;
+}
+
+function mapPaletteKey(path: string, map: TiledMap): PaletteKey {
+  const raw = map.properties?.find((candidate) => candidate.name === "palette")?.value;
+  if (typeof raw !== "string") throw new Error(`${path}: missing string palette.`);
+  return parsePalette(raw);
 }
 
 function scaffoldTerrain(width: number, height: number): readonly number[] {
@@ -794,27 +1205,117 @@ async function pngDimensions(path: string): Promise<{ readonly width: number; re
   };
 }
 
-function drawTerrainAuthoringTile(
-  pixels: Uint8Array,
-  imageWidth: number,
-  tileIndex: number,
-  tile: (typeof TERRAIN_AUTHORING_TILE_DEFINITIONS)[number],
-): void {
-  const left = tileIndex * AUTHORING_TILE_SIZE;
-  for (let y = 0; y < AUTHORING_TILE_SIZE; y++) {
-    for (let x = 0; x < AUTHORING_TILE_SIZE; x++) {
-      const border = x === 0 || y === 0 || x === AUTHORING_TILE_SIZE - 1 || y === AUTHORING_TILE_SIZE - 1;
-      const diagonal = tile.id % 3 === 2 && x === y;
-      const center = tile.id % 3 === 0 && x >= 5 && x <= 10 && y >= 5 && y <= 10;
-      const stripes = tile.id % 3 === 1 && (x + y) % 5 === 0;
-      const color = border || diagonal || center || stripes ? tile.accent : tile.color;
-      const offset = ((y * imageWidth) + left + x) * 4;
-      pixels[offset] = color[0];
-      pixels[offset + 1] = color[1];
-      pixels[offset + 2] = color[2];
-      pixels[offset + 3] = color[3];
+async function readPngImage(path: string): Promise<RgbaImage> {
+  const bytes = await Deno.readFile(path);
+  validatePngSignature(path, bytes);
+  let offset = PNG_SIGNATURE.length;
+  let width = 0;
+  let height = 0;
+  let colorType = -1;
+  const idatChunks: Uint8Array[] = [];
+
+  while (offset < bytes.length) {
+    const chunkLength = uint32(bytes, offset);
+    const chunkType = new TextDecoder().decode(bytes.subarray(offset + 4, offset + 8));
+    const chunkData = bytes.subarray(offset + 8, offset + 8 + chunkLength);
+    if (chunkType === "IHDR") {
+      width = uint32(chunkData, 0);
+      height = uint32(chunkData, 4);
+      const bitDepth = chunkData[8];
+      colorType = chunkData[9]!;
+      const interlace = chunkData[12];
+      if (bitDepth !== 8 || colorType !== 2 || interlace !== 0) {
+        throw new Error(`${path} must be an 8-bit non-interlaced RGB PNG.`);
+      }
+    } else if (chunkType === "IDAT") {
+      idatChunks.push(chunkData);
+    } else if (chunkType === "IEND") {
+      break;
+    }
+    offset += 12 + chunkLength;
+  }
+
+  if (width <= 0 || height <= 0 || colorType !== 2) throw new Error(`${path} is missing PNG image data.`);
+  const compressed = concatBytes(idatChunks);
+  const stream = new ReadableStream<Uint8Array>({
+    start(controller) {
+      controller.enqueue(compressed);
+      controller.close();
+    },
+  });
+  const decompressor = new DecompressionStream("deflate") as unknown as TransformStream<Uint8Array, Uint8Array>;
+  const inflated = new Uint8Array(await new Response(stream.pipeThrough(decompressor)).arrayBuffer());
+  return decodeRgbPngScanlines(path, width, height, inflated);
+}
+
+function decodeRgbPngScanlines(path: string, width: number, height: number, data: Uint8Array): RgbaImage {
+  const bytesPerPixel = 3;
+  const stride = width * bytesPerPixel;
+  const expectedLength = height * (stride + 1);
+  if (data.length !== expectedLength) {
+    throw new Error(`${path} has unexpected PNG scanline length ${data.length}; expected ${expectedLength}.`);
+  }
+
+  const rgb = new Uint8Array(height * stride);
+  for (let y = 0; y < height; y++) {
+    const filter = data[y * (stride + 1)]!;
+    const sourceOffset = y * (stride + 1) + 1;
+    const targetOffset = y * stride;
+    for (let x = 0; x < stride; x++) {
+      const raw = data[sourceOffset + x]!;
+      const left = x >= bytesPerPixel ? rgb[targetOffset + x - bytesPerPixel]! : 0;
+      const up = y > 0 ? rgb[targetOffset + x - stride]! : 0;
+      const upLeft = y > 0 && x >= bytesPerPixel ? rgb[targetOffset + x - stride - bytesPerPixel]! : 0;
+      rgb[targetOffset + x] = unfilterPngByte(filter, raw, left, up, upLeft);
     }
   }
+
+  const pixels = new Uint8Array(width * height * 4);
+  for (let source = 0, target = 0; source < rgb.length; source += 3, target += 4) {
+    pixels[target] = rgb[source]!;
+    pixels[target + 1] = rgb[source + 1]!;
+    pixels[target + 2] = rgb[source + 2]!;
+    pixels[target + 3] = 0xff;
+  }
+  return { width, height, pixels };
+}
+
+function unfilterPngByte(filter: number, raw: number, left: number, up: number, upLeft: number): number {
+  switch (filter) {
+    case 0:
+      return raw;
+    case 1:
+      return (raw + left) & 0xff;
+    case 2:
+      return (raw + up) & 0xff;
+    case 3:
+      return (raw + Math.floor((left + up) / 2)) & 0xff;
+    case 4:
+      return (raw + paethPredictor(left, up, upLeft)) & 0xff;
+    default:
+      throw new Error(`Unsupported PNG filter ${filter}.`);
+  }
+}
+
+function paethPredictor(left: number, up: number, upLeft: number): number {
+  const estimate = left + up - upLeft;
+  const leftDistance = Math.abs(estimate - left);
+  const upDistance = Math.abs(estimate - up);
+  const upLeftDistance = Math.abs(estimate - upLeft);
+  if (leftDistance <= upDistance && leftDistance <= upLeftDistance) return left;
+  if (upDistance <= upLeftDistance) return up;
+  return upLeft;
+}
+
+function validatePngSignature(path: string, bytes: Uint8Array): void {
+  if (bytes.length < 24) throw new Error(`${path} is not a valid PNG file.`);
+  for (let index = 0; index < PNG_SIGNATURE.length; index++) {
+    if (bytes[index] !== PNG_SIGNATURE[index]) throw new Error(`${path} is not a valid PNG file.`);
+  }
+}
+
+function uint32(bytes: Uint8Array, offset: number): number {
+  return new DataView(bytes.buffer, bytes.byteOffset + offset, 4).getUint32(0);
 }
 
 function encodePng(width: number, height: number, pixels: Uint8Array): Uint8Array {
