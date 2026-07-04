@@ -53,6 +53,7 @@ function testAtlas(): RaycastAtlas {
       bakeSolidTexture(160, 160, 0),
     ],
     sprites: [bakeSolidTexture(200, 200, 0)],
+    spriteLightmaps: [],
   };
 }
 
@@ -91,6 +92,18 @@ function pixel(frame: { readonly width: number; readonly pixels: Uint32Array }, 
   return frame.pixels[y * frame.width + x]!;
 }
 
+function rgba(pixel: number): readonly [number, number, number, number] {
+  return [pixel & 0xff, (pixel >>> 8) & 0xff, (pixel >>> 16) & 0xff, (pixel >>> 24) & 0xff];
+}
+
+function lightPixel(pixel: number, red: number, green: number, blue: number): number {
+  const [sourceRed, sourceGreen, sourceBlue] = rgba(pixel);
+  return (0xff000000 |
+    ((sourceRed * red / 255) | 0) |
+    (((sourceGreen * green / 255) | 0) << 8) |
+    (((sourceBlue * blue / 255) | 0) << 16)) >>> 0;
+}
+
 Deno.test("renderFrame hits the corridor end wall at the right depth", () => {
   const atlas = testAtlas();
   const scene = corridorScene();
@@ -102,6 +115,21 @@ Deno.test("renderFrame hits the corridor end wall at the right depth", () => {
   assertAlmostEquals(frame.zbuffer[CENTER]!, 2.5, 1e-9);
   // Distance 2.5 falls in shade band 2 with the stronger depth fade.
   assertEquals(pixel(frame, CENTER, CENTER), texel(atlas, "walls", WALL, 2));
+});
+
+Deno.test("renderFrame tints wall texels from the visible tile light", () => {
+  const atlas = testAtlas();
+  const scene = corridorScene();
+  scene.walls[1 * 5 + 4] = CURRENT_SIDE_WALL + 1;
+  scene.lightRed[1 * 5 + 3] = 255;
+  scene.lightGreen[1 * 5 + 3] = 64;
+  scene.lightBlue[1 * 5 + 3] = 128;
+  const frame = createFrame(VIEW, VIEW);
+
+  renderFrame(frame, scene, atlas, CAMERA);
+
+  const unlit = texel(atlas, "walls", CURRENT_SIDE_WALL, 2);
+  assertEquals(pixel(frame, CENTER, CENTER), lightPixel(unlit, 255, 64, 128));
 });
 
 Deno.test("renderFrame textures floor below and mirrored ceiling above", () => {
@@ -120,6 +148,7 @@ Deno.test("renderFrame samples distant floor rows from averaged mips", () => {
     walls: [],
     planes: [bakeTexture(checkerSource())],
     sprites: [],
+    spriteLightmaps: [],
   };
   const scene = createScene(80, 3);
   for (let x = 0; x < 80; x++) {
@@ -176,6 +205,7 @@ Deno.test("renderFrame samples distant wall columns from averaged mips", () => {
     walls: [bakeTexture(checkerSource(), { transpose: true })],
     planes: [],
     sprites: [],
+    spriteLightmaps: [],
   };
   const scene = createScene(14, 3);
   scene.walls.fill(WALL + 1);
@@ -372,6 +402,24 @@ Deno.test("renderFrame draws sprites in front of walls and occludes behind doors
   addSprite(scene, 3.5, 1.5, SPRITE, 1);
   renderFrame(frame, scene, atlas, CAMERA);
   assertEquals(pixel(frame, CENTER, CENTER), texel(atlas, "walls", DOOR, 0));
+});
+
+Deno.test("renderFrame boosts sprite lightmap pixels under tile lighting", () => {
+  const atlas = {
+    ...testAtlas(),
+    spriteLightmaps: [bakeSolidTexture(255, 255, 255)],
+  };
+  const scene = corridorScene();
+  const spriteCell = 1 * 5 + 2;
+  scene.lightRed[spriteCell] = 64;
+  scene.lightGreen[spriteCell] = 64;
+  scene.lightBlue[spriteCell] = 64;
+  addSprite(scene, 2.5, 1.5, SPRITE, 1);
+  const frame = createFrame(VIEW, VIEW);
+
+  renderFrame(frame, scene, atlas, CAMERA);
+
+  assertEquals(pixel(frame, CENTER, CENTER), 0xff00ffff);
 });
 
 Deno.test("a horizontally sliding door passes rays through the gap", () => {

@@ -480,11 +480,38 @@ Deno.test("compileTiledMap lets enemy archetypes supply display names", () => {
   ]);
 });
 
+Deno.test("compileTiledMap compiles optional colored lights", () => {
+  const compiled = compileTiledMap(
+    tiledMap({
+      width: 3,
+      height: 3,
+      lightObjects: [
+        object({
+          x: TILE_SIZE,
+          y: TILE_SIZE,
+          properties: [
+            property("color", "#ff8844"),
+            property("radius", 3),
+            property("flickerAmount", 0.25),
+            property("flickerSpeed", 7),
+          ],
+        }),
+      ],
+    }),
+    compileOptions(),
+  );
+
+  assertEquals(compiled.gameMap.lights, [
+    { x: 1, y: 1, color: "#ff8844", radius: 3, flickerAmount: 0.25, flickerSpeed: 7 },
+  ]);
+});
+
 type TiledMapOverrides = {
   readonly width?: number;
   readonly height?: number;
   readonly terrainData?: readonly number[];
   readonly objects?: readonly TiledObject[];
+  readonly lightObjects?: readonly TiledObject[];
   readonly properties?: readonly TiledProperty[];
 };
 
@@ -563,6 +590,12 @@ function tiledMap(overrides: TiledMapOverrides = {}): TiledMap {
         type: "objectgroup",
         objects: overrides.objects ?? [],
       },
+      ...(overrides.lightObjects === undefined ? [] : [{
+        id: 3,
+        name: "lights",
+        type: "objectgroup",
+        objects: overrides.lightObjects,
+      }]),
     ],
   };
 }

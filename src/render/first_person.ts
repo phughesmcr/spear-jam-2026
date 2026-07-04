@@ -67,7 +67,7 @@ import type {
 import { createRaycastView } from "@/src/render/raycast/view.ts";
 import type { ViewRect } from "@/src/render/raycast/view.ts";
 
-type AtlasLayer = "walls" | "planes" | "sprites";
+type AtlasLayer = "walls" | "planes" | "sprites" | "spriteLightmaps";
 
 /** Region of the source image to bake, normalised 0-1: [x, y, w, h]. */
 type SourceFrame = readonly [number, number, number, number];
@@ -184,6 +184,10 @@ const TARGET_COLORS: Readonly<Record<TargetMarkerTone, string>> = {
   use: "rgba(52, 211, 153, 0.9)",
 };
 
+const LIGHT_AMBIENT = 96;
+const DEFAULT_FLICKER_SPEED = 8;
+const HEX_COLOR = /^#[0-9a-fA-F]{6}$/;
+
 /** Tints are relative to mid-grey so the wall texture keeps its detail. */
 const DOOR_TINT: readonly [number, number, number] = [1.2, 0.83, 0.45];
 const DOOR_TINTS_BY_COLOR: Readonly<Record<KeyColor, readonly [number, number, number]>> = {
@@ -209,12 +213,15 @@ function addBakeTarget(entry: ManagedAsset, target: BakeTargetInput): void {
 }
 
 /** All sixteen cells of a 4x4 enemy sheet; slot = base + row * 4 + column. */
-function enemySheetTargets(baseSlot: number): readonly BakeTargetInput[] {
+function enemySheetTargets(
+  baseSlot: number,
+  layer: "sprites" | "spriteLightmaps" = "sprites",
+): readonly BakeTargetInput[] {
   const targets: BakeTargetInput[] = [];
   for (let row = 0; row < SHEET_COLUMNS; row++) {
     for (let column = 0; column < SHEET_COLUMNS; column++) {
       targets.push({
-        layer: "sprites",
+        layer,
         slot: baseSlot + row * SHEET_COLUMNS + column,
         frame: [column / 4, row / 4, 1 / 4, 1 / 4],
       });
@@ -257,6 +264,10 @@ function createAssetCatalog(): AssetCatalog {
       new URL("../../assets/game/sprites/digital_dog.png", import.meta.url).href,
       enemySheetTargets(SPRITE_DOG),
       ENEMY_CROP_FRAME,
+    ),
+    managedAsset(
+      new URL("../../assets/game/sprites/digital_dog_lightmap.png", import.meta.url).href,
+      enemySheetTargets(SPRITE_DOG, "spriteLightmaps"),
     ),
     managedAsset(
       new URL("../../assets/game/sprites/gigabit_gun_slinger.png", import.meta.url).href,
@@ -336,6 +347,7 @@ function buildAtlas(): RaycastAtlas {
   planes[CEILING_TEX] = bakeSolidTexture(16, 18, 23);
 
   const sprites: BakedTexture[] = [];
+  const spriteLightmaps: BakedTexture[] = [];
   fillEnemyFallback(sprites, SPRITE_DOG, "#ef4444");
   fillEnemyFallback(sprites, SPRITE_GUNSLINGER, "#38bdf8");
   fillEnemyFallback(sprites, SPRITE_NEOPHYTE, "#34d399");
@@ -354,7 +366,7 @@ function buildAtlas(): RaycastAtlas {
   sprites[SPRITE_PISTOL_AMMO] = bakeOrb("#38bdf8");
   sprites[SPRITE_CANNON_AMMO] = bakeOrb("#f97316");
 
-  return { walls, planes, sprites };
+  return { walls, planes, sprites, spriteLightmaps };
 }
 
 function fillEnemyFallback(sprites: BakedTexture[], baseSlot: number, color: string): void {
@@ -426,7 +438,10 @@ function createFirstPersonRendererState() {
     sceneByMap: new WeakMap<GameMap, RaycastScene>(),
     packWallSlots: new Map<TexturePackRef, number>(),
     packPlaneSlots: new Map<TexturePackRef, number>(),
+    lightColorChannels: new Map<string, readonly [number, number, number]>(),
     orbSpriteByColor: new Map<string, number>(),
+    spriteCropBySlot: new Map<number, ContentCrop | undefined>(),
+    spriteCropReady: new Set<number>(),
     drawableScratch: [] as DrawableEntity[],
     rasterCanvas: undefined as OffscreenCanvas | undefined,
     poseTween: createPoseTween(),
@@ -661,7 +676,10 @@ function bakeLoadedAssets(
     for (const target of entry.targets) {
       if (target.baked) continue;
       let crop: ContentCrop | undefined;
-      if (target.layer === "sprites") {
+      if (target.layer === "spriteLightmaps") {
+        if (!state.spriteCropReady.has(target.slot)) continue;
+        crop = state.spriteCropBySlot.get(target.slot);
+      } else if (target.layer === "sprites") {
         if (entry.cropFrame !== undefined) {
           if (!sharedCropMeasured) {
             sharedCrop = measureContentCrop(state, image, entry.cropFrame);
@@ -678,6 +696,10 @@ function bakeLoadedAssets(
         transpose: target.layer !== "planes",
         ...(target.tint === undefined ? {} : { tint: target.tint }),
       });
+      if (target.layer === "sprites") {
+        state.spriteCropBySlot.set(target.slot, crop);
+        state.spriteCropReady.add(target.slot);
+      }
       target.baked = true;
     }
   }
@@ -805,6 +827,83 @@ function sceneForMapForState(state: FirstPersonRendererState, map: GameMap): Ray
 
 function raycastSpriteCapacity(map: GameMap, cellCount: number): number {
   return Math.max(cellCount, map.entities.length + MAX_CORPSES);
+}
+
+function updateSceneLights(
+  state: FirstPersonRendererState,
+  scene: RaycastScene,
+  map: GameMap,
+  nowMs: number,
+): boolean {
+  if (map.lights.length === 0) return false;
+
+  scene.lightRed.fill(LIGHT_AMBIENT);
+  scene.lightGreen.fill(LIGHT_AMBIENT);
+  scene.lightBlue.fill(LIGHT_AMBIENT);
+
+  let animating = false;
+  for (const light of map.lights) {
+    if (light.radius <= 0) continue;
+    const [sourceRed, sourceGreen, sourceBlue] = lightColorChannels(state, light.color);
+    const flickerAmount = light.flickerAmount ?? 0;
+    const intensity = flickerAmount > 0 ?
+      flickerIntensity(light.x, light.y, flickerAmount, light.flickerSpeed, nowMs) :
+      1;
+    animating ||= flickerAmount > 0;
+
+    const minX = Math.max(0, light.x - light.radius);
+    const maxX = Math.min(scene.mapWidth - 1, light.x + light.radius);
+    const minY = Math.max(0, light.y - light.radius);
+    const maxY = Math.min(scene.mapHeight - 1, light.y + light.radius);
+    for (let y = minY; y <= maxY; y++) {
+      for (let x = minX; x <= maxX; x++) {
+        const distance = Math.hypot(x - light.x, y - light.y);
+        if (distance > light.radius) continue;
+
+        const strength = (1 - distance / (light.radius + 1)) * intensity;
+        const cell = y * scene.mapWidth + x;
+        addLightChannel(scene.lightRed, cell, sourceRed * strength);
+        addLightChannel(scene.lightGreen, cell, sourceGreen * strength);
+        addLightChannel(scene.lightBlue, cell, sourceBlue * strength);
+      }
+    }
+  }
+
+  return animating;
+}
+
+function lightColorChannels(state: FirstPersonRendererState, color: string): readonly [number, number, number] {
+  const existing = state.lightColorChannels.get(color);
+  if (existing !== undefined) return existing;
+  if (!HEX_COLOR.test(color)) throw new Error(`Light color must be a #rrggbb hex color, received "${color}".`);
+
+  const channels = [
+    Number.parseInt(color.slice(1, 3), 16),
+    Number.parseInt(color.slice(3, 5), 16),
+    Number.parseInt(color.slice(5, 7), 16),
+  ] as const;
+  state.lightColorChannels.set(color, channels);
+  return channels;
+}
+
+function flickerIntensity(
+  x: number,
+  y: number,
+  amount: number,
+  speed: number | undefined,
+  nowMs: number,
+): number {
+  const seconds = nowMs / 1000;
+  const phase = x * 12.9898 + y * 78.233;
+  const cadence = speed ?? DEFAULT_FLICKER_SPEED;
+  const wave = Math.sin(seconds * cadence + phase) * 0.6 +
+    Math.sin(seconds * cadence * 2.7 + phase * 3.1) * 0.4;
+  return 1 - amount * 0.5 + wave * amount * 0.5;
+}
+
+function addLightChannel(channel: Uint8Array, cell: number, amount: number): void {
+  const next = channel[cell]! + amount;
+  channel[cell] = next >= 255 ? 255 : next | 0;
 }
 
 function isBlocking(map: GameMap, x: number, y: number): boolean {
@@ -1058,6 +1157,8 @@ function renderFirstPersonView(
   const scene = sceneForMapForState(state, map);
   bakeLoadedAssets(state, ctx, repaint);
   clearSceneDynamic(scene);
+  const nowMs = performance.now();
+  const lightsAnimating = updateSceneLights(state, scene, map, nowMs);
 
   // Two passes over the drawables: the camera pose must be known before
   // enemies pick a directional sprite.
@@ -1078,7 +1179,6 @@ function renderFirstPersonView(
 
   const forward = directionDelta(playerDir);
   const targetAngle = Math.atan2(forward.dy, forward.dx);
-  const nowMs = performance.now();
   state.lastRepaint = repaint;
   if (!state.poseInitialized) {
     state.poseInitialized = true;
@@ -1114,7 +1214,10 @@ function renderFirstPersonView(
 
   samplePoseTween(state.poseTween, nowMs, state.poseSample);
   sampleNudgeTween(state.nudgeTween, nowMs, state.nudgeSample);
-  if ((!state.poseSample.settled || !state.nudgeSample.settled || spritesAnimating) && repaint !== undefined) {
+  if (
+    (!state.poseSample.settled || !state.nudgeSample.settled || spritesAnimating || lightsAnimating) &&
+    repaint !== undefined
+  ) {
     scheduleRepaint(state, repaint);
   }
 

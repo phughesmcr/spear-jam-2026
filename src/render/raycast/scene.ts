@@ -64,6 +64,7 @@ const SHADE_BAND_DISTANCE = 1.1;
 const CEILING_SHADE_OFFSET = 2;
 const MIN_WALL_DISTANCE = 1e-4;
 const MIN_SPRITE_DISTANCE = 0.05;
+const SPRITE_EMISSIVE_GAIN = 2;
 const FIXED_ONE = 65536;
 
 export type RaycastCamera = {
@@ -108,6 +109,8 @@ export type RaycastAtlas = {
   readonly planes: BakedTexture[];
   /** Column-major (transposed) sprite textures. */
   readonly sprites: BakedTexture[];
+  /** Column-major sprite emissive masks, indexed by sprite texture id. */
+  readonly spriteLightmaps: BakedTexture[];
 };
 
 export type RaycastScene = {
@@ -119,6 +122,12 @@ export type RaycastScene = {
   readonly floors: Uint8Array;
   /** Plane texture id + 1 per cell; 0 means untextured (left black). */
   readonly ceilings: Uint8Array;
+  /** Per-cell red light multiplier, 255 leaves source texels unchanged. */
+  readonly lightRed: Uint8Array;
+  /** Per-cell green light multiplier, 255 leaves source texels unchanged. */
+  readonly lightGreen: Uint8Array;
+  /** Per-cell blue light multiplier, 255 leaves source texels unchanged. */
+  readonly lightBlue: Uint8Array;
   /** Index into the thin-wall arrays per cell; -1 means none. */
   readonly thinByCell: Int32Array;
   thinCount: number;
@@ -164,12 +173,22 @@ export function createScene(mapWidth: number, mapHeight: number, options: Raycas
     options.spriteCapacity ?? Math.max(DEFAULT_SPRITE_CAPACITY, cellCount),
     "Sprite",
   );
+  const lightRed = new Uint8Array(cellCount);
+  const lightGreen = new Uint8Array(cellCount);
+  const lightBlue = new Uint8Array(cellCount);
+  lightRed.fill(255);
+  lightGreen.fill(255);
+  lightBlue.fill(255);
+
   return {
     mapWidth,
     mapHeight,
     walls: new Uint8Array(cellCount),
     floors: new Uint8Array(cellCount),
     ceilings: new Uint8Array(cellCount),
+    lightRed,
+    lightGreen,
+    lightBlue,
     thinByCell: new Int32Array(cellCount).fill(-1),
     thinCount: 0,
     thinTex: new Int16Array(cellCount),
@@ -334,6 +353,9 @@ export type RaycastFrame = {
   readonly thinHitTex: Int16Array;
   readonly thinHitTexX: Uint8Array;
   readonly thinHitBand: Uint8Array;
+  readonly thinHitLightRed: Uint8Array;
+  readonly thinHitLightGreen: Uint8Array;
+  readonly thinHitLightBlue: Uint8Array;
   readonly thinHitSlide: Uint8Array;
   readonly thinHitOffset: Float32Array;
   readonly thinHitCount: Uint8Array;
@@ -364,6 +386,9 @@ export function createFrame(
     thinHitTex: new Int16Array(width * MAX_THIN_HITS),
     thinHitTexX: new Uint8Array(width * MAX_THIN_HITS),
     thinHitBand: new Uint8Array(width * MAX_THIN_HITS),
+    thinHitLightRed: new Uint8Array(width * MAX_THIN_HITS),
+    thinHitLightGreen: new Uint8Array(width * MAX_THIN_HITS),
+    thinHitLightBlue: new Uint8Array(width * MAX_THIN_HITS),
     thinHitSlide: new Uint8Array(width * MAX_THIN_HITS),
     thinHitOffset: new Float32Array(width * MAX_THIN_HITS),
     thinHitCount: new Uint8Array(width),
@@ -392,6 +417,40 @@ function planeMipLevel(rowDistance: number, width: number): number {
 
 function wallMip(texture: BakedTexture, lineHeight: number): BakedTextureMip {
   return texture.mips[mipLevelForTexelsPerPixel(TEX_SIZE / lineHeight)]!;
+}
+
+function lightTexel(texel: number, red: number, green: number, blue: number): number {
+  if (texel === TRANSPARENT_TEXEL || (red === 255 && green === 255 && blue === 255)) return texel;
+  return ((texel & 0xff000000) |
+    (((texel & 0xff) * red / 255) | 0) |
+    (((((texel >>> 8) & 0xff) * green / 255) | 0) << 8) |
+    (((((texel >>> 16) & 0xff) * blue / 255) | 0) << 16)) >>> 0;
+}
+
+function lightmapTexel(litTexel: number, sourceTexel: number, maskTexel: number): number {
+  if (maskTexel === TRANSPARENT_TEXEL || sourceTexel === TRANSPARENT_TEXEL) return litTexel;
+  const intensity = Math.max(maskTexel & 0xff, (maskTexel >>> 8) & 0xff, (maskTexel >>> 16) & 0xff);
+  if (intensity <= 0) return litTexel;
+
+  const litRed = litTexel & 0xff;
+  const litGreen = (litTexel >>> 8) & 0xff;
+  const litBlue = (litTexel >>> 16) & 0xff;
+  const sourceRed = emissiveChannel(sourceTexel & 0xff);
+  const sourceGreen = emissiveChannel((sourceTexel >>> 8) & 0xff);
+  const sourceBlue = emissiveChannel((sourceTexel >>> 16) & 0xff);
+  if (intensity >= 255) {
+    return ((sourceTexel & 0xff000000) | sourceRed | (sourceGreen << 8) | (sourceBlue << 16)) >>> 0;
+  }
+
+  return ((litTexel & 0xff000000) |
+    (litRed + Math.round((sourceRed - litRed) * intensity / 255)) |
+    ((litGreen + Math.round((sourceGreen - litGreen) * intensity / 255)) << 8) |
+    ((litBlue + Math.round((sourceBlue - litBlue) * intensity / 255)) << 16)) >>> 0;
+}
+
+function emissiveChannel(value: number): number {
+  const boosted = value * SPRITE_EMISSIVE_GAIN;
+  return boosted >= 255 ? 255 : boosted | 0;
 }
 
 export function renderFrame(
@@ -430,6 +489,9 @@ function renderPlanes(
   const mapHeight = scene.mapHeight;
   const floors = scene.floors;
   const ceilings = scene.ceilings;
+  const lightRed = scene.lightRed;
+  const lightGreen = scene.lightGreen;
+  const lightBlue = scene.lightBlue;
   const planes = atlas.planes;
   const leftRayX = camera.dirX - camera.planeX;
   const leftRayY = camera.dirY - camera.planeY;
@@ -456,6 +518,9 @@ function renderPlanes(
     let cachedCell = -1;
     let floorTexels: Uint32Array | undefined;
     let ceilingTexels: Uint32Array | undefined;
+    let red = 255;
+    let green = 255;
+    let blue = 255;
 
     for (let x = 0; x < width; x++) {
       const cellX = worldX | 0;
@@ -468,13 +533,18 @@ function renderPlanes(
           const ceilingId = ceilings[cell]!;
           floorTexels = floorId === 0 ? undefined : planes[floorId - 1]?.mips[mipLevel]?.bands[floorBand];
           ceilingTexels = ceilingId === 0 ? undefined : planes[ceilingId - 1]?.mips[mipLevel]?.bands[ceilingBand];
+          red = lightRed[cell]!;
+          green = lightGreen[cell]!;
+          blue = lightBlue[cell]!;
         }
         if (floorTexels !== undefined || ceilingTexels !== undefined) {
           const texX = (((worldX - cellX) * mipSize) | 0) & mipMask;
           const texY = (((worldY - cellY) * mipSize) | 0) & mipMask;
           const texel = (texY << mipShift) | texX;
-          if (floorTexels !== undefined) pixels[floorRow + x] = floorTexels[texel]!;
-          if (ceilingTexels !== undefined) pixels[ceilingRow + x] = ceilingTexels[texel]!;
+          if (floorTexels !== undefined) pixels[floorRow + x] = lightTexel(floorTexels[texel]!, red, green, blue);
+          if (ceilingTexels !== undefined) {
+            pixels[ceilingRow + x] = lightTexel(ceilingTexels[texel]!, red, green, blue);
+          }
         }
       }
       worldX += stepX;
@@ -496,6 +566,9 @@ function renderWalls(
   const walls = scene.walls;
   const thinByCell = scene.thinByCell;
   const slidingSolidByCell = scene.slidingSolidByCell;
+  const lightRed = scene.lightRed;
+  const lightGreen = scene.lightGreen;
+  const lightBlue = scene.lightBlue;
   const maxSteps = (mapWidth + mapHeight) * 2;
   const startCellX = camera.x | 0;
   const startCellY = camera.y | 0;
@@ -516,6 +589,9 @@ function renderWalls(
     let hitDistance = Number.POSITIVE_INFINITY;
     let hitTexture: BakedTexture | undefined;
     let hitTexX = 0;
+    let hitLightRed = 255;
+    let hitLightGreen = 255;
+    let hitLightBlue = 255;
     let thinHits = 0;
     const thinBase = x * MAX_THIN_HITS;
 
@@ -540,6 +616,9 @@ function renderWalls(
         const texX = solidFaceTexX(side, rayX, rayY, wallX - Math.floor(wallX));
         hitTexture = jambTextureFromPreviousCell(scene, atlas, previousCell, side) ?? atlas.walls[wallId - 1];
         hitTexX = texX;
+        hitLightRed = lightRed[previousCell]!;
+        hitLightGreen = lightGreen[previousCell]!;
+        hitLightBlue = lightBlue[previousCell]!;
         break;
       }
 
@@ -563,6 +642,9 @@ function renderWalls(
                 hitDistance = distance;
                 hitTexture = texture;
                 hitTexX = texX;
+                hitLightRed = lightRed[cell]!;
+                hitLightGreen = lightGreen[cell]!;
+                hitLightBlue = lightBlue[cell]!;
                 break;
               }
               if (thinHits < MAX_THIN_HITS) {
@@ -571,6 +653,9 @@ function renderWalls(
                 frame.thinHitTex[slot] = textureId;
                 frame.thinHitTexX[slot] = texX;
                 frame.thinHitBand[slot] = thinShadeBand(distance, side);
+                frame.thinHitLightRed[slot] = lightRed[cell]!;
+                frame.thinHitLightGreen[slot] = lightGreen[cell]!;
+                frame.thinHitLightBlue[slot] = lightBlue[cell]!;
                 frame.thinHitSlide[slot] = verticalSlide ? slide : THIN_SLIDE_NEG;
                 frame.thinHitOffset[slot] = verticalSlide ? offset : 0;
               }
@@ -627,6 +712,9 @@ function renderWalls(
         hitDistance = thinDistance;
         hitTexture = texture;
         hitTexX = texX;
+        hitLightRed = lightRed[cell]!;
+        hitLightGreen = lightGreen[cell]!;
+        hitLightBlue = lightBlue[cell]!;
         side = axis === THIN_AXIS_Y ? 1 : 0;
         break;
       }
@@ -636,6 +724,9 @@ function renderWalls(
         frame.thinHitTex[slot] = scene.thinTex[thinIndex]!;
         frame.thinHitTexX[slot] = texX;
         frame.thinHitBand[slot] = thinShadeBand(thinDistance, axis === THIN_AXIS_Y ? 1 : 0);
+        frame.thinHitLightRed[slot] = lightRed[cell]!;
+        frame.thinHitLightGreen[slot] = lightGreen[cell]!;
+        frame.thinHitLightBlue[slot] = lightBlue[cell]!;
         frame.thinHitSlide[slot] = verticalSlide ? slide : THIN_SLIDE_NEG;
         frame.thinHitOffset[slot] = verticalSlide ? offset : 0;
       }
@@ -653,6 +744,9 @@ function renderWalls(
       hitTexture,
       thinShadeBand(hitDistance, side),
       hitTexX,
+      hitLightRed,
+      hitLightGreen,
+      hitLightBlue,
       true,
     );
   }
@@ -722,6 +816,9 @@ function drawWallColumn(
   texture: BakedTexture,
   band: number,
   texX: number,
+  lightRed: number,
+  lightGreen: number,
+  lightBlue: number,
   opaque: boolean,
 ): void {
   const height = frame.height;
@@ -745,7 +842,7 @@ function drawWallColumn(
   let offset = yStart * width + x;
   if (opaque) {
     for (let y = yStart; y < yEnd; y++) {
-      pixels[offset] = texels[columnBase + ((texPos >>> 16) & mip.mask)]!;
+      pixels[offset] = lightTexel(texels[columnBase + ((texPos >>> 16) & mip.mask)]!, lightRed, lightGreen, lightBlue);
       texPos += texStep;
       offset += width;
     }
@@ -753,7 +850,7 @@ function drawWallColumn(
   }
   for (let y = yStart; y < yEnd; y++) {
     const texel = texels[columnBase + ((texPos >>> 16) & mip.mask)]!;
-    if (texel !== TRANSPARENT_TEXEL) pixels[offset] = texel;
+    if (texel !== TRANSPARENT_TEXEL) pixels[offset] = lightTexel(texel, lightRed, lightGreen, lightBlue);
     texPos += texStep;
     offset += width;
   }
@@ -777,6 +874,10 @@ function renderSpritesAndThinWalls(
   const visible = projectSprites(frame, scene, camera);
   for (let order = 0; order < visible; order++) {
     const sprite = frame.spriteOrder[order]!;
+    const spriteCellX = scene.spriteX[sprite]! | 0;
+    const spriteCellY = scene.spriteY[sprite]! | 0;
+    const spriteCell = spriteCellY * scene.mapWidth + spriteCellX;
+    const lit = spriteCellX >= 0 && spriteCellY >= 0 && spriteCellX < scene.mapWidth && spriteCellY < scene.mapHeight;
     drawSprite(
       frame,
       atlas,
@@ -786,6 +887,9 @@ function renderSpritesAndThinWalls(
       scene.spriteTex[sprite]!,
       scene.spriteScale[sprite]!,
       scene.spriteElevation[sprite]!,
+      lit ? scene.lightRed[spriteCell]! : 255,
+      lit ? scene.lightGreen[spriteCell]! : 255,
+      lit ? scene.lightBlue[spriteCell]! : 255,
     );
   }
 
@@ -832,9 +936,13 @@ function drawSprite(
   textureId: number,
   scale: number,
   elevation: number,
+  lightRed: number,
+  lightGreen: number,
+  lightBlue: number,
 ): void {
   const texture = atlas.sprites[textureId];
   if (texture === undefined) return;
+  const lightmap = atlas.spriteLightmaps[textureId];
 
   const width = frame.width;
   const height = frame.height;
@@ -860,6 +968,8 @@ function drawSprite(
 
   const mip = texture.mips[0]!;
   const texels = mip.bands[shadeBand(depth)]!;
+  const sourceTexels = lightmap === undefined ? undefined : mip.bands[0]!;
+  const lightmapTexels = lightmap?.mips[0]?.bands[0];
   const texStep = ((mip.size * FIXED_ONE) / spriteSize) | 0;
   const texYStart = (((yStart - top) * mip.size * FIXED_ONE) / spriteSize) | 0;
   let texXPos = (((xStart - left) * mip.size * FIXED_ONE) / spriteSize) | 0;
@@ -874,8 +984,14 @@ function drawSprite(
     let texYPos = texYStart;
     let offset = yStart * width + x;
     for (let y = yStart; y < yEnd; y++) {
-      const texel = texels[columnBase + ((texYPos >>> 16) & mip.mask)]!;
-      if (texel !== TRANSPARENT_TEXEL) pixels[offset] = texel;
+      const texelIndex = columnBase + ((texYPos >>> 16) & mip.mask);
+      const texel = texels[texelIndex]!;
+      if (texel !== TRANSPARENT_TEXEL) {
+        const litTexel = lightTexel(texel, lightRed, lightGreen, lightBlue);
+        pixels[offset] = lightmapTexels === undefined || sourceTexels === undefined ?
+          litTexel :
+          lightmapTexel(litTexel, sourceTexels[texelIndex]!, lightmapTexels[texelIndex]!);
+      }
       texYPos += texStep;
       offset += width;
     }
@@ -895,6 +1011,9 @@ function drawVerticalSlideColumn(
   texture: BakedTexture,
   band: number,
   texX: number,
+  lightRed: number,
+  lightGreen: number,
+  lightBlue: number,
   slide: number,
   offset: number,
 ): void {
@@ -923,7 +1042,7 @@ function drawVerticalSlideColumn(
   let pixelOffset = yStart * width + x;
   for (let y = yStart; y < yEnd; y++) {
     const texel = texels[columnBase + ((texPos >>> 16) & mip.mask)]!;
-    if (texel !== TRANSPARENT_TEXEL) pixels[pixelOffset] = texel;
+    if (texel !== TRANSPARENT_TEXEL) pixels[pixelOffset] = lightTexel(texel, lightRed, lightGreen, lightBlue);
     texPos += texStep;
     pixelOffset += width;
   }
@@ -947,6 +1066,9 @@ function flushThinHits(frame: RaycastFrame, atlas: RaycastAtlas, focal: number, 
           texture,
           frame.thinHitBand[slot]!,
           frame.thinHitTexX[slot]!,
+          frame.thinHitLightRed[slot]!,
+          frame.thinHitLightGreen[slot]!,
+          frame.thinHitLightBlue[slot]!,
           frame.thinHitSlide[slot]!,
           offset,
         );
@@ -959,6 +1081,9 @@ function flushThinHits(frame: RaycastFrame, atlas: RaycastAtlas, focal: number, 
           texture,
           frame.thinHitBand[slot]!,
           frame.thinHitTexX[slot]!,
+          frame.thinHitLightRed[slot]!,
+          frame.thinHitLightGreen[slot]!,
+          frame.thinHitLightBlue[slot]!,
           false,
         );
       }

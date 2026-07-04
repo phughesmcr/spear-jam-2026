@@ -1,6 +1,6 @@
 import type { AttackDef } from "@/src/game/attack.ts";
 import { createGameMap } from "@/src/map/map.ts";
-import type { EntityDef, GameMap } from "@/src/map/map.ts";
+import type { EntityDef, GameMap, LightDef } from "@/src/map/map.ts";
 import { TERRAIN_CATALOG } from "@/src/map/terrain_palettes.ts";
 import { createTilesetRegistry, decodeObjectGid, decodeTerrainGid } from "@/src/map/authoring/gid.ts";
 import type { TilesetRegistry, TilesetSources } from "@/src/map/authoring/gid.ts";
@@ -8,6 +8,7 @@ import {
   mergeProperties,
   optionalBoolean,
   optionalInteger,
+  optionalNumber,
   optionalString,
   readProperties,
   requiredInteger,
@@ -50,6 +51,7 @@ export type CompiledTiledMap = {
 type RequiredLayers = {
   readonly terrain: TiledLayer;
   readonly objects: TiledLayer;
+  readonly lights?: TiledLayer;
 };
 
 type GridPosition = {
@@ -68,6 +70,7 @@ type ResolvedTemplate = {
 
 const NO_PROPERTY_NAMES: ReadonlySet<string> = new Set();
 const MAP_PROPERTY_NAMES: ReadonlySet<string> = new Set(["name", "palette", "campaignOrder"]);
+const LIGHT_PROPERTY_NAMES: ReadonlySet<string> = new Set(["color", "radius", "flickerAmount", "flickerSpeed"]);
 const TERRAIN_PROPERTY_NAMES: ReadonlySet<string> = new Set([
   "terrainId",
   "blocking",
@@ -89,9 +92,10 @@ export function compileTiledMap(source: TiledMap, options: CompileTiledMapOption
   const registry = createTilesetRegistry(source.tilesets, options.tilesets);
   const terrain = compileTerrain(source, layers.terrain, registry);
   const entities = compileEntities(source, layers.objects, registry, options);
+  const lights = compileLights(source, layers.lights);
 
   return {
-    gameMap: createGameMap(name, terrain, entities, { palette: TERRAIN_CATALOG }),
+    gameMap: createGameMap(name, terrain, entities, { palette: TERRAIN_CATALOG, lights }),
     paletteKey,
     campaignOrder,
   };
@@ -111,12 +115,9 @@ function validateMapShape(source: TiledMap): void {
 }
 
 function requiredLayers(source: TiledMap): RequiredLayers {
-  if (source.layers.length !== 2) {
-    throw new Error(`Tiled map must contain exactly terrain and objects layers.`);
-  }
-
   let terrain: TiledLayer | undefined;
   let objects: TiledLayer | undefined;
+  let lights: TiledLayer | undefined;
   for (const layer of source.layers) {
     validateLayerCommon(layer);
     switch (layer.name) {
@@ -130,6 +131,11 @@ function requiredLayers(source: TiledMap): RequiredLayers {
         if (objects !== undefined) throw new Error(`Tiled map has duplicate objects layers.`);
         objects = layer;
         break;
+      case "lights":
+        if (layer.type !== "objectgroup") throw new Error(`Layer "lights" must be an object layer.`);
+        if (lights !== undefined) throw new Error(`Tiled map has duplicate lights layers.`);
+        lights = layer;
+        break;
       default:
         throw new Error(`Unsupported gameplay layer "${layer.name}".`);
     }
@@ -137,7 +143,7 @@ function requiredLayers(source: TiledMap): RequiredLayers {
 
   if (terrain === undefined) throw new Error(`Tiled map is missing terrain layer.`);
   if (objects === undefined) throw new Error(`Tiled map is missing objects layer.`);
-  return { terrain, objects };
+  return lights === undefined ? { terrain, objects } : { terrain, objects, lights };
 }
 
 function validateLayerCommon(layer: TiledLayer): void {
@@ -196,6 +202,28 @@ function compileEntities(
   options: CompileTiledMapOptions,
 ): readonly EntityDef[] {
   return (layer.objects ?? []).map((object, index) => compileEntity(source, object, index, registry, options));
+}
+
+function compileLights(source: TiledMap, layer: TiledLayer | undefined): readonly LightDef[] {
+  if (layer === undefined) return [];
+  return (layer.objects ?? []).map((object, index) => compileLight(source, object, index));
+}
+
+function compileLight(source: TiledMap, object: TiledObject, index: number): LightDef {
+  const context = objectContext(object, index);
+  validateObjectAuthoringState(object, context);
+  const properties = readProperties(object.properties, LIGHT_PROPERTY_NAMES, context);
+  const position = objectGridPosition(object, source.tilewidth, source.tileheight, context);
+  const radius = requiredInteger(properties, "radius", context);
+  if (radius <= 0) throw new Error(`${context}: Property "radius" must be positive.`);
+
+  return {
+    ...position,
+    color: requiredLightColor(properties, context),
+    radius,
+    ...optionalLightNumberField(properties, "flickerAmount", context),
+    ...optionalLightNumberField(properties, "flickerSpeed", context),
+  };
 }
 
 function compileEntity(
@@ -485,6 +513,26 @@ function optionalDoorSlide(
 function optionalNumberField(properties: PropertyMap, name: string, context: string): Record<string, number> {
   const value = optionalInteger(properties, name, context);
   return value === undefined ? {} : { [name]: value };
+}
+
+function requiredLightColor(properties: PropertyMap, context: string): `#${string}` {
+  const value = requiredString(properties, "color", context);
+  if (!/^#[0-9a-fA-F]{6}$/.test(value)) {
+    throw new Error(`${context}: Property "color" must be a #rrggbb hex color.`);
+  }
+  return value.toLowerCase() as `#${string}`;
+}
+
+function optionalLightNumberField(properties: PropertyMap, name: string, context: string): Record<string, number> {
+  const value = optionalNumber(properties, name, context);
+  if (value === undefined) return {};
+  if (name === "flickerAmount" && (value < 0 || value > 1)) {
+    throw new Error(`${context}: Property "flickerAmount" must be between 0 and 1.`);
+  }
+  if (name === "flickerSpeed" && value <= 0) {
+    throw new Error(`${context}: Property "flickerSpeed" must be positive.`);
+  }
+  return { [name]: value };
 }
 
 function optionalBooleanField(properties: PropertyMap, name: string, context: string): Record<string, boolean> {

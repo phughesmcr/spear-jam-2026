@@ -26,6 +26,7 @@ Deno.test("buildScaffoldMap creates a bordered Tiled map ready for authoring", (
   assertEquals(map.layers.map((layer) => [layer.name, layer.type]), [
     ["terrain", "tilelayer"],
     ["objects", "objectgroup"],
+    ["lights", "objectgroup"],
   ]);
   assertEquals(map.layers[0]?.data, [
     61,
@@ -50,6 +51,7 @@ Deno.test("buildScaffoldMap creates a bordered Tiled map ready for authoring", (
     61,
   ]);
   assertEquals(map.layers[1]?.objects, []);
+  assertEquals(map.layers[2]?.objects, []);
   assertEquals(map.tilesets?.map((tileset) => tileset.source ?? tileset.name), [
     "terrain/floors.tsj",
     "terrain/walls.tsj",

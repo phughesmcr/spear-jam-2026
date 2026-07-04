@@ -78,6 +78,15 @@ export function optionalInteger(properties: PropertyMap, name: string, context: 
   return value;
 }
 
+export function optionalNumber(properties: PropertyMap, name: string, context: string): number | undefined {
+  const value = properties.get(name);
+  if (value === undefined) return undefined;
+  if (typeof value !== "number" || !Number.isFinite(value)) {
+    throw new Error(`${context}: Property "${name}" must be a finite number.`);
+  }
+  return value;
+}
+
 export function optionalBoolean(properties: PropertyMap, name: string, context: string): boolean | undefined {
   const value = properties.get(name);
   if (value === undefined) return undefined;

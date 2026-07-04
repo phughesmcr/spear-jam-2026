@@ -110,6 +110,15 @@ export function doorSlideForCode(code: number): DoorSlide | undefined {
 /** How long a door takes to slide fully open (or closed). */
 export const DEFAULT_DOOR_OPEN_MS = 350;
 
+export type LightDef = {
+  readonly x: number;
+  readonly y: number;
+  readonly color: string;
+  readonly radius: number;
+  readonly flickerAmount?: number;
+  readonly flickerSpeed?: number;
+};
+
 export type GameMap = {
   readonly name: string;
   readonly terrain: {
@@ -117,6 +126,7 @@ export type GameMap = {
     readonly tiles: readonly (readonly number[])[];
   };
   readonly entities: readonly EntityDef[];
+  readonly lights: readonly LightDef[];
 };
 
 export type MapDimensions = {
@@ -126,6 +136,7 @@ export type MapDimensions = {
 
 export type GameMapOptions = {
   readonly palette?: readonly TerrainTile[];
+  readonly lights?: readonly LightDef[];
 };
 
 export function mapDimensions(map: GameMap): MapDimensions {
@@ -210,6 +221,7 @@ export function createGameMap(
       tiles,
     },
     entities,
+    lights: options.lights ?? [],
   };
   terrainGrid(map);
   return map;

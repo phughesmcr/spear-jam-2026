@@ -187,6 +187,54 @@ Deno.test("sceneForMap builds static scenes for authored textured maps", () => {
   }
 });
 
+Deno.test("first-person rendering updates flickering lights and schedules repaint", () => {
+  withFakeOffscreenCanvas((): void => {
+    const map = createGameMap(
+      "Flicker",
+      [
+        [1, 1, 1],
+        [1, 1, 1],
+        [1, 1, 1],
+      ],
+      [],
+      {
+        lights: [
+          { x: 1, y: 1, color: "#ffffff", radius: 2, flickerAmount: 1, flickerSpeed: 7 },
+        ],
+        palette: [
+          { id: 1, color: "#000000", floor_texture: "floor", ceiling_texture: "ceiling" },
+        ],
+      },
+    );
+    const drawables: DrawableEntity[] = [
+      { kind: DrawableKind.Player, entity: 1, x: 1, y: 1, dir: Direction.East, enemyArchetype: undefined },
+    ];
+    const session: FirstPersonRenderSession = {
+      map,
+      forEachDrawable(visit): void {
+        for (const drawable of drawables) visit(drawable);
+      },
+    };
+    const renderer = createFirstPersonRenderer();
+    const ctx = new FakeCanvasContext() as unknown as CanvasRenderingContext2D;
+
+    const scheduled = withFakeRequestAnimationFrame((): void => {
+      withFakePerformanceNow(0, (): void => {
+        renderer.render(ctx, { x: 0, y: 0, width: 64, height: 64 }, session, undefined, () => {});
+      });
+    });
+    const scene = renderer.sceneForMap(map);
+    const firstAdjacentLight = scene.lightRed[1 * 3 + 2]!;
+
+    withFakePerformanceNow(250, (): void => {
+      renderer.render(ctx, { x: 0, y: 0, width: 64, height: 64 }, session);
+    });
+
+    assertNotEquals(scene.lightRed[1 * 3 + 2], firstAdjacentLight);
+    assertEquals(scheduled, 1);
+  });
+});
+
 Deno.test("first-person rendering keeps open doors in the raycast scene for jambs", () => {
   withFakeOffscreenCanvas((): void => {
     const map = createGameMap(

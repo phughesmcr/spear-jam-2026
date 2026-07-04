@@ -13,12 +13,21 @@ export type LoadedGameMaps = {
 const INTEGER_SCHEMA = z.number().int();
 const NON_NEGATIVE_INTEGER_SCHEMA = INTEGER_SCHEMA.nonnegative();
 const PALETTE_SCHEMA = z.enum(PALETTE_KEYS);
+const LIGHT_SCHEMA = z.object({
+  x: NON_NEGATIVE_INTEGER_SCHEMA,
+  y: NON_NEGATIVE_INTEGER_SCHEMA,
+  color: z.string().regex(/^#[0-9a-fA-F]{6}$/),
+  radius: INTEGER_SCHEMA.positive(),
+  flickerAmount: z.number().min(0).max(1).optional(),
+  flickerSpeed: z.number().positive().optional(),
+}).strict();
 
 const COMPILED_MAP_SCHEMA = z.object({
   name: z.string().min(1),
   palette: PALETTE_SCHEMA,
   tiles: z.array(z.array(NON_NEGATIVE_INTEGER_SCHEMA).nonempty()).nonempty(),
   entities: z.array(ENTITY_SCHEMA),
+  lights: z.array(LIGHT_SCHEMA).optional().default([]),
 }).strict();
 
 const COMPILED_MAPS_SCHEMA = z.object({
@@ -68,7 +77,7 @@ export function loadGameMapsData(data: unknown): LoadedGameMaps {
 }
 
 function gameMapFromCompiledMap(map: CompiledMap): GameMap {
-  return createGameMap(map.name, map.tiles, map.entities);
+  return createGameMap(map.name, map.tiles, map.entities, { lights: map.lights });
 }
 
 function formatZodError(error: z.ZodError): string {

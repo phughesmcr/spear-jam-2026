@@ -25,5 +25,6 @@ export function flatTestMap(
       tiles: Array.from({ length: height }, () => [...row]),
     },
     entities,
+    lights: [],
   };
 }

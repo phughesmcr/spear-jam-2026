@@ -43,7 +43,7 @@ import {
   wallTilesetReference,
 } from "@/src/map/authoring/catalog.ts";
 import type { TiledProjectCommand } from "@/src/map/authoring/catalog.ts";
-import type { EntityDef, TerrainTile, TexturePackRef } from "@/src/map/map.ts";
+import type { EntityDef, LightDef, TerrainTile, TexturePackRef } from "@/src/map/map.ts";
 import { PALETTE_KEYS, TERRAIN_CATALOG } from "@/src/map/terrain_palettes.ts";
 import type { PaletteKey } from "@/src/map/terrain_palettes.ts";
 import { validateGameMaps } from "@/src/map/map_validation.ts";
@@ -62,6 +62,7 @@ type CompiledMapData = {
   readonly palette: PaletteKey;
   readonly tiles: readonly (readonly number[])[];
   readonly entities: readonly EntityDef[];
+  readonly lights?: readonly LightDef[];
 };
 
 type NewMapOptions = {
@@ -358,8 +359,19 @@ export function buildScaffoldMap(options: NewMapOptions): TiledMap {
         x: 0,
         y: 0,
       },
+      {
+        draworder: "topdown",
+        id: 3,
+        name: "lights",
+        objects: [],
+        opacity: 1,
+        type: "objectgroup",
+        visible: true,
+        x: 0,
+        y: 0,
+      },
     ],
-    nextlayerid: 3,
+    nextlayerid: 4,
     nextobjectid: 1,
     orientation: "orthogonal",
     properties: [
@@ -975,8 +987,10 @@ function validateRawMap(path: string, map: TiledMap): void {
   const issues: string[] = [];
   const terrainLayers = map.layers.filter((layer) => layer.name === "terrain");
   const objectLayers = map.layers.filter((layer) => layer.name === "objects");
+  const lightLayers = map.layers.filter((layer) => layer.name === "lights");
   if (terrainLayers.length !== 1) issues.push(`${path}: expected exactly one "terrain" layer.`);
   if (objectLayers.length !== 1) issues.push(`${path}: expected exactly one "objects" layer.`);
+  if (lightLayers.length > 1) issues.push(`${path}: expected at most one "lights" layer.`);
   for (const layer of terrainLayers) {
     if (layer.type !== "tilelayer") issues.push(`${path}: layer "terrain" must be a tile layer.`);
     if (layer.class !== undefined && layer.class !== "terrain_layer") {
@@ -987,6 +1001,12 @@ function validateRawMap(path: string, map: TiledMap): void {
     if (layer.type !== "objectgroup") issues.push(`${path}: layer "objects" must be an object layer.`);
     if (layer.class !== undefined && layer.class !== "object_layer") {
       issues.push(`${path}: layer "objects" class must be "object_layer" when set.`);
+    }
+  }
+  for (const layer of lightLayers) {
+    if (layer.type !== "objectgroup") issues.push(`${path}: layer "lights" must be an object layer.`);
+    if (layer.class !== undefined && layer.class !== "light_layer") {
+      issues.push(`${path}: layer "lights" class must be "light_layer" when set.`);
     }
   }
   try {
@@ -1036,6 +1056,7 @@ function compiledMapData(map: GeneratedMap): CompiledMapData {
     palette: paletteKey(map.paletteKey),
     tiles: map.gameMap.terrain.tiles,
     entities: map.gameMap.entities,
+    ...(map.gameMap.lights.length === 0 ? {} : { lights: map.gameMap.lights }),
   };
 }
 

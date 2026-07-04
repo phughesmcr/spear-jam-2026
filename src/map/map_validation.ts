@@ -52,6 +52,12 @@ function validateGameMap(map: GameMap, mapNames: ReadonlySet<string>): readonly 
     }
   }
 
+  for (const light of map.lights) {
+    if (!inBounds(light.x, light.y, width, height)) {
+      issues.push(`${map.name}: light at (${light.x},${light.y}) is outside the ${width}x${height} map.`);
+    }
+  }
+
   for (const door of doorDefs(map)) {
     if (!validDoorway(map, door.x, door.y)) {
       issues.push(
