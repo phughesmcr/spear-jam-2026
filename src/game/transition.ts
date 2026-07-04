@@ -28,6 +28,7 @@ export type GameModel = {
 
 export type GameEffect =
   | { readonly type: "render" }
+  | { readonly type: "closeDialogue" }
   | { readonly type: "ensureInput" }
   | { readonly type: "loadMap"; readonly mapName: string; readonly playerState?: PlayerStateInput }
   | { readonly type: "runPlayerCommand"; readonly command: PlayerCommand };
@@ -344,7 +345,7 @@ function closeDialogue(model: GameModel): GameTransition {
     ...model,
     dialoguePointerDownSlot: undefined,
     mode: { type: "playing" },
-  }, [{ type: "render" }]);
+  }, [{ type: "closeDialogue" }, { type: "render" }]);
 }
 
 function applyCombatFeedback(
@@ -382,6 +383,7 @@ function clonePlayerStateInput(playerState: PlayerStateInput): PlayerStateInput 
     ...(playerState.turnEffects === undefined ?
       {} :
       { turnEffects: playerState.turnEffects.map((effect) => ({ ...effect })) }),
+    ...(playerState.storyFlags === undefined ? {} : { storyFlags: [...playerState.storyFlags] }),
   };
 }
 

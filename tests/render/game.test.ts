@@ -146,6 +146,7 @@ function playerSnapshot(): PlayerStateSnapshot {
       levelCredits: 0,
     },
     turnEffects: [],
+    storyFlags: [],
   };
 }
 

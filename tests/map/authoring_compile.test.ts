@@ -5,6 +5,7 @@ import { DecorationKind, ItemKind } from "@/src/ecs/components.ts";
 import { EnemyArchetype } from "@/src/ecs/enemy_catalog.ts";
 import { ExamineTextId } from "@/src/game/examine.ts";
 import { DisplayName } from "@/src/game/names.ts";
+import { StoryEventId, StoryTargetId } from "@/src/game/story.ts";
 import { compileTiledMap } from "@/src/map/authoring/mod.ts";
 import { KeyColor, VICTORY_GOTO } from "@/src/map/map.ts";
 import { DEFAULT_BARS_TERRAIN_ID, DEFAULT_WALL_TERRAIN_ID, TERRAIN_CATALOG } from "@/src/map/terrain_palettes.ts";
@@ -107,6 +108,52 @@ Deno.test("compileTiledMap rejects duplicate and unknown properties", () => {
       ),
     Error,
     'Unknown property "bogus"',
+  );
+
+  assertThrows(
+    () =>
+      compileTiledMap(
+        tiledMap({
+          objects: [
+            object({
+              x: 0,
+              y: 0,
+              type: "npc",
+              properties: [
+                property("dir", "south"),
+                property("displayName", "john"),
+                property("storyId", "missing"),
+              ],
+            }),
+          ],
+        }),
+        compileOptions(),
+      ),
+    Error,
+    'Unknown story target "missing"',
+  );
+
+  assertThrows(
+    () =>
+      compileTiledMap(
+        tiledMap({
+          objects: [
+            object({
+              x: 0,
+              y: 0,
+              type: "npc",
+              properties: [
+                property("dir", "south"),
+                property("displayName", "john"),
+                property("onTalkEvent", "missing"),
+              ],
+            }),
+          ],
+        }),
+        compileOptions(),
+      ),
+    Error,
+    'Unknown story event "missing"',
   );
 
   assertThrows(
@@ -347,6 +394,8 @@ Deno.test("compileTiledMap compiles representative prefabs and enemy attack over
             property("displayName", "john"),
             property("dialogueTreeId", "johnIntro"),
             property("examineTextId", "bootSectorUplinkTerminal"),
+            property("storyId", "john"),
+            property("onTalkEvent", "johnSpoken"),
           ],
         }),
         object({
@@ -419,6 +468,8 @@ Deno.test("compileTiledMap compiles representative prefabs and enemy attack over
       displayName: DisplayName.John,
       dialogueTreeId: DialogueTreeId.JohnIntro,
       examineTextId: ExamineTextId.BootSectorUplinkTerminal,
+      storyId: StoryTargetId.John,
+      onTalkEvent: StoryEventId.JohnSpoken,
     },
     {
       prefab: "enemy",

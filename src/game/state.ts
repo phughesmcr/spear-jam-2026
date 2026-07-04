@@ -1,6 +1,7 @@
 import type { DialogueChoice } from "@/src/dialogue/dialogue.ts";
 import type { KeyColor } from "@/src/map/map.ts";
 import type { TurnEffectState } from "@/src/game/turn_effects.ts";
+import type { StoryFlag } from "@/src/game/story.ts";
 
 export type CommandSlot = 1 | 2 | 3;
 
@@ -43,6 +44,7 @@ export type PlayerStateInput = {
   readonly hasUplinkCode?: boolean;
   readonly progress?: Partial<PlayerProgressState>;
   readonly turnEffects?: readonly TurnEffectState[];
+  readonly storyFlags?: readonly StoryFlag[];
 };
 
 export type DialogueState = {

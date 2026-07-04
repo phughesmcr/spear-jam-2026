@@ -13,6 +13,7 @@ import {
 } from "@/src/ecs/progression.ts";
 import { createWorld } from "@/src/ecs/world.ts";
 import { TurnEffectKind } from "@/src/game/turn_effects.ts";
+import { StoryFlag } from "@/src/game/story.ts";
 import { KeyColor } from "@/src/map/map.ts";
 import { createEntity } from "@/tests/ecs/helpers.ts";
 
@@ -31,6 +32,7 @@ Deno.test("player progression defaults to melee with empty ECS resources", async
     hasUplinkCode: false,
     progress: { credits: 0, score: 0, xp: 0, levelCredits: 0 },
     turnEffects: [],
+    storyFlags: [],
   });
   assertEquals(world.components.getEntityData(PlayerInventory, player), {
     keyMask: 0,
@@ -46,6 +48,16 @@ Deno.test("player progression defaults to melee with empty ECS resources", async
     current: 10,
     max: 10,
   });
+});
+
+Deno.test("player progression snapshots include supplied story flags without storing them in ECS", async () => {
+  const world = await createWorld();
+  const player = createEntity(world);
+
+  initializePlayerProgression(world, player);
+
+  assertEquals(playerStateSnapshotFor(world, player, [StoryFlag.JohnSpoken]).storyFlags, [StoryFlag.JohnSpoken]);
+  assertEquals(playerStateSnapshotFor(world, player).storyFlags, []);
 });
 
 Deno.test("player progression starts from a normalized selected weapon", async () => {

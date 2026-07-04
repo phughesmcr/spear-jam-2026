@@ -169,7 +169,13 @@ export function createSpriteTween(x: number, y: number): SpriteTween {
   return { fromX: x, fromY: y, toX: x, toY: y, startMs: 0, durationMs: 0 };
 }
 
-export function retargetSpriteTween(tween: SpriteTween, x: number, y: number, nowMs: number): void {
+export function retargetSpriteTween(
+  tween: SpriteTween,
+  x: number,
+  y: number,
+  nowMs: number,
+  durationMs = MOVE_TWEEN_MS,
+): void {
   if (x === tween.toX && y === tween.toY) return;
 
   if (
@@ -191,7 +197,7 @@ export function retargetSpriteTween(tween: SpriteTween, x: number, y: number, no
   tween.toX = x;
   tween.toY = y;
   tween.startMs = nowMs;
-  tween.durationMs = MOVE_TWEEN_MS;
+  tween.durationMs = durationMs;
 }
 
 function spriteTweenProgress(tween: SpriteTween, nowMs: number): number {

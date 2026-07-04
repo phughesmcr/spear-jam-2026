@@ -20,6 +20,12 @@ import {
 } from "@/src/ecs/enemy_catalog.ts";
 import { ExamineTextId, type ExamineTextId as ExamineTextIdType } from "@/src/game/examine.ts";
 import { DisplayName, type DisplayName as DisplayNameType } from "@/src/game/names.ts";
+import {
+  type StoryEventId as StoryEventIdType,
+  storyEventIdFor,
+  type StoryTargetId as StoryTargetIdType,
+  storyTargetIdFor,
+} from "@/src/game/story.ts";
 import { type DoorSlide, KeyColor, type KeyColor as KeyColorType } from "@/src/map/map.ts";
 
 const DIRECTIONS: Readonly<Record<string, number>> = {
@@ -113,6 +119,14 @@ export function mapDialogueTreeId(value: string, context: string): DialogueTreeI
 
 export function mapExamineTextId(value: string, context: string): ExamineTextIdType {
   return lookup(EXAMINE_TEXT_IDS, value, "examine text", context);
+}
+
+export function mapStoryTargetId(value: string, context: string): StoryTargetIdType {
+  return storyTargetIdFor(value, context);
+}
+
+export function mapStoryEventId(value: string, context: string): StoryEventIdType {
+  return storyEventIdFor(value, context);
 }
 
 export function mapEnemyArchetype(value: string, context: string): EnemyArchetypeType {

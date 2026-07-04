@@ -4,6 +4,7 @@ import { ENEMY_ARCHETYPE_CODES, enemyCatalogEntry } from "@/src/ecs/enemy_catalo
 import { AttackPattern } from "@/src/game/attack.ts";
 import { ExamineTextId } from "@/src/game/examine.ts";
 import { DisplayName } from "@/src/game/names.ts";
+import { StoryEventId, StoryTargetId } from "@/src/game/story.ts";
 import { KeyColor, SKY_CEILING_TEXTURE, TexturePack, VICTORY_GOTO } from "@/src/map/map.ts";
 import {
   BARRIER_TERRAIN_COUNT,
@@ -165,6 +166,8 @@ export const PROPERTY_TYPES: readonly TiledPropertyType[] = [
   enumPropertyType(13, "AttackRequiresFacing", ["required", "none"]),
   enumPropertyType(14, "TextureRef", TEXTURE_REFS),
   enumPropertyType(15, "DecorationKind", authoringKeys(DecorationKind)),
+  enumPropertyType(16, "StoryTargetId", Object.values(StoryTargetId)),
+  enumPropertyType(17, "StoryEventId", Object.values(StoryEventId)),
   classPropertyType(20, "map_metadata", "#ff0ea5e9", true, ["map"], [
     classMember("name", "string", "Boot Sector"),
     classMember("palette", "string", "boot_sector", "TerrainPalette"),
@@ -181,6 +184,8 @@ export const PROPERTY_TYPES: readonly TiledPropertyType[] = [
     classMember("facing", "string", "north", "Facing"),
     classMember("displayName", "string", "john", "DisplayName"),
     classMember("dialogueTreeId", "string", "none", "DialogueTreeId"),
+    classMember("storyId", "string", "john", "StoryTargetId"),
+    classMember("onTalkEvent", "string", "johnSpoken", "StoryEventId"),
   ]),
   classPropertyType(32, "enemy", "#fff59e0b", false, ["object"], [
     classMember("prefab", "string", "enemy", "Prefab"),
@@ -237,6 +242,8 @@ export const TEMPLATE_DEFINITIONS: readonly TemplateDefinition[] = [
     property("facing", "north", "Facing"),
     property("displayName", "john", "DisplayName"),
     property("dialogueTreeId", "johnIntro", "DialogueTreeId"),
+    property("storyId", "john", "StoryTargetId"),
+    property("onTalkEvent", "johnSpoken", "StoryEventId"),
   ]),
   ...ENEMY_ARCHETYPE_CODES.map((archetype) => {
     const entry = enemyCatalogEntry(archetype);

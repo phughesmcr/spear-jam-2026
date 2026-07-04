@@ -222,6 +222,9 @@ class Game implements Disposable {
         case "render":
           this.render();
           break;
+        case "closeDialogue":
+          this.session?.closeDialogue();
+          break;
         case "ensureInput":
           this.ensureInput();
           break;

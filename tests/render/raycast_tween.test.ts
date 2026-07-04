@@ -189,6 +189,20 @@ Deno.test("sprite tween starts settled and animates a one-tile step", () => {
   assert(done.settled);
 });
 
+Deno.test("sprite tween can use a custom movement duration", () => {
+  const durationMs = MOVE_TWEEN_MS + 90;
+  const tween = createSpriteTween(4.5, 6.5);
+
+  retargetSpriteTween(tween, 5.5, 6.5, 0, durationMs);
+
+  const previousDefaultEnd = spriteAt(tween, MOVE_TWEEN_MS);
+  assert(!previousDefaultEnd.settled);
+
+  const done = spriteAt(tween, durationMs);
+  assertEquals(done.x, 5.5);
+  assert(done.settled);
+});
+
 Deno.test("sprite tween animates a two-tile lunge but snaps farther jumps", () => {
   const lunge = createSpriteTween(4.5, 6.5);
   retargetSpriteTween(lunge, 6.5, 6.5, 0);

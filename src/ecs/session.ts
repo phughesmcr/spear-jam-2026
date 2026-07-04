@@ -72,6 +72,8 @@ import {
 import type { PlayerStateSnapshot } from "@/src/ecs/progression.ts";
 import type { RandomSource } from "@/src/game/rng.ts";
 import type { CommandSlot, DialogueState, PlayerStateInput } from "@/src/game/state.ts";
+import { normalizeStoryFlags, storyEventDefinition, storyPathDestination } from "@/src/game/story.ts";
+import type { StoryAction, StoryEventId, StoryFlag, StoryTargetId } from "@/src/game/story.ts";
 import type { TargetMarkerTone } from "@/src/game/target_marker.ts";
 import { VisibilityMap } from "@/src/game/visibility.ts";
 import type { TileVisibility } from "@/src/game/visibility.ts";
@@ -84,6 +86,7 @@ const UNCHANGED_PLAYER_COMMAND: PlayerCommandResult = Object.freeze({
 const PLAYER_VISIBILITY_RADIUS = 6;
 const MOVE_NOISE_RADIUS = 2;
 const DOOR_NOISE_RADIUS = 4;
+const STORY_MOVE_MS = 260;
 
 type MoveResult =
   | { readonly moved: false }
@@ -118,6 +121,8 @@ export async function createGameSession(
   try {
     let playerEntity: Entity | undefined;
     const terminalDestinations = new Map<Entity, string>();
+    const storyTargets = new Map<StoryTargetId, Entity>();
+    const talkStoryEvents = new Map<Entity, StoryEventId>();
 
     for (const entityDef of map.entities) {
       const entity = createMapEntity(world, entityDef);
@@ -125,6 +130,14 @@ export async function createGameSession(
         playerEntity = entity;
       } else if (entityDef.prefab === "uplinkTerminal") {
         terminalDestinations.set(entity, entityDef.goto);
+      } else if (entityDef.prefab === "npc") {
+        if (entityDef.storyId !== undefined) {
+          if (storyTargets.has(entityDef.storyId)) throw new Error(`Duplicate story target "${entityDef.storyId}".`);
+          storyTargets.set(entityDef.storyId, entity);
+        }
+        if (entityDef.onTalkEvent !== undefined) {
+          talkStoryEvents.set(entity, entityDef.onTalkEvent);
+        }
       }
     }
 
@@ -133,7 +146,16 @@ export async function createGameSession(
     const player = new Player(world, playerEntity);
     world.refresh();
 
-    return new GameSession(world, player, map, random, terminalDestinations, playerState);
+    return new GameSession(
+      world,
+      player,
+      map,
+      random,
+      terminalDestinations,
+      storyTargets,
+      talkStoryEvents,
+      playerState,
+    );
   } catch (error) {
     await world.destroy();
     throw error;
@@ -153,6 +175,10 @@ export class GameSession implements Disposable {
   private readonly spatial: SpatialIndex;
   private readonly visibility: VisibilityMap;
   private readonly terminalDestinations: ReadonlyMap<Entity, string>;
+  private readonly storyTargets: ReadonlyMap<StoryTargetId, Entity>;
+  private readonly talkStoryEvents: ReadonlyMap<Entity, StoryEventId>;
+  private readonly storyFlags: Set<StoryFlag>;
+  private pendingDialogueStoryEvent?: StoryEventId;
   private disposed = false;
 
   constructor(
@@ -161,6 +187,8 @@ export class GameSession implements Disposable {
     map: GameMap,
     random: RandomSource,
     terminalDestinations: ReadonlyMap<Entity, string>,
+    storyTargets: ReadonlyMap<StoryTargetId, Entity>,
+    talkStoryEvents: ReadonlyMap<Entity, StoryEventId>,
     playerState: PlayerStateInput,
   ) {
     this.world = world;
@@ -175,11 +203,14 @@ export class GameSession implements Disposable {
     this.spatial = new SpatialIndex(world, map);
     this.visibility = new VisibilityMap(mapDimensions(map));
     this.terminalDestinations = new Map(terminalDestinations);
+    this.storyTargets = new Map(storyTargets);
+    this.talkStoryEvents = new Map(talkStoryEvents);
+    this.storyFlags = new Set(normalizeStoryFlags(playerState.storyFlags));
     this.refreshVisibility();
   }
 
   getPlayerState(): PlayerStateSnapshot {
-    return playerStateSnapshotFor(this.world, this.player.getEntity());
+    return playerStateSnapshotFor(this.world, this.player.getEntity(), [...this.storyFlags]);
   }
 
   targetMarkerTone(): TargetMarkerTone | undefined {
@@ -241,6 +272,12 @@ export class GameSession implements Disposable {
 
   handlePlayerCommand(command: PlayerCommand): PlayerCommandResult {
     return this.commitPlayerAction(this.resolvePlayerAction(command));
+  }
+
+  closeDialogue(): void {
+    const event = this.pendingDialogueStoryEvent;
+    this.pendingDialogueStoryEvent = undefined;
+    if (event !== undefined) this.applyStoryEvent(event);
   }
 
   private resolvePlayerAction(command: PlayerCommand): PlayerActionResolution {
@@ -340,6 +377,7 @@ export class GameSession implements Disposable {
       case "consumeTurn":
         return { type: "consumeTurn", events: interaction.events };
       case "dialogue":
+        this.queueTalkStoryEvent(target);
         return {
           type: "dialogue",
           events: interaction.events,
@@ -352,6 +390,63 @@ export class GameSession implements Disposable {
           events: interaction.events,
         };
     }
+  }
+
+  private queueTalkStoryEvent(target: Entity | undefined): void {
+    if (target === undefined) return;
+
+    const event = this.talkStoryEvents.get(target);
+    if (event === undefined) return;
+
+    const definition = storyEventDefinition(event);
+    if (this.storyFlags.has(definition.flag)) return;
+    this.pendingDialogueStoryEvent = event;
+  }
+
+  private applyStoryEvent(event: StoryEventId): void {
+    const definition = storyEventDefinition(event);
+    if (this.storyFlags.has(definition.flag)) return;
+    if (!this.canApplyStoryActions(definition.actions)) return;
+
+    const nowMs = performance.now();
+    for (const action of definition.actions) {
+      switch (action.type) {
+        case "moveEntity": {
+          const target = this.storyTargets.get(action.target);
+          if (target === undefined) return;
+          this.spatial.moveEntity(target, storyPathDestination(action.path));
+          this.setSpriteAnimation(target, {
+            kind: SpriteAnimationKind.Walk,
+            startedAtMs: nowMs,
+            durationMs: STORY_MOVE_MS,
+          });
+          break;
+        }
+      }
+    }
+
+    this.storyFlags.add(definition.flag);
+    this.world.refresh();
+    this.refreshVisibility();
+  }
+
+  private canApplyStoryActions(actions: readonly StoryAction[]): boolean {
+    for (const action of actions) {
+      switch (action.type) {
+        case "moveEntity": {
+          const target = this.storyTargets.get(action.target);
+          if (target === undefined) return false;
+
+          const destination = storyPathDestination(action.path);
+          if (this.spatial.tileBlocks(destination.x, destination.y)) return false;
+
+          const blocker = this.spatial.blockingEntityAt(destination.x, destination.y);
+          if (blocker !== undefined && blocker !== target) return false;
+          break;
+        }
+      }
+    }
+    return true;
   }
 
   private smartActionInteractionTarget(): Entity | undefined {

@@ -319,6 +319,26 @@
       "valuesAsFlags": false
     },
     {
+      "id": 16,
+      "name": "StoryTargetId",
+      "storageType": "string",
+      "type": "enum",
+      "values": [
+        "john"
+      ],
+      "valuesAsFlags": false
+    },
+    {
+      "id": 17,
+      "name": "StoryEventId",
+      "storageType": "string",
+      "type": "enum",
+      "values": [
+        "johnSpoken"
+      ],
+      "valuesAsFlags": false
+    },
+    {
       "color": "#ff0ea5e9",
       "drawFill": true,
       "id": 20,
@@ -420,6 +440,18 @@
           "propertyType": "DialogueTreeId",
           "type": "string",
           "value": "none"
+        },
+        {
+          "name": "storyId",
+          "propertyType": "StoryTargetId",
+          "type": "string",
+          "value": "john"
+        },
+        {
+          "name": "onTalkEvent",
+          "propertyType": "StoryEventId",
+          "type": "string",
+          "value": "johnSpoken"
         }
       ],
       "name": "npc",

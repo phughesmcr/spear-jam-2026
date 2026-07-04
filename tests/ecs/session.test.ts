@@ -1,4 +1,4 @@
-import { assertEquals, assertRejects } from "@std/assert";
+import { assert, assertEquals, assertRejects } from "@std/assert";
 import {
   ItemKind,
   SPRITE_ATTACK_MS,
@@ -10,9 +10,11 @@ import { DrawableKind, SpriteId } from "@/src/ecs/drawables.ts";
 import type { ActorDrawableEntity, DrawableEntity } from "@/src/ecs/drawables.ts";
 import { EnemyArchetype } from "@/src/ecs/enemy_catalog.ts";
 import { createGameSession } from "@/src/ecs/session.ts";
+import { DialogueTreeId } from "@/src/dialogue/dialogue.ts";
 import type { PlayerCommandResult } from "@/src/game/commands.ts";
 import { TurnEffectKind } from "@/src/game/turn_effects.ts";
 import { DisplayName } from "@/src/game/names.ts";
+import { StoryEventId, StoryFlag, StoryTargetId } from "@/src/game/story.ts";
 import { Direction } from "@/src/grid/direction.ts";
 import { createGameMap, KeyColor, VICTORY_GOTO } from "@/src/map/map.ts";
 import type { EntityDef, GameMap } from "@/src/map/map.ts";
@@ -80,6 +82,82 @@ Deno.test("opening a door consumes a turn and refreshes visibility through it", 
 
     assertEquals(eventTypes(result), ["doorOpened"]);
     assertEquals(session.getVisibility().isVisible(3, 1), true);
+  } finally {
+    session[Symbol.dispose]();
+  }
+});
+
+Deno.test("talking to John once opens dialogue and moves him off the entrance", async () => {
+  await withFakePerformanceNow(100, async () => {
+    const session = await createGameSession(storyTestMap(), () => 0);
+    try {
+      const result = session.handlePlayerCommand({ type: "interact" });
+
+      assertEquals(result.dialogue?.title, "John");
+      assertEquals(session.getPlayerState().storyFlags, []);
+      assertEquals(actorAt(sessionDrawables(session), 2, 1)?.x, 2);
+
+      session.closeDialogue();
+
+      assertEquals(session.getPlayerState().storyFlags, [StoryFlag.JohnSpoken]);
+      assertEquals(actorAt(sessionDrawables(session), 2, 1), undefined);
+
+      session.handlePlayerCommand({ type: "move", direction: "forward" });
+      assertEquals(playerPosition(session), { x: 2, y: 1 });
+      session.handlePlayerCommand({ type: "turn", direction: "right" });
+      session.handlePlayerCommand({ type: "move", direction: "forward" });
+      session.handlePlayerCommand({ type: "move", direction: "forward" });
+      session.handlePlayerCommand({ type: "turn", direction: "right" });
+
+      const john = actorAt(sessionDrawables(session), 1, 3);
+      assertEquals(john?.x, 1);
+      assertEquals(john?.animation?.kind, SpriteAnimationKind.Walk);
+      assertEquals(john?.animation?.startedAtMs, 100);
+      assert((john?.animation?.durationMs ?? 0) > SPRITE_WALK_MS);
+    } finally {
+      session[Symbol.dispose]();
+    }
+  });
+});
+
+Deno.test("John's talk story event is one-shot", async () => {
+  const session = await createGameSession(storyTestMap(), () => 0);
+  try {
+    session.handlePlayerCommand({ type: "interact" });
+    session.closeDialogue();
+    session.handlePlayerCommand({ type: "move", direction: "forward" });
+    session.handlePlayerCommand({ type: "turn", direction: "right" });
+    session.handlePlayerCommand({ type: "move", direction: "forward" });
+    session.handlePlayerCommand({ type: "move", direction: "forward" });
+    session.handlePlayerCommand({ type: "turn", direction: "right" });
+
+    const secondTalk = session.handlePlayerCommand({ type: "interact" });
+
+    assertEquals(secondTalk.dialogue?.title, "John");
+    session.closeDialogue();
+    assertEquals(session.getPlayerState().storyFlags, [StoryFlag.JohnSpoken]);
+    assertEquals(actorAt(sessionDrawables(session), 1, 3)?.x, 1);
+  } finally {
+    session[Symbol.dispose]();
+  }
+});
+
+Deno.test("blocked story path destination leaves John in place and does not set the flag", async () => {
+  const session = await createGameSession(storyTestMap([{ prefab: "door", x: 1, y: 3 }]), () => 0);
+  try {
+    const result = session.handlePlayerCommand({ type: "interact" });
+
+    assertEquals(result.dialogue?.title, "John");
+    assertEquals(session.getPlayerState().storyFlags, []);
+    assertEquals(actorAt(sessionDrawables(session), 2, 1)?.x, 2);
+
+    session.closeDialogue();
+
+    assertEquals(session.getPlayerState().storyFlags, []);
+    assertEquals(actorAt(sessionDrawables(session), 2, 1)?.x, 2);
+
+    session.handlePlayerCommand({ type: "move", direction: "forward" });
+    assertEquals(playerPosition(session), { x: 1, y: 1 });
   } finally {
     session[Symbol.dispose]();
   }
@@ -429,6 +507,23 @@ Deno.test("only consumed player turns tick active turn effects", async () => {
 function testMap(entities: readonly EntityDef[], width = 5): GameMap {
   return flatTestMap(width, 3, [
     { prefab: "player", x: 1, y: 1, dir: Direction.East },
+    ...entities,
+  ]);
+}
+
+function storyTestMap(entities: readonly EntityDef[] = []): GameMap {
+  return flatTestMap(5, 6, [
+    { prefab: "player", x: 1, y: 1, dir: Direction.East },
+    {
+      prefab: "npc",
+      x: 2,
+      y: 1,
+      dir: Direction.South,
+      displayName: DisplayName.John,
+      dialogueTreeId: DialogueTreeId.JohnIntro,
+      storyId: StoryTargetId.John,
+      onTalkEvent: StoryEventId.JohnSpoken,
+    },
     ...entities,
   ]);
 }

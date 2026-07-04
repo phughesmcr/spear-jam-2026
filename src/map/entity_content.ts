@@ -18,6 +18,12 @@ import {
 import type { AttackDef } from "@/src/game/attack.ts";
 import { ExamineTextId, type ExamineTextId as ExamineTextIdType } from "@/src/game/examine.ts";
 import { DisplayName, type DisplayName as DisplayNameType } from "@/src/game/names.ts";
+import {
+  StoryEventId,
+  type StoryEventId as StoryEventIdType,
+  StoryTargetId,
+  type StoryTargetId as StoryTargetIdType,
+} from "@/src/game/story.ts";
 import { type DoorSlide, KeyColor, type KeyColor as KeyColorType } from "@/src/map/map.ts";
 
 const DOOR_SLIDES = ["north", "east", "south", "west", "up", "down"] as const satisfies readonly DoorSlide[];
@@ -30,6 +36,8 @@ const KEY_COLOR_SCHEMA = z.enum([KeyColor.Red, KeyColor.Blue, KeyColor.Yellow]) 
 const DOOR_SLIDE_SCHEMA = z.enum(DOOR_SLIDES);
 const LIGHT_COLOR_SCHEMA = z.string().regex(/^#[0-9a-fA-F]{6}$/);
 const DISPLAY_NAME_SCHEMA = numberEnumSchema<DisplayNameType>(Object.values(DisplayName), "displayName");
+const STORY_TARGET_ID_SCHEMA = z.enum(Object.values(StoryTargetId)) satisfies z.ZodType<StoryTargetIdType>;
+const STORY_EVENT_ID_SCHEMA = z.enum(Object.values(StoryEventId)) satisfies z.ZodType<StoryEventIdType>;
 const DIALOGUE_TREE_ID_SCHEMA = numberEnumSchema<DialogueTreeIdType>(
   Object.values(DialogueTreeId),
   "dialogueTreeId",
@@ -69,12 +77,18 @@ const ENTITY_DEFINITIONS = [
   entityDefinition("player", ["prefab", "dir", "facing"], {
     dir: DIRECTION_SCHEMA,
   }),
-  entityDefinition("npc", ["prefab", "dir", "facing", "displayName", "dialogueTreeId", "examineTextId"], {
-    dir: DIRECTION_SCHEMA,
-    displayName: DISPLAY_NAME_SCHEMA,
-    dialogueTreeId: DIALOGUE_TREE_ID_SCHEMA.optional(),
-    examineTextId: EXAMINE_TEXT_ID_SCHEMA.optional(),
-  }),
+  entityDefinition(
+    "npc",
+    ["prefab", "dir", "facing", "displayName", "dialogueTreeId", "examineTextId", "storyId", "onTalkEvent"],
+    {
+      dir: DIRECTION_SCHEMA,
+      displayName: DISPLAY_NAME_SCHEMA,
+      dialogueTreeId: DIALOGUE_TREE_ID_SCHEMA.optional(),
+      examineTextId: EXAMINE_TEXT_ID_SCHEMA.optional(),
+      storyId: STORY_TARGET_ID_SCHEMA.optional(),
+      onTalkEvent: STORY_EVENT_ID_SCHEMA.optional(),
+    },
+  ),
   entityDefinition(
     "enemy",
     [

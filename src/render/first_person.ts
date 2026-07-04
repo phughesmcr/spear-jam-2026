@@ -1170,9 +1170,14 @@ function tweenedSpritePosition(state: FirstPersonRendererState, drawable: Drawab
     tween = createSpriteTween(centerX, centerY);
     state.spriteTweens.set(drawable.entity, tween);
   } else {
-    retargetSpriteTween(tween, centerX, centerY, nowMs);
+    retargetSpriteTween(tween, centerX, centerY, nowMs, spriteMoveDuration(drawable));
   }
   sampleSpriteTween(tween, nowMs, state.spritePoint);
+}
+
+function spriteMoveDuration(drawable: DrawableEntity): number | undefined {
+  if (!("animation" in drawable)) return undefined;
+  return drawable.animation?.kind === SpriteAnimationKind.Walk ? drawable.animation.durationMs : undefined;
 }
 
 /** Returns true when the drawable's animation still needs repaints. */

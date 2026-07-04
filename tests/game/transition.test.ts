@@ -2,6 +2,7 @@ import { assertEquals } from "@std/assert";
 import type { Entity } from "@phughesmcr/miski";
 import { createGameModel, type GameModel, transition } from "@/src/game/transition.ts";
 import { DisplayName } from "@/src/game/names.ts";
+import { StoryFlag } from "@/src/game/story.ts";
 import { KeyColor } from "@/src/map/map.ts";
 
 const PLAYER = 1 as Entity;
@@ -20,11 +21,12 @@ Deno.test("transition moves loaded maps into playing mode and requests input set
   const result = transition(createGameModel("Level 1"), {
     type: "mapLoaded",
     mapName: "Level 2",
-    playerState: { heldKeys: [KeyColor.Red] },
+    playerState: { heldKeys: [KeyColor.Red], storyFlags: [StoryFlag.JohnSpoken] },
   });
 
   assertEquals(result.model.currentMapName, "Level 2");
   assertEquals(result.model.currentLevelEntryState?.heldKeys, [KeyColor.Red]);
+  assertEquals(result.model.currentLevelEntryState?.storyFlags, [StoryFlag.JohnSpoken]);
   assertEquals(result.model.mode, { type: "playing" });
   assertEquals(result.effects, [{ type: "ensureInput" }, { type: "render" }]);
 });
@@ -34,7 +36,7 @@ Deno.test("transition derives command result intermission state", () => {
     type: "mapLoaded",
     mapName: "Level 1",
   }).model;
-  const playerState = { hasUplinkCode: true };
+  const playerState = { hasUplinkCode: true, storyFlags: [StoryFlag.JohnSpoken] };
 
   const result = transition(playing, {
     type: "playerCommandResult",
@@ -117,7 +119,7 @@ Deno.test("transition lets dialogue choices advance or close the conversation", 
 
   const closed = transition(model, { type: "gameCommand", command: { type: "selectWeapon", slot: 2 } });
   assertEquals(closed.model.mode, { type: "playing" });
-  assertEquals(closed.effects, [{ type: "render" }]);
+  assertEquals(closed.effects, [{ type: "closeDialogue" }, { type: "render" }]);
 
   const outOfRange = transition(model, { type: "gameCommand", command: { type: "selectWeapon", slot: 3 } });
   assertEquals(outOfRange.model.mode, DIALOGUE_MODE);
@@ -139,13 +141,14 @@ Deno.test("transition confirms dialogue pointer only when down and up hit the sa
   ({ model } = transition(model, { type: "dialoguePointer", phase: "down", optionSlot: 2 }));
   result = transition(model, { type: "dialoguePointer", phase: "up", optionSlot: 2 });
   assertEquals(result.model.mode, { type: "playing" });
-  assertEquals(result.effects, [{ type: "render" }]);
+  assertEquals(result.effects, [{ type: "closeDialogue" }, { type: "render" }]);
 });
 
 Deno.test("transition retries defeat from the current level entry snapshot", () => {
   const entryState = {
     heldKeys: [KeyColor.Yellow],
     health: { current: 8, max: 10 },
+    storyFlags: [StoryFlag.JohnSpoken],
   };
   let model = transition(createGameModel("Level 1"), {
     type: "mapLoaded",

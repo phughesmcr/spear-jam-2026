@@ -70,7 +70,7 @@
                          "name":"dialogueTreeId",
                          "propertytype":"DialogueTreeId",
                          "type":"string",
-                         "value":"johnThanks"
+                         "value":"johnIntro"
                         }, 
                         {
                          "name":"displayName",
@@ -82,19 +82,31 @@
                          "name":"facing",
                          "propertytype":"Facing",
                          "type":"string",
-                         "value":"east"
+                         "value":"north"
+                        }, 
+                        {
+                         "name":"onTalkEvent",
+                         "propertytype":"StoryEventId",
+                         "type":"string",
+                         "value":"johnSpoken"
                         }, 
                         {
                          "name":"prefab",
                          "propertytype":"Prefab",
                          "type":"string",
                          "value":"npc"
+                        }, 
+                        {
+                         "name":"storyId",
+                         "propertytype":"StoryTargetId",
+                         "type":"string",
+                         "value":"john"
                         }],
                  "rotation":0,
                  "type":"npc",
                  "visible":true,
                  "width":16,
-                 "x":16,
+                 "x":32,
                  "y":64
                 }, 
                 {
@@ -120,8 +132,8 @@
                 {
                  "gid":144,
                  "height":16,
-                 "id":38,
-                 "name":"door_39",
+                 "id":39,
+                 "name":"door_3",
                  "opacity":1,
                  "properties":[
                         {
@@ -129,12 +141,6 @@
                          "propertytype":"Prefab",
                          "type":"string",
                          "value":"door"
-                        }, 
-                        {
-                         "name":"slide",
-                         "propertytype":"DoorSlide",
-                         "type":"string",
-                         "value":"west"
                         }],
                  "rotation":0,
                  "type":"door",
@@ -1073,7 +1079,7 @@
          "y":0
         }],
  "nextlayerid":4,
- "nextobjectid":39,
+ "nextobjectid":40,
  "orientation":"orthogonal",
  "properties":[
         {

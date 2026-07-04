@@ -32,6 +32,18 @@
         "propertytype": "DialogueTreeId",
         "type": "string",
         "value": "johnIntro"
+      },
+      {
+        "name": "storyId",
+        "propertytype": "StoryTargetId",
+        "type": "string",
+        "value": "john"
+      },
+      {
+        "name": "onTalkEvent",
+        "propertytype": "StoryEventId",
+        "type": "string",
+        "value": "johnSpoken"
       }
     ],
     "rotation": 0,

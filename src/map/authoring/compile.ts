@@ -36,6 +36,8 @@ import {
   mapExamineTextId,
   mapItemKind,
   mapKeyColor,
+  mapStoryEventId,
+  mapStoryTargetId,
 } from "@/src/map/authoring/mappings.ts";
 
 export type CompileTiledMapOptions = {
@@ -275,6 +277,8 @@ function compileEntity(
         displayName: requiredDisplayName(resolved.properties, context),
         ...optionalDialogueTreeId(resolved.properties, context),
         ...optionalExamineTextId(resolved.properties, context),
+        ...optionalStoryTargetId(resolved.properties, context),
+        ...optionalOnTalkEvent(resolved.properties, context),
       };
       break;
     case "enemy":
@@ -559,6 +563,22 @@ function optionalDialogueTreeId(
   return value === undefined ?
     {} :
     { dialogueTreeId: mapDialogueTreeId(value, `${context} property "dialogueTreeId"`) };
+}
+
+function optionalStoryTargetId(
+  properties: PropertyMap,
+  context: string,
+): { readonly storyId?: ReturnType<typeof mapStoryTargetId> } {
+  const value = optionalString(properties, "storyId", context);
+  return value === undefined ? {} : { storyId: mapStoryTargetId(value, `${context} property "storyId"`) };
+}
+
+function optionalOnTalkEvent(
+  properties: PropertyMap,
+  context: string,
+): { readonly onTalkEvent?: ReturnType<typeof mapStoryEventId> } {
+  const value = optionalString(properties, "onTalkEvent", context);
+  return value === undefined ? {} : { onTalkEvent: mapStoryEventId(value, `${context} property "onTalkEvent"`) };
 }
 
 function optionalExamineTextId(

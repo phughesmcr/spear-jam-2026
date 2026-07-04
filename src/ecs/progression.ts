@@ -26,6 +26,8 @@ import type {
   PlayerProgressState,
   PlayerStateInput,
 } from "@/src/game/state.ts";
+import { normalizeStoryFlags } from "@/src/game/story.ts";
+import type { StoryFlag } from "@/src/game/story.ts";
 import { normalizeTurnEffects, TurnEffectKind } from "@/src/game/turn_effects.ts";
 import type { TurnEffectKind as TurnEffectKindType, TurnEffectState } from "@/src/game/turn_effects.ts";
 import { KeyColor, keyColorCode } from "@/src/map/map.ts";
@@ -93,6 +95,7 @@ export type PlayerStateSnapshot = {
   readonly hasUplinkCode: boolean;
   readonly progress: PlayerProgressState;
   readonly turnEffects: readonly TurnEffectState[];
+  readonly storyFlags: readonly StoryFlag[];
 };
 
 export function initializePlayerProgression(
@@ -107,7 +110,11 @@ export function initializePlayerProgression(
   upsertPlayerTurnEffects(world, playerEntity, turnEffectsForInput(input.turnEffects));
 }
 
-export function playerStateSnapshotFor(world: World, playerEntity: Entity): PlayerStateSnapshot {
+export function playerStateSnapshotFor(
+  world: World,
+  playerEntity: Entity,
+  storyFlags: readonly StoryFlag[] = [],
+): PlayerStateSnapshot {
   const inventory = playerInventoryFor(world, playerEntity);
   const equipment = playerEquipmentFor(world, playerEntity);
   const progress = playerProgressFor(world, playerEntity);
@@ -126,6 +133,7 @@ export function playerStateSnapshotFor(world: World, playerEntity: Entity): Play
     hasUplinkCode: inventory.hasUplinkCode === 1,
     progress: { ...progress },
     turnEffects,
+    storyFlags: normalizeStoryFlags(storyFlags),
   };
 }
 
