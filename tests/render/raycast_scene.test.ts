@@ -1,5 +1,6 @@
 import { assert, assertAlmostEquals, assertEquals, assertThrows } from "@std/assert";
 import {
+  addSolidWall,
   addSprite,
   addThinWall,
   CAMERA_PLANE_LENGTH,
@@ -196,6 +197,35 @@ Deno.test("renderFrame stops rays at opaque thin walls (doors)", () => {
   // Door plane sits at x = 2.5, one tile ahead of the camera.
   assertAlmostEquals(frame.zbuffer[CENTER]!, 1, 1e-9);
   assertEquals(pixel(frame, CENTER, CENTER), texel(atlas, "walls", DOOR, 0));
+});
+
+Deno.test("addSolidWall stops rays at the near cell face like a full wall", () => {
+  const atlas = testAtlas();
+  const scene = corridorScene();
+  addSolidWall(scene, 2, 1, DOOR);
+  const frame = createFrame(VIEW, VIEW);
+
+  renderFrame(frame, scene, atlas, CAMERA);
+
+  // A thin door plane sits mid-cell at x = 2.5 (depth 1); a solid wall stops at
+  // the cell's near face x = 2, half a tile ahead of the camera at x = 1.5.
+  assertAlmostEquals(frame.zbuffer[CENTER]!, 0.5, 1e-9);
+  // The injected texture is shown, not the corridor-end wall behind it.
+  assertEquals(scene.walls[1 * 5 + 2], DOOR + 1);
+});
+
+Deno.test("clearSceneDynamic restores a solid-wall cell to its baked value", () => {
+  const atlas = testAtlas();
+  const scene = corridorScene();
+  addSolidWall(scene, 2, 1, DOOR);
+  clearSceneDynamic(scene);
+  const frame = createFrame(VIEW, VIEW);
+
+  renderFrame(frame, scene, atlas, CAMERA);
+
+  // The injected wall is gone, so the ray reaches the corridor end wall again.
+  assertAlmostEquals(frame.zbuffer[CENTER]!, 2.5, 1e-9);
+  assertEquals(scene.walls[1 * 5 + 2], 0);
 });
 
 Deno.test("renderFrame uses the door texture for flanking jamb faces", () => {

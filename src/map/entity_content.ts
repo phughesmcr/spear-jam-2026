@@ -101,11 +101,12 @@ const ENTITY_DEFINITIONS = [
       examineTextId: EXAMINE_TEXT_ID_SCHEMA.optional(),
     },
   ),
-  entityDefinition("door", ["prefab", "locked", "color", "slide", "openMs", "examineTextId"], {
+  entityDefinition("door", ["prefab", "locked", "color", "slide", "openMs", "secret", "examineTextId"], {
     locked: z.boolean().optional(),
     color: KEY_COLOR_SCHEMA.optional(),
     slide: DOOR_SLIDE_SCHEMA.optional(),
     openMs: POSITIVE_INTEGER_SCHEMA.optional(),
+    secret: z.boolean().optional(),
     examineTextId: EXAMINE_TEXT_ID_SCHEMA.optional(),
   }),
   entityDefinition("key", ["prefab", "color"], {

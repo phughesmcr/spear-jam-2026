@@ -23,6 +23,7 @@ import {
   Locked,
   Npc,
   Player,
+  Secret,
   TurnTaker,
   UplinkTerminal,
 } from "@/src/ecs/components.ts";
@@ -152,6 +153,9 @@ export function createDoor(world: World, prefab: DoorPrefab): Entity {
   addExamine(world, entity, prefab);
   if (prefab.locked === true && prefab.color !== undefined) {
     world.components.addToEntity(Locked, entity, { color: keyColorCode(prefab.color) });
+  }
+  if (prefab.secret === true) {
+    world.components.addToEntity(Secret, entity);
   }
   return entity;
 }

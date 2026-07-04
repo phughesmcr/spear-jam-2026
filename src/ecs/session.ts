@@ -1,5 +1,5 @@
 import type { Entity, World } from "@phughesmcr/miski";
-import { Door, healthFor, Interactable, Locked, Npc, UplinkTerminal } from "@/src/ecs/components.ts";
+import { Door, healthFor, Interactable, Locked, Npc, Secret, UplinkTerminal } from "@/src/ecs/components.ts";
 import { directionDelta } from "@/src/grid/direction.ts";
 import type { GridDelta } from "@/src/grid/direction.ts";
 import {
@@ -193,9 +193,26 @@ export class GameSession implements Disposable {
   }
 
   private resolvePlayerMoveAction(directionOffset: number): PlayerActionResolution {
+    const secretDoor = this.secretDoorInMoveDirection(directionOffset);
+    if (secretDoor !== undefined) return this.resolvePlayerInteraction(secretDoor, "open");
+
     const move = this.tryMovePlayerRelative(directionOffset);
     if (!move.moved) return UNCHANGED_PLAYER_ACTION;
     return { type: "consumeTurn", events: move.events, noise: this.playerNoise(MOVE_NOISE_RADIUS) };
+  }
+
+  /**
+   * The still-disguised secret door the player is about to walk into, if any.
+   * Routing the bump through the normal door interaction reveals it (dropping
+   * the `Secret` marker) and slides it open while still respecting any lock.
+   */
+  private secretDoorInMoveDirection(directionOffset: number): Entity | undefined {
+    const { dir } = this.player.getFacing();
+    const delta = directionDelta(dir + directionOffset);
+    const current = this.player.getPosition();
+    const blocker = this.spatial.blockingEntityAt(current.x + delta.dx, current.y + delta.dy);
+    if (blocker === undefined || !this.world.components.entityHas(Secret, blocker)) return undefined;
+    return this.world.components.readEntityData(Door, blocker)?.open === 0 ? blocker : undefined;
   }
 
   private tryMovePlayer(delta: GridDelta): MoveResult {
@@ -267,6 +284,8 @@ export class GameSession implements Disposable {
   private smartActionInteractionTarget(): Entity | undefined {
     const target = this.spatial.facedEntity(this.player);
     if (target === undefined || !this.world.components.entityHas(Interactable, target)) return undefined;
+    // A disguised secret door gives no smart-action prompt; only bumping reveals it.
+    if (this.world.components.entityHas(Secret, target)) return undefined;
 
     const door = this.world.components.readEntityData(Door, target);
     if (door !== undefined) return door.open === 0 ? target : undefined;
@@ -279,6 +298,8 @@ export class GameSession implements Disposable {
   private interactionTargetMarkerTone(): TargetMarkerTone | undefined {
     const target = this.spatial.facedEntity(this.player);
     if (target === undefined || !this.world.components.entityHas(Interactable, target)) return undefined;
+    // Keep secret doors unmarked so they stay hidden until bumped.
+    if (this.world.components.entityHas(Secret, target)) return undefined;
 
     const door = this.world.components.readEntityData(Door, target);
     if (door !== undefined) {

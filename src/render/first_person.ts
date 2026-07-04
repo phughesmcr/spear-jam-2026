@@ -24,6 +24,7 @@ import type { CeilingTexture, DoorSlide, FloorTexture, GameMap, TexturePackRef, 
 import { createImageAsset, loadedImage, preloadImageAssets } from "@/src/render/assets.ts";
 import type { ImageAsset } from "@/src/render/assets.ts";
 import {
+  addSolidWall,
   addSprite,
   addThinWall,
   cameraForAngle,
@@ -801,6 +802,20 @@ function doorAxis(map: GameMap, x: number, y: number): ThinWallAxis {
   return THIN_AXIS_X;
 }
 
+/**
+ * Texture for a disguised secret door: match a flanking wall so it blends into
+ * the surrounding terrain, falling back to the default wall texture.
+ */
+function secretWallTextureSlot(state: FirstPersonRendererState, map: GameMap, x: number, y: number): number {
+  for (const [nx, ny] of [[x - 1, y], [x + 1, y], [x, y - 1], [x, y + 1]] as const) {
+    const terrain = terrainAt(map, nx, ny);
+    if (terrain?.blocking === true) {
+      return wallTextureSlot(state, "wall_texture" in terrain ? terrain.wall_texture : undefined);
+    }
+  }
+  return wallTextureSlot(state, undefined);
+}
+
 function doorTexture(locked: boolean, color: KeyColor | undefined): number {
   if (locked && color !== undefined) return DOOR_TEX_BY_COLOR[color];
   return DOOR_TEX;
@@ -957,6 +972,28 @@ function addDrawable(
       return !state.spritePoint.settled || attacking;
     }
     case DrawableKind.Door: {
+      // A secret door stays disguised as its surrounding wall for its whole
+      // lifecycle. While shut it is a flush full-cell wall (no mid-tile slab, no
+      // jambs); once opened it slides a wall-textured panel away — using the
+      // wall texture also makes the flanking jamb faces blend into the wall.
+      if (drawable.secret) {
+        tweenedDoorOpenness(state, drawable, nowMs);
+        if (!drawable.open) {
+          addSolidWall(scene, drawable.x, drawable.y, secretWallTextureSlot(state, map, drawable.x, drawable.y));
+          return false;
+        }
+        const secretAxis = doorAxis(map, drawable.x, drawable.y);
+        addThinWall(
+          scene,
+          drawable.x,
+          drawable.y,
+          secretWallTextureSlot(state, map, drawable.x, drawable.y),
+          secretAxis,
+          doorSlideForAxis(drawable.slide, secretAxis),
+          state.doorSample.value,
+        );
+        return !state.doorSample.settled;
+      }
       tweenedDoorOpenness(state, drawable, nowMs);
       const axis = doorAxis(map, drawable.x, drawable.y);
       addThinWall(

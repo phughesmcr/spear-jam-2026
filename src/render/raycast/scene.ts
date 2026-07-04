@@ -129,6 +129,14 @@ export type RaycastScene = {
   /** Openness 0 (closed) to 1 (fully open). */
   readonly thinOffset: Float32Array;
   readonly thinCell: Int32Array;
+  /**
+   * Full-cell walls injected per frame (e.g. disguised secret doors) that
+   * temporarily override a passable cell in {@link RaycastScene.walls}.
+   * Cleared and restored to their baked value by {@link clearSceneDynamic}.
+   */
+  solidWallCount: number;
+  readonly solidWallCell: Int32Array;
+  readonly solidWallPrev: Uint8Array;
   spriteCount: number;
   readonly spriteX: Float64Array;
   readonly spriteY: Float64Array;
@@ -159,6 +167,9 @@ export function createScene(mapWidth: number, mapHeight: number, options: Raycas
     thinSlide: new Uint8Array(cellCount),
     thinOffset: new Float32Array(cellCount),
     thinCell: new Int32Array(cellCount),
+    solidWallCount: 0,
+    solidWallCell: new Int32Array(cellCount),
+    solidWallPrev: new Uint8Array(cellCount),
     spriteCount: 0,
     spriteX: new Float64Array(spriteCapacity),
     spriteY: new Float64Array(spriteCapacity),
@@ -190,7 +201,31 @@ export function clearSceneDynamic(scene: RaycastScene): void {
     scene.thinByCell[scene.thinCell[i]!] = -1;
   }
   scene.thinCount = 0;
+  for (let i = 0; i < scene.solidWallCount; i++) {
+    scene.walls[scene.solidWallCell[i]!] = scene.solidWallPrev[i]!;
+  }
+  scene.solidWallCount = 0;
   scene.spriteCount = 0;
+}
+
+/**
+ * Turn a passable cell into a full-height solid wall for this frame, saving the
+ * baked wall value so {@link clearSceneDynamic} can restore it. Renders at the
+ * cell boundary with no door jambs, unlike {@link addThinWall}.
+ */
+export function addSolidWall(scene: RaycastScene, cellX: number, cellY: number, textureId: number): void {
+  const cell = cellY * scene.mapWidth + cellX;
+  if (cell < 0 || cell >= scene.walls.length) return;
+  if (scene.solidWallCount >= scene.solidWallCell.length) {
+    throw new Error(
+      `Raycast scene solid wall capacity ${scene.solidWallCell.length} exceeded while adding cell (${cellX}, ${cellY}).`,
+    );
+  }
+
+  const index = scene.solidWallCount++;
+  scene.solidWallCell[index] = cell;
+  scene.solidWallPrev[index] = scene.walls[cell]!;
+  scene.walls[cell] = (textureId + 1) & 0xff;
 }
 
 export function addThinWall(

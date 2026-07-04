@@ -406,6 +406,7 @@ function compileDoor(resolved: ResolvedObject, context: string): EntityDef {
     ...(color === undefined ? {} : { color }),
     ...optionalDoorSlide(resolved.properties, context),
     ...optionalNumberField(resolved.properties, "openMs", context),
+    ...optionalBooleanField(resolved.properties, "secret", context),
     ...optionalExamineTextId(resolved.properties, context),
   };
 }

@@ -11,6 +11,7 @@ import {
   Health,
   Item,
   Locked,
+  Secret,
   TurnTaker,
   UplinkTerminal,
 } from "./components.ts";
@@ -30,6 +31,7 @@ export const drawableRenderQuery = new Query({
     health: Health,
     door: Door,
     locked: Locked,
+    secret: Secret,
     uplinkTerminal: UplinkTerminal,
     item: Item,
   },

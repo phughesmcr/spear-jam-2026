@@ -196,6 +196,9 @@ export const Locked: Component<LockedSchema, typeof LOCKED_STORAGE> = new Compon
   schema: LOCKED_STORAGE,
 });
 
+/** Marks a door disguised as a wall until the player bumps into it. */
+export const Secret: Component<null> = new Component<null>({ name: "secret" });
+
 export const UplinkTerminal: Component<null> = new Component<null>({ name: "uplinkTerminal" });
 
 export type ItemSchema = { kind: number; value: number };
@@ -326,6 +329,7 @@ export const ALL_COMPONENTS: DynamicComponent[] = [
   Drawable,
   Door,
   Locked,
+  Secret,
   UplinkTerminal,
   Item,
   TurnTaker,

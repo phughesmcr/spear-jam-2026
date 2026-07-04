@@ -36,6 +36,8 @@ export type DoorDrawableEntity = DrawableBase & {
   readonly kind: typeof DrawableKind.Door;
   readonly open: boolean;
   readonly locked: boolean;
+  /** Disguised as a wall until the player reveals it; hides door styling and prompts. */
+  readonly secret: boolean;
   readonly color?: KeyColor;
   /** Slide direction for open/close animation; undefined = renderer default. */
   readonly slide?: DoorSlide;
@@ -76,6 +78,7 @@ type DrawableEntityScratch = {
   health: DrawableHealthScratch | undefined;
   open: boolean;
   locked: boolean;
+  secret: boolean;
   color: KeyColor | undefined;
   slide: DoorSlide | undefined;
   openMs: number;
@@ -174,6 +177,7 @@ function createDrawableEntityScratch(): DrawableEntityScratch {
     health: undefined,
     open: false,
     locked: false,
+    secret: false,
     color: undefined,
     slide: undefined,
     openMs: DEFAULT_DOOR_OPEN_MS,
@@ -224,6 +228,7 @@ function resetDrawableScratch(
   drawable.health = undefined;
   drawable.open = false;
   drawable.locked = false;
+  drawable.secret = false;
   drawable.color = undefined;
   drawable.slide = undefined;
   drawable.openMs = DEFAULT_DOOR_OPEN_MS;
@@ -289,6 +294,7 @@ function doorDrawableEntityFor(
   const openMs = components.door.partitions.openMs[entity]!;
   drawable.open = components.door.partitions.open[entity]! === 1;
   drawable.locked = locked;
+  drawable.secret = components.secret.has(entity);
   drawable.color = locked ? keyColorForCode(components.locked.partitions.color[entity]!) : undefined;
   drawable.slide = slide;
   drawable.openMs = openMs === 0 ? DEFAULT_DOOR_OPEN_MS : openMs;

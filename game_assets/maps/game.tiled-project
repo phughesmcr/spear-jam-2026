@@ -462,6 +462,11 @@
           "propertyType": "DoorSlide",
           "type": "string",
           "value": "up"
+        },
+        {
+          "name": "secret",
+          "type": "bool",
+          "value": false
         }
       ],
       "name": "door",

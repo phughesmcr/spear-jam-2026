@@ -29,6 +29,8 @@ const ENEMY_HP_WARN = "#facc15";
 const ENEMY_HP_DANGER = "#ef4444";
 const DOOR_COLOR = "#9a6a3a";
 const LOCKED_DOOR_COLOR = "#b14b4b";
+/** Matches the top-down wall fill so an unrevealed secret door reads as a wall. */
+const SECRET_DOOR_WALL_COLOR = "#5a5f68";
 const UPLINK_CODE_COLOR = "#7dd3fc";
 const UPLINK_TERMINAL_COLOR = "#22c55e";
 const UPLINK_TERMINAL_SCREEN = "#0f172a";
@@ -77,7 +79,7 @@ function renderDrawableEntity(
       renderEnemy(ctx, drawable.x, drawable.y, drawable.dir, drawable.enemyArchetype, drawable.health, metrics);
       return;
     case DrawableKind.Door:
-      renderDoor(ctx, drawable.x, drawable.y, drawable.open, drawable.locked, drawable.color, metrics);
+      renderDoor(ctx, drawable.x, drawable.y, drawable.open, drawable.locked, drawable.secret, drawable.color, metrics);
       return;
     case DrawableKind.UplinkTerminal:
       renderUplinkTerminal(ctx, drawable.x, drawable.y, metrics);
@@ -114,6 +116,7 @@ function renderDoor(
   y: number,
   open: boolean,
   locked: boolean,
+  secret: boolean,
   color: KeyColorType | undefined,
   metrics: MapRenderMetrics,
 ): void {
@@ -121,6 +124,12 @@ function renderDoor(
   const { offsetX, offsetY, tileSize } = metrics;
   const tileX = offsetX + x * tileSize;
   const tileY = offsetY + y * tileSize;
+  // An unrevealed secret door fills the whole tile so it blends into the walls.
+  if (secret) {
+    ctx.fillStyle = SECRET_DOOR_WALL_COLOR;
+    ctx.fillRect(tileX, tileY, tileSize, tileSize);
+    return;
+  }
   const inset = Math.max(2, tileSize * 0.18);
   const width = tileSize - inset * 2;
   const height = tileSize - inset * 2;

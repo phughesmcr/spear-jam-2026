@@ -162,7 +162,7 @@ Deno.test("first-person rendering keeps open doors in the raycast scene for jamb
     );
     const drawables: DrawableEntity[] = [
       { kind: DrawableKind.Player, entity: 1, x: 1, y: 1, dir: Direction.East, enemyArchetype: undefined },
-      { kind: DrawableKind.Door, entity: 2, x: 2, y: 1, open: true, locked: false, openMs: 0 },
+      { kind: DrawableKind.Door, entity: 2, x: 2, y: 1, open: true, locked: false, secret: false, openMs: 0 },
     ];
     const session: FirstPersonRenderSession = {
       map,

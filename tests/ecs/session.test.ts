@@ -77,6 +77,81 @@ Deno.test("opening a door consumes a turn and refreshes visibility through it", 
   }
 });
 
+Deno.test("a secret door stays hidden from smart actions but reveals and opens when bumped", async () => {
+  const session = await createGameSession(
+    testMap([
+      { prefab: "door", x: 2, y: 1, secret: true },
+      { prefab: "item", x: 3, y: 1, item: ItemKind.HealthPatch, amount: 1 },
+    ], 5),
+    () => 0,
+  );
+  const playerPosition = (): { readonly x: number; readonly y: number } => {
+    let position = { x: -1, y: -1 };
+    session.forEachDrawable((drawable) => {
+      if (drawable.kind === DrawableKind.Player) position = { x: drawable.x, y: drawable.y };
+    });
+    return position;
+  };
+  const doorState = (): { readonly secret: boolean; readonly open: boolean } | undefined => {
+    let state: { readonly secret: boolean; readonly open: boolean } | undefined;
+    session.forEachDrawable((drawable) => {
+      if (drawable.kind === DrawableKind.Door) state = { secret: drawable.secret, open: drawable.open };
+    });
+    return state;
+  };
+  try {
+    // Disguised as a wall: blocks sight, and a smart action toward it never
+    // reveals or opens it (it falls through to a no-op attack instead).
+    assertEquals(session.getVisibility().isVisible(3, 1), false);
+    assertEquals(doorState(), { secret: true, open: false });
+    assertEquals(eventTypes(session.handlePlayerCommand({ type: "smartAction" })).includes("doorOpened"), false);
+    assertEquals(session.getVisibility().isVisible(3, 1), false);
+    assertEquals(doorState(), { secret: true, open: false });
+    assertEquals(playerPosition(), { x: 1, y: 1 });
+
+    // Walking into it reveals and opens it in one turn (the player holds position).
+    const revealed = session.handlePlayerCommand({ type: "move", direction: "forward" });
+    assertEquals(eventTypes(revealed), ["doorOpened"]);
+    // Opened, but still flagged secret so it keeps sliding as a wall panel
+    // (wall texture, no jambs) rather than snapping into a regular door.
+    assertEquals(doorState(), { secret: true, open: true });
+    assertEquals(playerPosition(), { x: 1, y: 1 });
+    assertEquals(session.getVisibility().isVisible(3, 1), true);
+
+    // Once open it behaves like any door: the player can step through.
+    session.handlePlayerCommand({ type: "move", direction: "forward" });
+    assertEquals(playerPosition(), { x: 2, y: 1 });
+  } finally {
+    session[Symbol.dispose]();
+  }
+});
+
+Deno.test("explicitly opening a secret door opens it while keeping the wall disguise", async () => {
+  const session = await createGameSession(
+    testMap([{ prefab: "door", x: 2, y: 1, secret: true }], 5),
+    () => 0,
+  );
+  const doorState = (): { readonly secret: boolean; readonly open: boolean } | undefined => {
+    let state: { readonly secret: boolean; readonly open: boolean } | undefined;
+    session.forEachDrawable((drawable) => {
+      if (drawable.kind === DrawableKind.Door) state = { secret: drawable.secret, open: drawable.open };
+    });
+    return state;
+  };
+  try {
+    assertEquals(doorState(), { secret: true, open: false });
+
+    // The verb-menu OPEN path must open the door (previously it stayed a solid
+    // wall even though the player could walk through).
+    const result = session.handlePlayerCommand({ type: "interact", verb: "open" });
+
+    assertEquals(eventTypes(result), ["doorOpened"]);
+    assertEquals(doorState(), { secret: true, open: true });
+  } finally {
+    session[Symbol.dispose]();
+  }
+});
+
 Deno.test("consumed player actions run enemy phase, turn effects, and visibility refresh", async () => {
   const session = await createGameSession(
     testMap([
