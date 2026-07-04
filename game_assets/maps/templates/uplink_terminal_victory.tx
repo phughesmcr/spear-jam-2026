@@ -1,0 +1,31 @@
+{
+  "type": "template",
+  "tileset": {
+    "firstgid": 1,
+    "source": "../entity_markers.tsj"
+  },
+  "object": {
+    "gid": 7,
+    "height": 16,
+    "name": "Victory terminal",
+    "properties": [
+      {
+        "name": "prefab",
+        "propertytype": "Prefab",
+        "type": "string",
+        "value": "uplinkTerminal"
+      },
+      {
+        "name": "goto",
+        "type": "string",
+        "value": "victory"
+      }
+    ],
+    "rotation": 0,
+    "type": "uplinkTerminal",
+    "visible": true,
+    "width": 16,
+    "x": 0,
+    "y": 16
+  }
+}

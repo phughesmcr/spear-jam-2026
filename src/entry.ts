@@ -37,6 +37,7 @@ export interface GameSpec {
   ctx: CanvasRenderingContext2D;
   canvas: HTMLCanvasElement;
   seed: number;
+  startMapName?: string;
   window: Window;
 }
 
@@ -52,7 +53,7 @@ class Game implements Disposable {
   private readonly controller: AbortController;
   private readonly firstPersonRenderer: FirstPersonRenderer;
   private readonly rng: SplitMix32;
-  private model: GameModel = createGameModel(START_MAP_NAME);
+  private model: GameModel;
   private canvasController: Disposable;
   private canvasSize: GameCanvasSize = DEFAULT_GAME_CANVAS_SIZE;
   private weaponHudPhase: WeaponHudPhase = "idle";
@@ -71,6 +72,7 @@ class Game implements Disposable {
   constructor(spec: GameSpec, controller: AbortController) {
     this.spec = spec;
     this.controller = controller;
+    this.model = createGameModel(spec.startMapName ?? START_MAP_NAME);
     this.firstPersonRenderer = createFirstPersonRenderer();
     this.rng = new SplitMix32(spec.seed);
     this.canvasController = configureCanvasDpi(

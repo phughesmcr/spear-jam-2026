@@ -128,18 +128,56 @@ Deno.test("map validation requires locked door keys to be obtainable", () => {
   assertEquals(
     validateGameMaps([
       createGameMap("Missing Key", [
-        [0, 0],
-        [0, 0],
+        [0, 0, 0],
+        [1, 0, 1],
+        [0, 0, 0],
       ], [
         { prefab: "player", x: 0, y: 0, dir: 1 },
-        { prefab: "door", x: 1, y: 0, locked: true, color: KeyColor.Red },
-        { prefab: "uplinkCode", x: 0, y: 1 },
-        { prefab: "uplinkTerminal", x: 1, y: 1, goto: VICTORY_GOTO },
+        { prefab: "door", x: 1, y: 1, locked: true, color: KeyColor.Red },
+        { prefab: "uplinkCode", x: 1, y: 0 },
+        { prefab: "uplinkTerminal", x: 2, y: 0, goto: VICTORY_GOTO },
       ]),
     ]),
     [
-      "Missing Key: locked red door at (1,0) has no obtainable red key before it is needed.",
+      "Missing Key: locked red door at (1,1) has no obtainable red key before it is needed.",
     ],
+  );
+});
+
+Deno.test("map validation reports entities on blocking terrain and invalid doorways", () => {
+  assertEquals(
+    validateGameMaps([
+      createGameMap("Bad Door", [
+        [0, 0, 0],
+        [0, 1, 0],
+        [0, 0, 0],
+      ], [
+        { prefab: "player", x: 0, y: 0, dir: 1 },
+        { prefab: "door", x: 1, y: 1 },
+        { prefab: "uplinkCode", x: 0, y: 1 },
+        { prefab: "uplinkTerminal", x: 2, y: 1, goto: VICTORY_GOTO },
+      ]),
+    ]),
+    [
+      "Bad Door: door at (1,1) is placed on blocking terrain.",
+      "Bad Door: door at (1,1) must sit between exactly one opposite pair of blocking wall tiles.",
+    ],
+  );
+
+  assertEquals(
+    validateGameMaps([
+      createGameMap("Good Door", [
+        [0, 0, 0],
+        [1, 0, 1],
+        [0, 0, 0],
+      ], [
+        { prefab: "player", x: 0, y: 0, dir: 1 },
+        { prefab: "door", x: 1, y: 1 },
+        { prefab: "uplinkCode", x: 1, y: 0 },
+        { prefab: "uplinkTerminal", x: 2, y: 0, goto: VICTORY_GOTO },
+      ]),
+    ]),
+    [],
   );
 });
 

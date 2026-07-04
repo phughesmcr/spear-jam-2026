@@ -1,0 +1,26 @@
+{
+  "type": "template",
+  "tileset": {
+    "firstgid": 1,
+    "source": "../entity_markers.tsj"
+  },
+  "object": {
+    "gid": 6,
+    "height": 16,
+    "name": "Uplink code",
+    "properties": [
+      {
+        "name": "prefab",
+        "propertytype": "Prefab",
+        "type": "string",
+        "value": "uplinkCode"
+      }
+    ],
+    "rotation": 0,
+    "type": "uplinkCode",
+    "visible": true,
+    "width": 16,
+    "x": 0,
+    "y": 16
+  }
+}

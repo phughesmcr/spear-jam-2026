@@ -1,0 +1,43 @@
+{
+  "type": "template",
+  "tileset": {
+    "firstgid": 1,
+    "source": "../entity_markers.tsj"
+  },
+  "object": {
+    "gid": 4,
+    "height": 16,
+    "name": "red locked door",
+    "properties": [
+      {
+        "name": "prefab",
+        "propertytype": "Prefab",
+        "type": "string",
+        "value": "door"
+      },
+      {
+        "name": "locked",
+        "type": "bool",
+        "value": true
+      },
+      {
+        "name": "color",
+        "propertytype": "KeyColor",
+        "type": "string",
+        "value": "red"
+      },
+      {
+        "name": "slide",
+        "propertytype": "DoorSlide",
+        "type": "string",
+        "value": "up"
+      }
+    ],
+    "rotation": 0,
+    "type": "door",
+    "visible": true,
+    "width": 16,
+    "x": 0,
+    "y": 16
+  }
+}

@@ -8,7 +8,7 @@ import { ItemKind } from "@/src/game/items.ts";
 import { compileTiledMap } from "@/src/map/authoring/mod.ts";
 import { KeyColor, TexturePack, VICTORY_GOTO } from "@/src/map/map.ts";
 import type { TerrainTile } from "@/src/map/map.ts";
-import type { TiledMap, TiledObject, TiledProperty } from "@/src/map/authoring/mod.ts";
+import type { TiledMap, TiledObject, TiledProperty, TiledTemplate } from "@/src/map/authoring/mod.ts";
 
 const TILE_SIZE = 16;
 const TERRAIN_FIRST_GID = 17;
@@ -225,6 +225,107 @@ Deno.test("compileTiledMap applies marker defaults before object overrides", () 
   ]);
 });
 
+Deno.test("compileTiledMap resolves linked object templates with instance overrides", () => {
+  const compiled = compileTiledMap(
+    tiledMap({
+      objects: [
+        object({
+          template: "templates/player.tx",
+          x: 0,
+          y: TILE_SIZE,
+          properties: [property("facing", "east")],
+        }),
+      ],
+    }),
+    compileOptions({
+      sourcePath: "fixture.tiled.json",
+      templates: {
+        "templates/player.tx": template({
+          object: object({
+            type: "player",
+            x: 0,
+            y: TILE_SIZE,
+            properties: [property("prefab", "player"), property("facing", "north")],
+          }),
+        }),
+      },
+    }),
+  );
+
+  assertEquals(compiled.gameMap.entities, [
+    { prefab: "player", x: 0, y: 1, dir: 1 },
+  ]);
+});
+
+Deno.test("compileTiledMap decodes template marker GIDs through the template tileset", () => {
+  const compiled = compileTiledMap(
+    tiledMap({
+      objects: [
+        object({
+          template: "templates/item.tx",
+          x: TILE_SIZE,
+          y: TILE_SIZE,
+          properties: [property("amount", 9)],
+        }),
+      ],
+    }),
+    compileOptions({
+      sourcePath: "fixture.tiled.json",
+      templates: {
+        "templates/item.tx": template({
+          tilesetFirstGid: 50,
+          object: object({
+            gid: 52,
+            x: 0,
+            y: TILE_SIZE,
+            width: TILE_SIZE,
+            height: TILE_SIZE,
+          }),
+        }),
+      },
+    }),
+  );
+
+  assertEquals(compiled.gameMap.entities, [
+    { prefab: "item", x: 1, y: 0, item: ItemKind.CannonAmmo, amount: 9 },
+  ]);
+});
+
+Deno.test("compileTiledMap rejects missing and invalid templates", () => {
+  assertThrows(
+    () =>
+      compileTiledMap(
+        tiledMap({ objects: [object({ template: "templates/missing.tx", x: 0, y: TILE_SIZE })] }),
+        compileOptions({ sourcePath: "fixture.tiled.json", templates: {} }),
+      ),
+    Error,
+    'Missing object template "templates/missing.tx"',
+  );
+
+  assertThrows(
+    () =>
+      compileTiledMap(
+        tiledMap({ objects: [object({ template: "templates/player.tx", x: 0, y: TILE_SIZE })] }),
+        compileOptions({
+          sourcePath: "fixture.tiled.json",
+          templates: {
+            "templates/player.tx": template({
+              object: object({
+                type: "player",
+                rotation: 90,
+                x: 0,
+                y: TILE_SIZE,
+                properties: [property("prefab", "player"), property("facing", "north")],
+              }),
+            }),
+          },
+        }),
+      ),
+    Error,
+    "rotation is unsupported",
+  );
+});
+
 Deno.test("compileTiledMap compiles representative prefabs and enemy attack overrides", () => {
   const compiled = compileTiledMap(
     tiledMap({
@@ -393,9 +494,15 @@ type TiledMapOverrides = {
   readonly properties?: readonly TiledProperty[];
 };
 
-function compileOptions() {
+type CompileOptionOverrides = {
+  readonly sourcePath?: string;
+  readonly templates?: Readonly<Record<string, TiledTemplate>>;
+};
+
+function compileOptions(overrides: CompileOptionOverrides = {}) {
   return {
     palettes: { test: TEST_PALETTE },
+    ...overrides,
     tilesets: {
       "markers.tsj": {
         name: "markers",
@@ -481,4 +588,20 @@ function object(overrides: Partial<TiledObject>): TiledObject {
 
 function property(name: string, value: TiledProperty["value"]): TiledProperty {
   return { name, value };
+}
+
+function template(
+  overrides: {
+    readonly object: TiledObject;
+    readonly tilesetFirstGid?: number;
+  },
+): TiledTemplate {
+  return {
+    type: "template",
+    tileset: {
+      firstgid: overrides.tilesetFirstGid ?? MARKER_FIRST_GID,
+      source: "markers.tsj",
+    },
+    object: overrides.object,
+  };
 }

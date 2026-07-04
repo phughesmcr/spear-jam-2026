@@ -43,6 +43,20 @@ function validateGameMap(map: GameMap, mapNames: ReadonlySet<string>): readonly 
   for (const entity of map.entities) {
     if (!inBounds(entity.x, entity.y, width, height)) {
       issues.push(`${map.name}: ${entity.prefab} at (${entity.x},${entity.y}) is outside the ${width}x${height} map.`);
+      continue;
+    }
+
+    const terrain = terrainAt(map, entity.x, entity.y);
+    if (terrain === undefined || terrain.blocking === true) {
+      issues.push(`${map.name}: ${entity.prefab} at (${entity.x},${entity.y}) is placed on blocking terrain.`);
+    }
+  }
+
+  for (const door of doorDefs(map)) {
+    if (!validDoorway(map, door.x, door.y)) {
+      issues.push(
+        `${map.name}: door at (${door.x},${door.y}) must sit between exactly one opposite pair of blocking wall tiles.`,
+      );
     }
   }
 
@@ -220,12 +234,31 @@ function terminalDefs(map: GameMap): readonly UplinkTerminalDef[] {
   return map.entities.filter(isUplinkTerminalDef);
 }
 
+function doorDefs(map: GameMap): readonly DoorDef[] {
+  return map.entities.filter(isDoorDef);
+}
+
 function lockedDoorDefs(map: GameMap): readonly DoorDef[] {
   return map.entities.filter(isLockedDoorDef);
 }
 
+function validDoorway(map: GameMap, x: number, y: number): boolean {
+  const horizontalWalls = terrainBlocks(map, x - 1, y) && terrainBlocks(map, x + 1, y);
+  const verticalWalls = terrainBlocks(map, x, y - 1) && terrainBlocks(map, x, y + 1);
+  return horizontalWalls !== verticalWalls;
+}
+
+function terrainBlocks(map: GameMap, x: number, y: number): boolean {
+  const terrain = terrainAt(map, x, y);
+  return terrain === undefined || terrain.blocking === true;
+}
+
 function isUplinkTerminalDef(entity: GameMap["entities"][number]): entity is UplinkTerminalDef {
   return entity.prefab === "uplinkTerminal";
+}
+
+function isDoorDef(entity: GameMap["entities"][number]): entity is DoorDef {
+  return entity.prefab === "door";
 }
 
 function isLockedDoorDef(entity: GameMap["entities"][number]): entity is DoorDef {

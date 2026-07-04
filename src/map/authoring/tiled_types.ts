@@ -1,5 +1,6 @@
 export type TiledProperty = {
   readonly name: string;
+  readonly propertytype?: string;
   readonly type?: string;
   readonly value: unknown;
 };
@@ -12,6 +13,7 @@ export type TiledTilesetTile = {
 
 export type TiledTileset = {
   readonly name?: string;
+  readonly class?: string;
   readonly image?: string;
   readonly imageheight?: number;
   readonly imagewidth?: number;
@@ -30,9 +32,16 @@ export type TiledTilesetReference = TiledTileset & {
   readonly source?: string;
 };
 
+export type TiledTemplate = {
+  readonly type: "template";
+  readonly tileset?: TiledTilesetReference;
+  readonly object: TiledObject;
+};
+
 export type TiledObject = {
   readonly id?: number;
   readonly name?: string;
+  readonly class?: string;
   readonly type?: string;
   readonly template?: string;
   readonly gid?: number;
@@ -53,7 +62,9 @@ export type TiledObject = {
 export type TiledLayer = {
   readonly id?: number;
   readonly name: string;
+  readonly class?: string;
   readonly type: string;
+  readonly draworder?: string;
   readonly visible?: boolean;
   readonly opacity?: number;
   readonly x?: number;
@@ -70,12 +81,19 @@ export type TiledLayer = {
 
 export type TiledMap = {
   readonly type?: string;
+  readonly class?: string;
+  readonly compressionlevel?: number;
   readonly orientation: string;
+  readonly renderorder?: string;
+  readonly tiledversion?: string;
+  readonly version?: string;
   readonly infinite?: boolean | number;
   readonly width: number;
   readonly height: number;
   readonly tilewidth: number;
   readonly tileheight: number;
+  readonly nextlayerid?: number;
+  readonly nextobjectid?: number;
   readonly properties?: readonly TiledProperty[];
   readonly tilesets?: readonly TiledTilesetReference[];
   readonly layers: readonly TiledLayer[];

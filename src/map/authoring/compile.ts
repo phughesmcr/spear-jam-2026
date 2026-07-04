@@ -14,7 +14,7 @@ import {
   validatePropertyNames,
 } from "@/src/map/authoring/properties.ts";
 import type { PropertyMap } from "@/src/map/authoring/properties.ts";
-import type { TiledLayer, TiledMap, TiledObject } from "@/src/map/authoring/tiled_types.ts";
+import type { TiledLayer, TiledMap, TiledObject, TiledTemplate } from "@/src/map/authoring/tiled_types.ts";
 import {
   ENTITY_AUTHORING_PROPERTY_NAMES,
   mapEntityPrefab,
@@ -36,6 +36,8 @@ import {
 
 export type CompileTiledMapOptions = {
   readonly palettes: Readonly<Record<string, readonly TerrainTile[]>>;
+  readonly sourcePath?: string;
+  readonly templates?: Readonly<Record<string, TiledTemplate>>;
   readonly tilesets?: TilesetSources;
 };
 
@@ -59,6 +61,11 @@ type ResolvedObject = GridPosition & {
   readonly properties: PropertyMap;
 };
 
+type ResolvedTemplate = {
+  readonly object: TiledObject;
+  readonly registry: TilesetRegistry;
+};
+
 const NO_PROPERTY_NAMES: ReadonlySet<string> = new Set();
 const MAP_PROPERTY_NAMES: ReadonlySet<string> = new Set(["name", "palette", "campaignOrder"]);
 const TERRAIN_PROPERTY_NAMES: ReadonlySet<string> = new Set(["terrainId"]);
@@ -76,7 +83,7 @@ export function compileTiledMap(source: TiledMap, options: CompileTiledMapOption
   const layers = requiredLayers(source);
   const registry = createTilesetRegistry(source.tilesets, options.tilesets);
   const terrain = compileTerrain(source, layers.terrain, registry);
-  const entities = compileEntities(source, layers.objects, registry);
+  const entities = compileEntities(source, layers.objects, registry, options);
 
   return {
     gameMap: createGameMap(name, terrain, entities, { palette }),
@@ -175,8 +182,9 @@ function compileEntities(
   source: TiledMap,
   layer: TiledLayer,
   registry: TilesetRegistry,
+  options: CompileTiledMapOptions,
 ): readonly EntityDef[] {
-  return (layer.objects ?? []).map((object, index) => compileEntity(source, object, index, registry));
+  return (layer.objects ?? []).map((object, index) => compileEntity(source, object, index, registry, options));
 }
 
 function compileEntity(
@@ -184,9 +192,10 @@ function compileEntity(
   object: TiledObject,
   index: number,
   registry: TilesetRegistry,
+  options: CompileTiledMapOptions,
 ): EntityDef {
   const context = objectContext(object, index);
-  const resolved = resolveObject(source, object, context, registry);
+  const resolved = resolveObject(source, object, context, registry, options);
   const prefab = mapEntityPrefab(requiredString(resolved.properties, "prefab", context), context);
   validatePropertyNames(resolved.properties, PREFAB_AUTHORING_PROPERTY_NAMES[prefab], context);
 
@@ -252,15 +261,49 @@ function resolveObject(
   object: TiledObject,
   context: string,
   registry: TilesetRegistry,
+  options: CompileTiledMapOptions,
 ): ResolvedObject {
-  validateObjectAuthoringState(object, context);
+  const template = resolveTemplate(object, context, options);
+  const resolvedObject = resolvedObjectSource(object, template?.object);
+  validateObjectAuthoringState(resolvedObject, context);
+  if (template !== undefined) validateObjectAuthoringState(template.object, `${context} template`);
 
-  const markerProperties = propertiesFromMarker(object, registry, context);
+  const markerRegistry = object.gid === undefined && template !== undefined ? template.registry : registry;
+  const markerProperties = propertiesFromMarker(resolvedObject, markerRegistry, context);
+  const templateProperties = propertiesFromObjectSource(template?.object, context);
   const objectProperties = propertiesFromObjectSource(object, context);
-  const properties = mergeProperties(markerProperties, objectProperties);
-  const position = objectGridPosition(object, source.tilewidth, source.tileheight, context);
+  const properties = mergeProperties(markerProperties, templateProperties, objectProperties);
+  const position = objectGridPosition(resolvedObject, source.tilewidth, source.tileheight, context);
 
   return { ...position, properties };
+}
+
+function resolveTemplate(
+  object: TiledObject,
+  context: string,
+  options: CompileTiledMapOptions,
+): ResolvedTemplate | undefined {
+  if (object.template === undefined) return undefined;
+
+  const path = resolveTemplatePath(options.sourcePath, object.template);
+  const template = options.templates?.[path];
+  if (template === undefined) throw new Error(`${context}: Missing object template "${path}".`);
+  if (template.type !== "template") throw new Error(`${context}: Template "${path}" must have type "template".`);
+
+  return {
+    object: template.object,
+    registry: createTilesetRegistry(template.tileset === undefined ? undefined : [template.tileset], options.tilesets),
+  };
+}
+
+function resolvedObjectSource(object: TiledObject, template: TiledObject | undefined): TiledObject {
+  if (template === undefined) return object;
+  return {
+    ...template,
+    ...object,
+    x: object.x,
+    y: object.y,
+  };
 }
 
 function propertiesFromObjectSource(object: TiledObject | undefined, context: string): Map<string, unknown> {
@@ -313,7 +356,6 @@ function objectGridPosition(
 }
 
 function validateObjectAuthoringState(object: TiledObject, context: string): void {
-  if (object.template !== undefined) throw new Error(`${context}: object templates are unsupported.`);
   if (object.visible === false) throw new Error(`${context}: hidden objects are unsupported.`);
   if (object.rotation !== undefined && object.rotation !== 0) {
     throw new Error(`${context}: object rotation is unsupported.`);
@@ -497,4 +539,25 @@ function aligned(value: number, cellSize: number): boolean {
 
 function positiveInteger(value: number): boolean {
   return Number.isInteger(value) && value > 0;
+}
+
+function resolveTemplatePath(sourcePath: string | undefined, templatePath: string): string {
+  if (templatePath.startsWith("/")) return normalizePath(templatePath.slice(1));
+  if (sourcePath === undefined) return normalizePath(templatePath);
+  const slash = sourcePath.lastIndexOf("/");
+  const directory = slash === -1 ? "" : sourcePath.slice(0, slash);
+  return normalizePath(directory.length === 0 ? templatePath : `${directory}/${templatePath}`);
+}
+
+function normalizePath(path: string): string {
+  const parts: string[] = [];
+  for (const part of path.split("/")) {
+    if (part.length === 0 || part === ".") continue;
+    if (part === "..") {
+      parts.pop();
+      continue;
+    }
+    parts.push(part);
+  }
+  return parts.join("/");
 }

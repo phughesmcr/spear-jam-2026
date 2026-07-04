@@ -7,11 +7,12 @@ export default define.page(function Home(ctx) {
     10,
   );
   const seed = Number.isFinite(seedParam) ? seedParam : 0;
+  const mapName = ctx.url.searchParams.get("map") ?? undefined;
   ctx.state.seed = seed;
 
   return (
     <main id="stage">
-      <Game seed={seed} />
+      <Game seed={seed} startMapName={mapName} />
     </main>
   );
 });

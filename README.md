@@ -9,7 +9,7 @@
 
 **Code Inspiration:**
 
-- [MethMethMethod's Super Mario](https://github.com/meth-meth-method/super-mario/)
+- [Meth-Meth-Method's Super Mario](https://github.com/meth-meth-method/super-mario/)
 - [id Software's browser port of Wolfenstein 3D](https://github.com/id-Software/wolf3d-browser)
 - [StackOverflow answer on how to implement a PRNG](https://stackoverflow.com/a/47593316)
 
@@ -17,3 +17,8 @@
 
 - [Aquilarius' Retro Textures (CC0)](https://aquilarius.itch.io/aquilariusrt)
 - Sprites/HUD and titlescreen generated with GPT Image 2
+
+**Tools:**
+
+- [Tiled](https://www.mapeditor.org/)
+- [Pixelorama](https://pixelorama.org/)

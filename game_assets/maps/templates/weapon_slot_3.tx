@@ -1,0 +1,31 @@
+{
+  "type": "template",
+  "tileset": {
+    "firstgid": 1,
+    "source": "../entity_markers.tsj"
+  },
+  "object": {
+    "gid": 8,
+    "height": 16,
+    "name": "Weapon slot 3",
+    "properties": [
+      {
+        "name": "prefab",
+        "propertytype": "Prefab",
+        "type": "string",
+        "value": "weaponPickup"
+      },
+      {
+        "name": "slot",
+        "type": "int",
+        "value": 3
+      }
+    ],
+    "rotation": 0,
+    "type": "weaponPickup",
+    "visible": true,
+    "width": 16,
+    "x": 0,
+    "y": 16
+  }
+}

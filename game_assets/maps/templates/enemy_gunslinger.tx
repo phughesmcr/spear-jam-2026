@@ -1,0 +1,38 @@
+{
+  "type": "template",
+  "tileset": {
+    "firstgid": 1,
+    "source": "../entity_markers.tsj"
+  },
+  "object": {
+    "gid": 3,
+    "height": 16,
+    "name": "gunslinger",
+    "properties": [
+      {
+        "name": "prefab",
+        "propertytype": "Prefab",
+        "type": "string",
+        "value": "enemy"
+      },
+      {
+        "name": "facing",
+        "propertytype": "Facing",
+        "type": "string",
+        "value": "north"
+      },
+      {
+        "name": "archetype",
+        "propertytype": "EnemyArchetype",
+        "type": "string",
+        "value": "gunslinger"
+      }
+    ],
+    "rotation": 0,
+    "type": "enemy",
+    "visible": true,
+    "width": 16,
+    "x": 0,
+    "y": 16
+  }
+}

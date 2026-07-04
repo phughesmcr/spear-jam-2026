@@ -8,8 +8,11 @@
     "check": "export CI=1 && deno task maps:check && deno fmt --check . && deno lint . && deno check && deno test",
     "dev": "vite",
     "build": "vite build",
-    "maps:compile": "deno run -A scripts/compile_maps.ts --write",
-    "maps:check": "deno run -A scripts/compile_maps.ts --check",
+    "maps:compile": "deno run -A scripts/maps.ts compile",
+    "maps:check": "deno run -A scripts/maps.ts check",
+    "maps:play": "deno run -A scripts/maps.ts play",
+    "maps:sync-authoring": "deno run -A scripts/maps.ts sync-authoring",
+    "maps:new": "deno run -A scripts/maps.ts new",
     "start": "deno serve -A _fresh/server.js",
     "update": "deno run -A -r jsr:@fresh/update ."
   },

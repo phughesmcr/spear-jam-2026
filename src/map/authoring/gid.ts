@@ -44,7 +44,7 @@ function tilesetEntry(reference: TiledTilesetReference, sources: TilesetSources 
     throw new Error(`Tileset firstgid must be a positive integer.`);
   }
 
-  const sourceTileset = reference.source === undefined ? undefined : sources?.[reference.source];
+  const sourceTileset = reference.source === undefined ? undefined : tilesetSource(reference.source, sources);
   if (reference.source !== undefined && sourceTileset === undefined) {
     throw new Error(`Missing parsed tileset for "${reference.source}".`);
   }
@@ -64,6 +64,15 @@ function tilesetEntry(reference: TiledTilesetReference, sources: TilesetSources 
     source: reference.source,
     tilesById: new Map((tileset.tiles ?? []).map((tile) => [tile.id, tile])),
   };
+}
+
+function tilesetSource(source: string, sources: TilesetSources | undefined): TiledTileset | undefined {
+  return sources?.[source] ?? sources?.[basename(source)];
+}
+
+function basename(path: string): string {
+  const slash = path.lastIndexOf("/");
+  return slash === -1 ? path : path.slice(slash + 1);
 }
 
 function decodeGid(

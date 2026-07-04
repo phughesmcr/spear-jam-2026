@@ -5,6 +5,7 @@ export type {
   TiledMap,
   TiledObject,
   TiledProperty,
+  TiledTemplate,
   TiledTileset,
   TiledTilesetReference,
   TiledTilesetTile,

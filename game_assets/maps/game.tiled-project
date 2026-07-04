@@ -1,10 +1,63 @@
 {
-  "automappingRulesFile": "",
-  "commands": [],
+  "automappingRulesFile": "automap/rules.txt",
+  "commands": [
+    {
+      "command": "Validate maps",
+      "executable": "deno",
+      "arguments": "task maps:check",
+      "workingDirectory": "%projectpath/../..",
+      "shortcut": "",
+      "showOutput": true,
+      "saveBeforeExecute": true,
+      "enabled": true
+    },
+    {
+      "command": "Compile maps",
+      "executable": "deno",
+      "arguments": "task maps:compile",
+      "workingDirectory": "%projectpath/../..",
+      "shortcut": "",
+      "showOutput": true,
+      "saveBeforeExecute": true,
+      "enabled": true
+    },
+    {
+      "command": "Sync authoring assets",
+      "executable": "deno",
+      "arguments": "task maps:sync-authoring",
+      "workingDirectory": "%projectpath/../..",
+      "shortcut": "",
+      "showOutput": true,
+      "saveBeforeExecute": true,
+      "enabled": true
+    },
+    {
+      "command": "Play current map",
+      "executable": "deno",
+      "arguments": "task maps:play -- \"%mapfile\"",
+      "workingDirectory": "%projectpath/../..",
+      "shortcut": "",
+      "showOutput": true,
+      "saveBeforeExecute": true,
+      "enabled": true
+    },
+    {
+      "command": "Start game dev server",
+      "executable": "deno",
+      "arguments": "task dev",
+      "workingDirectory": "%projectpath/../..",
+      "shortcut": "",
+      "showOutput": true,
+      "saveBeforeExecute": true,
+      "enabled": true
+    }
+  ],
   "compatibilityVersion": 1100,
   "extensionsPath": "extensions",
   "folders": [
-    "."
+    ".",
+    "automap",
+    "templates"
   ],
   "properties": [],
   "propertyTypes": [
@@ -86,13 +139,13 @@
       "storageType": "string",
       "type": "enum",
       "values": [
-        "John",
-        "Imp",
-        "DigitalDog",
-        "GigabitGunslinger",
-        "NetworkNeophyte",
-        "SystemSentinel",
-        "AgenticAcolyte"
+        "john",
+        "imp",
+        "digitalDog",
+        "gigabitGunslinger",
+        "networkNeophyte",
+        "systemSentinel",
+        "agenticAcolyte"
       ],
       "valuesAsFlags": false
     },
@@ -102,8 +155,8 @@
       "storageType": "string",
       "type": "enum",
       "values": [
-        "None",
-        "JohnIntro"
+        "none",
+        "johnIntro"
       ],
       "valuesAsFlags": false
     },
@@ -113,7 +166,7 @@
       "storageType": "string",
       "type": "enum",
       "values": [
-        "BootSectorUplinkTerminal"
+        "bootSectorUplinkTerminal"
       ],
       "valuesAsFlags": false
     },
@@ -123,12 +176,12 @@
       "storageType": "string",
       "type": "enum",
       "values": [
-        "HealthPatch",
-        "PistolAmmo",
-        "CannonAmmo",
-        "Key",
-        "UplinkCode",
-        "Weapon"
+        "healthPatch",
+        "pistolAmmo",
+        "cannonAmmo",
+        "key",
+        "uplinkCode",
+        "weapon"
       ],
       "valuesAsFlags": false
     },
@@ -138,11 +191,11 @@
       "storageType": "string",
       "type": "enum",
       "values": [
-        "MeleeDog",
-        "Gunslinger",
-        "NetworkNeophyte",
-        "SystemSentinel",
-        "AgenticAcolyte"
+        "meleeDog",
+        "gunslinger",
+        "networkNeophyte",
+        "systemSentinel",
+        "agenticAcolyte"
       ],
       "valuesAsFlags": false
     },
@@ -227,6 +280,242 @@
       "type": "class",
       "useAs": [
         "layer"
+      ]
+    },
+    {
+      "color": "#ff22d3ee",
+      "drawFill": false,
+      "id": 30,
+      "members": [
+        {
+          "name": "prefab",
+          "propertyType": "Prefab",
+          "type": "string",
+          "value": "player"
+        },
+        {
+          "name": "facing",
+          "propertyType": "Facing",
+          "type": "string",
+          "value": "north"
+        }
+      ],
+      "name": "player",
+      "type": "class",
+      "useAs": [
+        "object"
+      ]
+    },
+    {
+      "color": "#fffb7185",
+      "drawFill": false,
+      "id": 31,
+      "members": [
+        {
+          "name": "prefab",
+          "propertyType": "Prefab",
+          "type": "string",
+          "value": "npc"
+        },
+        {
+          "name": "facing",
+          "propertyType": "Facing",
+          "type": "string",
+          "value": "north"
+        },
+        {
+          "name": "displayName",
+          "propertyType": "DisplayName",
+          "type": "string",
+          "value": "john"
+        },
+        {
+          "name": "dialogueTreeId",
+          "propertyType": "DialogueTreeId",
+          "type": "string",
+          "value": "none"
+        }
+      ],
+      "name": "npc",
+      "type": "class",
+      "useAs": [
+        "object"
+      ]
+    },
+    {
+      "color": "#fff59e0b",
+      "drawFill": false,
+      "id": 32,
+      "members": [
+        {
+          "name": "prefab",
+          "propertyType": "Prefab",
+          "type": "string",
+          "value": "enemy"
+        },
+        {
+          "name": "facing",
+          "propertyType": "Facing",
+          "type": "string",
+          "value": "north"
+        },
+        {
+          "name": "archetype",
+          "propertyType": "EnemyArchetype",
+          "type": "string",
+          "value": "meleeDog"
+        }
+      ],
+      "name": "enemy",
+      "type": "class",
+      "useAs": [
+        "object"
+      ]
+    },
+    {
+      "color": "#ff92400e",
+      "drawFill": false,
+      "id": 33,
+      "members": [
+        {
+          "name": "prefab",
+          "propertyType": "Prefab",
+          "type": "string",
+          "value": "door"
+        },
+        {
+          "name": "locked",
+          "type": "bool",
+          "value": false
+        },
+        {
+          "name": "slide",
+          "propertyType": "DoorSlide",
+          "type": "string",
+          "value": "up"
+        }
+      ],
+      "name": "door",
+      "type": "class",
+      "useAs": [
+        "object"
+      ]
+    },
+    {
+      "color": "#fffacc15",
+      "drawFill": false,
+      "id": 34,
+      "members": [
+        {
+          "name": "prefab",
+          "propertyType": "Prefab",
+          "type": "string",
+          "value": "key"
+        },
+        {
+          "name": "color",
+          "propertyType": "KeyColor",
+          "type": "string",
+          "value": "red"
+        }
+      ],
+      "name": "key",
+      "type": "class",
+      "useAs": [
+        "object"
+      ]
+    },
+    {
+      "color": "#ffa855f7",
+      "drawFill": false,
+      "id": 35,
+      "members": [
+        {
+          "name": "prefab",
+          "propertyType": "Prefab",
+          "type": "string",
+          "value": "uplinkCode"
+        }
+      ],
+      "name": "uplinkCode",
+      "type": "class",
+      "useAs": [
+        "object"
+      ]
+    },
+    {
+      "color": "#ff22c55e",
+      "drawFill": false,
+      "id": 36,
+      "members": [
+        {
+          "name": "prefab",
+          "propertyType": "Prefab",
+          "type": "string",
+          "value": "uplinkTerminal"
+        },
+        {
+          "name": "goto",
+          "type": "string",
+          "value": "victory"
+        }
+      ],
+      "name": "uplinkTerminal",
+      "type": "class",
+      "useAs": [
+        "object"
+      ]
+    },
+    {
+      "color": "#ff3b82f6",
+      "drawFill": false,
+      "id": 37,
+      "members": [
+        {
+          "name": "prefab",
+          "propertyType": "Prefab",
+          "type": "string",
+          "value": "weaponPickup"
+        },
+        {
+          "name": "slot",
+          "type": "int",
+          "value": 2
+        }
+      ],
+      "name": "weaponPickup",
+      "type": "class",
+      "useAs": [
+        "object"
+      ]
+    },
+    {
+      "color": "#ff38bdf8",
+      "drawFill": false,
+      "id": 38,
+      "members": [
+        {
+          "name": "prefab",
+          "propertyType": "Prefab",
+          "type": "string",
+          "value": "item"
+        },
+        {
+          "name": "item",
+          "propertyType": "ItemKind",
+          "type": "string",
+          "value": "healthPatch"
+        },
+        {
+          "name": "amount",
+          "type": "int",
+          "value": 1
+        }
+      ],
+      "name": "item",
+      "type": "class",
+      "useAs": [
+        "object"
       ]
     }
   ]

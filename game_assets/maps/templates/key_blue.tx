@@ -1,0 +1,32 @@
+{
+  "type": "template",
+  "tileset": {
+    "firstgid": 1,
+    "source": "../entity_markers.tsj"
+  },
+  "object": {
+    "gid": 5,
+    "height": 16,
+    "name": "blue key",
+    "properties": [
+      {
+        "name": "prefab",
+        "propertytype": "Prefab",
+        "type": "string",
+        "value": "key"
+      },
+      {
+        "name": "color",
+        "propertytype": "KeyColor",
+        "type": "string",
+        "value": "blue"
+      }
+    ],
+    "rotation": 0,
+    "type": "key",
+    "visible": true,
+    "width": 16,
+    "x": 0,
+    "y": 16
+  }
+}
