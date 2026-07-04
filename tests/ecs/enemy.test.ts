@@ -271,7 +271,7 @@ Deno.test("enemyTurnSystem stops the enemy phase after player defeat", async () 
     x: 1,
     y: 1,
     dir: Direction.East,
-    displayName: DisplayName.Imp,
+    displayName: DisplayName.DigitalDog,
     attack: MELEE_ATTACK,
     archetype: EnemyArchetype.NetworkNeophyte,
   });
@@ -296,7 +296,7 @@ Deno.test("enemyTurnSystem stops the enemy phase after player defeat", async () 
     {
       type: "damageDealt",
       actor: killingEnemy,
-      actorName: "Imp",
+      actorName: "Digital Dog",
       target: playerEntity,
       targetName: "You",
       roll: 1,

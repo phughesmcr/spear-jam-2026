@@ -26,7 +26,6 @@ const DIRECTIONS: Readonly<Record<string, number>> = {
 
 const DISPLAY_NAMES: Readonly<Record<string, DisplayNameType>> = {
   john: DisplayName.John,
-  imp: DisplayName.Imp,
   digitalDog: DisplayName.DigitalDog,
   gigabitGunslinger: DisplayName.GigabitGunslinger,
   networkNeophyte: DisplayName.NetworkNeophyte,

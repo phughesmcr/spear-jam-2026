@@ -3,7 +3,7 @@ import type { Entity } from "@phughesmcr/miski";
 import { messageForEvent } from "@/src/game/messages.ts";
 
 const PLAYER = 1 as Entity;
-const IMP = 2 as Entity;
+const DIGITAL_DOG = 2 as Entity;
 const DOOR = 3 as Entity;
 
 Deno.test("messageForEvent covers attack outcomes", () => {
@@ -16,18 +16,18 @@ Deno.test("messageForEvent covers attack outcomes", () => {
       type: "attackMissed",
       actor: PLAYER,
       actorName: "You",
-      target: IMP,
-      targetName: "Imp",
+      target: DIGITAL_DOG,
+      targetName: "Digital Dog",
       roll: 3,
       total: 5,
     }),
-    "You missed Imp.",
+    "You missed Digital Dog.",
   );
   assertEquals(
     messageForEvent(PLAYER, {
       type: "damageDealt",
-      actor: IMP,
-      actorName: "Imp",
+      actor: DIGITAL_DOG,
+      actorName: "Digital Dog",
       target: PLAYER,
       targetName: "You",
       roll: 12,
@@ -35,32 +35,32 @@ Deno.test("messageForEvent covers attack outcomes", () => {
       amount: 2,
       critical: false,
     }),
-    "Imp hit You for 2.",
+    "Digital Dog hit You for 2.",
   );
   assertEquals(
     messageForEvent(PLAYER, {
       type: "damageDealt",
       actor: PLAYER,
       actorName: "You",
-      target: IMP,
-      targetName: "Imp",
+      target: DIGITAL_DOG,
+      targetName: "Digital Dog",
       roll: 20,
       total: 24,
       amount: 4,
       critical: true,
     }),
-    "You hit Imp for 4 critical.",
+    "You hit Digital Dog for 4 critical.",
   );
 });
 
 Deno.test("messageForEvent distinguishes player defeat from enemy defeat", () => {
   assertEquals(
-    messageForEvent(PLAYER, { type: "entityDefeated", actor: IMP, entity: PLAYER, entityName: "You" }),
+    messageForEvent(PLAYER, { type: "entityDefeated", actor: DIGITAL_DOG, entity: PLAYER, entityName: "You" }),
     "You are defeated.",
   );
   assertEquals(
-    messageForEvent(PLAYER, { type: "entityDefeated", actor: PLAYER, entity: IMP, entityName: "Imp" }),
-    "Imp is defeated.",
+    messageForEvent(PLAYER, { type: "entityDefeated", actor: PLAYER, entity: DIGITAL_DOG, entityName: "Digital Dog" }),
+    "Digital Dog is defeated.",
   );
 });
 

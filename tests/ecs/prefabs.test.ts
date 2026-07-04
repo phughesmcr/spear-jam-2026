@@ -28,7 +28,7 @@ Deno.test("neutral NPCs and enemies share display names without sharing NPC iden
     displayName: DisplayName.John,
     dialogueTreeId: DialogueTreeId.JohnIntro,
   });
-  const enemy = createEnemy(world, { x: 2, y: 1, dir: 3, displayName: DisplayName.Imp });
+  const enemy = createEnemy(world, { x: 2, y: 1, dir: 3, displayName: DisplayName.DigitalDog });
 
   assertEquals(world.components.entityHas(Npc, npc), true);
   assertEquals(world.components.entityHas(Dialogue, npc), true);
@@ -39,7 +39,7 @@ Deno.test("neutral NPCs and enemies share display names without sharing NPC iden
   assertEquals(world.components.entityHas(Npc, enemy), false);
   assertEquals(world.components.entityHas(Dialogue, enemy), false);
   assertEquals(world.components.entityHas(Enemy, enemy), true);
-  assertEquals(world.components.getEntityData(DisplayNameComponent, enemy), { displayName: DisplayName.Imp });
+  assertEquals(world.components.getEntityData(DisplayNameComponent, enemy), { displayName: DisplayName.DigitalDog });
 });
 
 Deno.test("a locked door without a key color is rejected", async () => {
@@ -61,7 +61,7 @@ Deno.test("prefabs attach authored examine text when provided", async () => {
     x: 2,
     y: 1,
     dir: 3,
-    displayName: DisplayName.Imp,
+    displayName: DisplayName.DigitalDog,
     examineTextId: ExamineTextId.BootSectorUplinkTerminal,
   });
   const door = createDoor(world, { x: 3, y: 1, examineTextId: ExamineTextId.BootSectorUplinkTerminal });

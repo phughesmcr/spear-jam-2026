@@ -154,7 +154,7 @@ Deno.test("attackEntity emits damage events and updates health", async () => {
   world.components.addToEntity(GridPos, player, { x: 1, y: 1 });
   world.components.addToEntity(PlayerTag, player);
   world.components.addToEntity(GridPos, defender, { x: 2, y: 1 });
-  world.components.addToEntity(DisplayNameComponent, defender, { displayName: DisplayName.Imp });
+  world.components.addToEntity(DisplayNameComponent, defender, { displayName: DisplayName.DigitalDog });
   world.components.addToEntity(Health, defender, { current: 3, max: 3 });
   world.components.addToEntity(Defense, defender, { hitDc: 10 });
   world.refresh();
@@ -174,7 +174,7 @@ Deno.test("attackEntity emits damage events and updates health", async () => {
       actor: player,
       actorName: "You",
       target: defender,
-      targetName: "Imp",
+      targetName: "Digital Dog",
       roll: 1,
       total: 21,
       amount: 1,
@@ -191,7 +191,7 @@ Deno.test("attackEntity resolves attacks against the defender hit DC", async () 
 
   world.components.addToEntity(GridPos, attacker, { x: 1, y: 1 });
   world.components.addToEntity(GridPos, defender, { x: 2, y: 1 });
-  world.components.addToEntity(DisplayNameComponent, defender, { displayName: DisplayName.Imp });
+  world.components.addToEntity(DisplayNameComponent, defender, { displayName: DisplayName.DigitalDog });
   world.components.addToEntity(Health, defender, { current: 3, max: 3 });
   world.components.addToEntity(Defense, defender, { hitDc: 15 });
   world.refresh();
@@ -211,7 +211,7 @@ Deno.test("attackEntity resolves attacks against the defender hit DC", async () 
       actor: attacker,
       actorName: "Something",
       target: defender,
-      targetName: "Imp",
+      targetName: "Digital Dog",
       roll: 10,
       total: 14,
     },
@@ -228,7 +228,7 @@ Deno.test("attackEntity emits defeat events and removes defeated non-player enti
   world.components.addToEntity(PlayerTag, player);
   world.components.addToEntity(GridPos, defender, { x: 2, y: 1 });
   world.components.addToEntity(Blocking, defender);
-  world.components.addToEntity(DisplayNameComponent, defender, { displayName: DisplayName.Imp });
+  world.components.addToEntity(DisplayNameComponent, defender, { displayName: DisplayName.DigitalDog });
   world.components.addToEntity(Health, defender, { current: 1, max: 1 });
   world.components.addToEntity(Defense, defender, { hitDc: 10 });
   world.refresh();
@@ -249,7 +249,7 @@ Deno.test("attackEntity emits defeat events and removes defeated non-player enti
       actor: player,
       actorName: "You",
       target: defender,
-      targetName: "Imp",
+      targetName: "Digital Dog",
       roll: 1,
       total: 21,
       amount: 1,
@@ -259,7 +259,7 @@ Deno.test("attackEntity emits defeat events and removes defeated non-player enti
       type: "entityDefeated",
       actor: player,
       entity: defender,
-      entityName: "Imp",
+      entityName: "Digital Dog",
     },
   ]);
   assertEquals(world.entities.isActive(defender), false);
@@ -276,7 +276,7 @@ Deno.test("attackEntity emits player defeat without removing the player entity",
   world.components.addToEntity(Health, player, { current: 1, max: 1 });
   world.components.addToEntity(Defense, player, { hitDc: 10 });
   world.components.addToEntity(GridPos, attacker, { x: 2, y: 1 });
-  world.components.addToEntity(DisplayNameComponent, attacker, { displayName: DisplayName.Imp });
+  world.components.addToEntity(DisplayNameComponent, attacker, { displayName: DisplayName.DigitalDog });
   world.refresh();
 
   const events = attackEntity(
@@ -292,7 +292,7 @@ Deno.test("attackEntity emits player defeat without removing the player entity",
     {
       type: "damageDealt",
       actor: attacker,
-      actorName: "Imp",
+      actorName: "Digital Dog",
       target: player,
       targetName: "You",
       roll: 1,
@@ -320,7 +320,7 @@ Deno.test("attackEntity no-ops against already defeated defenders", async () => 
   world.components.addToEntity(PlayerTag, player);
   world.components.addToEntity(Health, player, { current: 0, max: 1 });
   world.components.addToEntity(GridPos, attacker, { x: 2, y: 1 });
-  world.components.addToEntity(DisplayNameComponent, attacker, { displayName: DisplayName.Imp });
+  world.components.addToEntity(DisplayNameComponent, attacker, { displayName: DisplayName.DigitalDog });
   world.refresh();
 
   const events = attackEntity(

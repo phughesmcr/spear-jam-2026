@@ -140,7 +140,6 @@
       "type": "enum",
       "values": [
         "john",
-        "imp",
         "digitalDog",
         "gigabitGunslinger",
         "networkNeophyte",

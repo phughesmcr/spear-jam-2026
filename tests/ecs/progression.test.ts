@@ -125,7 +125,7 @@ Deno.test("player progression returns credit and XP events from ECS progress", a
         type: "entityDefeated",
         actor: player,
         entity: enemy,
-        entityName: "Imp",
+        entityName: "Digital Dog",
       }],
     ),
     [
@@ -133,7 +133,7 @@ Deno.test("player progression returns credit and XP events from ECS progress", a
         type: "entityDefeated",
         actor: player,
         entity: enemy,
-        entityName: "Imp",
+        entityName: "Digital Dog",
       },
       {
         type: "creditsEarned",
