@@ -31,6 +31,7 @@ const CEILING = 1;
 const CURRENT_FLOOR = 2;
 const AHEAD_FLOOR = 3;
 const SKY = 4;
+const SKY_FAR = 5;
 const SPRITE = 0;
 
 type TextureAtlasLayer = "walls" | "planes" | "sprites" | "spriteLightmaps";
@@ -55,8 +56,10 @@ function testAtlas(): RaycastAtlas {
       bakeSolidTexture(0, 160, 160),
       bakeSolidTexture(160, 160, 0),
       bakeTexture(stripeSource()),
+      bakeSolidTexture(18, 24, 64),
     ],
     skyPlane: SKY,
+    skyFarPlane: SKY_FAR,
     sprites: [bakeSolidTexture(200, 200, 0)],
     spriteLightmaps: [],
   };
@@ -179,6 +182,85 @@ Deno.test("renderFrame samples sky ceilings in screen space instead of mirroring
   assertNotEquals(pixel(frame, CENTER, 3), texel(atlas, "planes", CEILING, 2));
 });
 
+Deno.test("renderFrame samples sky vertical texture rows from ceiling screen rows", () => {
+  const atlas: RaycastAtlas = {
+    walls: [],
+    planes: [bakeTexture(verticalSource())],
+    skyPlane: 0,
+    sprites: [],
+    spriteLightmaps: [],
+  };
+  const scene = createScene(5, 5);
+  scene.ceilings.fill(1);
+  const frame = createFrame(VIEW, VIEW);
+
+  renderFrame(frame, scene, atlas, cameraForGridPose(2, 2, 1, 0));
+
+  assertNotEquals(pixel(frame, CENTER, 3), pixel(frame, CENTER, 4));
+});
+
+Deno.test("renderFrame tiles sky texture across the screen instead of magnifying a narrow panorama slice", () => {
+  const width = 256;
+  const atlas: RaycastAtlas = {
+    walls: [],
+    planes: [bakeTexture(columnSource())],
+    skyPlane: 0,
+    sprites: [],
+    spriteLightmaps: [],
+  };
+  const scene = createScene(24, 24);
+  scene.ceilings.fill(1);
+  const frame = createFrame(width, VIEW);
+
+  renderFrame(frame, scene, atlas, cameraForGridPose(12, 12, 1, 0));
+
+  const sampled = new Set<number>();
+  for (let x = 0; x < width; x++) sampled.add(pixel(frame, x, 3));
+  assert(sampled.size > TEX_SIZE >> 1);
+});
+
+Deno.test("renderFrame lets transparent sky foreground pixels show the far sky layer", () => {
+  const atlas: RaycastAtlas = {
+    walls: [],
+    planes: [
+      bakeTexture(transparentSource()),
+      bakeSolidTexture(16, 32, 96),
+    ],
+    skyPlane: 0,
+    skyFarPlane: 1,
+    sprites: [],
+    spriteLightmaps: [],
+  };
+  const scene = createScene(5, 5);
+  scene.ceilings.fill(1);
+  const frame = createFrame(VIEW, VIEW);
+
+  renderFrame(frame, scene, atlas, cameraForGridPose(2, 2, 1, 0));
+
+  assertEquals(pixel(frame, CENTER, 3), texel(atlas, "planes", 1, 0));
+});
+
+Deno.test("renderFrame keeps opaque black sky foreground pixels opaque", () => {
+  const atlas: RaycastAtlas = {
+    walls: [],
+    planes: [
+      bakeSolidTexture(0, 0, 0),
+      bakeSolidTexture(16, 32, 96),
+    ],
+    skyPlane: 0,
+    skyFarPlane: 1,
+    sprites: [],
+    spriteLightmaps: [],
+  };
+  const scene = createScene(5, 5);
+  scene.ceilings.fill(1);
+  const frame = createFrame(VIEW, VIEW);
+
+  renderFrame(frame, scene, atlas, cameraForGridPose(2, 2, 1, 0));
+
+  assertEquals(pixel(frame, CENTER, 3), texel(atlas, "planes", 0, 0));
+});
+
 Deno.test("renderFrame scrolls sky ceilings when the camera turns", () => {
   const atlas = testAtlas();
   const scene = corridorScene();
@@ -191,6 +273,25 @@ Deno.test("renderFrame scrolls sky ceilings when the camera turns", () => {
   renderFrame(northFrame, scene, atlas, cameraForGridPose(1, 1, 0, -1));
 
   assertNotEquals(pixel(eastFrame, CENTER, 3), pixel(northFrame, CENTER, 3));
+});
+
+Deno.test("renderFrame scrolls the near sky layer over time", () => {
+  const atlas: RaycastAtlas = {
+    walls: [],
+    planes: [bakeTexture(columnSource())],
+    skyPlane: 0,
+    sprites: [],
+    spriteLightmaps: [],
+  };
+  const scene = createScene(5, 5);
+  scene.ceilings.fill(1);
+  const firstFrame = createFrame(VIEW, VIEW);
+  const secondFrame = createFrame(VIEW, VIEW);
+
+  renderFrame(firstFrame, scene, atlas, cameraForGridPose(2, 2, 1, 0), 0);
+  renderFrame(secondFrame, scene, atlas, cameraForGridPose(2, 2, 1, 0), 2_000);
+
+  assertNotEquals(pixel(firstFrame, CENTER, 3), pixel(secondFrame, CENTER, 3));
 });
 
 Deno.test("renderFrame shifts sky ceilings slightly with lateral movement", () => {
@@ -469,6 +570,18 @@ Deno.test("renderFrame boosts sprite lightmap pixels under tile lighting", () =>
   assertEquals(pixel(frame, CENTER, CENTER), 0xff00ffff);
 });
 
+Deno.test("renderFrame preserves non-square sprite billboard dimensions", () => {
+  const atlas = testAtlas();
+  const scene = corridorScene();
+  addSprite(scene, 2.5, 1.5, SPRITE, 1, 0, 0.5);
+  const frame = createFrame(VIEW, VIEW);
+
+  renderFrame(frame, scene, atlas, CAMERA);
+
+  assertEquals(pixel(frame, CENTER, CENTER), texel(atlas, "sprites", SPRITE, 0));
+  assertNotEquals(pixel(frame, CENTER - 13, CENTER), texel(atlas, "sprites", SPRITE, 0));
+});
+
 Deno.test("a horizontally sliding door passes rays through the gap", () => {
   const atlas = testAtlas();
   const scene = corridorScene();
@@ -622,4 +735,49 @@ function stripeSource(): TexelSource {
     }
   }
   return { width: TEX_SIZE, height: TEX_SIZE, data };
+}
+
+function verticalSource(): TexelSource {
+  const data = new Uint8ClampedArray(TEX_SIZE * TEX_SIZE * 4);
+  for (let y = 0; y < TEX_SIZE; y++) {
+    for (let x = 0; x < TEX_SIZE; x++) {
+      const index = (y * TEX_SIZE + x) * 4;
+      data[index] = y;
+      data[index + 1] = 255 - y;
+      data[index + 2] = (y * 3) & 0xff;
+      data[index + 3] = 255;
+    }
+  }
+  return { width: TEX_SIZE, height: TEX_SIZE, data };
+}
+
+function columnSource(): TexelSource {
+  const data = new Uint8ClampedArray(TEX_SIZE * TEX_SIZE * 4);
+  for (let y = 0; y < TEX_SIZE; y++) {
+    for (let x = 0; x < TEX_SIZE; x++) {
+      const index = (y * TEX_SIZE + x) * 4;
+      data[index] = x;
+      data[index + 1] = (x * 3) & 0xff;
+      data[index + 2] = 255 - x;
+      data[index + 3] = 255;
+    }
+  }
+  return { width: TEX_SIZE, height: TEX_SIZE, data };
+}
+
+function transparentSource(): TexelSource {
+  const data = new Uint8ClampedArray(TEX_SIZE * TEX_SIZE * 4);
+  for (let y = 0; y < TEX_SIZE; y++) {
+    for (let x = 0; x < TEX_SIZE; x++) {
+      const index = (y * TEX_SIZE + x) * 4;
+      data[index] = 255;
+      data[index + 1] = 32;
+      data[index + 2] = 16;
+    }
+  }
+  return {
+    width: TEX_SIZE,
+    height: TEX_SIZE,
+    data,
+  };
 }

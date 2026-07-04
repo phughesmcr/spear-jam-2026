@@ -29,6 +29,7 @@ const ENEMY_LIGHTMAP_ASSETS = [
   "/assets/game/sprites/system_sentinel_lightmap.png",
   "/assets/game/sprites/agentic_acolyte_lightmap.png",
 ] as const;
+const SKY_TEXTURE_ASSET = "/assets/game/textures/sky.png";
 
 function firstPersonSlot(spriteId: SpriteIdType): number {
   const slot = spriteAppearance(spriteId).firstPersonSlot;
@@ -38,14 +39,26 @@ function firstPersonSlot(spriteId: SpriteIdType): number {
 
 class FakeImage {
   decoding: "async" | "auto" | "sync" = "auto";
+  naturalWidth = 0;
+  naturalHeight = 0;
+  width = 0;
+  height = 0;
   src = "";
   private readonly listeners: Record<FakeImageEvent, FakeImageListener[]> = {
     load: [],
     error: [],
   };
 
-  addEventListener(type: FakeImageEvent, listener: FakeImageListener): void {
+  addEventListener(type: FakeImageEvent, listener: FakeImageListener, _options?: AddEventListenerOptions): void {
     this.listeners[type].push(listener);
+  }
+
+  load(width: number, height: number): void {
+    this.naturalWidth = width;
+    this.naturalHeight = height;
+    this.width = width;
+    this.height = height;
+    for (const listener of this.listeners.load) listener();
   }
 }
 
@@ -70,8 +83,26 @@ class FakeCanvasContext {
 }
 
 class FakeOffscreenCanvasRenderingContext2D {
+  imageSmoothingEnabled = true;
+
   createImageData(width: number, height: number): ImageData {
     return new ImageData(width, height);
+  }
+
+  clearRect(_x: number, _y: number, _width: number, _height: number): void {
+  }
+
+  drawImage(..._args: unknown[]): void {
+  }
+
+  getImageData(_sx: number, _sy: number, width: number, height: number): ImageData {
+    const imageData = new ImageData(width, height);
+    for (let y = 12; y < height; y++) {
+      for (let x = width >> 2; x < width - (width >> 2); x++) {
+        imageData.data[(y * width + x) * 4 + 3] = 255;
+      }
+    }
+    return imageData;
   }
 
   putImageData(_imageData: ImageData, _dx: number, _dy: number): void {
@@ -326,6 +357,75 @@ Deno.test("first-person renderer requests lightmap assets for every enemy sheet"
   });
 });
 
+Deno.test("first-person renderer requests the authored sky texture", () => {
+  withFakeOffscreenCanvas((): void => {
+    const map = createGameMap(
+      "Sky Asset",
+      [
+        [2, 2, 2],
+        [2, 1, 2],
+        [2, 2, 2],
+      ],
+      [],
+      {
+        palette: [
+          { kind: "floor", id: 1, color: "#000000", floor_texture: "floor", ceiling_texture: SKY_CEILING_TEXTURE },
+          { kind: "wall", id: 2, color: "#ffffff", wall_texture: "wall" },
+        ],
+      },
+    );
+    const ctx = new FakeCanvasContext() as unknown as CanvasRenderingContext2D;
+
+    createFirstPersonRenderer().render(
+      ctx,
+      { x: 0, y: 0, width: 64, height: 64 },
+      sessionFor(map, [playerDrawable(1, 1, Direction.East)]),
+    );
+
+    const imageSources = (ctx.canvas.ownerDocument as unknown as FakeDocument).images.map((image) => image.src);
+    assert(
+      imageSources.some((src) => src.includes(SKY_TEXTURE_ASSET)),
+      `${SKY_TEXTURE_ASSET} should be requested.`,
+    );
+  });
+});
+
+Deno.test("first-person rendering schedules repaint for scrolling sky ceilings", () => {
+  withFakeOffscreenCanvas((): void => {
+    const map = createGameMap(
+      "Scrolling Sky",
+      [
+        [2, 2, 2],
+        [2, 1, 2],
+        [2, 2, 2],
+      ],
+      [],
+      {
+        palette: [
+          { kind: "floor", id: 1, color: "#000000", floor_texture: "floor", ceiling_texture: SKY_CEILING_TEXTURE },
+          { kind: "wall", id: 2, color: "#ffffff", wall_texture: "wall" },
+        ],
+      },
+    );
+    const renderer = createFirstPersonRenderer();
+    const ctx = new FakeCanvasContext() as unknown as CanvasRenderingContext2D;
+
+    const scheduled = withFakeRequestAnimationFrame((): void => {
+      withFakePerformanceNow(0, (): void => {
+        renderer.render(
+          ctx,
+          { x: 0, y: 0, width: 64, height: 64 },
+          sessionFor(map, [playerDrawable(1, 1, Direction.East)]),
+          undefined,
+          () => {},
+        );
+      });
+    });
+
+    assertEquals(scheduled, 1);
+  });
+});
+
 Deno.test("first-person rendering updates flickering lights and schedules repaint", () => {
   withFakeOffscreenCanvas((): void => {
     const map = createGameMap(
@@ -552,6 +652,54 @@ Deno.test("first-person rendering uses John's single-frame NPC sprite", () => {
         image.src.includes("/assets/game/sprites/john.png")
       ),
     );
+  });
+});
+
+Deno.test("first-person rendering preserves loaded sprite source aspect ratios", () => {
+  withFakeOffscreenCanvas((): void => {
+    const map = createGameMap(
+      "John Aspect",
+      [
+        [2, 2, 2],
+        [2, 1, 2],
+        [2, 1, 2],
+        [2, 2, 2],
+      ],
+      [],
+      {
+        palette: [
+          { kind: "floor", id: 1, color: "#000000", floor_texture: "floor", ceiling_texture: "ceiling" },
+          { kind: "wall", id: 2, color: "#ffffff", wall_texture: "wall" },
+        ],
+      },
+    );
+    const renderer = createFirstPersonRenderer();
+    const ctx = new FakeCanvasContext() as unknown as CanvasRenderingContext2D;
+    const session = sessionFor(map, [
+      playerDrawable(1, 2, Direction.North),
+      {
+        kind: DrawableKind.Actor,
+        entity: 2,
+        x: 1,
+        y: 1,
+        dir: Direction.South,
+        spriteId: SpriteId.John,
+      },
+    ]);
+
+    renderer.render(ctx, { x: 0, y: 0, width: 64, height: 64 }, session);
+    const image = (ctx.canvas.ownerDocument as unknown as FakeDocument).images.find((image) =>
+      image.src.includes("/assets/game/sprites/john.png")
+    );
+    assert(image !== undefined);
+    image.load(1024, 1365);
+
+    renderer.render(ctx, { x: 0, y: 0, width: 64, height: 64 }, session);
+    const scene = renderer.sceneForMap(map);
+
+    assertEquals(scene.spriteCount, 1);
+    assertAlmostEquals(scene.spriteHeight[0]!, 0.75, 1e-6);
+    assertAlmostEquals(scene.spriteWidth[0]!, 0.75 * 1024 / 1365, 1e-6);
   });
 });
 

@@ -60,13 +60,17 @@ const DEFAULT_SPRITE_CAPACITY = 128;
 /** Transparent thin-wall hits recorded per screen column. */
 const MAX_THIN_HITS = 8;
 /** Shade bands advance one step per this many tiles of distance. */
-const SHADE_BAND_DISTANCE = 1.1;
+const SHADE_BAND_DISTANCE = 1;
 const CEILING_SHADE_OFFSET = 2;
 const MIN_WALL_DISTANCE = 1e-4;
 const MIN_SPRITE_DISTANCE = 0.05;
 const SPRITE_EMISSIVE_GAIN = 2;
 const FIXED_ONE = 65536;
-const SKY_PARALLAX_SCALE = 0.035;
+const SKY_NEAR_PARALLAX_SCALE = 0.035;
+const SKY_FAR_PARALLAX_SCALE = 0.008;
+const SKY_NEAR_SCREEN_REPEATS = 1;
+const SKY_FAR_SCREEN_REPEATS = 1;
+const SKY_NEAR_SCROLL_U_PER_MS = 0.000015;
 const TAU = Math.PI * 2;
 
 export type RaycastCamera = {
@@ -111,6 +115,8 @@ export type RaycastAtlas = {
   readonly planes: BakedTexture[];
   /** Plane texture id that renders as a distant parallax sky when used as a ceiling. */
   readonly skyPlane?: number;
+  /** Optional second sky layer sampled behind `skyPlane` with weaker parallax. */
+  readonly skyFarPlane?: number;
   /** Column-major (transposed) sprite textures. */
   readonly sprites: BakedTexture[];
   /** Column-major sprite emissive masks, indexed by sprite texture id. */
@@ -162,7 +168,8 @@ export type RaycastScene = {
   readonly spriteX: Float64Array;
   readonly spriteY: Float64Array;
   readonly spriteTex: Int16Array;
-  readonly spriteScale: Float32Array;
+  readonly spriteWidth: Float32Array;
+  readonly spriteHeight: Float32Array;
   /** Vertical world-tile offset above the floor for floor-anchored sprites. */
   readonly spriteElevation: Float32Array;
 };
@@ -216,7 +223,8 @@ export function createScene(mapWidth: number, mapHeight: number, options: Raycas
     spriteX: new Float64Array(spriteCapacity),
     spriteY: new Float64Array(spriteCapacity),
     spriteTex: new Int16Array(spriteCapacity),
-    spriteScale: new Float32Array(spriteCapacity),
+    spriteWidth: new Float32Array(spriteCapacity),
+    spriteHeight: new Float32Array(spriteCapacity),
     spriteElevation: new Float32Array(spriteCapacity),
   };
 }
@@ -332,8 +340,9 @@ export function addSprite(
   x: number,
   y: number,
   textureId: number,
-  scale: number,
+  height: number,
   elevation = 0,
+  width = height,
 ): void {
   if (scene.spriteCount >= scene.spriteX.length) {
     throw new Error(
@@ -344,7 +353,8 @@ export function addSprite(
   scene.spriteX[index] = x;
   scene.spriteY[index] = y;
   scene.spriteTex[index] = textureId;
-  scene.spriteScale[index] = scale;
+  scene.spriteWidth[index] = width;
+  scene.spriteHeight[index] = height;
   scene.spriteElevation[index] = elevation;
 }
 
@@ -463,16 +473,21 @@ function unitFraction(value: number): number {
   return value - Math.floor(value);
 }
 
+function composeSkyTexel(farTexel: number, nearTexel: number): number {
+  return nearTexel === TRANSPARENT_TEXEL ? farTexel : nearTexel;
+}
+
 export function renderFrame(
   frame: RaycastFrame,
   scene: RaycastScene,
   atlas: RaycastAtlas,
   camera: RaycastCamera,
+  nowMs = 0,
 ): void {
   assertFrameCapacity(frame, scene);
   frame.pixels.fill(0xff000000);
   const focal = (0.5 * frame.width) / PROJECTION_PLANE_LENGTH;
-  renderPlanes(frame, scene, atlas, camera, focal);
+  renderPlanes(frame, scene, atlas, camera, focal, nowMs);
   renderWalls(frame, scene, atlas, camera, focal);
   renderSpritesAndThinWalls(frame, scene, atlas, camera, focal);
 }
@@ -490,6 +505,7 @@ function renderPlanes(
   atlas: RaycastAtlas,
   camera: RaycastCamera,
   focal: number,
+  nowMs: number,
 ): void {
   const width = frame.width;
   const height = frame.height;
@@ -510,12 +526,19 @@ function renderPlanes(
   const cameraX = camera.x;
   const cameraY = camera.y;
   const skyPlane = atlas.skyPlane;
-  const skyTexels = skyPlane === undefined ? undefined : planes[skyPlane]?.mips[0]?.bands[0];
-  const skySpanU = (Math.atan(PROJECTION_PLANE_LENGTH) * 2) / TAU;
+  const skyNearTexels = skyPlane === undefined ? undefined : planes[skyPlane]?.mips[0]?.bands[0];
+  const skyFarPlane = atlas.skyFarPlane;
+  const skyFarTexels = skyFarPlane === undefined ? undefined : planes[skyFarPlane]?.mips[0]?.bands[0];
   const skyLateral = cameraX * -camera.dirY + cameraY * camera.dirX;
-  const skyCenterU = unitFraction(Math.atan2(camera.dirY, camera.dirX) / TAU + skyLateral * SKY_PARALLAX_SCALE);
-  const skyLeftU = unitFraction(skyCenterU - skySpanU * 0.5);
-  const skyStepU = width === 0 ? 0 : skySpanU / width;
+  const skyHeadingU = Math.atan2(camera.dirY, camera.dirX) / TAU;
+  const skyNearCenterU = unitFraction(
+    skyHeadingU + skyLateral * SKY_NEAR_PARALLAX_SCALE + nowMs * SKY_NEAR_SCROLL_U_PER_MS,
+  );
+  const skyFarCenterU = unitFraction(skyHeadingU + skyLateral * SKY_FAR_PARALLAX_SCALE);
+  const skyNearLeftU = unitFraction(skyNearCenterU - SKY_NEAR_SCREEN_REPEATS * 0.5);
+  const skyFarLeftU = unitFraction(skyFarCenterU - SKY_FAR_SCREEN_REPEATS * 0.5);
+  const skyNearStepU = width === 0 ? 0 : SKY_NEAR_SCREEN_REPEATS / width;
+  const skyFarStepU = width === 0 ? 0 : SKY_FAR_SCREEN_REPEATS / width;
   const skyVerticalDenominator = horizon > 0 ? horizon : 1;
 
   for (let y = horizon; y < height; y++) {
@@ -532,7 +555,8 @@ function renderPlanes(
     let worldX = cameraX + rowDistance * leftRayX;
     let worldY = cameraY + rowDistance * leftRayY;
     const floorRow = y * width;
-    const ceilingRow = (height - 1 - y) * width;
+    const ceilingY = height - 1 - y;
+    const ceilingRow = ceilingY * width;
     let cachedCell = -1;
     let floorTexels: Uint32Array | undefined;
     let ceilingTexels: Uint32Array | undefined;
@@ -540,7 +564,7 @@ function renderPlanes(
     let red = 255;
     let green = 255;
     let blue = 255;
-    const skyTexY = (((ceilingRow * TEX_SIZE) / skyVerticalDenominator) | 0) & TEX_MASK;
+    const skyTexY = (((ceilingY * TEX_SIZE) / skyVerticalDenominator) | 0) & TEX_MASK;
 
     for (let x = 0; x < width; x++) {
       const cellX = worldX | 0;
@@ -552,7 +576,7 @@ function renderPlanes(
           const floorId = floors[cell]!;
           const ceilingId = ceilings[cell]!;
           floorTexels = floorId === 0 ? undefined : planes[floorId - 1]?.mips[mipLevel]?.bands[floorBand];
-          ceilingIsSky = skyTexels !== undefined && skyPlane !== undefined && ceilingId === skyPlane + 1;
+          ceilingIsSky = skyNearTexels !== undefined && skyPlane !== undefined && ceilingId === skyPlane + 1;
           ceilingTexels = ceilingId === 0 || ceilingIsSky ?
             undefined :
             planes[ceilingId - 1]?.mips[mipLevel]?.bands[ceilingBand];
@@ -569,9 +593,16 @@ function renderPlanes(
             pixels[ceilingRow + x] = lightTexel(ceilingTexels[texel]!, red, green, blue);
           }
         }
-        if (ceilingIsSky && skyTexels !== undefined) {
-          const skyTexX = (((skyLeftU + x * skyStepU) * TEX_SIZE) | 0) & TEX_MASK;
-          pixels[ceilingRow + x] = skyTexels[(skyTexY << TEX_SHIFT) | skyTexX]!;
+        if (ceilingIsSky && skyNearTexels !== undefined) {
+          const skyNearTexX = (((skyNearLeftU + x * skyNearStepU) * TEX_SIZE) | 0) & TEX_MASK;
+          const nearTexel = skyNearTexels[(skyTexY << TEX_SHIFT) | skyNearTexX]!;
+          if (skyFarTexels === undefined) {
+            pixels[ceilingRow + x] = nearTexel;
+          } else {
+            const skyFarTexX = (((skyFarLeftU + x * skyFarStepU) * TEX_SIZE) | 0) & TEX_MASK;
+            const farTexel = skyFarTexels[(skyTexY << TEX_SHIFT) | skyFarTexX]!;
+            pixels[ceilingRow + x] = composeSkyTexel(farTexel, nearTexel);
+          }
         }
       }
       worldX += stepX;
@@ -912,7 +943,8 @@ function renderSpritesAndThinWalls(
       frame.spriteDepth[sprite]!,
       frame.spriteScreenX[sprite]!,
       scene.spriteTex[sprite]!,
-      scene.spriteScale[sprite]!,
+      scene.spriteWidth[sprite]!,
+      scene.spriteHeight[sprite]!,
       scene.spriteElevation[sprite]!,
       lit ? scene.lightRed[spriteCell]! : 255,
       lit ? scene.lightGreen[spriteCell]! : 255,
@@ -961,7 +993,8 @@ function drawSprite(
   depth: number,
   screenX: number,
   textureId: number,
-  scale: number,
+  widthScale: number,
+  heightScale: number,
   elevation: number,
   lightRed: number,
   lightGreen: number,
@@ -976,19 +1009,20 @@ function drawSprite(
   const horizon = height >> 1;
   const pixels = frame.pixels;
   const zbuffer = frame.zbuffer;
-  const spriteSize = (focal * scale) / depth;
-  if (spriteSize < 1) return;
+  const spriteWidth = (focal * widthScale) / depth;
+  const spriteHeight = (focal * heightScale) / depth;
+  if (spriteWidth < 1 || spriteHeight < 1) return;
 
   // Floor-anchored: the sprite's feet sit where a wall's base would project.
   const bottom = horizon + ((CAMERA_HEIGHT - elevation) * focal) / depth;
-  const top = bottom - spriteSize;
-  const left = screenX - spriteSize * 0.5;
+  const top = bottom - spriteHeight;
+  const left = screenX - spriteWidth * 0.5;
   let yStart = Math.ceil(top);
   let yEnd = Math.ceil(bottom);
   if (yStart < 0) yStart = 0;
   if (yEnd > height) yEnd = height;
   let xStart = Math.ceil(left);
-  let xEnd = Math.ceil(left + spriteSize);
+  let xEnd = Math.ceil(left + spriteWidth);
   if (xStart < 0) xStart = 0;
   if (xEnd > width) xEnd = width;
   if (yStart >= yEnd || xStart >= xEnd) return;
@@ -997,14 +1031,15 @@ function drawSprite(
   const texels = mip.bands[shadeBand(depth)]!;
   const sourceTexels = lightmap === undefined ? undefined : mip.bands[0]!;
   const lightmapTexels = lightmap?.mips[0]?.bands[0];
-  const texStep = ((mip.size * FIXED_ONE) / spriteSize) | 0;
-  const texYStart = (((yStart - top) * mip.size * FIXED_ONE) / spriteSize) | 0;
-  let texXPos = (((xStart - left) * mip.size * FIXED_ONE) / spriteSize) | 0;
+  const texStepX = ((mip.size * FIXED_ONE) / spriteWidth) | 0;
+  const texStepY = ((mip.size * FIXED_ONE) / spriteHeight) | 0;
+  const texYStart = (((yStart - top) * mip.size * FIXED_ONE) / spriteHeight) | 0;
+  let texXPos = (((xStart - left) * mip.size * FIXED_ONE) / spriteWidth) | 0;
 
   for (let x = xStart; x < xEnd; x++) {
     flushThinHits(frame, atlas, focal, x, depth);
     const texX = (texXPos >>> 16) & mip.mask;
-    texXPos += texStep;
+    texXPos += texStepX;
     if (depth >= zbuffer[x]!) continue;
 
     const columnBase = texX << mip.shift;
@@ -1019,7 +1054,7 @@ function drawSprite(
           litTexel :
           lightmapTexel(litTexel, sourceTexels[texelIndex]!, lightmapTexels[texelIndex]!);
       }
-      texYPos += texStep;
+      texYPos += texStepY;
       offset += width;
     }
   }

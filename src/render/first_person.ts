@@ -142,7 +142,8 @@ const FIRST_PACK_WALL_TEX = 7;
 const FLOOR_TEX = 0;
 const CEILING_TEX = 1;
 const SKY_TEX = 2;
-const FIRST_PACK_PLANE_TEX = 3;
+const SKY_FAR_TEX = 3;
+const FIRST_PACK_PLANE_TEX = 4;
 
 /** Enemy sheets are 4x4: rows idle/walk/attack/death, columns per view. */
 const SHEET_COLUMNS = 4;
@@ -254,6 +255,10 @@ function createAssetCatalog(): AssetCatalog {
     ]),
     managedAsset(new URL("../../assets/game/textures/ceiling.png", import.meta.url).href, [
       { layer: "planes", slot: CEILING_TEX },
+    ]),
+    managedAsset(new URL("../../assets/game/textures/sky.png", import.meta.url).href, [
+      { layer: "planes", slot: SKY_TEX, frame: [0, 0, 0.5, 1] },
+      { layer: "planes", slot: SKY_FAR_TEX, frame: [0.5, 0, 0.5, 1] },
     ]),
     managedAsset(new URL("../../assets/game/textures/bars.png", import.meta.url).href, [
       { layer: "walls", slot: BARRIER_TEX_BY_TEXTURE[BarrierTexture.Bars] },
@@ -380,6 +385,7 @@ function buildAtlas(): RaycastAtlas {
   planes[FLOOR_TEX] = bakeSolidTexture(35, 40, 50);
   planes[CEILING_TEX] = bakeSolidTexture(16, 18, 23);
   planes[SKY_TEX] = bakeSky();
+  planes[SKY_FAR_TEX] = bakeSkyFar();
 
   const sprites: BakedTexture[] = [];
   const spriteLightmaps: BakedTexture[] = [];
@@ -407,7 +413,7 @@ function buildAtlas(): RaycastAtlas {
   sprites[firstPersonSlot(SpriteId.DecorCeilingLight)] = bakeOrb("#facc15");
   sprites[firstPersonSlot(SpriteId.DecorCeilingWires)] = bakeOrb("#64748b");
 
-  return { walls, planes, skyPlane: SKY_TEX, sprites, spriteLightmaps };
+  return { walls, planes, skyPlane: SKY_TEX, skyFarPlane: SKY_FAR_TEX, sprites, spriteLightmaps };
 }
 
 function fillEnemyFallback(sprites: BakedTexture[], baseSlot: number, color: string): void {
@@ -465,6 +471,26 @@ function bakeSky(): BakedTexture {
   return bakeTexture(skySource());
 }
 
+function bakeSkyFar(): BakedTexture {
+  return bakeTexture(skyFarSource());
+}
+
+function skyFarSource(): TexelSource {
+  const data = new Uint8ClampedArray(TEX_SIZE * TEX_SIZE * 4);
+  for (let y = 0; y < TEX_SIZE; y++) {
+    const vertical = y / (TEX_SIZE - 1);
+    for (let x = 0; x < TEX_SIZE; x++) {
+      const index = (y * TEX_SIZE + x) * 4;
+      const band = ((x + y * 2) >> 4) & 3;
+      data[index] = band === 0 ? 44 : 10 + vertical * 44;
+      data[index + 1] = band === 0 ? 36 : 14 + vertical * 44;
+      data[index + 2] = band === 0 ? 78 : 48 + vertical * 86;
+      data[index + 3] = 255;
+    }
+  }
+  return { width: TEX_SIZE, height: TEX_SIZE, data };
+}
+
 function bakeBarrier(texture: BarrierTextureType): BakedTexture {
   const data = new Uint8ClampedArray(TEX_SIZE * TEX_SIZE * 4);
   for (let y = 0; y < TEX_SIZE; y++) {
@@ -492,6 +518,15 @@ function barrierPixelOpaque(texture: BarrierTextureType, x: number, y: number): 
   }
   return x < 4 || x > TEX_SIZE - 5 || y < 4 || y > TEX_SIZE - 5 || x === y || x + y === TEX_SIZE - 1 ||
     (x > 76 && x < 84 && y > 16 && y < 112);
+}
+
+function sceneHasSkyCeiling(scene: RaycastScene, atlas: RaycastAtlas): boolean {
+  if (atlas.skyPlane === undefined) return false;
+  const skyId = atlas.skyPlane + 1;
+  for (let index = 0; index < scene.ceilings.length; index++) {
+    if (scene.ceilings[index] === skyId) return true;
+  }
+  return false;
 }
 
 export interface FirstPersonRenderSession {
@@ -525,6 +560,7 @@ function createFirstPersonRendererState() {
     packPlaneSlots: new Map<TexturePackRef, number>(),
     spriteCropBySlot: new Map<number, ContentCrop | undefined>(),
     spriteCropReady: new Set<number>(),
+    spriteAspectBySlot: new Map<number, number>(),
     drawableScratch: [] as DrawableEntity[],
     rasterCanvas: undefined as OffscreenCanvas | undefined,
     poseTween: createPoseTween(),
@@ -678,6 +714,15 @@ function rasterize(
   return context.getImageData(0, 0, TEX_SIZE, TEX_SIZE);
 }
 
+function sourceFrameAspect(image: HTMLImageElement, frame: SourceFrame | undefined): number {
+  const imageWidth = image.naturalWidth || image.width;
+  const imageHeight = image.naturalHeight || image.height;
+  const sourceWidth = (frame?.[2] ?? 1) * imageWidth;
+  const sourceHeight = (frame?.[3] ?? 1) * imageHeight;
+  if (sourceWidth <= 0 || sourceHeight <= 0) return 1;
+  return sourceWidth / sourceHeight;
+}
+
 /**
  * Measure a frame's opaque bounding box, expanded to a square with margin
  * that keeps the content's feet at the bottom edge, so sprites fill their
@@ -742,6 +787,7 @@ function bakeLoadedAssets(
       if (target.layer === "sprites") {
         state.spriteCropBySlot.set(target.slot, crop);
         state.spriteCropReady.add(target.slot);
+        state.spriteAspectBySlot.set(target.slot, sourceFrameAspect(image, target.frame));
       }
       target.baked = true;
     }
@@ -1026,7 +1072,20 @@ function itemElevation(nowMs: number): number {
   return ITEM_BOB_BASE_ELEVATION + Math.sin(phase) * ITEM_BOB_ELEVATION_AMPLITUDE;
 }
 
+function addFirstPersonSprite(
+  state: FirstPersonRendererState,
+  scene: RaycastScene,
+  x: number,
+  y: number,
+  slot: number,
+  height: number,
+  elevation = 0,
+): void {
+  addSprite(scene, x, y, slot, height, elevation, height * (state.spriteAspectBySlot.get(slot) ?? 1));
+}
+
 function addAppearanceSprite(
+  state: FirstPersonRendererState,
   scene: RaycastScene,
   x: number,
   y: number,
@@ -1034,7 +1093,8 @@ function addAppearanceSprite(
   nowMs: number,
 ): boolean {
   if (appearance.firstPersonSlot === undefined) return false;
-  addSprite(
+  addFirstPersonSprite(
+    state,
     scene,
     x,
     y,
@@ -1133,13 +1193,13 @@ function addDrawable(
       tweenedSpritePosition(state, drawable, nowMs);
       const appearance = spriteAppearance(drawable.spriteId);
       if (!appearance.enemySheet) {
-        addAppearanceSprite(scene, state.spritePoint.x, state.spritePoint.y, appearance, nowMs);
+        addAppearanceSprite(state, scene, state.spritePoint.x, state.spritePoint.y, appearance, nowMs);
         return !state.spritePoint.settled;
       }
       if (appearance.firstPersonSlot === undefined) return !state.spritePoint.settled;
       const row = enemySheetRow(drawable.animation, nowMs);
       const sprite = enemySprite(appearance.firstPersonSlot, drawable.dir, cameraDir, row);
-      addSprite(scene, state.spritePoint.x, state.spritePoint.y, sprite, appearance.firstPersonScale);
+      addFirstPersonSprite(state, scene, state.spritePoint.x, state.spritePoint.y, sprite, appearance.firstPersonScale);
       return !state.spritePoint.settled || animationIsActive(drawable.animation, nowMs);
     }
     case DrawableKind.Door: {
@@ -1180,7 +1240,8 @@ function addDrawable(
         drawable.animation?.kind === SpriteAnimationKind.Death
       ) {
         const frame = animationFrame(drawable.animation, nowMs, SHEET_COLUMNS);
-        addSprite(
+        addFirstPersonSprite(
+          state,
           scene,
           centerX,
           centerY,
@@ -1189,7 +1250,7 @@ function addDrawable(
         );
         return animationIsActive(drawable.animation, nowMs);
       }
-      return addAppearanceSprite(scene, centerX, centerY, appearance, nowMs);
+      return addAppearanceSprite(state, scene, centerX, centerY, appearance, nowMs);
     }
   }
 }
@@ -1250,8 +1311,9 @@ function renderFirstPersonView(
 
   samplePoseTween(state.poseTween, nowMs, state.poseSample);
   sampleNudgeTween(state.nudgeTween, nowMs, state.nudgeSample);
+  const skyAnimating = sceneHasSkyCeiling(scene, state.atlas);
   if (
-    (!state.poseSample.settled || !state.nudgeSample.settled || spritesAnimating || lightsAnimating) &&
+    (!state.poseSample.settled || !state.nudgeSample.settled || spritesAnimating || lightsAnimating || skyAnimating) &&
     repaint !== undefined
   ) {
     scheduleRepaint(state, repaint);
@@ -1268,6 +1330,7 @@ function renderFirstPersonView(
       state.poseSample.angle,
     ),
     headBobFraction(state.poseSample),
+    nowMs,
   );
 
   if (targetTone !== undefined) drawTargetHighlight(ctx, rect, targetTone);
