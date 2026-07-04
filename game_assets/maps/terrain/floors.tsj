@@ -150,7 +150,7 @@
           "name": "ceilingTexture",
           "propertytype": "TextureRef",
           "type": "string",
-          "value": "pack1:2,0"
+          "value": "sky"
         }
       ]
     },

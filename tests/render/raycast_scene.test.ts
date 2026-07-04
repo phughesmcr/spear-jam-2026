@@ -1,4 +1,4 @@
-import { assert, assertAlmostEquals, assertEquals, assertThrows } from "@std/assert";
+import { assert, assertAlmostEquals, assertEquals, assertNotEquals, assertThrows } from "@std/assert";
 import {
   addSlidingSolidWall,
   addSolidWall,
@@ -30,7 +30,10 @@ const FLOOR = 0;
 const CEILING = 1;
 const CURRENT_FLOOR = 2;
 const AHEAD_FLOOR = 3;
+const SKY = 4;
 const SPRITE = 0;
+
+type TextureAtlasLayer = "walls" | "planes" | "sprites" | "spriteLightmaps";
 
 function testAtlas(): RaycastAtlas {
   // Left grate half opaque cyan, right half transparent.
@@ -51,7 +54,9 @@ function testAtlas(): RaycastAtlas {
       bakeSolidTexture(0, 0, 200),
       bakeSolidTexture(0, 160, 160),
       bakeSolidTexture(160, 160, 0),
+      bakeTexture(stripeSource()),
     ],
+    skyPlane: SKY,
     sprites: [bakeSolidTexture(200, 200, 0)],
     spriteLightmaps: [],
   };
@@ -80,11 +85,11 @@ function corridorScene(): RaycastScene {
 const CAMERA = cameraForGridPose(1, 1, 1, 0);
 const REVERSE_CAMERA = cameraForGridPose(3, 1, -1, 0);
 
-function texel(atlas: RaycastAtlas, layer: keyof RaycastAtlas, id: number, band: number): number {
+function texel(atlas: RaycastAtlas, layer: TextureAtlasLayer, id: number, band: number): number {
   return atlas[layer][id]!.mips[0]!.bands[band]![0]!;
 }
 
-function mipTexel(atlas: RaycastAtlas, layer: keyof RaycastAtlas, id: number, band: number, mip: number): number {
+function mipTexel(atlas: RaycastAtlas, layer: TextureAtlasLayer, id: number, band: number, mip: number): number {
   return atlas[layer][id]!.mips[mip]!.bands[band]![0]!;
 }
 
@@ -159,6 +164,48 @@ Deno.test("renderFrame samples distant floor rows from averaged mips", () => {
   renderFrame(frame, scene, atlas, CAMERA);
 
   assertEquals(pixel(frame, CENTER, CENTER), mipTexel(atlas, "planes", FLOOR, 7, 3));
+});
+
+Deno.test("renderFrame samples sky ceilings in screen space instead of mirroring ceiling tiles", () => {
+  const atlas = testAtlas();
+  const scene = corridorScene();
+  scene.ceilings[1 * 5 + 1] = SKY + 1;
+  scene.ceilings[1 * 5 + 2] = SKY + 1;
+  scene.ceilings[1 * 5 + 3] = SKY + 1;
+  const frame = createFrame(VIEW, VIEW);
+
+  renderFrame(frame, scene, atlas, CAMERA);
+
+  assertNotEquals(pixel(frame, CENTER, 3), texel(atlas, "planes", CEILING, 2));
+});
+
+Deno.test("renderFrame scrolls sky ceilings when the camera turns", () => {
+  const atlas = testAtlas();
+  const scene = corridorScene();
+  scene.ceilings[1 * 5 + 1] = SKY + 1;
+  scene.ceilings[1 * 5 + 2] = SKY + 1;
+  const eastFrame = createFrame(VIEW, VIEW);
+  const northFrame = createFrame(VIEW, VIEW);
+
+  renderFrame(eastFrame, scene, atlas, CAMERA);
+  renderFrame(northFrame, scene, atlas, cameraForGridPose(1, 1, 0, -1));
+
+  assertNotEquals(pixel(eastFrame, CENTER, 3), pixel(northFrame, CENTER, 3));
+});
+
+Deno.test("renderFrame shifts sky ceilings slightly with lateral movement", () => {
+  const atlas = testAtlas();
+  const scene = createScene(5, 5);
+  scene.floors.fill(FLOOR + 1);
+  scene.ceilings.fill(SKY + 1);
+  const baseFrame = createFrame(VIEW, VIEW);
+  const shiftedFrame = createFrame(VIEW, VIEW);
+
+  renderFrame(baseFrame, scene, atlas, cameraForGridPose(2, 2, 1, 0));
+  renderFrame(shiftedFrame, scene, atlas, cameraForGridPose(2, 3, 1, 0));
+
+  assertNotEquals(pixel(baseFrame, CENTER, 3), pixel(shiftedFrame, CENTER, 3));
+  assertEquals(pixel(baseFrame, CENTER, VIEW - 4), pixel(shiftedFrame, CENTER, VIEW - 4));
 });
 
 Deno.test("renderFrame shows the player's current floor and ceiling tile across a portrait view", () => {
@@ -556,6 +603,21 @@ function checkerSource(): TexelSource {
       data[index] = value;
       data[index + 1] = value;
       data[index + 2] = value;
+      data[index + 3] = 255;
+    }
+  }
+  return { width: TEX_SIZE, height: TEX_SIZE, data };
+}
+
+function stripeSource(): TexelSource {
+  const data = new Uint8ClampedArray(TEX_SIZE * TEX_SIZE * 4);
+  for (let y = 0; y < TEX_SIZE; y++) {
+    for (let x = 0; x < TEX_SIZE; x++) {
+      const band = (x >> 2) & 3;
+      const index = (y * TEX_SIZE + x) * 4;
+      data[index] = band === 0 ? 240 : band === 1 ? 32 : band === 2 ? 96 : 12;
+      data[index + 1] = y;
+      data[index + 2] = band === 0 ? 24 : band === 1 ? 176 : band === 2 ? 240 : 64;
       data[index + 3] = 255;
     }
   }

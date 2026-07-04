@@ -5,7 +5,7 @@ import type { DrawableEntity, LightEntity } from "@/src/ecs/drawables.ts";
 import type { SpriteId as SpriteIdType } from "@/src/ecs/components.ts";
 import { Direction } from "@/src/grid/direction.ts";
 import type { CardinalDirection } from "@/src/grid/direction.ts";
-import { createGameMap, TexturePack } from "@/src/map/map.ts";
+import { createGameMap, SKY_CEILING_TEXTURE, TexturePack } from "@/src/map/map.ts";
 import type { GameMap } from "@/src/map/map.ts";
 import { GAME_MAPS } from "@/src/map/maps.ts";
 import { DEFAULT_BARS_TERRAIN_ID, DEFAULT_WALL_TERRAIN_ID } from "@/src/map/terrain_palettes.ts";
@@ -22,6 +22,13 @@ const ENEMY_SHEET_COLUMNS = 4;
 const ROW_WALK = 1;
 const ROW_ATTACK = 2;
 const ROW_DEATH = 3;
+const ENEMY_LIGHTMAP_ASSETS = [
+  "/assets/game/sprites/digital_dog_lightmap.png",
+  "/assets/game/sprites/gigabit_gun_slinger_lightmap.png",
+  "/assets/game/sprites/network_neophyte_lightmap.png",
+  "/assets/game/sprites/system_sentinel_lightmap.png",
+  "/assets/game/sprites/agentic_acolyte_lightmap.png",
+] as const;
 
 function firstPersonSlot(spriteId: SpriteIdType): number {
   const slot = spriteAppearance(spriteId).firstPersonSlot;
@@ -208,6 +215,26 @@ Deno.test("sceneForMap uses terrain palette texture refs for wall and plane slot
   assertEquals(scene.ceilings[1], 0);
 });
 
+Deno.test("sceneForMap maps sky ceiling textures to a distinct plane slot", () => {
+  const map = createGameMap(
+    "Sky",
+    [[1, 2]],
+    [],
+    {
+      palette: [
+        { kind: "floor", id: 1, color: "#000000", floor_texture: "floor", ceiling_texture: "ceiling" },
+        { kind: "floor", id: 2, color: "#111111", floor_texture: "floor", ceiling_texture: SKY_CEILING_TEXTURE },
+      ],
+    },
+  );
+
+  const scene = sceneForMap(map);
+
+  assert(scene.ceilings[0]! > 0);
+  assert(scene.ceilings[1]! > 0);
+  assertNotEquals(scene.ceilings[0], scene.ceilings[1]);
+});
+
 Deno.test("first-person rendering maps barrier terrain to a transparent thin wall over floor and ceiling", () => {
   withFakeOffscreenCanvas((): void => {
     const map = createGameMap("Barrier", [
@@ -262,6 +289,41 @@ Deno.test("sceneForMap builds static scenes for authored textured maps", () => {
     assert(scene.ceilings.some((texture) => texture > 0), `${map.name} should have ceiling textures.`);
     assert(scene.walls.some((texture) => texture > 0), `${map.name} should have wall textures.`);
   }
+});
+
+Deno.test("first-person renderer requests lightmap assets for every enemy sheet", () => {
+  withFakeOffscreenCanvas((): void => {
+    const map = createGameMap(
+      "Enemy Lightmaps",
+      [
+        [2, 2, 2],
+        [2, 1, 2],
+        [2, 2, 2],
+      ],
+      [],
+      {
+        palette: [
+          { kind: "floor", id: 1, color: "#000000", floor_texture: "floor", ceiling_texture: "ceiling" },
+          { kind: "wall", id: 2, color: "#ffffff", wall_texture: "wall" },
+        ],
+      },
+    );
+    const ctx = new FakeCanvasContext() as unknown as CanvasRenderingContext2D;
+
+    createFirstPersonRenderer().render(
+      ctx,
+      { x: 0, y: 0, width: 64, height: 64 },
+      sessionFor(map, [playerDrawable(1, 1, Direction.East)]),
+    );
+
+    const imageSources = (ctx.canvas.ownerDocument as unknown as FakeDocument).images.map((image) => image.src);
+    for (const lightmapAsset of ENEMY_LIGHTMAP_ASSETS) {
+      assert(
+        imageSources.some((src) => src.includes(lightmapAsset)),
+        `${lightmapAsset} should be requested.`,
+      );
+    }
+  });
 });
 
 Deno.test("first-person rendering updates flickering lights and schedules repaint", () => {

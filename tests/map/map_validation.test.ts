@@ -1,5 +1,5 @@
 import { assert, assertEquals } from "@std/assert";
-import { createGameMap, KeyColor, TexturePack, VICTORY_GOTO } from "@/src/map/map.ts";
+import { createGameMap, KeyColor, SKY_CEILING_TEXTURE, TexturePack, VICTORY_GOTO } from "@/src/map/map.ts";
 import type { TerrainTile } from "@/src/map/map.ts";
 import { GAME_MAPS } from "@/src/map/maps.ts";
 import { validateGameMaps } from "@/src/map/map_validation.ts";
@@ -11,11 +11,13 @@ Deno.test("authored game maps pass softlock validation", () => {
 
 Deno.test("authored game maps use texture pack terrain palettes", () => {
   for (const map of GAME_MAPS) {
-    const textures = map.terrain.palette.flatMap(terrainTextures);
-    assert(textures.length > 0, `${map.name} should declare terrain textures.`);
     assert(
-      textures.every(isTexturePackRef),
-      `${map.name} should use pack-backed textures, got: ${textures.join(", ")}`,
+      map.terrain.palette.some((tile) => terrainTextures(tile).length > 0),
+      `${map.name} should declare terrain textures.`,
+    );
+    assert(
+      map.terrain.palette.every(terrainTexturesAreValid),
+      `${map.name} should use pack-backed floor/wall textures and pack-backed or sky ceilings.`,
     );
   }
 });
@@ -64,6 +66,12 @@ Deno.test("map validation requires exactly one player spawn", () => {
 function terrainTextures(tile: TerrainTile): readonly string[] {
   if (tile.kind === "wall") return tile.wall_texture === undefined ? [] : [tile.wall_texture];
   return [tile.floor_texture, tile.ceiling_texture];
+}
+
+function terrainTexturesAreValid(tile: TerrainTile): boolean {
+  if (tile.kind === "wall") return tile.wall_texture === undefined || isTexturePackRef(tile.wall_texture);
+  return isTexturePackRef(tile.floor_texture) &&
+    (isTexturePackRef(tile.ceiling_texture) || tile.ceiling_texture === SKY_CEILING_TEXTURE);
 }
 
 function isTexturePackRef(texture: string): boolean {

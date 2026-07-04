@@ -27,6 +27,7 @@ import {
   BarrierTexture,
   KeyColor,
   mapDimensions,
+  SKY_CEILING_TEXTURE,
   terrainAt,
   terrainBlocksMovement,
   terrainIsBarrier,
@@ -140,7 +141,8 @@ const FIRST_PACK_WALL_TEX = 7;
 
 const FLOOR_TEX = 0;
 const CEILING_TEX = 1;
-const FIRST_PACK_PLANE_TEX = 2;
+const SKY_TEX = 2;
+const FIRST_PACK_PLANE_TEX = 3;
 
 /** Enemy sheets are 4x4: rows idle/walk/attack/death, columns per view. */
 const SHEET_COLUMNS = 4;
@@ -274,9 +276,17 @@ function createAssetCatalog(): AssetCatalog {
       ENEMY_CROP_FRAME,
     ),
     managedAsset(
+      new URL("../../assets/game/sprites/gigabit_gun_slinger_lightmap.png", import.meta.url).href,
+      enemySheetTargets(firstPersonSlot(SpriteId.GigabitGunslinger), "spriteLightmaps"),
+    ),
+    managedAsset(
       new URL("../../assets/game/sprites/network_neophyte.png", import.meta.url).href,
       enemySheetTargets(firstPersonSlot(SpriteId.NetworkNeophyte)),
       ENEMY_CROP_FRAME,
+    ),
+    managedAsset(
+      new URL("../../assets/game/sprites/network_neophyte_lightmap.png", import.meta.url).href,
+      enemySheetTargets(firstPersonSlot(SpriteId.NetworkNeophyte), "spriteLightmaps"),
     ),
     managedAsset(
       new URL("../../assets/game/sprites/system_sentinel.png", import.meta.url).href,
@@ -284,9 +294,17 @@ function createAssetCatalog(): AssetCatalog {
       ENEMY_CROP_FRAME,
     ),
     managedAsset(
+      new URL("../../assets/game/sprites/system_sentinel_lightmap.png", import.meta.url).href,
+      enemySheetTargets(firstPersonSlot(SpriteId.SystemSentinel), "spriteLightmaps"),
+    ),
+    managedAsset(
       new URL("../../assets/game/sprites/agentic_acolyte.png", import.meta.url).href,
       enemySheetTargets(firstPersonSlot(SpriteId.AgenticAcolyte)),
       ENEMY_CROP_FRAME,
+    ),
+    managedAsset(
+      new URL("../../assets/game/sprites/agentic_acolyte_lightmap.png", import.meta.url).href,
+      enemySheetTargets(firstPersonSlot(SpriteId.AgenticAcolyte), "spriteLightmaps"),
     ),
     managedAsset(new URL("../../assets/game/sprites/corpse.png", import.meta.url).href, [
       { layer: "sprites", slot: firstPersonSlot(SpriteId.Corpse) },
@@ -361,6 +379,7 @@ function buildAtlas(): RaycastAtlas {
   const planes: BakedTexture[] = [];
   planes[FLOOR_TEX] = bakeSolidTexture(35, 40, 50);
   planes[CEILING_TEX] = bakeSolidTexture(16, 18, 23);
+  planes[SKY_TEX] = bakeSky();
 
   const sprites: BakedTexture[] = [];
   const spriteLightmaps: BakedTexture[] = [];
@@ -388,7 +407,7 @@ function buildAtlas(): RaycastAtlas {
   sprites[firstPersonSlot(SpriteId.DecorCeilingLight)] = bakeOrb("#facc15");
   sprites[firstPersonSlot(SpriteId.DecorCeilingWires)] = bakeOrb("#64748b");
 
-  return { walls, planes, sprites, spriteLightmaps };
+  return { walls, planes, skyPlane: SKY_TEX, sprites, spriteLightmaps };
 }
 
 function fillEnemyFallback(sprites: BakedTexture[], baseSlot: number, color: string): void {
@@ -423,6 +442,27 @@ function bakeOrb(hexColor: string): BakedTexture {
   const green = Number.parseInt(hexColor.slice(3, 5), 16);
   const blue = Number.parseInt(hexColor.slice(5, 7), 16);
   return bakeTexture(orbSource(red, green, blue), { transpose: true });
+}
+
+function skySource(): TexelSource {
+  const data = new Uint8ClampedArray(TEX_SIZE * TEX_SIZE * 4);
+  for (let y = 0; y < TEX_SIZE; y++) {
+    const vertical = y / (TEX_SIZE - 1);
+    for (let x = 0; x < TEX_SIZE; x++) {
+      const index = (y * TEX_SIZE + x) * 4;
+      const grid = x % 16 === 0 || (y > TEX_SIZE * 0.7 && y % 12 === 0);
+      const star = ((x * 73 + y * 151) % 503 === 0) && y < TEX_SIZE * 0.62;
+      data[index] = star ? 160 : grid ? 36 : 8 + vertical * 24;
+      data[index + 1] = star ? 240 : grid ? 118 : 20 + vertical * 54;
+      data[index + 2] = star ? 255 : grid ? 196 : 58 + vertical * 116;
+      data[index + 3] = 255;
+    }
+  }
+  return { width: TEX_SIZE, height: TEX_SIZE, data };
+}
+
+function bakeSky(): BakedTexture {
+  return bakeTexture(skySource());
 }
 
 function bakeBarrier(texture: BarrierTextureType): BakedTexture {
@@ -788,6 +828,7 @@ function floorTextureSlot(state: FirstPersonRendererState, texture: FloorTexture
 
 function ceilingTextureSlot(state: FirstPersonRendererState, texture: CeilingTexture): number {
   if (texture === "ceiling") return CEILING_TEX;
+  if (texture === SKY_CEILING_TEXTURE) return SKY_TEX;
   return texturePackSlot(state, "planes", texture, state.atlas.planes[CEILING_TEX]!);
 }
 

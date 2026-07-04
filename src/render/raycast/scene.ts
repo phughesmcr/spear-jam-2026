@@ -66,6 +66,8 @@ const MIN_WALL_DISTANCE = 1e-4;
 const MIN_SPRITE_DISTANCE = 0.05;
 const SPRITE_EMISSIVE_GAIN = 2;
 const FIXED_ONE = 65536;
+const SKY_PARALLAX_SCALE = 0.035;
+const TAU = Math.PI * 2;
 
 export type RaycastCamera = {
   readonly x: number;
@@ -107,6 +109,8 @@ export type RaycastAtlas = {
   readonly walls: BakedTexture[];
   /** Row-major floor and ceiling textures. */
   readonly planes: BakedTexture[];
+  /** Plane texture id that renders as a distant parallax sky when used as a ceiling. */
+  readonly skyPlane?: number;
   /** Column-major (transposed) sprite textures. */
   readonly sprites: BakedTexture[];
   /** Column-major sprite emissive masks, indexed by sprite texture id. */
@@ -455,6 +459,10 @@ function emissiveChannel(value: number): number {
   return boosted >= 255 ? 255 : boosted | 0;
 }
 
+function unitFraction(value: number): number {
+  return value - Math.floor(value);
+}
+
 export function renderFrame(
   frame: RaycastFrame,
   scene: RaycastScene,
@@ -501,6 +509,14 @@ function renderPlanes(
   const raySpanY = 2 * camera.planeY;
   const cameraX = camera.x;
   const cameraY = camera.y;
+  const skyPlane = atlas.skyPlane;
+  const skyTexels = skyPlane === undefined ? undefined : planes[skyPlane]?.mips[0]?.bands[0];
+  const skySpanU = (Math.atan(PROJECTION_PLANE_LENGTH) * 2) / TAU;
+  const skyLateral = cameraX * -camera.dirY + cameraY * camera.dirX;
+  const skyCenterU = unitFraction(Math.atan2(camera.dirY, camera.dirX) / TAU + skyLateral * SKY_PARALLAX_SCALE);
+  const skyLeftU = unitFraction(skyCenterU - skySpanU * 0.5);
+  const skyStepU = width === 0 ? 0 : skySpanU / width;
+  const skyVerticalDenominator = horizon > 0 ? horizon : 1;
 
   for (let y = horizon; y < height; y++) {
     // Sample the row centre; +0.5 also keeps the horizon row finite.
@@ -520,9 +536,11 @@ function renderPlanes(
     let cachedCell = -1;
     let floorTexels: Uint32Array | undefined;
     let ceilingTexels: Uint32Array | undefined;
+    let ceilingIsSky = false;
     let red = 255;
     let green = 255;
     let blue = 255;
+    const skyTexY = (((ceilingRow * TEX_SIZE) / skyVerticalDenominator) | 0) & TEX_MASK;
 
     for (let x = 0; x < width; x++) {
       const cellX = worldX | 0;
@@ -534,7 +552,10 @@ function renderPlanes(
           const floorId = floors[cell]!;
           const ceilingId = ceilings[cell]!;
           floorTexels = floorId === 0 ? undefined : planes[floorId - 1]?.mips[mipLevel]?.bands[floorBand];
-          ceilingTexels = ceilingId === 0 ? undefined : planes[ceilingId - 1]?.mips[mipLevel]?.bands[ceilingBand];
+          ceilingIsSky = skyTexels !== undefined && skyPlane !== undefined && ceilingId === skyPlane + 1;
+          ceilingTexels = ceilingId === 0 || ceilingIsSky ?
+            undefined :
+            planes[ceilingId - 1]?.mips[mipLevel]?.bands[ceilingBand];
           red = lightRed[cell]!;
           green = lightGreen[cell]!;
           blue = lightBlue[cell]!;
@@ -547,6 +568,10 @@ function renderPlanes(
           if (ceilingTexels !== undefined) {
             pixels[ceilingRow + x] = lightTexel(ceilingTexels[texel]!, red, green, blue);
           }
+        }
+        if (ceilingIsSky && skyTexels !== undefined) {
+          const skyTexX = (((skyLeftU + x * skyStepU) * TEX_SIZE) | 0) & TEX_MASK;
+          pixels[ceilingRow + x] = skyTexels[(skyTexY << TEX_SHIFT) | skyTexX]!;
         }
       }
       worldX += stepX;

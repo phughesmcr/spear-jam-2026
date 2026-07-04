@@ -1,5 +1,5 @@
 import type { EntityDef } from "@/src/map/entity_content.ts";
-import { TERRAIN_CATALOG } from "@/src/map/terrain_palettes.ts";
+import { SKY_CEILING_TEXTURE, TERRAIN_CATALOG } from "@/src/map/terrain_palettes.ts";
 
 export type {
   DecorationDef,
@@ -28,7 +28,8 @@ export type TexturePack = (typeof TexturePack)[keyof typeof TexturePack];
 export type TexturePackRef = `${TexturePack}:${number},${number}`;
 export type WallTexture = "wall" | TexturePackRef;
 export type FloorTexture = "floor" | TexturePackRef;
-export type CeilingTexture = "ceiling" | TexturePackRef;
+export { SKY_CEILING_TEXTURE };
+export type CeilingTexture = "ceiling" | typeof SKY_CEILING_TEXTURE | TexturePackRef;
 
 export const BarrierTexture = {
   Bars: "bars",

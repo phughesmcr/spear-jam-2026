@@ -1,5 +1,7 @@
 import type { TerrainTile, TexturePack } from "@/src/map/map.ts";
 
+export const SKY_CEILING_TEXTURE = "sky";
+
 export const TEXTURE_PACK_COLUMNS = 5;
 export const TEXTURE_PACK_ROWS = 4;
 export const TEXTURE_PACKS = ["pack1", "pack2", "pack3"] as const satisfies readonly TexturePack[];
@@ -19,12 +21,12 @@ export const DEFAULT_BARS_TERRAIN_ID = BARRIER_TERRAIN_BASE_ID;
 export const DEFAULT_GLASS_TERRAIN_ID = BARRIER_TERRAIN_BASE_ID + 1;
 
 export const TERRAIN_CATALOG: readonly TerrainTile[] = [
-  ...textureRefs().map((texture, index) => ({
+  ...textureRefs().map((texture, index): TerrainTile => ({
     kind: "floor" as const,
     id: FLOOR_TERRAIN_BASE_ID + index,
     color: terrainColor(index, false),
     floor_texture: texture,
-    ceiling_texture: texture,
+    ceiling_texture: index === 2 ? SKY_CEILING_TEXTURE : texture,
   })),
   ...textureRefs().map((texture, index) => ({
     kind: "wall" as const,

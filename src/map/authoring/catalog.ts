@@ -4,7 +4,7 @@ import { ENEMY_ARCHETYPE_CODES, enemyCatalogEntry } from "@/src/ecs/enemy_catalo
 import { AttackPattern } from "@/src/game/attack.ts";
 import { ExamineTextId } from "@/src/game/examine.ts";
 import { DisplayName } from "@/src/game/names.ts";
-import { KeyColor, TexturePack, VICTORY_GOTO } from "@/src/map/map.ts";
+import { KeyColor, SKY_CEILING_TEXTURE, TexturePack, VICTORY_GOTO } from "@/src/map/map.ts";
 import {
   BARRIER_TERRAIN_COUNT,
   PALETTE_KEYS,
@@ -58,13 +58,16 @@ export const TEXTURE_PACK_DEFINITIONS: readonly TexturePackDefinition[] = [
   texturePackDefinition(TexturePack.Pack3, "Pack 3", "pack3.png"),
 ];
 
-export const TEXTURE_REFS: readonly string[] = TEXTURE_PACK_DEFINITIONS.flatMap((definition) =>
-  Array.from(
-    { length: TEXTURE_PACK_COLUMNS * TEXTURE_PACK_ROWS },
-    (_value, tileId) =>
-      textureRef(definition.pack, tileId % TEXTURE_PACK_COLUMNS, Math.floor(tileId / TEXTURE_PACK_COLUMNS)),
-  )
-);
+export const TEXTURE_REFS: readonly string[] = [
+  SKY_CEILING_TEXTURE,
+  ...TEXTURE_PACK_DEFINITIONS.flatMap((definition) =>
+    Array.from(
+      { length: TEXTURE_PACK_COLUMNS * TEXTURE_PACK_ROWS },
+      (_value, tileId) =>
+        textureRef(definition.pack, tileId % TEXTURE_PACK_COLUMNS, Math.floor(tileId / TEXTURE_PACK_COLUMNS)),
+    )
+  ),
+];
 
 export const ENTITY_MARKER_TYPES = [
   "player",
