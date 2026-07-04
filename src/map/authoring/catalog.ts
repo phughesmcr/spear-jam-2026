@@ -6,6 +6,7 @@ import { ExamineTextId } from "@/src/game/examine.ts";
 import { DisplayName } from "@/src/game/names.ts";
 import { KeyColor, TexturePack, VICTORY_GOTO } from "@/src/map/map.ts";
 import {
+  BARRIER_TERRAIN_COUNT,
   PALETTE_KEYS,
   TERRAIN_CATALOG_TILE_COLUMNS,
   TERRAIN_CATALOG_TILE_COUNT,
@@ -31,10 +32,13 @@ export const FLOOR_TILESET = "floors.tsj";
 export const FLOOR_TILESET_IMAGE = "floors.png";
 export const WALL_TILESET = "walls.tsj";
 export const WALL_TILESET_IMAGE = "walls.png";
+export const BARRIER_TILESET = "barriers.tsj";
+export const BARRIER_TILESET_IMAGE = "barriers.png";
 export const FLOOR_TILESET_FIRST_GID = 1;
 export const WALL_TILESET_FIRST_GID = FLOOR_TILESET_FIRST_GID + TEXTURE_TERRAIN_COUNT;
+export const BARRIER_TILESET_FIRST_GID = WALL_TILESET_FIRST_GID + TEXTURE_TERRAIN_COUNT;
 export const TERRAIN_TILESET_FIRST_GID = FLOOR_TILESET_FIRST_GID;
-export const ENTITY_MARKERS_FIRST_GID = TERRAIN_ATLAS_TILE_COUNT + 1;
+export const ENTITY_MARKERS_FIRST_GID = BARRIER_TILESET_FIRST_GID + BARRIER_TERRAIN_COUNT;
 export const TERRAIN_PASSABLE_TILE_ID = 0;
 export const TERRAIN_BLOCKING_TILE_ID = WALL_TILESET_FIRST_GID - 1;
 export const TEXTURE_PACK_TILE_SIZE = 128;
@@ -311,6 +315,14 @@ export function wallTilesetImagePath(): string {
   return `${TERRAIN_TILESETS_DIR}/${WALL_TILESET_IMAGE}`;
 }
 
+export function barrierTilesetPath(): string {
+  return `${TERRAIN_TILESETS_DIR}/${BARRIER_TILESET}`;
+}
+
+export function barrierTilesetImagePath(): string {
+  return `${TERRAIN_TILESETS_DIR}/${BARRIER_TILESET_IMAGE}`;
+}
+
 export function floorTilesetReference(): TiledTilesetReference {
   return {
     firstgid: FLOOR_TILESET_FIRST_GID,
@@ -322,6 +334,13 @@ export function wallTilesetReference(): TiledTilesetReference {
   return {
     firstgid: WALL_TILESET_FIRST_GID,
     source: `terrain/${WALL_TILESET}`,
+  };
+}
+
+export function barrierTilesetReference(): TiledTilesetReference {
+  return {
+    firstgid: BARRIER_TILESET_FIRST_GID,
+    source: `terrain/${BARRIER_TILESET}`,
   };
 }
 

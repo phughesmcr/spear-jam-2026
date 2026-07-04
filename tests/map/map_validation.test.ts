@@ -3,7 +3,7 @@ import { createGameMap, KeyColor, TexturePack, VICTORY_GOTO } from "@/src/map/ma
 import type { TerrainTile } from "@/src/map/map.ts";
 import { GAME_MAPS } from "@/src/map/maps.ts";
 import { validateGameMaps } from "@/src/map/map_validation.ts";
-import { DEFAULT_WALL_TERRAIN_ID } from "@/src/map/terrain_palettes.ts";
+import { DEFAULT_BARS_TERRAIN_ID, DEFAULT_WALL_TERRAIN_ID } from "@/src/map/terrain_palettes.ts";
 
 Deno.test("authored game maps pass softlock validation", () => {
   assertEquals(validateGameMaps(GAME_MAPS), []);
@@ -62,7 +62,7 @@ Deno.test("map validation requires exactly one player spawn", () => {
 });
 
 function terrainTextures(tile: TerrainTile): readonly string[] {
-  if (tile.blocking === true) return tile.wall_texture === undefined ? [] : [tile.wall_texture];
+  if (tile.kind === "wall") return tile.wall_texture === undefined ? [] : [tile.wall_texture];
   return [tile.floor_texture, tile.ceiling_texture];
 }
 
@@ -79,7 +79,7 @@ function paletteTerrainTextures(palette: readonly TerrainTile[]): {
   const ceilings = new Set<string>();
   const walls = new Set<string>();
   for (const tile of palette) {
-    if (tile.blocking === true) {
+    if (tile.kind === "wall") {
       if (tile.wall_texture !== undefined) walls.add(tile.wall_texture);
       continue;
     }
@@ -174,6 +174,40 @@ Deno.test("map validation reports entities on blocking terrain and invalid doorw
       ]),
     ]),
     [],
+  );
+});
+
+Deno.test("map validation accepts doorway-like barrier terrain and rejects ambiguous barriers", () => {
+  assertEquals(
+    validateGameMaps([
+      createGameMap("Good Barrier", [
+        [0, 0, 0, 0, 0],
+        [0, 0, DEFAULT_WALL_TERRAIN_ID, DEFAULT_BARS_TERRAIN_ID, DEFAULT_WALL_TERRAIN_ID],
+        [0, 0, 0, 0, 0],
+      ], [
+        { prefab: "player", x: 0, y: 0, dir: 1 },
+        { prefab: "uplinkCode", x: 0, y: 1 },
+        { prefab: "uplinkTerminal", x: 1, y: 1, goto: VICTORY_GOTO },
+      ]),
+    ]),
+    [],
+  );
+
+  assertEquals(
+    validateGameMaps([
+      createGameMap("Bad Barrier", [
+        [0, 0, 0],
+        [0, DEFAULT_BARS_TERRAIN_ID, 0],
+        [0, 0, 0],
+      ], [
+        { prefab: "player", x: 0, y: 0, dir: 1 },
+        { prefab: "uplinkCode", x: 0, y: 1 },
+        { prefab: "uplinkTerminal", x: 2, y: 1, goto: VICTORY_GOTO },
+      ]),
+    ]),
+    [
+      "Bad Barrier: barrier terrain at (1,1) must sit between exactly one opposite pair of movement-blocking terrain tiles.",
+    ],
   );
 });
 

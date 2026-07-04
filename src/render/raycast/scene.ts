@@ -165,6 +165,7 @@ export type RaycastScene = {
 
 export type RaycastSceneOptions = {
   readonly spriteCapacity?: number;
+  readonly thinCapacity?: number;
 };
 
 export function createScene(mapWidth: number, mapHeight: number, options: RaycastSceneOptions = {}): RaycastScene {
@@ -173,6 +174,7 @@ export function createScene(mapWidth: number, mapHeight: number, options: Raycas
     options.spriteCapacity ?? Math.max(DEFAULT_SPRITE_CAPACITY, cellCount),
     "Sprite",
   );
+  const thinCapacity = checkedCapacity(options.thinCapacity ?? cellCount, "Thin wall");
   const lightRed = new Uint8Array(cellCount);
   const lightGreen = new Uint8Array(cellCount);
   const lightBlue = new Uint8Array(cellCount);
@@ -191,11 +193,11 @@ export function createScene(mapWidth: number, mapHeight: number, options: Raycas
     lightBlue,
     thinByCell: new Int32Array(cellCount).fill(-1),
     thinCount: 0,
-    thinTex: new Int16Array(cellCount),
-    thinAxis: new Uint8Array(cellCount),
-    thinSlide: new Uint8Array(cellCount),
-    thinOffset: new Float32Array(cellCount),
-    thinCell: new Int32Array(cellCount),
+    thinTex: new Int16Array(thinCapacity),
+    thinAxis: new Uint8Array(thinCapacity),
+    thinSlide: new Uint8Array(thinCapacity),
+    thinOffset: new Float32Array(thinCapacity),
+    thinCell: new Int32Array(thinCapacity),
     solidWallCount: 0,
     solidWallCell: new Int32Array(cellCount),
     solidWallPrev: new Uint8Array(cellCount),

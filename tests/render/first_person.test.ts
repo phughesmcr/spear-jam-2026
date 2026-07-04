@@ -8,6 +8,7 @@ import type { CardinalDirection } from "@/src/grid/direction.ts";
 import { createGameMap, TexturePack } from "@/src/map/map.ts";
 import type { GameMap } from "@/src/map/map.ts";
 import { GAME_MAPS } from "@/src/map/maps.ts";
+import { DEFAULT_BARS_TERRAIN_ID, DEFAULT_WALL_TERRAIN_ID } from "@/src/map/terrain_palettes.ts";
 import { createFirstPersonRenderer } from "@/src/render/first_person.ts";
 import type { FirstPersonRenderSession } from "@/src/render/first_person.ts";
 import type { RaycastScene } from "@/src/render/raycast/scene.ts";
@@ -177,9 +178,15 @@ Deno.test("sceneForMap uses terrain palette texture refs for wall and plane slot
     [],
     {
       palette: [
-        { id: 1, color: "#000000", floor_texture: `${TexturePack.Pack1}:0,0`, ceiling_texture: "ceiling" },
-        { id: 2, color: "#888888", wall_texture: `${TexturePack.Pack2}:3,2`, blocking: true },
-        { id: 3, color: "#111111", floor_texture: "floor", ceiling_texture: `${TexturePack.Pack3}:4,3` },
+        {
+          kind: "floor",
+          id: 1,
+          color: "#000000",
+          floor_texture: `${TexturePack.Pack1}:0,0`,
+          ceiling_texture: "ceiling",
+        },
+        { kind: "wall", id: 2, color: "#888888", wall_texture: `${TexturePack.Pack2}:3,2` },
+        { kind: "floor", id: 3, color: "#111111", floor_texture: "floor", ceiling_texture: `${TexturePack.Pack3}:4,3` },
       ],
     },
   );
@@ -201,6 +208,32 @@ Deno.test("sceneForMap uses terrain palette texture refs for wall and plane slot
   assertEquals(scene.ceilings[1], 0);
 });
 
+Deno.test("first-person rendering maps barrier terrain to a transparent thin wall over floor and ceiling", () => {
+  withFakeOffscreenCanvas((): void => {
+    const map = createGameMap("Barrier", [
+      [0, 0, DEFAULT_WALL_TERRAIN_ID, 0, 0],
+      [0, 0, DEFAULT_BARS_TERRAIN_ID, 0, 0],
+      [0, 0, DEFAULT_WALL_TERRAIN_ID, 0, 0],
+    ], []);
+    const renderer = createFirstPersonRenderer();
+
+    renderer.render(
+      new FakeCanvasContext() as unknown as CanvasRenderingContext2D,
+      { x: 0, y: 0, width: 64, height: 64 },
+      sessionFor(map, [playerDrawable(1, 1, Direction.East)]),
+    );
+
+    const scene = renderer.sceneForMap(map);
+    const cell = 1 * 5 + 2;
+
+    assertEquals(scene.walls[cell], 0);
+    assert(scene.floors[cell]! > 0);
+    assert(scene.ceilings[cell]! > 0);
+    assertNotEquals(scene.thinByCell[cell], -1);
+    assertEquals(scene.thinCount, 1);
+  });
+});
+
 Deno.test("sceneForMap rejects texture refs outside the 5x4 pack grid", () => {
   const map = createGameMap(
     "Invalid Texture",
@@ -208,7 +241,13 @@ Deno.test("sceneForMap rejects texture refs outside the 5x4 pack grid", () => {
     [],
     {
       palette: [
-        { id: 1, color: "#000000", floor_texture: `${TexturePack.Pack1}:5,0`, ceiling_texture: "ceiling" },
+        {
+          kind: "floor",
+          id: 1,
+          color: "#000000",
+          floor_texture: `${TexturePack.Pack1}:5,0`,
+          ceiling_texture: "ceiling",
+        },
       ],
     },
   );
@@ -237,7 +276,7 @@ Deno.test("first-person rendering updates flickering lights and schedules repain
       [],
       {
         palette: [
-          { id: 1, color: "#000000", floor_texture: "floor", ceiling_texture: "ceiling" },
+          { kind: "floor", id: 1, color: "#000000", floor_texture: "floor", ceiling_texture: "ceiling" },
         ],
       },
     );
@@ -289,8 +328,8 @@ Deno.test("first-person rendering keeps open doors in the raycast scene for jamb
       [],
       {
         palette: [
-          { id: 1, color: "#000000", floor_texture: "floor", ceiling_texture: "ceiling" },
-          { id: 2, color: "#ffffff", wall_texture: "wall", blocking: true },
+          { kind: "floor", id: 1, color: "#000000", floor_texture: "floor", ceiling_texture: "ceiling" },
+          { kind: "wall", id: 2, color: "#ffffff", wall_texture: "wall" },
         ],
       },
     );
@@ -329,8 +368,8 @@ Deno.test("first-person rendering uses sliding solid walls for closed secret doo
       [],
       {
         palette: [
-          { id: 1, color: "#000000", floor_texture: "floor", ceiling_texture: "ceiling" },
-          { id: 2, color: "#ffffff", wall_texture: "wall", blocking: true },
+          { kind: "floor", id: 1, color: "#000000", floor_texture: "floor", ceiling_texture: "ceiling" },
+          { kind: "wall", id: 2, color: "#ffffff", wall_texture: "wall" },
         ],
       },
     );
@@ -378,8 +417,8 @@ Deno.test("first-person rendering keeps open secret doors out of the thin-wall p
       [],
       {
         palette: [
-          { id: 1, color: "#000000", floor_texture: "floor", ceiling_texture: "ceiling" },
-          { id: 2, color: "#ffffff", wall_texture: "wall", blocking: true },
+          { kind: "floor", id: 1, color: "#000000", floor_texture: "floor", ceiling_texture: "ceiling" },
+          { kind: "wall", id: 2, color: "#ffffff", wall_texture: "wall" },
         ],
       },
     );
@@ -420,8 +459,8 @@ Deno.test("first-person rendering uses John's single-frame NPC sprite", () => {
       [],
       {
         palette: [
-          { id: 1, color: "#000000", floor_texture: "floor", ceiling_texture: "ceiling" },
-          { id: 2, color: "#ffffff", wall_texture: "wall", blocking: true },
+          { kind: "floor", id: 1, color: "#000000", floor_texture: "floor", ceiling_texture: "ceiling" },
+          { kind: "wall", id: 2, color: "#ffffff", wall_texture: "wall" },
         ],
       },
     );
@@ -467,8 +506,8 @@ Deno.test("first-person rendering places ceiling decorations near the ceiling", 
       [],
       {
         palette: [
-          { id: 1, color: "#000000", floor_texture: "floor", ceiling_texture: "ceiling" },
-          { id: 2, color: "#ffffff", wall_texture: "wall", blocking: true },
+          { kind: "floor", id: 1, color: "#000000", floor_texture: "floor", ceiling_texture: "ceiling" },
+          { kind: "wall", id: 2, color: "#ffffff", wall_texture: "wall" },
         ],
       },
     );
@@ -509,8 +548,8 @@ Deno.test("first-person rendering uses ECS attack animation sheet row", () => {
         [],
         {
           palette: [
-            { id: 1, color: "#000000", floor_texture: "floor", ceiling_texture: "ceiling" },
-            { id: 2, color: "#ffffff", wall_texture: "wall", blocking: true },
+            { kind: "floor", id: 1, color: "#000000", floor_texture: "floor", ceiling_texture: "ceiling" },
+            { kind: "wall", id: 2, color: "#ffffff", wall_texture: "wall" },
           ],
         },
       );
@@ -556,8 +595,8 @@ Deno.test("first-person rendering uses ECS walk animation sheet row", () => {
         [],
         {
           palette: [
-            { id: 1, color: "#000000", floor_texture: "floor", ceiling_texture: "ceiling" },
-            { id: 2, color: "#ffffff", wall_texture: "wall", blocking: true },
+            { kind: "floor", id: 1, color: "#000000", floor_texture: "floor", ceiling_texture: "ceiling" },
+            { kind: "wall", id: 2, color: "#ffffff", wall_texture: "wall" },
           ],
         },
       );
@@ -603,8 +642,8 @@ Deno.test("first-person rendering uses ECS death animation sheet frames", () => 
         [],
         {
           palette: [
-            { id: 1, color: "#000000", floor_texture: "floor", ceiling_texture: "ceiling" },
-            { id: 2, color: "#ffffff", wall_texture: "wall", blocking: true },
+            { kind: "floor", id: 1, color: "#000000", floor_texture: "floor", ceiling_texture: "ceiling" },
+            { kind: "wall", id: 2, color: "#ffffff", wall_texture: "wall" },
           ],
         },
       );
@@ -649,8 +688,8 @@ Deno.test("first-person rendering bobs pickup item sprites vertically", () => {
         [],
         {
           palette: [
-            { id: 1, color: "#000000", floor_texture: "floor", ceiling_texture: "ceiling" },
-            { id: 2, color: "#ffffff", wall_texture: "wall", blocking: true },
+            { kind: "floor", id: 1, color: "#000000", floor_texture: "floor", ceiling_texture: "ceiling" },
+            { kind: "wall", id: 2, color: "#ffffff", wall_texture: "wall" },
           ],
         },
       );

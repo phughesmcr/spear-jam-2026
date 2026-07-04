@@ -16,6 +16,7 @@ export function flatTestMap(
     terrain: {
       palette: [
         {
+          kind: "floor",
           id: 0,
           color: "#000",
           floor_texture: "floor",

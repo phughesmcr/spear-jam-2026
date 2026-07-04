@@ -3,11 +3,19 @@ import { Blocking, GridPos, Item } from "@/src/ecs/components.ts";
 import { positionedQuery } from "@/src/ecs/queries.ts";
 import type { Player } from "@/src/ecs/player.ts";
 import { directionDelta } from "@/src/grid/direction.ts";
-import { mapDimensions, terrainAt } from "@/src/map/map.ts";
+import {
+  mapDimensions,
+  terrainAt,
+  terrainBlocksAttacks,
+  terrainBlocksMovement,
+  terrainBlocksSight,
+} from "@/src/map/map.ts";
 import type { GameMap } from "@/src/map/map.ts";
 
 export interface SpatialLookup {
   tileBlocks(x: number, y: number): boolean;
+  tileBlocksSight(x: number, y: number): boolean;
+  tileBlocksAttacks(x: number, y: number): boolean;
   blockingEntityAt(x: number, y: number): Entity | undefined;
   positionBlocks(x: number, y: number): boolean;
 }
@@ -33,6 +41,8 @@ export class SpatialIndex implements SpatialLookup, SpatialMutations {
   private readonly width: number;
   private readonly height: number;
   private readonly terrainBlocking: Uint8Array;
+  private readonly terrainSightBlocking: Uint8Array;
+  private readonly terrainAttackBlocking: Uint8Array;
   private readonly positionScratch = { x: 0, y: 0 };
 
   constructor(world: World, map: GameMap) {
@@ -44,6 +54,8 @@ export class SpatialIndex implements SpatialLookup, SpatialMutations {
 
     const tileCount = width * height;
     this.terrainBlocking = new Uint8Array(tileCount);
+    this.terrainSightBlocking = new Uint8Array(tileCount);
+    this.terrainAttackBlocking = new Uint8Array(tileCount);
 
     this.indexTerrain(map);
     this.validatePositionedEntities();
@@ -52,6 +64,16 @@ export class SpatialIndex implements SpatialLookup, SpatialMutations {
   tileBlocks(x: number, y: number): boolean {
     const tile = this.tileIndex(x, y);
     return tile === undefined || this.terrainBlocking[tile] === 1;
+  }
+
+  tileBlocksSight(x: number, y: number): boolean {
+    const tile = this.tileIndex(x, y);
+    return tile === undefined || this.terrainSightBlocking[tile] === 1;
+  }
+
+  tileBlocksAttacks(x: number, y: number): boolean {
+    const tile = this.tileIndex(x, y);
+    return tile === undefined || this.terrainAttackBlocking[tile] === 1;
   }
 
   blockingEntityAt(x: number, y: number): Entity | undefined {
@@ -105,7 +127,10 @@ export class SpatialIndex implements SpatialLookup, SpatialMutations {
     for (let y = 0; y < this.height; y++) {
       for (let x = 0; x < this.width; x++) {
         const terrain = terrainAt(map, x, y);
-        this.terrainBlocking[y * this.width + x] = terrain === undefined || terrain.blocking === true ? 1 : 0;
+        const tile = y * this.width + x;
+        this.terrainBlocking[tile] = terrainBlocksMovement(terrain) ? 1 : 0;
+        this.terrainSightBlocking[tile] = terrainBlocksSight(terrain) ? 1 : 0;
+        this.terrainAttackBlocking[tile] = terrainBlocksAttacks(terrain) ? 1 : 0;
       }
     }
   }

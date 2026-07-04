@@ -20,6 +20,11 @@
           "value": 60
         },
         {
+          "name": "terrainKind",
+          "type": "string",
+          "value": "wall"
+        },
+        {
           "name": "blocking",
           "type": "bool",
           "value": true
@@ -28,6 +33,16 @@
           "name": "label",
           "type": "string",
           "value": "60: pack1:0,0"
+        },
+        {
+          "name": "blocksSight",
+          "type": "bool",
+          "value": true
+        },
+        {
+          "name": "blocksAttacks",
+          "type": "bool",
+          "value": true
         },
         {
           "name": "wallTexture",
@@ -47,6 +62,11 @@
           "value": 61
         },
         {
+          "name": "terrainKind",
+          "type": "string",
+          "value": "wall"
+        },
+        {
           "name": "blocking",
           "type": "bool",
           "value": true
@@ -55,6 +75,16 @@
           "name": "label",
           "type": "string",
           "value": "61: pack1:1,0"
+        },
+        {
+          "name": "blocksSight",
+          "type": "bool",
+          "value": true
+        },
+        {
+          "name": "blocksAttacks",
+          "type": "bool",
+          "value": true
         },
         {
           "name": "wallTexture",
@@ -74,6 +104,11 @@
           "value": 62
         },
         {
+          "name": "terrainKind",
+          "type": "string",
+          "value": "wall"
+        },
+        {
           "name": "blocking",
           "type": "bool",
           "value": true
@@ -82,6 +117,16 @@
           "name": "label",
           "type": "string",
           "value": "62: pack1:2,0"
+        },
+        {
+          "name": "blocksSight",
+          "type": "bool",
+          "value": true
+        },
+        {
+          "name": "blocksAttacks",
+          "type": "bool",
+          "value": true
         },
         {
           "name": "wallTexture",
@@ -101,6 +146,11 @@
           "value": 63
         },
         {
+          "name": "terrainKind",
+          "type": "string",
+          "value": "wall"
+        },
+        {
           "name": "blocking",
           "type": "bool",
           "value": true
@@ -109,6 +159,16 @@
           "name": "label",
           "type": "string",
           "value": "63: pack1:3,0"
+        },
+        {
+          "name": "blocksSight",
+          "type": "bool",
+          "value": true
+        },
+        {
+          "name": "blocksAttacks",
+          "type": "bool",
+          "value": true
         },
         {
           "name": "wallTexture",
@@ -128,6 +188,11 @@
           "value": 64
         },
         {
+          "name": "terrainKind",
+          "type": "string",
+          "value": "wall"
+        },
+        {
           "name": "blocking",
           "type": "bool",
           "value": true
@@ -136,6 +201,16 @@
           "name": "label",
           "type": "string",
           "value": "64: pack1:4,0"
+        },
+        {
+          "name": "blocksSight",
+          "type": "bool",
+          "value": true
+        },
+        {
+          "name": "blocksAttacks",
+          "type": "bool",
+          "value": true
         },
         {
           "name": "wallTexture",
@@ -155,6 +230,11 @@
           "value": 65
         },
         {
+          "name": "terrainKind",
+          "type": "string",
+          "value": "wall"
+        },
+        {
           "name": "blocking",
           "type": "bool",
           "value": true
@@ -163,6 +243,16 @@
           "name": "label",
           "type": "string",
           "value": "65: pack1:0,1"
+        },
+        {
+          "name": "blocksSight",
+          "type": "bool",
+          "value": true
+        },
+        {
+          "name": "blocksAttacks",
+          "type": "bool",
+          "value": true
         },
         {
           "name": "wallTexture",
@@ -182,6 +272,11 @@
           "value": 66
         },
         {
+          "name": "terrainKind",
+          "type": "string",
+          "value": "wall"
+        },
+        {
           "name": "blocking",
           "type": "bool",
           "value": true
@@ -190,6 +285,16 @@
           "name": "label",
           "type": "string",
           "value": "66: pack1:1,1"
+        },
+        {
+          "name": "blocksSight",
+          "type": "bool",
+          "value": true
+        },
+        {
+          "name": "blocksAttacks",
+          "type": "bool",
+          "value": true
         },
         {
           "name": "wallTexture",
@@ -209,6 +314,11 @@
           "value": 67
         },
         {
+          "name": "terrainKind",
+          "type": "string",
+          "value": "wall"
+        },
+        {
           "name": "blocking",
           "type": "bool",
           "value": true
@@ -217,6 +327,16 @@
           "name": "label",
           "type": "string",
           "value": "67: pack1:2,1"
+        },
+        {
+          "name": "blocksSight",
+          "type": "bool",
+          "value": true
+        },
+        {
+          "name": "blocksAttacks",
+          "type": "bool",
+          "value": true
         },
         {
           "name": "wallTexture",
@@ -236,6 +356,11 @@
           "value": 68
         },
         {
+          "name": "terrainKind",
+          "type": "string",
+          "value": "wall"
+        },
+        {
           "name": "blocking",
           "type": "bool",
           "value": true
@@ -244,6 +369,16 @@
           "name": "label",
           "type": "string",
           "value": "68: pack1:3,1"
+        },
+        {
+          "name": "blocksSight",
+          "type": "bool",
+          "value": true
+        },
+        {
+          "name": "blocksAttacks",
+          "type": "bool",
+          "value": true
         },
         {
           "name": "wallTexture",
@@ -263,6 +398,11 @@
           "value": 69
         },
         {
+          "name": "terrainKind",
+          "type": "string",
+          "value": "wall"
+        },
+        {
           "name": "blocking",
           "type": "bool",
           "value": true
@@ -271,6 +411,16 @@
           "name": "label",
           "type": "string",
           "value": "69: pack1:4,1"
+        },
+        {
+          "name": "blocksSight",
+          "type": "bool",
+          "value": true
+        },
+        {
+          "name": "blocksAttacks",
+          "type": "bool",
+          "value": true
         },
         {
           "name": "wallTexture",
@@ -290,6 +440,11 @@
           "value": 70
         },
         {
+          "name": "terrainKind",
+          "type": "string",
+          "value": "wall"
+        },
+        {
           "name": "blocking",
           "type": "bool",
           "value": true
@@ -298,6 +453,16 @@
           "name": "label",
           "type": "string",
           "value": "70: pack1:0,2"
+        },
+        {
+          "name": "blocksSight",
+          "type": "bool",
+          "value": true
+        },
+        {
+          "name": "blocksAttacks",
+          "type": "bool",
+          "value": true
         },
         {
           "name": "wallTexture",
@@ -317,6 +482,11 @@
           "value": 71
         },
         {
+          "name": "terrainKind",
+          "type": "string",
+          "value": "wall"
+        },
+        {
           "name": "blocking",
           "type": "bool",
           "value": true
@@ -325,6 +495,16 @@
           "name": "label",
           "type": "string",
           "value": "71: pack1:1,2"
+        },
+        {
+          "name": "blocksSight",
+          "type": "bool",
+          "value": true
+        },
+        {
+          "name": "blocksAttacks",
+          "type": "bool",
+          "value": true
         },
         {
           "name": "wallTexture",
@@ -344,6 +524,11 @@
           "value": 72
         },
         {
+          "name": "terrainKind",
+          "type": "string",
+          "value": "wall"
+        },
+        {
           "name": "blocking",
           "type": "bool",
           "value": true
@@ -352,6 +537,16 @@
           "name": "label",
           "type": "string",
           "value": "72: pack1:2,2"
+        },
+        {
+          "name": "blocksSight",
+          "type": "bool",
+          "value": true
+        },
+        {
+          "name": "blocksAttacks",
+          "type": "bool",
+          "value": true
         },
         {
           "name": "wallTexture",
@@ -371,6 +566,11 @@
           "value": 73
         },
         {
+          "name": "terrainKind",
+          "type": "string",
+          "value": "wall"
+        },
+        {
           "name": "blocking",
           "type": "bool",
           "value": true
@@ -379,6 +579,16 @@
           "name": "label",
           "type": "string",
           "value": "73: pack1:3,2"
+        },
+        {
+          "name": "blocksSight",
+          "type": "bool",
+          "value": true
+        },
+        {
+          "name": "blocksAttacks",
+          "type": "bool",
+          "value": true
         },
         {
           "name": "wallTexture",
@@ -398,6 +608,11 @@
           "value": 74
         },
         {
+          "name": "terrainKind",
+          "type": "string",
+          "value": "wall"
+        },
+        {
           "name": "blocking",
           "type": "bool",
           "value": true
@@ -406,6 +621,16 @@
           "name": "label",
           "type": "string",
           "value": "74: pack1:4,2"
+        },
+        {
+          "name": "blocksSight",
+          "type": "bool",
+          "value": true
+        },
+        {
+          "name": "blocksAttacks",
+          "type": "bool",
+          "value": true
         },
         {
           "name": "wallTexture",
@@ -425,6 +650,11 @@
           "value": 75
         },
         {
+          "name": "terrainKind",
+          "type": "string",
+          "value": "wall"
+        },
+        {
           "name": "blocking",
           "type": "bool",
           "value": true
@@ -433,6 +663,16 @@
           "name": "label",
           "type": "string",
           "value": "75: pack1:0,3"
+        },
+        {
+          "name": "blocksSight",
+          "type": "bool",
+          "value": true
+        },
+        {
+          "name": "blocksAttacks",
+          "type": "bool",
+          "value": true
         },
         {
           "name": "wallTexture",
@@ -452,6 +692,11 @@
           "value": 76
         },
         {
+          "name": "terrainKind",
+          "type": "string",
+          "value": "wall"
+        },
+        {
           "name": "blocking",
           "type": "bool",
           "value": true
@@ -460,6 +705,16 @@
           "name": "label",
           "type": "string",
           "value": "76: pack1:1,3"
+        },
+        {
+          "name": "blocksSight",
+          "type": "bool",
+          "value": true
+        },
+        {
+          "name": "blocksAttacks",
+          "type": "bool",
+          "value": true
         },
         {
           "name": "wallTexture",
@@ -479,6 +734,11 @@
           "value": 77
         },
         {
+          "name": "terrainKind",
+          "type": "string",
+          "value": "wall"
+        },
+        {
           "name": "blocking",
           "type": "bool",
           "value": true
@@ -487,6 +747,16 @@
           "name": "label",
           "type": "string",
           "value": "77: pack1:2,3"
+        },
+        {
+          "name": "blocksSight",
+          "type": "bool",
+          "value": true
+        },
+        {
+          "name": "blocksAttacks",
+          "type": "bool",
+          "value": true
         },
         {
           "name": "wallTexture",
@@ -506,6 +776,11 @@
           "value": 78
         },
         {
+          "name": "terrainKind",
+          "type": "string",
+          "value": "wall"
+        },
+        {
           "name": "blocking",
           "type": "bool",
           "value": true
@@ -514,6 +789,16 @@
           "name": "label",
           "type": "string",
           "value": "78: pack1:3,3"
+        },
+        {
+          "name": "blocksSight",
+          "type": "bool",
+          "value": true
+        },
+        {
+          "name": "blocksAttacks",
+          "type": "bool",
+          "value": true
         },
         {
           "name": "wallTexture",
@@ -533,6 +818,11 @@
           "value": 79
         },
         {
+          "name": "terrainKind",
+          "type": "string",
+          "value": "wall"
+        },
+        {
           "name": "blocking",
           "type": "bool",
           "value": true
@@ -541,6 +831,16 @@
           "name": "label",
           "type": "string",
           "value": "79: pack1:4,3"
+        },
+        {
+          "name": "blocksSight",
+          "type": "bool",
+          "value": true
+        },
+        {
+          "name": "blocksAttacks",
+          "type": "bool",
+          "value": true
         },
         {
           "name": "wallTexture",
@@ -560,6 +860,11 @@
           "value": 80
         },
         {
+          "name": "terrainKind",
+          "type": "string",
+          "value": "wall"
+        },
+        {
           "name": "blocking",
           "type": "bool",
           "value": true
@@ -568,6 +873,16 @@
           "name": "label",
           "type": "string",
           "value": "80: pack2:0,0"
+        },
+        {
+          "name": "blocksSight",
+          "type": "bool",
+          "value": true
+        },
+        {
+          "name": "blocksAttacks",
+          "type": "bool",
+          "value": true
         },
         {
           "name": "wallTexture",
@@ -587,6 +902,11 @@
           "value": 81
         },
         {
+          "name": "terrainKind",
+          "type": "string",
+          "value": "wall"
+        },
+        {
           "name": "blocking",
           "type": "bool",
           "value": true
@@ -595,6 +915,16 @@
           "name": "label",
           "type": "string",
           "value": "81: pack2:1,0"
+        },
+        {
+          "name": "blocksSight",
+          "type": "bool",
+          "value": true
+        },
+        {
+          "name": "blocksAttacks",
+          "type": "bool",
+          "value": true
         },
         {
           "name": "wallTexture",
@@ -614,6 +944,11 @@
           "value": 82
         },
         {
+          "name": "terrainKind",
+          "type": "string",
+          "value": "wall"
+        },
+        {
           "name": "blocking",
           "type": "bool",
           "value": true
@@ -622,6 +957,16 @@
           "name": "label",
           "type": "string",
           "value": "82: pack2:2,0"
+        },
+        {
+          "name": "blocksSight",
+          "type": "bool",
+          "value": true
+        },
+        {
+          "name": "blocksAttacks",
+          "type": "bool",
+          "value": true
         },
         {
           "name": "wallTexture",
@@ -641,6 +986,11 @@
           "value": 83
         },
         {
+          "name": "terrainKind",
+          "type": "string",
+          "value": "wall"
+        },
+        {
           "name": "blocking",
           "type": "bool",
           "value": true
@@ -649,6 +999,16 @@
           "name": "label",
           "type": "string",
           "value": "83: pack2:3,0"
+        },
+        {
+          "name": "blocksSight",
+          "type": "bool",
+          "value": true
+        },
+        {
+          "name": "blocksAttacks",
+          "type": "bool",
+          "value": true
         },
         {
           "name": "wallTexture",
@@ -668,6 +1028,11 @@
           "value": 84
         },
         {
+          "name": "terrainKind",
+          "type": "string",
+          "value": "wall"
+        },
+        {
           "name": "blocking",
           "type": "bool",
           "value": true
@@ -676,6 +1041,16 @@
           "name": "label",
           "type": "string",
           "value": "84: pack2:4,0"
+        },
+        {
+          "name": "blocksSight",
+          "type": "bool",
+          "value": true
+        },
+        {
+          "name": "blocksAttacks",
+          "type": "bool",
+          "value": true
         },
         {
           "name": "wallTexture",
@@ -695,6 +1070,11 @@
           "value": 85
         },
         {
+          "name": "terrainKind",
+          "type": "string",
+          "value": "wall"
+        },
+        {
           "name": "blocking",
           "type": "bool",
           "value": true
@@ -703,6 +1083,16 @@
           "name": "label",
           "type": "string",
           "value": "85: pack2:0,1"
+        },
+        {
+          "name": "blocksSight",
+          "type": "bool",
+          "value": true
+        },
+        {
+          "name": "blocksAttacks",
+          "type": "bool",
+          "value": true
         },
         {
           "name": "wallTexture",
@@ -722,6 +1112,11 @@
           "value": 86
         },
         {
+          "name": "terrainKind",
+          "type": "string",
+          "value": "wall"
+        },
+        {
           "name": "blocking",
           "type": "bool",
           "value": true
@@ -730,6 +1125,16 @@
           "name": "label",
           "type": "string",
           "value": "86: pack2:1,1"
+        },
+        {
+          "name": "blocksSight",
+          "type": "bool",
+          "value": true
+        },
+        {
+          "name": "blocksAttacks",
+          "type": "bool",
+          "value": true
         },
         {
           "name": "wallTexture",
@@ -749,6 +1154,11 @@
           "value": 87
         },
         {
+          "name": "terrainKind",
+          "type": "string",
+          "value": "wall"
+        },
+        {
           "name": "blocking",
           "type": "bool",
           "value": true
@@ -757,6 +1167,16 @@
           "name": "label",
           "type": "string",
           "value": "87: pack2:2,1"
+        },
+        {
+          "name": "blocksSight",
+          "type": "bool",
+          "value": true
+        },
+        {
+          "name": "blocksAttacks",
+          "type": "bool",
+          "value": true
         },
         {
           "name": "wallTexture",
@@ -776,6 +1196,11 @@
           "value": 88
         },
         {
+          "name": "terrainKind",
+          "type": "string",
+          "value": "wall"
+        },
+        {
           "name": "blocking",
           "type": "bool",
           "value": true
@@ -784,6 +1209,16 @@
           "name": "label",
           "type": "string",
           "value": "88: pack2:3,1"
+        },
+        {
+          "name": "blocksSight",
+          "type": "bool",
+          "value": true
+        },
+        {
+          "name": "blocksAttacks",
+          "type": "bool",
+          "value": true
         },
         {
           "name": "wallTexture",
@@ -803,6 +1238,11 @@
           "value": 89
         },
         {
+          "name": "terrainKind",
+          "type": "string",
+          "value": "wall"
+        },
+        {
           "name": "blocking",
           "type": "bool",
           "value": true
@@ -811,6 +1251,16 @@
           "name": "label",
           "type": "string",
           "value": "89: pack2:4,1"
+        },
+        {
+          "name": "blocksSight",
+          "type": "bool",
+          "value": true
+        },
+        {
+          "name": "blocksAttacks",
+          "type": "bool",
+          "value": true
         },
         {
           "name": "wallTexture",
@@ -830,6 +1280,11 @@
           "value": 90
         },
         {
+          "name": "terrainKind",
+          "type": "string",
+          "value": "wall"
+        },
+        {
           "name": "blocking",
           "type": "bool",
           "value": true
@@ -838,6 +1293,16 @@
           "name": "label",
           "type": "string",
           "value": "90: pack2:0,2"
+        },
+        {
+          "name": "blocksSight",
+          "type": "bool",
+          "value": true
+        },
+        {
+          "name": "blocksAttacks",
+          "type": "bool",
+          "value": true
         },
         {
           "name": "wallTexture",
@@ -857,6 +1322,11 @@
           "value": 91
         },
         {
+          "name": "terrainKind",
+          "type": "string",
+          "value": "wall"
+        },
+        {
           "name": "blocking",
           "type": "bool",
           "value": true
@@ -865,6 +1335,16 @@
           "name": "label",
           "type": "string",
           "value": "91: pack2:1,2"
+        },
+        {
+          "name": "blocksSight",
+          "type": "bool",
+          "value": true
+        },
+        {
+          "name": "blocksAttacks",
+          "type": "bool",
+          "value": true
         },
         {
           "name": "wallTexture",
@@ -884,6 +1364,11 @@
           "value": 92
         },
         {
+          "name": "terrainKind",
+          "type": "string",
+          "value": "wall"
+        },
+        {
           "name": "blocking",
           "type": "bool",
           "value": true
@@ -892,6 +1377,16 @@
           "name": "label",
           "type": "string",
           "value": "92: pack2:2,2"
+        },
+        {
+          "name": "blocksSight",
+          "type": "bool",
+          "value": true
+        },
+        {
+          "name": "blocksAttacks",
+          "type": "bool",
+          "value": true
         },
         {
           "name": "wallTexture",
@@ -911,6 +1406,11 @@
           "value": 93
         },
         {
+          "name": "terrainKind",
+          "type": "string",
+          "value": "wall"
+        },
+        {
           "name": "blocking",
           "type": "bool",
           "value": true
@@ -919,6 +1419,16 @@
           "name": "label",
           "type": "string",
           "value": "93: pack2:3,2"
+        },
+        {
+          "name": "blocksSight",
+          "type": "bool",
+          "value": true
+        },
+        {
+          "name": "blocksAttacks",
+          "type": "bool",
+          "value": true
         },
         {
           "name": "wallTexture",
@@ -938,6 +1448,11 @@
           "value": 94
         },
         {
+          "name": "terrainKind",
+          "type": "string",
+          "value": "wall"
+        },
+        {
           "name": "blocking",
           "type": "bool",
           "value": true
@@ -946,6 +1461,16 @@
           "name": "label",
           "type": "string",
           "value": "94: pack2:4,2"
+        },
+        {
+          "name": "blocksSight",
+          "type": "bool",
+          "value": true
+        },
+        {
+          "name": "blocksAttacks",
+          "type": "bool",
+          "value": true
         },
         {
           "name": "wallTexture",
@@ -965,6 +1490,11 @@
           "value": 95
         },
         {
+          "name": "terrainKind",
+          "type": "string",
+          "value": "wall"
+        },
+        {
           "name": "blocking",
           "type": "bool",
           "value": true
@@ -973,6 +1503,16 @@
           "name": "label",
           "type": "string",
           "value": "95: pack2:0,3"
+        },
+        {
+          "name": "blocksSight",
+          "type": "bool",
+          "value": true
+        },
+        {
+          "name": "blocksAttacks",
+          "type": "bool",
+          "value": true
         },
         {
           "name": "wallTexture",
@@ -992,6 +1532,11 @@
           "value": 96
         },
         {
+          "name": "terrainKind",
+          "type": "string",
+          "value": "wall"
+        },
+        {
           "name": "blocking",
           "type": "bool",
           "value": true
@@ -1000,6 +1545,16 @@
           "name": "label",
           "type": "string",
           "value": "96: pack2:1,3"
+        },
+        {
+          "name": "blocksSight",
+          "type": "bool",
+          "value": true
+        },
+        {
+          "name": "blocksAttacks",
+          "type": "bool",
+          "value": true
         },
         {
           "name": "wallTexture",
@@ -1019,6 +1574,11 @@
           "value": 97
         },
         {
+          "name": "terrainKind",
+          "type": "string",
+          "value": "wall"
+        },
+        {
           "name": "blocking",
           "type": "bool",
           "value": true
@@ -1027,6 +1587,16 @@
           "name": "label",
           "type": "string",
           "value": "97: pack2:2,3"
+        },
+        {
+          "name": "blocksSight",
+          "type": "bool",
+          "value": true
+        },
+        {
+          "name": "blocksAttacks",
+          "type": "bool",
+          "value": true
         },
         {
           "name": "wallTexture",
@@ -1046,6 +1616,11 @@
           "value": 98
         },
         {
+          "name": "terrainKind",
+          "type": "string",
+          "value": "wall"
+        },
+        {
           "name": "blocking",
           "type": "bool",
           "value": true
@@ -1054,6 +1629,16 @@
           "name": "label",
           "type": "string",
           "value": "98: pack2:3,3"
+        },
+        {
+          "name": "blocksSight",
+          "type": "bool",
+          "value": true
+        },
+        {
+          "name": "blocksAttacks",
+          "type": "bool",
+          "value": true
         },
         {
           "name": "wallTexture",
@@ -1073,6 +1658,11 @@
           "value": 99
         },
         {
+          "name": "terrainKind",
+          "type": "string",
+          "value": "wall"
+        },
+        {
           "name": "blocking",
           "type": "bool",
           "value": true
@@ -1081,6 +1671,16 @@
           "name": "label",
           "type": "string",
           "value": "99: pack2:4,3"
+        },
+        {
+          "name": "blocksSight",
+          "type": "bool",
+          "value": true
+        },
+        {
+          "name": "blocksAttacks",
+          "type": "bool",
+          "value": true
         },
         {
           "name": "wallTexture",
@@ -1100,6 +1700,11 @@
           "value": 100
         },
         {
+          "name": "terrainKind",
+          "type": "string",
+          "value": "wall"
+        },
+        {
           "name": "blocking",
           "type": "bool",
           "value": true
@@ -1108,6 +1713,16 @@
           "name": "label",
           "type": "string",
           "value": "100: pack3:0,0"
+        },
+        {
+          "name": "blocksSight",
+          "type": "bool",
+          "value": true
+        },
+        {
+          "name": "blocksAttacks",
+          "type": "bool",
+          "value": true
         },
         {
           "name": "wallTexture",
@@ -1127,6 +1742,11 @@
           "value": 101
         },
         {
+          "name": "terrainKind",
+          "type": "string",
+          "value": "wall"
+        },
+        {
           "name": "blocking",
           "type": "bool",
           "value": true
@@ -1135,6 +1755,16 @@
           "name": "label",
           "type": "string",
           "value": "101: pack3:1,0"
+        },
+        {
+          "name": "blocksSight",
+          "type": "bool",
+          "value": true
+        },
+        {
+          "name": "blocksAttacks",
+          "type": "bool",
+          "value": true
         },
         {
           "name": "wallTexture",
@@ -1154,6 +1784,11 @@
           "value": 102
         },
         {
+          "name": "terrainKind",
+          "type": "string",
+          "value": "wall"
+        },
+        {
           "name": "blocking",
           "type": "bool",
           "value": true
@@ -1162,6 +1797,16 @@
           "name": "label",
           "type": "string",
           "value": "102: pack3:2,0"
+        },
+        {
+          "name": "blocksSight",
+          "type": "bool",
+          "value": true
+        },
+        {
+          "name": "blocksAttacks",
+          "type": "bool",
+          "value": true
         },
         {
           "name": "wallTexture",
@@ -1181,6 +1826,11 @@
           "value": 103
         },
         {
+          "name": "terrainKind",
+          "type": "string",
+          "value": "wall"
+        },
+        {
           "name": "blocking",
           "type": "bool",
           "value": true
@@ -1189,6 +1839,16 @@
           "name": "label",
           "type": "string",
           "value": "103: pack3:3,0"
+        },
+        {
+          "name": "blocksSight",
+          "type": "bool",
+          "value": true
+        },
+        {
+          "name": "blocksAttacks",
+          "type": "bool",
+          "value": true
         },
         {
           "name": "wallTexture",
@@ -1208,6 +1868,11 @@
           "value": 104
         },
         {
+          "name": "terrainKind",
+          "type": "string",
+          "value": "wall"
+        },
+        {
           "name": "blocking",
           "type": "bool",
           "value": true
@@ -1216,6 +1881,16 @@
           "name": "label",
           "type": "string",
           "value": "104: pack3:4,0"
+        },
+        {
+          "name": "blocksSight",
+          "type": "bool",
+          "value": true
+        },
+        {
+          "name": "blocksAttacks",
+          "type": "bool",
+          "value": true
         },
         {
           "name": "wallTexture",
@@ -1235,6 +1910,11 @@
           "value": 105
         },
         {
+          "name": "terrainKind",
+          "type": "string",
+          "value": "wall"
+        },
+        {
           "name": "blocking",
           "type": "bool",
           "value": true
@@ -1243,6 +1923,16 @@
           "name": "label",
           "type": "string",
           "value": "105: pack3:0,1"
+        },
+        {
+          "name": "blocksSight",
+          "type": "bool",
+          "value": true
+        },
+        {
+          "name": "blocksAttacks",
+          "type": "bool",
+          "value": true
         },
         {
           "name": "wallTexture",
@@ -1262,6 +1952,11 @@
           "value": 106
         },
         {
+          "name": "terrainKind",
+          "type": "string",
+          "value": "wall"
+        },
+        {
           "name": "blocking",
           "type": "bool",
           "value": true
@@ -1270,6 +1965,16 @@
           "name": "label",
           "type": "string",
           "value": "106: pack3:1,1"
+        },
+        {
+          "name": "blocksSight",
+          "type": "bool",
+          "value": true
+        },
+        {
+          "name": "blocksAttacks",
+          "type": "bool",
+          "value": true
         },
         {
           "name": "wallTexture",
@@ -1289,6 +1994,11 @@
           "value": 107
         },
         {
+          "name": "terrainKind",
+          "type": "string",
+          "value": "wall"
+        },
+        {
           "name": "blocking",
           "type": "bool",
           "value": true
@@ -1297,6 +2007,16 @@
           "name": "label",
           "type": "string",
           "value": "107: pack3:2,1"
+        },
+        {
+          "name": "blocksSight",
+          "type": "bool",
+          "value": true
+        },
+        {
+          "name": "blocksAttacks",
+          "type": "bool",
+          "value": true
         },
         {
           "name": "wallTexture",
@@ -1316,6 +2036,11 @@
           "value": 108
         },
         {
+          "name": "terrainKind",
+          "type": "string",
+          "value": "wall"
+        },
+        {
           "name": "blocking",
           "type": "bool",
           "value": true
@@ -1324,6 +2049,16 @@
           "name": "label",
           "type": "string",
           "value": "108: pack3:3,1"
+        },
+        {
+          "name": "blocksSight",
+          "type": "bool",
+          "value": true
+        },
+        {
+          "name": "blocksAttacks",
+          "type": "bool",
+          "value": true
         },
         {
           "name": "wallTexture",
@@ -1343,6 +2078,11 @@
           "value": 109
         },
         {
+          "name": "terrainKind",
+          "type": "string",
+          "value": "wall"
+        },
+        {
           "name": "blocking",
           "type": "bool",
           "value": true
@@ -1351,6 +2091,16 @@
           "name": "label",
           "type": "string",
           "value": "109: pack3:4,1"
+        },
+        {
+          "name": "blocksSight",
+          "type": "bool",
+          "value": true
+        },
+        {
+          "name": "blocksAttacks",
+          "type": "bool",
+          "value": true
         },
         {
           "name": "wallTexture",
@@ -1370,6 +2120,11 @@
           "value": 110
         },
         {
+          "name": "terrainKind",
+          "type": "string",
+          "value": "wall"
+        },
+        {
           "name": "blocking",
           "type": "bool",
           "value": true
@@ -1378,6 +2133,16 @@
           "name": "label",
           "type": "string",
           "value": "110: pack3:0,2"
+        },
+        {
+          "name": "blocksSight",
+          "type": "bool",
+          "value": true
+        },
+        {
+          "name": "blocksAttacks",
+          "type": "bool",
+          "value": true
         },
         {
           "name": "wallTexture",
@@ -1397,6 +2162,11 @@
           "value": 111
         },
         {
+          "name": "terrainKind",
+          "type": "string",
+          "value": "wall"
+        },
+        {
           "name": "blocking",
           "type": "bool",
           "value": true
@@ -1405,6 +2175,16 @@
           "name": "label",
           "type": "string",
           "value": "111: pack3:1,2"
+        },
+        {
+          "name": "blocksSight",
+          "type": "bool",
+          "value": true
+        },
+        {
+          "name": "blocksAttacks",
+          "type": "bool",
+          "value": true
         },
         {
           "name": "wallTexture",
@@ -1424,6 +2204,11 @@
           "value": 112
         },
         {
+          "name": "terrainKind",
+          "type": "string",
+          "value": "wall"
+        },
+        {
           "name": "blocking",
           "type": "bool",
           "value": true
@@ -1432,6 +2217,16 @@
           "name": "label",
           "type": "string",
           "value": "112: pack3:2,2"
+        },
+        {
+          "name": "blocksSight",
+          "type": "bool",
+          "value": true
+        },
+        {
+          "name": "blocksAttacks",
+          "type": "bool",
+          "value": true
         },
         {
           "name": "wallTexture",
@@ -1451,6 +2246,11 @@
           "value": 113
         },
         {
+          "name": "terrainKind",
+          "type": "string",
+          "value": "wall"
+        },
+        {
           "name": "blocking",
           "type": "bool",
           "value": true
@@ -1459,6 +2259,16 @@
           "name": "label",
           "type": "string",
           "value": "113: pack3:3,2"
+        },
+        {
+          "name": "blocksSight",
+          "type": "bool",
+          "value": true
+        },
+        {
+          "name": "blocksAttacks",
+          "type": "bool",
+          "value": true
         },
         {
           "name": "wallTexture",
@@ -1478,6 +2288,11 @@
           "value": 114
         },
         {
+          "name": "terrainKind",
+          "type": "string",
+          "value": "wall"
+        },
+        {
           "name": "blocking",
           "type": "bool",
           "value": true
@@ -1486,6 +2301,16 @@
           "name": "label",
           "type": "string",
           "value": "114: pack3:4,2"
+        },
+        {
+          "name": "blocksSight",
+          "type": "bool",
+          "value": true
+        },
+        {
+          "name": "blocksAttacks",
+          "type": "bool",
+          "value": true
         },
         {
           "name": "wallTexture",
@@ -1505,6 +2330,11 @@
           "value": 115
         },
         {
+          "name": "terrainKind",
+          "type": "string",
+          "value": "wall"
+        },
+        {
           "name": "blocking",
           "type": "bool",
           "value": true
@@ -1513,6 +2343,16 @@
           "name": "label",
           "type": "string",
           "value": "115: pack3:0,3"
+        },
+        {
+          "name": "blocksSight",
+          "type": "bool",
+          "value": true
+        },
+        {
+          "name": "blocksAttacks",
+          "type": "bool",
+          "value": true
         },
         {
           "name": "wallTexture",
@@ -1532,6 +2372,11 @@
           "value": 116
         },
         {
+          "name": "terrainKind",
+          "type": "string",
+          "value": "wall"
+        },
+        {
           "name": "blocking",
           "type": "bool",
           "value": true
@@ -1540,6 +2385,16 @@
           "name": "label",
           "type": "string",
           "value": "116: pack3:1,3"
+        },
+        {
+          "name": "blocksSight",
+          "type": "bool",
+          "value": true
+        },
+        {
+          "name": "blocksAttacks",
+          "type": "bool",
+          "value": true
         },
         {
           "name": "wallTexture",
@@ -1559,6 +2414,11 @@
           "value": 117
         },
         {
+          "name": "terrainKind",
+          "type": "string",
+          "value": "wall"
+        },
+        {
           "name": "blocking",
           "type": "bool",
           "value": true
@@ -1567,6 +2427,16 @@
           "name": "label",
           "type": "string",
           "value": "117: pack3:2,3"
+        },
+        {
+          "name": "blocksSight",
+          "type": "bool",
+          "value": true
+        },
+        {
+          "name": "blocksAttacks",
+          "type": "bool",
+          "value": true
         },
         {
           "name": "wallTexture",
@@ -1586,6 +2456,11 @@
           "value": 118
         },
         {
+          "name": "terrainKind",
+          "type": "string",
+          "value": "wall"
+        },
+        {
           "name": "blocking",
           "type": "bool",
           "value": true
@@ -1594,6 +2469,16 @@
           "name": "label",
           "type": "string",
           "value": "118: pack3:3,3"
+        },
+        {
+          "name": "blocksSight",
+          "type": "bool",
+          "value": true
+        },
+        {
+          "name": "blocksAttacks",
+          "type": "bool",
+          "value": true
         },
         {
           "name": "wallTexture",
@@ -1613,6 +2498,11 @@
           "value": 119
         },
         {
+          "name": "terrainKind",
+          "type": "string",
+          "value": "wall"
+        },
+        {
           "name": "blocking",
           "type": "bool",
           "value": true
@@ -1621,6 +2511,16 @@
           "name": "label",
           "type": "string",
           "value": "119: pack3:4,3"
+        },
+        {
+          "name": "blocksSight",
+          "type": "bool",
+          "value": true
+        },
+        {
+          "name": "blocksAttacks",
+          "type": "bool",
+          "value": true
         },
         {
           "name": "wallTexture",

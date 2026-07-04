@@ -432,7 +432,7 @@ function updateEnemyAwareness(actor: EnemyActorContext): AwarenessResult {
   const { context, entity, gridPos, facing, enemyAwareness } = actor;
   const position = entityPosition(entity, gridPos);
   const playerPosition = context.player.getPosition();
-  const blocksSight = context.blocksSight ?? ((x, y) => context.spatial.tileBlocks(x, y));
+  const blocksSight = context.blocksSight ?? ((x, y) => context.spatial.tileBlocksSight(x, y));
 
   if (
     canSeePoint(position, playerPosition, {

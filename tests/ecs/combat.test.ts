@@ -114,6 +114,28 @@ Deno.test("attackTargets returns the first entity in a directional line", async 
   assertEquals(targets, [firstTarget]);
 });
 
+Deno.test("attackTargets stops line attacks at attack-blocking terrain", async () => {
+  const world = await createWorld();
+  const attacker = createEntity(world);
+  const target = createEntity(world);
+
+  world.components.addToEntity(GridPos, attacker, { x: 1, y: 1 });
+  world.components.addToEntity(Facing, attacker, { dir: 1 });
+  world.components.addToEntity(GridPos, target, { x: 3, y: 1 });
+
+  const targets = attackTargets(
+    world,
+    attacker,
+    { ...BASE_ATTACK, range: 3 },
+    testSpatial([{ x: 3, y: 1, entity: target }], {
+      tileBlocksAttacks: (x, y) => x === 2 && y === 1,
+    }),
+    () => true,
+  );
+
+  assertEquals(targets, []);
+});
+
 Deno.test("attackTargets can hit all cardinal adjacent targets without facing", async () => {
   const world = await createWorld();
   const attacker = createEntity(world);
@@ -354,11 +376,19 @@ function entityAt(positions: readonly { readonly x: number; readonly y: number; 
 
 function testSpatial(
   positions: readonly { readonly x: number; readonly y: number; readonly entity: Entity }[],
-  tileBlocks: (x: number, y: number) => boolean = () => false,
+  overrides: {
+    readonly tileBlocks?: (x: number, y: number) => boolean;
+    readonly tileBlocksSight?: (x: number, y: number) => boolean;
+    readonly tileBlocksAttacks?: (x: number, y: number) => boolean;
+  } = {},
 ): SpatialLookup {
   const blockingEntityAt = entityAt(positions);
+  const tileBlocks = overrides.tileBlocks ?? (() => false);
+  const tileBlocksAttacks = overrides.tileBlocksAttacks ?? tileBlocks;
   return {
     tileBlocks,
+    tileBlocksSight: overrides.tileBlocksSight ?? tileBlocks,
+    tileBlocksAttacks,
     blockingEntityAt,
     positionBlocks: (x, y) => tileBlocks(x, y) || blockingEntityAt(x, y) !== undefined,
   };

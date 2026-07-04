@@ -10,6 +10,10 @@ import {
   AUTHORING_TILE_SIZE,
   AUTOMAP_DIR,
   AUTOMAP_RULES_FILE,
+  BARRIER_TILESET_FIRST_GID,
+  barrierTilesetImagePath,
+  barrierTilesetPath,
+  barrierTilesetReference,
   COMPILED_MAPS_PATH,
   ENTITY_MARKER_TYPES,
   ENTITY_MARKERS_IMAGE,
@@ -43,6 +47,7 @@ import {
   wallTilesetReference,
 } from "@/src/map/authoring/catalog.ts";
 import type { TiledProjectCommand } from "@/src/map/authoring/catalog.ts";
+import { BarrierTexture } from "@/src/map/map.ts";
 import type { EntityDef, TerrainTile, TexturePackRef } from "@/src/map/map.ts";
 import { PALETTE_KEYS, TERRAIN_CATALOG } from "@/src/map/terrain_palettes.ts";
 import type { PaletteKey } from "@/src/map/terrain_palettes.ts";
@@ -229,11 +234,13 @@ async function syncAuthoredMapTerrainTilesets(): Promise<void> {
       tileset.firstgid !== TERRAIN_TILESET_FIRST_GID &&
       tileset.firstgid !== FLOOR_TILESET_FIRST_GID &&
       tileset.firstgid !== WALL_TILESET_FIRST_GID &&
+      tileset.firstgid !== BARRIER_TILESET_FIRST_GID &&
       tileset.source !== ENTITY_MARKERS_TILESET
     );
     const nextTilesets = [
       floorTilesetReference(),
       wallTilesetReference(),
+      barrierTilesetReference(),
       entityMarkersTilesetReference(),
       ...nonTerrainTilesets,
     ];
@@ -260,13 +267,21 @@ async function terrainIdMigrationMap(
 }
 
 function globalTerrainIdForTile(tile: NonNullable<TiledTileset["tiles"]>[number]): number {
+  const terrainKind = tile.properties?.find((property) => property.name === "terrainKind")?.value;
   const blocking = tile.properties?.find((property) => property.name === "blocking")?.value === true;
-  const textureProperty = blocking ? "wallTexture" : "floorTexture";
+  const kind = terrainKind === "barrier" || terrainKind === "wall" || terrainKind === "floor" ?
+    terrainKind :
+    blocking ?
+    "wall" :
+    "floor";
+  const textureProperty = kind === "barrier" ? "barrierTexture" : kind === "wall" ? "wallTexture" : "floorTexture";
   const texture = tile.properties?.find((property) => property.name === textureProperty)?.value;
   if (typeof texture !== "string") return tile.id;
   const terrain = TERRAIN_CATALOG.find((candidate) => {
-    if (candidate.blocking === true) return blocking && candidate.wall_texture === texture;
-    return !blocking && candidate.floor_texture === texture;
+    if (candidate.kind !== kind) return false;
+    if (candidate.kind === "barrier") return candidate.barrier_texture === texture;
+    if (candidate.kind === "wall") return candidate.wall_texture === texture;
+    return candidate.floor_texture === texture;
   });
   return terrain?.id ?? tile.id;
 }
@@ -384,6 +399,7 @@ export function buildScaffoldMap(options: NewMapOptions): TiledMap {
     tilesets: [
       floorTilesetReference(),
       wallTilesetReference(),
+      barrierTilesetReference(),
       entityMarkersTilesetReference(),
     ],
     tilewidth: AUTHORING_TILE_SIZE,
@@ -462,6 +478,8 @@ export async function generatedTerrainSources(
     [floorTilesetImagePath()]: terrainAtlasImage(floorTerrainTiles(), images),
     [wallTilesetPath()]: jsonSource(terrainTileset("walls", "walls.png", wallTerrainTiles())),
     [wallTilesetImagePath()]: terrainAtlasImage(wallTerrainTiles(), images, { border: WALL_TILE_BORDER_COLOR }),
+    [barrierTilesetPath()]: jsonSource(terrainTileset("barriers", "barriers.png", barrierTerrainTiles())),
+    [barrierTilesetImagePath()]: barrierAtlasImage(barrierTerrainTiles()),
   };
 }
 
@@ -482,17 +500,13 @@ function terrainTileset(name: string, image: string, terrain: readonly TerrainTi
       const texture = terrainDisplayTexture(tile);
       return {
         id: localId,
-        type: tile.blocking === true ? "wallTerrain" : "floorTerrain",
+        type: `${tile.kind}Terrain`,
         properties: [
           property("terrainId", tile.id),
-          property("blocking", tile.blocking === true),
+          property("terrainKind", tile.kind),
+          property("blocking", tile.kind !== "floor"),
           property("label", `${tile.id}: ${texture}`),
-          ...(tile.blocking === true ?
-            tile.wall_texture === undefined ? [] : [property("wallTexture", tile.wall_texture, "TextureRef")] :
-            [
-              property("floorTexture", tile.floor_texture, "TextureRef"),
-              property("ceilingTexture", tile.ceiling_texture, "TextureRef"),
-            ]),
+          ...terrainTileProperties(tile),
         ],
       };
     }),
@@ -520,16 +534,51 @@ function terrainAtlasImage(
   return encodePng(width, height, pixels);
 }
 
+function barrierAtlasImage(terrain: readonly TerrainTile[]): Uint8Array {
+  const width = AUTHORING_TILE_SIZE * TERRAIN_ATLAS_TILE_COLUMNS;
+  const height = AUTHORING_TILE_SIZE * Math.ceil(terrain.length / TERRAIN_ATLAS_TILE_COLUMNS);
+  const pixels = new Uint8Array(width * height * 4);
+  for (let index = 0; index < terrain.length; index++) {
+    const tile = terrain[index]!;
+    if (tile.kind === "barrier") drawBarrierThumbnail(pixels, width, index, tile.barrier_texture);
+  }
+  return encodePng(width, height, pixels);
+}
+
+function drawBarrierThumbnail(
+  target: Uint8Array,
+  targetWidth: number,
+  tileIndex: number,
+  texture: string,
+): void {
+  const targetLeft = (tileIndex % TERRAIN_ATLAS_TILE_COLUMNS) * AUTHORING_TILE_SIZE;
+  const targetTop = Math.floor(tileIndex / TERRAIN_ATLAS_TILE_COLUMNS) * AUTHORING_TILE_SIZE;
+  for (let y = 0; y < AUTHORING_TILE_SIZE; y++) {
+    for (let x = 0; x < AUTHORING_TILE_SIZE; x++) {
+      const opaque = texture === BarrierTexture.Bars ?
+        x === 0 || x === AUTHORING_TILE_SIZE - 1 || y === 0 || y === AUTHORING_TILE_SIZE - 1 || x % 4 === 1 :
+        x === 0 || x === AUTHORING_TILE_SIZE - 1 || y === 0 || y === AUTHORING_TILE_SIZE - 1 || x === y ||
+        x + y === AUTHORING_TILE_SIZE - 1;
+      if (!opaque) continue;
+      setPixel(target, targetWidth, targetLeft + x, targetTop + y, [125, 211, 252, 255]);
+    }
+  }
+}
+
 function floorTerrainTiles(): readonly TerrainTile[] {
-  return TERRAIN_CATALOG.filter((tile) => tile.blocking !== true);
+  return TERRAIN_CATALOG.filter((tile) => tile.kind === "floor");
 }
 
 function wallTerrainTiles(): readonly TerrainTile[] {
-  return TERRAIN_CATALOG.filter((tile) => tile.blocking === true);
+  return TERRAIN_CATALOG.filter((tile) => tile.kind === "wall");
+}
+
+function barrierTerrainTiles(): readonly TerrainTile[] {
+  return TERRAIN_CATALOG.filter((tile) => tile.kind === "barrier");
 }
 
 function terrainDisplayTexture(tile: TerrainTile): TexturePackRef {
-  if (tile.blocking === true) {
+  if (tile.kind === "wall") {
     if (tile.wall_texture === undefined || !isTexturePackRef(tile.wall_texture)) {
       throw new Error(`Terrain tile ${tile.id} must use a texture pack wall texture for Tiled authoring.`);
     }
@@ -539,6 +588,32 @@ function terrainDisplayTexture(tile: TerrainTile): TexturePackRef {
     throw new Error(`Terrain tile ${tile.id} must use a texture pack floor texture for Tiled authoring.`);
   }
   return tile.floor_texture;
+}
+
+function terrainTileProperties(tile: TerrainTile): readonly TiledProperty[] {
+  switch (tile.kind) {
+    case "floor":
+      return [
+        property("blocksSight", false),
+        property("blocksAttacks", false),
+        property("floorTexture", tile.floor_texture, "TextureRef"),
+        property("ceilingTexture", tile.ceiling_texture, "TextureRef"),
+      ];
+    case "wall":
+      return [
+        property("blocksSight", true),
+        property("blocksAttacks", true),
+        ...(tile.wall_texture === undefined ? [] : [property("wallTexture", tile.wall_texture, "TextureRef")]),
+      ];
+    case "barrier":
+      return [
+        property("blocksSight", false),
+        property("blocksAttacks", true),
+        property("barrierTexture", tile.barrier_texture),
+        property("floorTexture", tile.floor_texture, "TextureRef"),
+        property("ceilingTexture", tile.ceiling_texture, "TextureRef"),
+      ];
+  }
 }
 
 function drawTextureThumbnail(
@@ -1012,11 +1087,15 @@ function validateRawMap(path: string, map: TiledMap): void {
     mapPaletteKey(path, map);
     const floorTileset = map.tilesets?.find((tileset) => tileset.firstgid === FLOOR_TILESET_FIRST_GID);
     const wallTileset = map.tilesets?.find((tileset) => tileset.firstgid === WALL_TILESET_FIRST_GID);
+    const barrierTileset = map.tilesets?.find((tileset) => tileset.firstgid === BARRIER_TILESET_FIRST_GID);
     if (floorTileset?.source !== floorTilesetReference().source) {
       issues.push(`${path}: floor terrain tileset must be "${floorTilesetReference().source}".`);
     }
     if (wallTileset?.source !== wallTilesetReference().source) {
       issues.push(`${path}: wall terrain tileset must be "${wallTilesetReference().source}".`);
+    }
+    if (barrierTileset?.source !== barrierTilesetReference().source) {
+      issues.push(`${path}: barrier terrain tileset must be "${barrierTilesetReference().source}".`);
     }
   } catch (error) {
     issues.push(error instanceof Error ? error.message : String(error));

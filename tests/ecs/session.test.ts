@@ -14,8 +14,9 @@ import type { PlayerCommandResult } from "@/src/game/commands.ts";
 import { TurnEffectKind } from "@/src/game/turn_effects.ts";
 import { DisplayName } from "@/src/game/names.ts";
 import { Direction } from "@/src/grid/direction.ts";
-import { KeyColor, VICTORY_GOTO } from "@/src/map/map.ts";
+import { createGameMap, KeyColor, VICTORY_GOTO } from "@/src/map/map.ts";
 import type { EntityDef, GameMap } from "@/src/map/map.ts";
+import { DEFAULT_BARS_TERRAIN_ID, DEFAULT_WALL_TERRAIN_ID } from "@/src/map/terrain_palettes.ts";
 import { flatTestMap } from "@/tests/ecs/helpers.ts";
 
 Deno.test("createGameSession applies carried player state and requires a player spawn", async () => {
@@ -79,6 +80,30 @@ Deno.test("opening a door consumes a turn and refreshes visibility through it", 
 
     assertEquals(eventTypes(result), ["doorOpened"]);
     assertEquals(session.getVisibility().isVisible(3, 1), true);
+  } finally {
+    session[Symbol.dispose]();
+  }
+});
+
+Deno.test("terrain barriers block movement but not visibility", async () => {
+  const session = await createGameSession(
+    createGameMap("Barrier", [
+      [0, 0, DEFAULT_WALL_TERRAIN_ID, 0, 0],
+      [0, 0, DEFAULT_BARS_TERRAIN_ID, 0, 0],
+      [0, 0, DEFAULT_WALL_TERRAIN_ID, 0, 0],
+    ], [
+      { prefab: "player", x: 1, y: 1, dir: Direction.East },
+      { prefab: "item", x: 3, y: 1, item: ItemKind.HealthPatch, amount: 1 },
+    ]),
+    () => 0,
+  );
+  try {
+    assertEquals(session.getVisibility().isVisible(3, 1), true);
+
+    const result = session.handlePlayerCommand({ type: "move", direction: "forward" });
+
+    assertEquals(eventTypes(result), []);
+    assertEquals(playerPosition(session), { x: 1, y: 1 });
   } finally {
     session[Symbol.dispose]();
   }
@@ -416,6 +441,14 @@ function sessionDrawables(session: { forEachDrawable(visit: (drawable: DrawableE
   const drawables: DrawableEntity[] = [];
   session.forEachDrawable((drawable) => drawables.push({ ...drawable }));
   return drawables;
+}
+
+function playerPosition(session: { forEachDrawable(visit: (drawable: DrawableEntity) => void): void }) {
+  let position = { x: -1, y: -1 };
+  session.forEachDrawable((drawable) => {
+    if (drawable.kind === DrawableKind.Player) position = { x: drawable.x, y: drawable.y };
+  });
+  return position;
 }
 
 function actorAt(drawables: readonly DrawableEntity[], x: number, y: number): ActorDrawableEntity | undefined {

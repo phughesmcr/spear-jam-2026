@@ -15,8 +15,8 @@
             71, 71, 19, 19, 19, 37, 37, 37, 19, 19, 19, 19, 35, 35, 64,
             71, 71, 71, 71, 71, 71, 71, 71, 71, 71, 71, 71, 71, 35, 64,
             64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 35, 64,
-            64, 35, 35, 64, 35, 35, 35, 35, 35, 64, 35, 64, 35, 35, 64,
-            64, 35, 35, 64, 35, 35, 35, 35, 35, 35, 35, 35, 35, 35, 64,
+            64, 35, 35, 64, 35, 121, 35, 35, 35, 64, 35, 64, 35, 35, 64,
+            64, 35, 35, 64, 35, 121, 35, 35, 35, 35, 35, 35, 35, 35, 64,
             64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64],
          "height":15,
          "id":1,
@@ -34,7 +34,7 @@
          "name":"objects",
          "objects":[
                 {
-                 "gid":121,
+                 "gid":141,
                  "height":16,
                  "id":1,
                  "name":"player_1",
@@ -60,7 +60,7 @@
                  "y":48
                 }, 
                 {
-                 "gid":122,
+                 "gid":142,
                  "height":16,
                  "id":2,
                  "name":"npc_2",
@@ -98,7 +98,7 @@
                  "y":64
                 }, 
                 {
-                 "gid":124,
+                 "gid":144,
                  "height":16,
                  "id":3,
                  "name":"door_3",
@@ -118,7 +118,7 @@
                  "y":144
                 }, 
                 {
-                 "gid":124,
+                 "gid":144,
                  "height":16,
                  "id":18,
                  "name":"door_s1",
@@ -149,7 +149,7 @@
                  "y":160
                 }, 
                 {
-                 "gid":123,
+                 "gid":143,
                  "height":16,
                  "id":4,
                  "name":"enemy_4",
@@ -187,7 +187,7 @@
                  "y":96
                 }, 
                 {
-                 "gid":128,
+                 "gid":148,
                  "height":16,
                  "id":5,
                  "name":"weaponPickup_5",
@@ -212,7 +212,7 @@
                  "y":112
                 }, 
                 {
-                 "gid":129,
+                 "gid":149,
                  "height":16,
                  "id":6,
                  "name":"item_6",
@@ -243,7 +243,7 @@
                  "y":128
                 }, 
                 {
-                 "gid":129,
+                 "gid":149,
                  "height":16,
                  "id":7,
                  "name":"item_7",
@@ -274,7 +274,7 @@
                  "y":128
                 }, 
                 {
-                 "gid":125,
+                 "gid":145,
                  "height":16,
                  "id":8,
                  "name":"key_8",
@@ -297,10 +297,10 @@
                  "visible":true,
                  "width":16,
                  "x":16,
-                 "y":112
+                 "y":128
                 }, 
                 {
-                 "gid":125,
+                 "gid":145,
                  "height":16,
                  "id":24,
                  "name":"decor_1",
@@ -326,7 +326,7 @@
                  "y":128
                 }, 
                 {
-                 "gid":125,
+                 "gid":145,
                  "height":16,
                  "id":25,
                  "name":"decor_2",
@@ -352,7 +352,7 @@
                  "y":64
                 }, 
                 {
-                 "gid":125,
+                 "gid":145,
                  "height":16,
                  "id":26,
                  "name":"decor_6",
@@ -378,7 +378,7 @@
                  "y":208
                 }, 
                 {
-                 "gid":125,
+                 "gid":145,
                  "height":16,
                  "id":27,
                  "name":"decor_5",
@@ -404,7 +404,7 @@
                  "y":208
                 }, 
                 {
-                 "gid":125,
+                 "gid":145,
                  "height":16,
                  "id":28,
                  "name":"decor_4",
@@ -430,7 +430,7 @@
                  "y":208
                 }, 
                 {
-                 "gid":125,
+                 "gid":145,
                  "height":16,
                  "id":30,
                  "name":"decor_7",
@@ -457,7 +457,7 @@
                 },
             
                 {
-                 "gid":125,
+                 "gid":145,
                  "height":16,
                  "id":31,
                  "name":"decor_8",
@@ -483,7 +483,7 @@
                  "y":224
                 }, 
                 {
-                 "gid":125,
+                 "gid":145,
                  "height":16,
                  "id":29,
                  "name":"decor_3",
@@ -509,7 +509,7 @@
                  "y":160
                 }, 
                 {
-                 "gid":125,
+                 "gid":145,
                  "height":16,
                  "id":37,
                  "name":"decor_9",
@@ -535,7 +535,7 @@
                  "y":96
                 }, 
                 {
-                 "gid":129,
+                 "gid":149,
                  "height":16,
                  "id":9,
                  "name":"item_9",
@@ -566,7 +566,7 @@
                  "y":32
                 }, 
                 {
-                 "gid":123,
+                 "gid":143,
                  "height":16,
                  "id":10,
                  "name":"enemy_10",
@@ -604,7 +604,7 @@
                  "y":160
                 }, 
                 {
-                 "gid":127,
+                 "gid":147,
                  "height":16,
                  "id":11,
                  "name":"uplinkTerminal_11",
@@ -635,7 +635,7 @@
                  "y":64
                 }, 
                 {
-                 "gid":124,
+                 "gid":144,
                  "height":16,
                  "id":12,
                  "name":"door_12",
@@ -677,7 +677,7 @@
                  "y":80
                 }, 
                 {
-                 "gid":123,
+                 "gid":143,
                  "height":16,
                  "id":13,
                  "name":"enemy_13",
@@ -715,7 +715,7 @@
                  "y":112
                 }, 
                 {
-                 "gid":126,
+                 "gid":146,
                  "height":16,
                  "id":14,
                  "name":"uplinkCode_14",
@@ -735,7 +735,7 @@
                  "y":128
                 }, 
                 {
-                 "gid":129,
+                 "gid":149,
                  "height":16,
                  "id":15,
                  "name":"item_15",
@@ -767,7 +767,7 @@
                 }],
          "opacity":1,
          "type":"objectgroup",
-         "visible":false,
+         "visible":true,
          "x":0,
          "y":0
         }, 
@@ -955,17 +955,17 @@
                         {
                          "name":"flickerAmount",
                          "type":"float",
-                         "value":0.3
+                         "value":1
                         }, 
                         {
                          "name":"flickerSpeed",
                          "type":"float",
-                         "value":11
+                         "value":9
                         }, 
                         {
                          "name":"radius",
                          "type":"int",
-                         "value":4
+                         "value":2
                         }],
                  "rotation":0,
                  "type":"",
@@ -988,7 +988,7 @@
                         {
                          "name":"flickerAmount",
                          "type":"float",
-                         "value":1.3
+                         "value":0.63
                         }, 
                         {
                          "name":"flickerSpeed",
@@ -1021,7 +1021,7 @@
                         {
                          "name":"flickerAmount",
                          "type":"float",
-                         "value":1.3
+                         "value":0.63
                         }, 
                         {
                          "name":"flickerSpeed",
@@ -1080,6 +1080,10 @@
         }, 
         {
          "firstgid":121,
+         "source":"terrain\/barriers.tsj"
+        }, 
+        {
+         "firstgid":141,
          "source":"entity_markers.tsj"
         }],
  "tilewidth":16,

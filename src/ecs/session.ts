@@ -576,7 +576,7 @@ export class GameSession implements Disposable {
   }
 
   private tileBlocksSight(x: number, y: number): boolean {
-    if (this.spatial.tileBlocks(x, y)) return true;
+    if (this.spatial.tileBlocksSight(x, y)) return true;
 
     const blockingEntity = this.spatial.blockingEntityAt(x, y);
     if (blockingEntity === undefined) return false;

@@ -19,9 +19,11 @@ export interface MapRenderOrigin {
 const MIN_TILE_SIZE = 8;
 const FLOOR_COLOR = "#232832";
 const WALL_COLOR = "#5a5f68";
+const BARRIER_COLOR = "#2dd4bf";
 const GRID_LINE_COLOR = "#151922";
 const EXPLORED_FLOOR_COLOR = "#151922";
 const EXPLORED_WALL_COLOR = "#353a44";
+const EXPLORED_BARRIER_COLOR = "#164e63";
 const EXPLORED_GRID_LINE_COLOR = "#0c0f15";
 const UNEXPLORED_COLOR = "#05070b";
 
@@ -76,13 +78,19 @@ function renderTile(
 
   const visible = visibility === undefined || visibility.isVisible(x, y);
   // Missing terrain blocks movement, so render it as wall to match.
-  ctx.fillStyle = tileColor(terrain === undefined || terrain.blocking === true, visible);
+  ctx.fillStyle = tileColor(terrain?.kind ?? "wall", visible);
   ctx.fillRect(tileX, tileY, tileSize, tileSize);
   ctx.strokeStyle = visible ? GRID_LINE_COLOR : EXPLORED_GRID_LINE_COLOR;
   ctx.strokeRect(tileX + 0.5, tileY + 0.5, tileSize - 1, tileSize - 1);
 }
 
-function tileColor(blocking: boolean, visible: boolean): string {
-  if (visible) return blocking ? WALL_COLOR : FLOOR_COLOR;
-  return blocking ? EXPLORED_WALL_COLOR : EXPLORED_FLOOR_COLOR;
+function tileColor(kind: "barrier" | "floor" | "wall", visible: boolean): string {
+  switch (kind) {
+    case "barrier":
+      return visible ? BARRIER_COLOR : EXPLORED_BARRIER_COLOR;
+    case "floor":
+      return visible ? FLOOR_COLOR : EXPLORED_FLOOR_COLOR;
+    case "wall":
+      return visible ? WALL_COLOR : EXPLORED_WALL_COLOR;
+  }
 }

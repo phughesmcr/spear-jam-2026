@@ -55,6 +55,7 @@ Deno.test("buildScaffoldMap creates a bordered Tiled map ready for authoring", (
   assertEquals(map.tilesets?.map((tileset) => tileset.source ?? tileset.name), [
     "terrain/floors.tsj",
     "terrain/walls.tsj",
+    "terrain/barriers.tsj",
     "entity_markers.tsj",
   ]);
   assertEquals(map.properties?.map((property) => [property.name, property.value]), [
@@ -123,11 +124,15 @@ Deno.test("generatedTerrainSources creates shared texture-backed terrain tileset
   const floorsPng = sources["game_assets/maps/terrain/floors.png"];
   const wallsTileset = sources["game_assets/maps/terrain/walls.tsj"];
   const wallsPng = sources["game_assets/maps/terrain/walls.png"];
+  const barriersTileset = sources["game_assets/maps/terrain/barriers.tsj"];
+  const barriersPng = sources["game_assets/maps/terrain/barriers.png"];
 
   assert(typeof floorsTileset === "string");
   assert(floorsPng instanceof Uint8Array);
   assert(typeof wallsTileset === "string");
   assert(wallsPng instanceof Uint8Array);
+  assert(typeof barriersTileset === "string");
+  assert(barriersPng instanceof Uint8Array);
 
   const floors = JSON.parse(floorsTileset) as {
     image: string;
@@ -139,6 +144,7 @@ Deno.test("generatedTerrainSources creates shared texture-backed terrain tileset
     }[];
   };
   const walls = JSON.parse(wallsTileset) as typeof floors;
+  const barriers = JSON.parse(barriersTileset) as typeof floors;
   assertEquals(floors.image, "floors.png");
   assertEquals(floors.columns, 20);
   assertEquals(floors.tilecount, 60);
@@ -159,6 +165,28 @@ Deno.test("generatedTerrainSources creates shared texture-backed terrain tileset
   assertEquals(
     walls.tiles[0]!.properties.find((property) => property.name === "terrainId")?.value,
     60,
+  );
+  assertEquals(barriers.image, "barriers.png");
+  assertEquals(barriers.tilecount, 2);
+  assertEquals(
+    barriers.tiles[0]!.properties.find((property) => property.name === "terrainKind")?.value,
+    "barrier",
+  );
+  assertEquals(
+    barriers.tiles[0]!.properties.find((property) => property.name === "blocking")?.value,
+    true,
+  );
+  assertEquals(
+    barriers.tiles[0]!.properties.find((property) => property.name === "blocksSight")?.value,
+    false,
+  );
+  assertEquals(
+    barriers.tiles[0]!.properties.find((property) => property.name === "blocksAttacks")?.value,
+    true,
+  );
+  assertEquals(
+    barriers.tiles[0]!.properties.find((property) => property.name === "barrierTexture")?.value,
+    "bars",
   );
   assertEquals(
     new DataView(floorsPng.buffer, floorsPng.byteOffset, floorsPng.byteLength).getUint32(16),

@@ -75,7 +75,11 @@ const MAP_PROPERTY_NAMES: ReadonlySet<string> = new Set(["name", "palette", "cam
 const LIGHT_PROPERTY_NAMES: ReadonlySet<string> = new Set(["color", "radius", "flickerAmount", "flickerSpeed"]);
 const TERRAIN_PROPERTY_NAMES: ReadonlySet<string> = new Set([
   "terrainId",
+  "terrainKind",
   "blocking",
+  "blocksSight",
+  "blocksAttacks",
+  "barrierTexture",
   "label",
   "floorTexture",
   "ceilingTexture",
@@ -192,9 +196,28 @@ function terrainIdFromGid(gid: number, registry: TilesetRegistry, context: strin
   if (terrainId < 0) throw new Error(`${context}: Property "terrainId" must be non-negative.`);
   const catalogTile = TERRAIN_CATALOG.find((tile) => tile.id === terrainId);
   if (catalogTile === undefined) throw new Error(`${context}: Unknown terrainId ${terrainId}.`);
+  const terrainKind = optionalString(properties, "terrainKind", context);
+  if (terrainKind !== undefined && terrainKind !== catalogTile.kind) {
+    throw new Error(`${context}: Property "terrainKind" does not match terrainId ${terrainId}.`);
+  }
   const blocking = optionalBoolean(properties, "blocking", context);
-  if ((blocking ?? false) !== (catalogTile.blocking === true)) {
+  if ((blocking ?? false) !== (catalogTile.kind !== "floor")) {
     throw new Error(`${context}: Property "blocking" does not match terrainId ${terrainId}.`);
+  }
+  const blocksSight = optionalBoolean(properties, "blocksSight", context);
+  if (blocksSight !== undefined && blocksSight !== (catalogTile.kind === "wall")) {
+    throw new Error(`${context}: Property "blocksSight" does not match terrainId ${terrainId}.`);
+  }
+  const blocksAttacks = optionalBoolean(properties, "blocksAttacks", context);
+  if (blocksAttacks !== undefined && blocksAttacks !== (catalogTile.kind !== "floor")) {
+    throw new Error(`${context}: Property "blocksAttacks" does not match terrainId ${terrainId}.`);
+  }
+  const barrierTexture = optionalString(properties, "barrierTexture", context);
+  if (
+    barrierTexture !== undefined &&
+    (catalogTile.kind !== "barrier" || barrierTexture !== catalogTile.barrier_texture)
+  ) {
+    throw new Error(`${context}: Property "barrierTexture" does not match terrainId ${terrainId}.`);
   }
   return terrainId;
 }

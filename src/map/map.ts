@@ -30,22 +30,38 @@ export type WallTexture = "wall" | TexturePackRef;
 export type FloorTexture = "floor" | TexturePackRef;
 export type CeilingTexture = "ceiling" | TexturePackRef;
 
+export const BarrierTexture = {
+  Bars: "bars",
+  Glass: "glass",
+} as const;
+
+export type BarrierTexture = (typeof BarrierTexture)[keyof typeof BarrierTexture];
+
 export type WallTile = {
+  kind: "wall";
   id: number;
   color: string;
   wall_texture?: WallTexture;
-  blocking: true;
 };
 
 export type FloorTile = {
+  kind: "floor";
   id: number;
   color: string;
   floor_texture: FloorTexture;
   ceiling_texture: CeilingTexture;
-  blocking?: false;
 };
 
-export type TerrainTile = WallTile | FloorTile;
+export type BarrierTile = {
+  kind: "barrier";
+  id: number;
+  color: string;
+  barrier_texture: BarrierTexture;
+  floor_texture: FloorTexture;
+  ceiling_texture: CeilingTexture;
+};
+
+export type TerrainTile = BarrierTile | FloorTile | WallTile;
 
 export const DEFAULT_TERRAIN_PALETTE: readonly TerrainTile[] = TERRAIN_CATALOG;
 
@@ -185,6 +201,22 @@ export function terrainAt(map: GameMap, x: number, y: number): TerrainTile | und
   if (!Number.isInteger(x) || !Number.isInteger(y)) return undefined;
   if (x < 0 || y < 0 || x >= width || y >= height) return undefined;
   return terrainGrid(map)[y * width + x];
+}
+
+export function terrainBlocksMovement(tile: TerrainTile | undefined): boolean {
+  return tile === undefined || tile.kind === "wall" || tile.kind === "barrier";
+}
+
+export function terrainBlocksSight(tile: TerrainTile | undefined): boolean {
+  return tile === undefined || tile.kind === "wall";
+}
+
+export function terrainBlocksAttacks(tile: TerrainTile | undefined): boolean {
+  return tile === undefined || tile.kind === "wall" || tile.kind === "barrier";
+}
+
+export function terrainIsBarrier(tile: TerrainTile | undefined): tile is BarrierTile {
+  return tile?.kind === "barrier";
 }
 
 export function createGameMap(

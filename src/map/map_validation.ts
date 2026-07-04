@@ -1,4 +1,11 @@
-import { KeyColor, mapDimensions, terrainAt, VICTORY_GOTO } from "@/src/map/map.ts";
+import {
+  KeyColor,
+  mapDimensions,
+  terrainAt,
+  terrainBlocksMovement,
+  terrainIsBarrier,
+  VICTORY_GOTO,
+} from "@/src/map/map.ts";
 import type { DoorDef, GameMap, KeyColor as KeyColorType, UplinkTerminalDef } from "@/src/map/map.ts";
 import { CARDINAL_DELTAS } from "@/src/grid/direction.ts";
 
@@ -47,15 +54,23 @@ function validateGameMap(map: GameMap, mapNames: ReadonlySet<string>): readonly 
     }
 
     const terrain = terrainAt(map, entity.x, entity.y);
-    if (entity.prefab !== "light" && (terrain === undefined || terrain.blocking === true)) {
+    if (entity.prefab !== "light" && terrainBlocksMovement(terrain)) {
       issues.push(`${map.name}: ${entity.prefab} at (${entity.x},${entity.y}) is placed on blocking terrain.`);
     }
   }
 
   for (const door of doorDefs(map)) {
-    if (!validDoorway(map, door.x, door.y)) {
+    if (!validThinTerrainSpan(map, door.x, door.y)) {
       issues.push(
         `${map.name}: door at (${door.x},${door.y}) must sit between exactly one opposite pair of blocking wall tiles.`,
+      );
+    }
+  }
+
+  for (const [x, y] of barrierTiles(map)) {
+    if (!validThinTerrainSpan(map, x, y)) {
+      issues.push(
+        `${map.name}: barrier terrain at (${x},${y}) must sit between exactly one opposite pair of movement-blocking terrain tiles.`,
       );
     }
   }
@@ -200,7 +215,7 @@ function canStandOn(
   keyMask: number,
 ): boolean {
   const terrain = terrainAt(map, x, y);
-  if (terrain === undefined || terrain.blocking === true) return false;
+  if (terrainBlocksMovement(terrain)) return false;
 
   const tile = tileKey(x, y);
   if (indexes.terminalTiles.has(tile)) return false;
@@ -243,15 +258,23 @@ function lockedDoorDefs(map: GameMap): readonly DoorDef[] {
   return map.entities.filter(isLockedDoorDef);
 }
 
-function validDoorway(map: GameMap, x: number, y: number): boolean {
-  const horizontalWalls = terrainBlocks(map, x - 1, y) && terrainBlocks(map, x + 1, y);
-  const verticalWalls = terrainBlocks(map, x, y - 1) && terrainBlocks(map, x, y + 1);
+function validThinTerrainSpan(map: GameMap, x: number, y: number): boolean {
+  const horizontalWalls = terrainBlocksMovement(terrainAt(map, x - 1, y)) &&
+    terrainBlocksMovement(terrainAt(map, x + 1, y));
+  const verticalWalls = terrainBlocksMovement(terrainAt(map, x, y - 1)) &&
+    terrainBlocksMovement(terrainAt(map, x, y + 1));
   return horizontalWalls !== verticalWalls;
 }
 
-function terrainBlocks(map: GameMap, x: number, y: number): boolean {
-  const terrain = terrainAt(map, x, y);
-  return terrain === undefined || terrain.blocking === true;
+function barrierTiles(map: GameMap): readonly (readonly [number, number])[] {
+  const { width, height } = mapDimensions(map);
+  const tiles: [number, number][] = [];
+  for (let y = 0; y < height; y++) {
+    for (let x = 0; x < width; x++) {
+      if (terrainIsBarrier(terrainAt(map, x, y))) tiles.push([x, y]);
+    }
+  }
+  return tiles;
 }
 
 function isUplinkTerminalDef(entity: GameMap["entities"][number]): entity is UplinkTerminalDef {

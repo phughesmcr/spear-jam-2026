@@ -311,7 +311,7 @@
       "name": "objects",
       "objects": [
         {
-          "gid": 121,
+          "gid": 123,
           "height": 16,
           "id": 1,
           "name": "player_1",
@@ -337,7 +337,7 @@
           ]
         },
         {
-          "gid": 129,
+          "gid": 131,
           "height": 16,
           "id": 2,
           "name": "item_2",
@@ -368,7 +368,7 @@
           ]
         },
         {
-          "gid": 129,
+          "gid": 131,
           "height": 16,
           "id": 3,
           "name": "item_3",
@@ -399,7 +399,7 @@
           ]
         },
         {
-          "gid": 124,
+          "gid": 126,
           "height": 16,
           "id": 4,
           "name": "door_4",
@@ -419,7 +419,7 @@
           ]
         },
         {
-          "gid": 123,
+          "gid": 125,
           "height": 16,
           "id": 5,
           "name": "enemy_5",
@@ -457,7 +457,7 @@
           ]
         },
         {
-          "gid": 123,
+          "gid": 125,
           "height": 16,
           "id": 6,
           "name": "enemy_6",
@@ -495,7 +495,7 @@
           ]
         },
         {
-          "gid": 125,
+          "gid": 127,
           "height": 16,
           "id": 7,
           "name": "key_7",
@@ -521,7 +521,7 @@
           ]
         },
         {
-          "gid": 129,
+          "gid": 131,
           "height": 16,
           "id": 8,
           "name": "item_8",
@@ -552,7 +552,7 @@
           ]
         },
         {
-          "gid": 129,
+          "gid": 131,
           "height": 16,
           "id": 9,
           "name": "item_9",
@@ -583,7 +583,7 @@
           ]
         },
         {
-          "gid": 129,
+          "gid": 131,
           "height": 16,
           "id": 10,
           "name": "item_10",
@@ -614,7 +614,7 @@
           ]
         },
         {
-          "gid": 123,
+          "gid": 125,
           "height": 16,
           "id": 11,
           "name": "enemy_11",
@@ -652,7 +652,7 @@
           ]
         },
         {
-          "gid": 123,
+          "gid": 125,
           "height": 16,
           "id": 12,
           "name": "enemy_12",
@@ -690,7 +690,7 @@
           ]
         },
         {
-          "gid": 129,
+          "gid": 131,
           "height": 16,
           "id": 13,
           "name": "item_13",
@@ -721,7 +721,7 @@
           ]
         },
         {
-          "gid": 123,
+          "gid": 125,
           "height": 16,
           "id": 14,
           "name": "enemy_14",
@@ -759,7 +759,7 @@
           ]
         },
         {
-          "gid": 123,
+          "gid": 125,
           "height": 16,
           "id": 15,
           "name": "enemy_15",
@@ -797,7 +797,7 @@
           ]
         },
         {
-          "gid": 129,
+          "gid": 131,
           "height": 16,
           "id": 16,
           "name": "item_16",
@@ -828,7 +828,7 @@
           ]
         },
         {
-          "gid": 124,
+          "gid": 126,
           "height": 16,
           "id": 17,
           "name": "door_17",
@@ -859,7 +859,7 @@
           ]
         },
         {
-          "gid": 123,
+          "gid": 125,
           "height": 16,
           "id": 18,
           "name": "enemy_18",
@@ -897,7 +897,7 @@
           ]
         },
         {
-          "gid": 126,
+          "gid": 128,
           "height": 16,
           "id": 19,
           "name": "uplinkCode_19",
@@ -917,7 +917,7 @@
           ]
         },
         {
-          "gid": 125,
+          "gid": 127,
           "height": 16,
           "id": 20,
           "name": "key_20",
@@ -943,7 +943,7 @@
           ]
         },
         {
-          "gid": 129,
+          "gid": 131,
           "height": 16,
           "id": 21,
           "name": "item_21",
@@ -974,7 +974,7 @@
           ]
         },
         {
-          "gid": 124,
+          "gid": 126,
           "height": 16,
           "id": 22,
           "name": "door_22",
@@ -1005,7 +1005,7 @@
           ]
         },
         {
-          "gid": 123,
+          "gid": 125,
           "height": 16,
           "id": 23,
           "name": "enemy_23",
@@ -1043,7 +1043,7 @@
           ]
         },
         {
-          "gid": 123,
+          "gid": 125,
           "height": 16,
           "id": 24,
           "name": "enemy_24",
@@ -1081,7 +1081,7 @@
           ]
         },
         {
-          "gid": 127,
+          "gid": 129,
           "height": 16,
           "id": 25,
           "name": "uplinkTerminal_25",
@@ -1106,7 +1106,7 @@
           ]
         },
         {
-          "gid": 129,
+          "gid": 131,
           "height": 16,
           "id": 26,
           "name": "item_26",
@@ -1179,6 +1179,10 @@
     },
     {
       "firstgid": 121,
+      "source": "terrain/barriers.tsj"
+    },
+    {
+      "firstgid": 123,
       "source": "entity_markers.tsj"
     }
   ],

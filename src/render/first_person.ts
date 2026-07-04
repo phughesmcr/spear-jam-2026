@@ -23,8 +23,24 @@ import { SpriteAnimationKind } from "@/src/ecs/components.ts";
 import type { SpriteAnimationSchema, SpriteId as SpriteIdType } from "@/src/ecs/components.ts";
 import { type CardinalDirection, directionDelta, normalizeDirection } from "@/src/grid/direction.ts";
 import type { TargetMarkerTone } from "@/src/game/target_marker.ts";
-import { KeyColor, mapDimensions, terrainAt, TexturePack } from "@/src/map/map.ts";
-import type { CeilingTexture, DoorSlide, FloorTexture, GameMap, TexturePackRef, WallTexture } from "@/src/map/map.ts";
+import {
+  BarrierTexture,
+  KeyColor,
+  mapDimensions,
+  terrainAt,
+  terrainBlocksMovement,
+  terrainIsBarrier,
+  TexturePack,
+} from "@/src/map/map.ts";
+import type {
+  BarrierTexture as BarrierTextureType,
+  CeilingTexture,
+  DoorSlide,
+  FloorTexture,
+  GameMap,
+  TexturePackRef,
+  WallTexture,
+} from "@/src/map/map.ts";
 import { createImageAsset, loadedImage, preloadImageAssets } from "@/src/render/assets.ts";
 import type { ImageAsset } from "@/src/render/assets.ts";
 import {
@@ -116,7 +132,11 @@ const DOOR_TEX_BY_COLOR: Readonly<Record<KeyColor, number>> = {
   [KeyColor.Blue]: 3,
   [KeyColor.Yellow]: 4,
 };
-const FIRST_PACK_WALL_TEX = 5;
+const BARRIER_TEX_BY_TEXTURE: Readonly<Record<BarrierTextureType, number>> = {
+  [BarrierTexture.Bars]: 5,
+  [BarrierTexture.Glass]: 6,
+};
+const FIRST_PACK_WALL_TEX = 7;
 
 const FLOOR_TEX = 0;
 const CEILING_TEX = 1;
@@ -204,6 +224,13 @@ type AssetCatalog = {
   readonly texturePackAssets: Readonly<Record<TexturePack, TexturePackAsset>>;
 };
 
+type TerrainBarrier = {
+  readonly x: number;
+  readonly y: number;
+  readonly texture: number;
+  readonly axis: ThinWallAxis;
+};
+
 function createAssetCatalog(): AssetCatalog {
   const texturePackAssets: Readonly<Record<TexturePack, TexturePackAsset>> = {
     [TexturePack.Pack1]: texturePackAsset(new URL("../../assets/game/textures/pack1.png", import.meta.url).href),
@@ -225,6 +252,12 @@ function createAssetCatalog(): AssetCatalog {
     ]),
     managedAsset(new URL("../../assets/game/textures/ceiling.png", import.meta.url).href, [
       { layer: "planes", slot: CEILING_TEX },
+    ]),
+    managedAsset(new URL("../../assets/game/textures/bars.png", import.meta.url).href, [
+      { layer: "walls", slot: BARRIER_TEX_BY_TEXTURE[BarrierTexture.Bars] },
+    ]),
+    managedAsset(new URL("../../assets/game/textures/glass.png", import.meta.url).href, [
+      { layer: "walls", slot: BARRIER_TEX_BY_TEXTURE[BarrierTexture.Glass] },
     ]),
     managedAsset(
       new URL("../../assets/game/sprites/digital_dog.png", import.meta.url).href,
@@ -322,6 +355,8 @@ function buildAtlas(): RaycastAtlas {
   walls[DOOR_TEX_BY_COLOR[KeyColor.Red]] = bakeSolidTexture(177, 75, 75);
   walls[DOOR_TEX_BY_COLOR[KeyColor.Blue]] = bakeSolidTexture(79, 141, 247);
   walls[DOOR_TEX_BY_COLOR[KeyColor.Yellow]] = bakeSolidTexture(244, 211, 94);
+  walls[BARRIER_TEX_BY_TEXTURE[BarrierTexture.Bars]] = bakeBarrier(BarrierTexture.Bars);
+  walls[BARRIER_TEX_BY_TEXTURE[BarrierTexture.Glass]] = bakeBarrier(BarrierTexture.Glass);
 
   const planes: BakedTexture[] = [];
   planes[FLOOR_TEX] = bakeSolidTexture(35, 40, 50);
@@ -390,6 +425,35 @@ function bakeOrb(hexColor: string): BakedTexture {
   return bakeTexture(orbSource(red, green, blue), { transpose: true });
 }
 
+function bakeBarrier(texture: BarrierTextureType): BakedTexture {
+  const data = new Uint8ClampedArray(TEX_SIZE * TEX_SIZE * 4);
+  for (let y = 0; y < TEX_SIZE; y++) {
+    for (let x = 0; x < TEX_SIZE; x++) {
+      if (!barrierPixelOpaque(texture, x, y)) continue;
+      const index = (y * TEX_SIZE + x) * 4;
+      if (texture === BarrierTexture.Bars) {
+        data[index] = 148;
+        data[index + 1] = 163;
+        data[index + 2] = 184;
+      } else {
+        data[index] = 125;
+        data[index + 1] = 211;
+        data[index + 2] = 252;
+      }
+      data[index + 3] = 255;
+    }
+  }
+  return bakeTexture({ width: TEX_SIZE, height: TEX_SIZE, data }, { transpose: true });
+}
+
+function barrierPixelOpaque(texture: BarrierTextureType, x: number, y: number): boolean {
+  if (texture === BarrierTexture.Bars) {
+    return x < 7 || x > TEX_SIZE - 8 || y < 7 || y > TEX_SIZE - 8 || x % 24 < 7;
+  }
+  return x < 4 || x > TEX_SIZE - 5 || y < 4 || y > TEX_SIZE - 5 || x === y || x + y === TEX_SIZE - 1 ||
+    (x > 76 && x < 84 && y > 16 && y < 112);
+}
+
 export interface FirstPersonRenderSession {
   readonly map: GameMap;
   forEachDrawable(visit: DrawableEntityVisitor): void;
@@ -416,6 +480,7 @@ function createFirstPersonRendererState() {
     view: createRaycastView(),
     assetCatalog: createAssetCatalog(),
     sceneByMap: new WeakMap<GameMap, RaycastScene>(),
+    terrainBarriersByScene: new WeakMap<RaycastScene, readonly TerrainBarrier[]>(),
     packWallSlots: new Map<TexturePackRef, number>(),
     packPlaneSlots: new Map<TexturePackRef, number>(),
     spriteCropBySlot: new Map<number, ContentCrop | undefined>(),
@@ -478,6 +543,7 @@ export function createFirstPersonRenderer(): FirstPersonRenderer {
 
 function resetFirstPersonRendererState(state: FirstPersonRendererState): void {
   state.sceneByMap = new WeakMap<GameMap, RaycastScene>();
+  state.terrainBarriersByScene = new WeakMap<RaycastScene, readonly TerrainBarrier[]>();
   state.drawableScratch.length = 0;
   state.poseInitialized = false;
   state.nudgeTween.active = false;
@@ -725,12 +791,20 @@ function ceilingTextureSlot(state: FirstPersonRendererState, texture: CeilingTex
   return texturePackSlot(state, "planes", texture, state.atlas.planes[CEILING_TEX]!);
 }
 
+function barrierTextureSlot(texture: BarrierTextureType): number {
+  return BARRIER_TEX_BY_TEXTURE[texture];
+}
+
 function sceneForMapForState(state: FirstPersonRendererState, map: GameMap): RaycastScene {
   const cached = state.sceneByMap.get(map);
   if (cached !== undefined) return cached;
 
   const { width, height } = mapDimensions(map);
-  const scene = createScene(width, height, { spriteCapacity: raycastSpriteCapacity(map, width * height) });
+  const scene = createScene(width, height, {
+    spriteCapacity: raycastSpriteCapacity(map, width * height),
+    thinCapacity: raycastThinCapacity(map, width * height),
+  });
+  const terrainBarriers: TerrainBarrier[] = [];
   for (let y = 0; y < height; y++) {
     for (let x = 0; x < width; x++) {
       const cell = y * width + x;
@@ -740,20 +814,33 @@ function sceneForMapForState(state: FirstPersonRendererState, map: GameMap): Ray
         scene.walls[cell] = wallTextureSlot(state, undefined) + 1;
         continue;
       }
-      if (terrain.blocking === true) {
-        scene.walls[cell] = wallTextureSlot(state, "wall_texture" in terrain ? terrain.wall_texture : undefined) + 1;
+      if (terrain.kind === "wall") {
+        scene.walls[cell] = wallTextureSlot(state, terrain.wall_texture) + 1;
         continue;
       }
       scene.floors[cell] = floorTextureSlot(state, terrain.floor_texture) + 1;
       scene.ceilings[cell] = ceilingTextureSlot(state, terrain.ceiling_texture) + 1;
+      if (terrainIsBarrier(terrain)) {
+        terrainBarriers.push({
+          x,
+          y,
+          texture: barrierTextureSlot(terrain.barrier_texture),
+          axis: doorAxis(map, x, y),
+        });
+      }
     }
   }
   state.sceneByMap.set(map, scene);
+  state.terrainBarriersByScene.set(scene, terrainBarriers);
   return scene;
 }
 
 function raycastSpriteCapacity(map: GameMap, cellCount: number): number {
   return Math.max(cellCount, map.entities.length);
+}
+
+function raycastThinCapacity(map: GameMap, cellCount: number): number {
+  return cellCount + map.entities.filter((entity) => entity.prefab === "door").length;
 }
 
 function updateSceneLights(
@@ -820,8 +907,7 @@ function addLightChannel(channel: Uint8Array, cell: number, amount: number): voi
 }
 
 function isBlocking(map: GameMap, x: number, y: number): boolean {
-  const terrain = terrainAt(map, x, y);
-  return terrain === undefined || terrain.blocking === true;
+  return terrainBlocksMovement(terrainAt(map, x, y));
 }
 
 /** Doors span the gap between their flanking walls. */
@@ -837,11 +923,17 @@ function doorAxis(map: GameMap, x: number, y: number): ThinWallAxis {
 function secretWallTextureSlot(state: FirstPersonRendererState, map: GameMap, x: number, y: number): number {
   for (const [nx, ny] of [[x - 1, y], [x + 1, y], [x, y - 1], [x, y + 1]] as const) {
     const terrain = terrainAt(map, nx, ny);
-    if (terrain?.blocking === true) {
-      return wallTextureSlot(state, "wall_texture" in terrain ? terrain.wall_texture : undefined);
+    if (terrain?.kind === "wall") {
+      return wallTextureSlot(state, terrain.wall_texture);
     }
   }
   return wallTextureSlot(state, undefined);
+}
+
+function addTerrainBarriers(state: FirstPersonRendererState, scene: RaycastScene): void {
+  for (const barrier of state.terrainBarriersByScene.get(scene) ?? []) {
+    addThinWall(scene, barrier.x, barrier.y, barrier.texture, barrier.axis);
+  }
 }
 
 function doorTexture(locked: boolean, color: KeyColor | undefined): number {
@@ -1079,6 +1171,7 @@ function renderFirstPersonView(
   const scene = sceneForMapForState(state, map);
   bakeLoadedAssets(state, ctx, repaint);
   clearSceneDynamic(scene);
+  addTerrainBarriers(state, scene);
   const nowMs = performance.now();
   const lightsAnimating = updateSceneLights(scene, session, nowMs);
 

@@ -7,7 +7,7 @@ import { ExamineTextId } from "@/src/game/examine.ts";
 import { DisplayName } from "@/src/game/names.ts";
 import { compileTiledMap } from "@/src/map/authoring/mod.ts";
 import { KeyColor, VICTORY_GOTO } from "@/src/map/map.ts";
-import { DEFAULT_WALL_TERRAIN_ID, TERRAIN_CATALOG } from "@/src/map/terrain_palettes.ts";
+import { DEFAULT_BARS_TERRAIN_ID, DEFAULT_WALL_TERRAIN_ID, TERRAIN_CATALOG } from "@/src/map/terrain_palettes.ts";
 import type { TiledMap, TiledObject, TiledProperty, TiledTemplate } from "@/src/map/authoring/mod.ts";
 
 const TILE_SIZE = 16;
@@ -29,6 +29,17 @@ Deno.test("compileTiledMap preserves authored terrain IDs", () => {
   assertEquals(compiled.gameMap.name, "Fixture");
   assertEquals(compiled.gameMap.terrain.tiles, [[0, DEFAULT_WALL_TERRAIN_ID, 5]]);
   assertEquals(compiled.gameMap.terrain.palette, TERRAIN_CATALOG);
+});
+
+Deno.test("compileTiledMap preserves authored barrier terrain IDs", () => {
+  const compiled = compileTiledMap(
+    tiledMap({
+      terrainData: [TERRAIN_FIRST_GID + DEFAULT_BARS_TERRAIN_ID],
+    }),
+    compileOptions(),
+  );
+
+  assertEquals(compiled.gameMap.terrain.tiles, [[DEFAULT_BARS_TERRAIN_ID]]);
 });
 
 Deno.test("compileTiledMap rejects terrain IDs missing from the global catalog", () => {
@@ -566,7 +577,7 @@ function tiledMap(overrides: TiledMapOverrides = {}): TiledMap {
       {
         firstgid: TERRAIN_FIRST_GID,
         name: "terrain",
-        tilecount: 120,
+        tilecount: TERRAIN_CATALOG.length,
         tiles: [
           { id: 0, properties: [property("terrainId", 0), property("blocking", false)] },
           { id: 2, properties: [property("terrainId", 999), property("blocking", false)] },
@@ -574,6 +585,17 @@ function tiledMap(overrides: TiledMapOverrides = {}): TiledMap {
           {
             id: DEFAULT_WALL_TERRAIN_ID,
             properties: [property("terrainId", DEFAULT_WALL_TERRAIN_ID), property("blocking", true)],
+          },
+          {
+            id: DEFAULT_BARS_TERRAIN_ID,
+            properties: [
+              property("terrainId", DEFAULT_BARS_TERRAIN_ID),
+              property("terrainKind", "barrier"),
+              property("blocking", true),
+              property("blocksSight", false),
+              property("blocksAttacks", true),
+              property("barrierTexture", "bars"),
+            ],
           },
         ],
       },

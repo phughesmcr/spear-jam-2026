@@ -242,7 +242,7 @@ function lineAttackTargets(
   for (let distance = 1; distance <= attack.range; distance++) {
     const x = position.x + delta.dx * distance;
     const y = position.y + delta.dy * distance;
-    if (spatial.tileBlocks(x, y)) break;
+    if (spatial.tileBlocksAttacks(x, y)) break;
 
     const entity = spatial.blockingEntityAt(x, y);
     if (entity === undefined || entity === attacker) continue;
@@ -273,7 +273,7 @@ function adjacentAttackTargets(
     for (let distance = 1; distance <= attack.range; distance++) {
       const x = position.x + delta.dx * distance;
       const y = position.y + delta.dy * distance;
-      if (spatial.tileBlocks(x, y)) break;
+      if (spatial.tileBlocksAttacks(x, y)) break;
 
       const entity = spatial.blockingEntityAt(x, y);
       if (entity === undefined || entity === attacker) continue;
