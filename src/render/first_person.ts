@@ -171,6 +171,9 @@ const ENEMY_SPRITES: Readonly<Record<EnemyArchetype, number>> = {
 const ACTOR_SCALE = 0.75;
 const TERMINAL_SCALE = 0.9;
 const ITEM_SCALE = 0.4;
+const ITEM_BOB_PERIOD_MS = 1_200;
+const ITEM_BOB_BASE_ELEVATION = 0.03;
+const ITEM_BOB_ELEVATION_AMPLITUDE = 0.025;
 const TARGET_SIZE_FRACTION = 0.055;
 const TARGET_INNER_FRACTION = 0.38;
 const TARGET_Y_FRACTION = 0.47;
@@ -895,6 +898,11 @@ function itemSprite(state: FirstPersonRendererState, icon: ItemIcon): number {
   }
 }
 
+function itemElevation(nowMs: number): number {
+  const phase = (nowMs / ITEM_BOB_PERIOD_MS) * Math.PI * 2;
+  return ITEM_BOB_BASE_ELEVATION + Math.sin(phase) * ITEM_BOB_ELEVATION_AMPLITUDE;
+}
+
 function enemySprite(archetype: EnemyArchetype, dir: number, cameraDir: CardinalDirection, row: number): number {
   const relative = (normalizeDirection(dir) - cameraDir + 4) & 3;
   return ENEMY_SPRITES[archetype] + row * SHEET_COLUMNS + REL_DIR_TO_SHEET_COLUMN[relative]!;
@@ -1027,8 +1035,8 @@ function addDrawable(
       addSprite(scene, centerX, centerY, SPRITE_TERMINAL, TERMINAL_SCALE);
       return false;
     case DrawableKind.Item:
-      addSprite(scene, centerX, centerY, itemSprite(state, drawable.icon), ITEM_SCALE);
-      return false;
+      addSprite(scene, centerX, centerY, itemSprite(state, drawable.icon), ITEM_SCALE, itemElevation(nowMs));
+      return true;
   }
 }
 

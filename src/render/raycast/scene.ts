@@ -150,6 +150,8 @@ export type RaycastScene = {
   readonly spriteY: Float64Array;
   readonly spriteTex: Int16Array;
   readonly spriteScale: Float32Array;
+  /** Vertical world-tile offset above the floor for floor-anchored sprites. */
+  readonly spriteElevation: Float32Array;
 };
 
 export type RaycastSceneOptions = {
@@ -190,6 +192,7 @@ export function createScene(mapWidth: number, mapHeight: number, options: Raycas
     spriteY: new Float64Array(spriteCapacity),
     spriteTex: new Int16Array(spriteCapacity),
     spriteScale: new Float32Array(spriteCapacity),
+    spriteElevation: new Float32Array(spriteCapacity),
   };
 }
 
@@ -299,7 +302,14 @@ export function addThinWall(
   scene.thinCell[index] = cell;
 }
 
-export function addSprite(scene: RaycastScene, x: number, y: number, textureId: number, scale: number): void {
+export function addSprite(
+  scene: RaycastScene,
+  x: number,
+  y: number,
+  textureId: number,
+  scale: number,
+  elevation = 0,
+): void {
   if (scene.spriteCount >= scene.spriteX.length) {
     throw new Error(
       `Raycast scene sprite capacity ${scene.spriteX.length} exceeded while adding sprite at (${x}, ${y}).`,
@@ -310,6 +320,7 @@ export function addSprite(scene: RaycastScene, x: number, y: number, textureId: 
   scene.spriteY[index] = y;
   scene.spriteTex[index] = textureId;
   scene.spriteScale[index] = scale;
+  scene.spriteElevation[index] = elevation;
 }
 
 export type RaycastFrame = {
@@ -774,6 +785,7 @@ function renderSpritesAndThinWalls(
       frame.spriteScreenX[sprite]!,
       scene.spriteTex[sprite]!,
       scene.spriteScale[sprite]!,
+      scene.spriteElevation[sprite]!,
     );
   }
 
@@ -819,6 +831,7 @@ function drawSprite(
   screenX: number,
   textureId: number,
   scale: number,
+  elevation: number,
 ): void {
   const texture = atlas.sprites[textureId];
   if (texture === undefined) return;
@@ -832,7 +845,7 @@ function drawSprite(
   if (spriteSize < 1) return;
 
   // Floor-anchored: the sprite's feet sit where a wall's base would project.
-  const bottom = horizon + (0.5 * focal) / depth;
+  const bottom = horizon + ((CAMERA_HEIGHT - elevation) * focal) / depth;
   const top = bottom - spriteSize;
   const left = screenX - spriteSize * 0.5;
   let yStart = Math.ceil(top);

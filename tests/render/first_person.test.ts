@@ -1,7 +1,8 @@
-import { assert, assertEquals, assertNotEquals, assertThrows } from "@std/assert";
+import { assert, assertAlmostEquals, assertEquals, assertNotEquals, assertThrows } from "@std/assert";
 import { DrawableKind } from "@/src/ecs/drawables.ts";
 import type { DrawableEntity } from "@/src/ecs/drawables.ts";
 import { Direction } from "@/src/grid/direction.ts";
+import { itemIconFor, ItemKind } from "@/src/game/items.ts";
 import { DisplayName } from "@/src/game/names.ts";
 import { createGameMap, TexturePack } from "@/src/map/map.ts";
 import { GAME_MAPS } from "@/src/map/maps.ts";
@@ -85,6 +86,49 @@ function withFakeOffscreenCanvas(run: () => void): void {
       writable: true,
       value: original,
     });
+  }
+}
+
+function withFakePerformanceNow(nowMs: number, run: () => void): void {
+  const hadOwnNow = Object.hasOwn(performance, "now");
+  const ownNow = Object.getOwnPropertyDescriptor(performance, "now");
+  Object.defineProperty(performance, "now", {
+    configurable: true,
+    writable: true,
+    value: (): number => nowMs,
+  });
+  try {
+    run();
+  } finally {
+    if (hadOwnNow && ownNow !== undefined) {
+      Object.defineProperty(performance, "now", ownNow);
+    } else {
+      delete (performance as { now?: () => number }).now;
+    }
+  }
+}
+
+function withFakeRequestAnimationFrame(run: () => void): number {
+  const hadOwnRaf = Object.hasOwn(globalThis, "requestAnimationFrame");
+  const ownRaf = Object.getOwnPropertyDescriptor(globalThis, "requestAnimationFrame");
+  let scheduled = 0;
+  Object.defineProperty(globalThis, "requestAnimationFrame", {
+    configurable: true,
+    writable: true,
+    value: (_callback: FrameRequestCallback): number => {
+      scheduled++;
+      return scheduled;
+    },
+  });
+  try {
+    run();
+    return scheduled;
+  } finally {
+    if (hadOwnRaf && ownRaf !== undefined) {
+      Object.defineProperty(globalThis, "requestAnimationFrame", ownRaf);
+    } else {
+      delete (globalThis as { requestAnimationFrame?: typeof requestAnimationFrame }).requestAnimationFrame;
+    }
   }
 }
 
@@ -338,5 +382,54 @@ Deno.test("first-person rendering uses John's single-frame NPC sprite", () => {
         image.src.includes("/assets/game/sprites/john.png")
       ),
     );
+  });
+});
+
+Deno.test("first-person rendering bobs pickup item sprites vertically", () => {
+  withFakeOffscreenCanvas((): void => {
+    withFakePerformanceNow(300, (): void => {
+      const map = createGameMap(
+        "Item Bob",
+        [
+          [2, 2, 2],
+          [2, 1, 2],
+          [2, 1, 2],
+          [2, 2, 2],
+        ],
+        [],
+        {
+          palette: [
+            { id: 1, color: "#000000", floor_texture: "floor", ceiling_texture: "ceiling" },
+            { id: 2, color: "#ffffff", wall_texture: "wall", blocking: true },
+          ],
+        },
+      );
+      const drawables: DrawableEntity[] = [
+        { kind: DrawableKind.Player, entity: 1, x: 1, y: 2, dir: Direction.North, enemyArchetype: undefined },
+        { kind: DrawableKind.Item, entity: 2, x: 1, y: 1, icon: itemIconFor(ItemKind.HealthPatch, 1) },
+      ];
+      const session: FirstPersonRenderSession = {
+        map,
+        forEachDrawable(visit): void {
+          for (const drawable of drawables) visit(drawable);
+        },
+      };
+      const renderer = createFirstPersonRenderer();
+
+      const scheduled = withFakeRequestAnimationFrame((): void => {
+        renderer.render(
+          new FakeCanvasContext() as unknown as CanvasRenderingContext2D,
+          { x: 0, y: 0, width: 64, height: 64 },
+          session,
+          undefined,
+          () => {},
+        );
+      });
+      const scene = renderer.sceneForMap(map);
+
+      assertEquals(scene.spriteCount, 1);
+      assertAlmostEquals(scene.spriteElevation[0]!, 0.055, 1e-6);
+      assertEquals(scheduled, 1);
+    });
   });
 });

@@ -451,6 +451,15 @@ Deno.test("createScene sizes sprite storage from map cell count", () => {
 
   assertEquals(scene.spriteCount, 129);
   assertEquals(scene.spriteX[128], 128.5);
+  assertEquals(scene.spriteElevation[128], 0);
+});
+
+Deno.test("addSprite stores sprite elevation for vertical billboard offsets", () => {
+  const scene = createScene(1, 1);
+
+  addSprite(scene, 0.5, 0.5, SPRITE, 1, 0.05);
+
+  assertAlmostEquals(scene.spriteElevation[0]!, 0.05, 1e-6);
 });
 
 Deno.test("renderFrame fails loudly when sprite scratch capacity is too small", () => {
