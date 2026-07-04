@@ -70,7 +70,7 @@
                          "name":"dialogueTreeId",
                          "propertytype":"DialogueTreeId",
                          "type":"string",
-                         "value":"johnIntro"
+                         "value":"johnThanks"
                         }, 
                         {
                          "name":"displayName",

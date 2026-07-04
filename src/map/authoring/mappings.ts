@@ -41,6 +41,7 @@ const DISPLAY_NAMES: Readonly<Record<string, DisplayNameType>> = {
 const DIALOGUE_TREE_IDS: Readonly<Record<string, DialogueTreeIdType>> = {
   none: DialogueTreeId.None,
   johnIntro: DialogueTreeId.JohnIntro,
+  johnThanks: DialogueTreeId.JohnThanks,
 };
 
 const EXAMINE_TEXT_IDS: Readonly<Record<string, ExamineTextIdType>> = {

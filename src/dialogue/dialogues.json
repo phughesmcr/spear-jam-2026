@@ -16,5 +16,31 @@
         ]
       }
     }
+  },
+  "john_thanks": {
+    "start": "greet",
+    "nodes": {
+      "greet": {
+        "text": "You made it. Thank you — for my family, for all of it. The System forgot this place a long time ago. Out here in the background world, we look out for each other.",
+        "choices": [
+          { "label": "WHERE TO NEXT?", "next": "codes" },
+          { "label": "WHAT ABOUT YOU?", "next": "family" }
+        ]
+      },
+      "codes": {
+        "text": "To move through the background world's dark net, you'll need the green access codes for the uplink terminals. No codes, no passage. Find them.",
+        "choices": [
+          { "label": "AND YOU?", "next": "family" },
+          { "label": "UNDERSTOOD." }
+        ]
+      },
+      "family": {
+        "text": "I have to find safe passage for my family first. But our paths will cross again — soon. Stay sharp until then.",
+        "choices": [
+          { "label": "THE GREEN CODES?", "next": "codes" },
+          { "label": "SEE YOU SOON." }
+        ]
+      }
+    }
   }
 }

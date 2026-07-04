@@ -3,6 +3,7 @@ import dialogueTrees from "@/src/dialogue/dialogues.json" with { type: "json" };
 export const DialogueTreeId = {
   None: 0,
   JohnIntro: 1,
+  JohnThanks: 2,
 } as const;
 export type DialogueTreeId = (typeof DialogueTreeId)[keyof typeof DialogueTreeId];
 
@@ -34,6 +35,7 @@ const DEFAULT_CHOICES: readonly DialogueChoice[] = Object.freeze([{ label: "CONT
 const DIALOGUE_TREE_KEYS = {
   [DialogueTreeId.None]: undefined,
   [DialogueTreeId.JohnIntro]: "john_intro",
+  [DialogueTreeId.JohnThanks]: "john_thanks",
 } as const satisfies Readonly<Record<DialogueTreeId, string | undefined>>;
 
 const DIALOGUE_TREES = validateDialogueTrees(dialogueTrees);

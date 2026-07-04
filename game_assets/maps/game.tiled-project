@@ -157,7 +157,8 @@
       "type": "enum",
       "values": [
         "none",
-        "johnIntro"
+        "johnIntro",
+        "johnThanks"
       ],
       "valuesAsFlags": false
     },
