@@ -1,10 +1,10 @@
 import { assertEquals, assertThrows } from "@std/assert";
 import { AttackFacingRequirement, AttackPattern, AttackTargetMode } from "@/src/game/attack.ts";
 import { DialogueTreeId } from "@/src/dialogue/dialogue.ts";
+import { ItemKind } from "@/src/ecs/components.ts";
 import { EnemyArchetype } from "@/src/ecs/enemy_catalog.ts";
 import { ExamineTextId } from "@/src/game/examine.ts";
 import { DisplayName } from "@/src/game/names.ts";
-import { ItemKind } from "@/src/game/items.ts";
 import { compileTiledMap } from "@/src/map/authoring/mod.ts";
 import { KeyColor, VICTORY_GOTO } from "@/src/map/map.ts";
 import { DEFAULT_WALL_TERRAIN_ID, TERRAIN_CATALOG } from "@/src/map/terrain_palettes.ts";
@@ -501,8 +501,8 @@ Deno.test("compileTiledMap compiles optional colored lights", () => {
     compileOptions(),
   );
 
-  assertEquals(compiled.gameMap.lights, [
-    { x: 1, y: 1, color: "#ff8844", radius: 3, flickerAmount: 0.25, flickerSpeed: 7 },
+  assertEquals(compiled.gameMap.entities, [
+    { prefab: "light", x: 1, y: 1, color: "#ff8844", radius: 3, flickerAmount: 0.25, flickerSpeed: 7 },
   ]);
 });
 

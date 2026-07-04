@@ -9,8 +9,20 @@ import {
   weaponLabel,
   weaponNoiseRadius,
 } from "@/src/ecs/combat.ts";
-import { createDrawableRenderScratch, DrawableKind, drawableSystem } from "@/src/ecs/drawables.ts";
-import type { DrawableEntity, DrawableEntityVisitor, DrawableSystem } from "@/src/ecs/drawables.ts";
+import {
+  createDrawableRenderScratch,
+  createLightEntityScratch,
+  DrawableKind,
+  drawableSystem,
+  lightSystem,
+} from "@/src/ecs/drawables.ts";
+import type {
+  DrawableEntity,
+  DrawableEntityVisitor,
+  DrawableSystem,
+  LightEntityVisitor,
+  LightSystem,
+} from "@/src/ecs/drawables.ts";
 import { enemyTurnSystem } from "@/src/ecs/enemy.ts";
 import type { EnemyTurnSystem } from "@/src/ecs/enemy.ts";
 import { collectItemAt, interactWithEntity } from "@/src/ecs/interactions.ts";
@@ -117,6 +129,8 @@ export class GameSession implements Disposable {
   private readonly random: RandomSource;
   private readonly drawableSystem: DrawableSystem;
   private readonly drawableScratch = createDrawableRenderScratch();
+  private readonly lightSystem: LightSystem;
+  private readonly lightScratch = createLightEntityScratch();
   private readonly enemyTurnSystem: EnemyTurnSystem;
   private readonly spatial: SpatialIndex;
   private readonly visibility: VisibilityMap;
@@ -138,6 +152,7 @@ export class GameSession implements Disposable {
     initializePlayerProgression(this.world, this.player.getEntity(), playerState);
     this.world.refresh();
     this.drawableSystem = world.systems.create(drawableSystem);
+    this.lightSystem = world.systems.create(lightSystem);
     this.enemyTurnSystem = world.systems.create(enemyTurnSystem);
     this.spatial = new SpatialIndex(world, map);
     this.visibility = new VisibilityMap(mapDimensions(map));
@@ -159,6 +174,13 @@ export class GameSession implements Disposable {
       visit: (drawable) => {
         if (this.drawableIsVisible(drawable)) visit(drawable);
       },
+    });
+  }
+
+  forEachLight(visit: LightEntityVisitor): void {
+    this.lightSystem({
+      scratch: this.lightScratch,
+      visit,
     });
   }
 

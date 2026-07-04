@@ -7,13 +7,13 @@ import {
   AttackTargetMode,
   type AttackTargetMode as AttackTargetModeType,
 } from "@/src/game/attack.ts";
+import { ItemKind, type ItemKind as ItemKindType } from "@/src/ecs/components.ts";
 import {
   ENEMY_ARCHETYPE_CODES,
   type EnemyArchetype as EnemyArchetypeType,
   enemyCatalogEntry,
 } from "@/src/ecs/enemy_catalog.ts";
 import { ExamineTextId, type ExamineTextId as ExamineTextIdType } from "@/src/game/examine.ts";
-import { ItemKind, type ItemKind as ItemKindType } from "@/src/game/items.ts";
 import { DisplayName, type DisplayName as DisplayNameType } from "@/src/game/names.ts";
 import { type DoorSlide, KeyColor, type KeyColor as KeyColorType } from "@/src/map/map.ts";
 

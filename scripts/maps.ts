@@ -43,7 +43,7 @@ import {
   wallTilesetReference,
 } from "@/src/map/authoring/catalog.ts";
 import type { TiledProjectCommand } from "@/src/map/authoring/catalog.ts";
-import type { EntityDef, LightDef, TerrainTile, TexturePackRef } from "@/src/map/map.ts";
+import type { EntityDef, TerrainTile, TexturePackRef } from "@/src/map/map.ts";
 import { PALETTE_KEYS, TERRAIN_CATALOG } from "@/src/map/terrain_palettes.ts";
 import type { PaletteKey } from "@/src/map/terrain_palettes.ts";
 import { validateGameMaps } from "@/src/map/map_validation.ts";
@@ -62,7 +62,6 @@ type CompiledMapData = {
   readonly palette: PaletteKey;
   readonly tiles: readonly (readonly number[])[];
   readonly entities: readonly EntityDef[];
-  readonly lights?: readonly LightDef[];
 };
 
 type NewMapOptions = {
@@ -1056,7 +1055,6 @@ function compiledMapData(map: GeneratedMap): CompiledMapData {
     palette: paletteKey(map.paletteKey),
     tiles: map.gameMap.terrain.tiles,
     entities: map.gameMap.entities,
-    ...(map.gameMap.lights.length === 0 ? {} : { lights: map.gameMap.lights }),
   };
 }
 

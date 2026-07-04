@@ -1,4 +1,5 @@
 import type { AttackDef } from "@/src/game/attack.ts";
+import { ENTITY_SCHEMA } from "@/src/map/entity_content.ts";
 import { createGameMap } from "@/src/map/map.ts";
 import type { EntityDef, GameMap, LightDef } from "@/src/map/map.ts";
 import { TERRAIN_CATALOG } from "@/src/map/terrain_palettes.ts";
@@ -91,11 +92,13 @@ export function compileTiledMap(source: TiledMap, options: CompileTiledMapOption
   const layers = requiredLayers(source);
   const registry = createTilesetRegistry(source.tilesets, options.tilesets);
   const terrain = compileTerrain(source, layers.terrain, registry);
-  const entities = compileEntities(source, layers.objects, registry, options);
-  const lights = compileLights(source, layers.lights);
+  const entities = [
+    ...compileEntities(source, layers.objects, registry, options),
+    ...compileLights(source, layers.lights),
+  ];
 
   return {
-    gameMap: createGameMap(name, terrain, entities, { palette: TERRAIN_CATALOG, lights }),
+    gameMap: createGameMap(name, terrain, entities, { palette: TERRAIN_CATALOG }),
     paletteKey,
     campaignOrder,
   };
@@ -214,16 +217,7 @@ function compileLight(source: TiledMap, object: TiledObject, index: number): Lig
   validateObjectAuthoringState(object, context);
   const properties = readProperties(object.properties, LIGHT_PROPERTY_NAMES, context);
   const position = objectGridPosition(object, source.tilewidth, source.tileheight, context);
-  const radius = requiredInteger(properties, "radius", context);
-  if (radius <= 0) throw new Error(`${context}: Property "radius" must be positive.`);
-
-  return {
-    ...position,
-    color: requiredLightColor(properties, context),
-    radius,
-    ...optionalLightNumberField(properties, "flickerAmount", context),
-    ...optionalLightNumberField(properties, "flickerSpeed", context),
-  };
+  return compileLightEntity(position, properties, context);
 }
 
 function compileEntity(
@@ -238,16 +232,18 @@ function compileEntity(
   const prefab = mapEntityPrefab(requiredString(resolved.properties, "prefab", context), context);
   validatePropertyNames(resolved.properties, PREFAB_AUTHORING_PROPERTY_NAMES[prefab], context);
 
+  let entity: EntityDef;
   switch (prefab) {
     case "player":
-      return {
+      entity = {
         prefab: "player",
         x: resolved.x,
         y: resolved.y,
         dir: requiredDirection(resolved.properties, context),
       };
+      break;
     case "npc":
-      return {
+      entity = {
         prefab: "npc",
         x: resolved.x,
         y: resolved.y,
@@ -256,43 +252,83 @@ function compileEntity(
         ...optionalDialogueTreeId(resolved.properties, context),
         ...optionalExamineTextId(resolved.properties, context),
       };
+      break;
     case "enemy":
-      return compileEnemy(resolved, context);
+      entity = compileEnemy(resolved, context);
+      break;
     case "door":
-      return compileDoor(resolved, context);
+      entity = compileDoor(resolved, context);
+      break;
     case "key":
-      return {
+      entity = {
         prefab: "key",
         x: resolved.x,
         y: resolved.y,
         color: requiredKeyColor(resolved.properties, context),
       };
+      break;
     case "uplinkCode":
-      return { prefab: "uplinkCode", x: resolved.x, y: resolved.y };
+      entity = { prefab: "uplinkCode", x: resolved.x, y: resolved.y };
+      break;
     case "uplinkTerminal":
-      return {
+      entity = {
         prefab: "uplinkTerminal",
         x: resolved.x,
         y: resolved.y,
         goto: requiredString(resolved.properties, "goto", context),
         ...optionalExamineTextId(resolved.properties, context),
       };
+      break;
     case "weaponPickup":
-      return {
+      entity = {
         prefab: "weaponPickup",
         x: resolved.x,
         y: resolved.y,
         slot: requiredWeaponSlot(resolved.properties, context),
       };
+      break;
     case "item":
-      return {
+      entity = {
         prefab: "item",
         x: resolved.x,
         y: resolved.y,
         item: requiredItemKind(resolved.properties, context),
         amount: requiredInteger(resolved.properties, "amount", context),
       };
+      break;
+    case "light":
+      entity = compileLightEntity(resolved, resolved.properties, context);
+      break;
   }
+  return parseEntity(entity, context);
+}
+
+function compileLightEntity(
+  position: GridPosition,
+  properties: PropertyMap,
+  context: string,
+): LightDef {
+  const radius = requiredInteger(properties, "radius", context);
+  if (radius <= 0) throw new Error(`${context}: Property "radius" must be positive.`);
+
+  return parseEntity({
+    prefab: "light",
+    ...position,
+    color: requiredLightColor(properties, context),
+    radius,
+    ...optionalLightNumberField(properties, "flickerAmount", context),
+    ...optionalLightNumberField(properties, "flickerSpeed", context),
+  }, context) as LightDef;
+}
+
+function parseEntity(entity: EntityDef, context: string): EntityDef {
+  const parsed = ENTITY_SCHEMA.safeParse(entity);
+  if (parsed.success) return parsed.data;
+
+  const issue = parsed.error.issues[0];
+  const path = issue?.path.join(".") ?? "<root>";
+  const message = issue?.message ?? "Invalid entity.";
+  throw new Error(`${context}: ${path}: ${message}`);
 }
 
 function resolveObject(
@@ -381,6 +417,9 @@ function objectGridPosition(
 
   if (!aligned(width, tileWidth) || !aligned(height, tileHeight)) {
     throw new Error(`${context}: object dimensions must be cell-aligned.`);
+  }
+  if (width !== tileWidth || height !== tileHeight) {
+    throw new Error(`${context}: object dimensions must be exactly one cell.`);
   }
 
   const gridTopY = object.gid === undefined ? y : y - height;

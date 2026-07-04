@@ -67,8 +67,6 @@ function fakeFirstPersonRenderer(): FirstPersonRenderer {
     },
     reset(): void {},
     bump(): void {},
-    markSpriteAttack(): void {},
-    markSpriteDeath(): void {},
     render(): void {},
   };
 }

@@ -1,27 +1,13 @@
-import { EnemyArchetype } from "@/src/ecs/enemy_catalog.ts";
-import { DrawableKind } from "@/src/ecs/drawables.ts";
-import type { DrawableEntity } from "@/src/ecs/drawables.ts";
+import { DrawableKind, spriteAppearance, SpriteId } from "@/src/ecs/drawables.ts";
+import type { ActorDrawableEntity, DrawableEntity, SpriteDrawableEntity } from "@/src/ecs/drawables.ts";
 import type { GameSession } from "@/src/ecs/session.ts";
 import { directionDelta } from "@/src/grid/direction.ts";
 import { KeyColor } from "@/src/map/map.ts";
 import type { KeyColor as KeyColorType } from "@/src/map/map.ts";
-import type { ItemIcon } from "@/src/game/items.ts";
 import type { MapRenderMetrics } from "@/src/render/map.ts";
 import { monoFont } from "@/src/render/text.ts";
 
-type Point = { readonly x: number; readonly y: number };
-type Triangle = readonly [Point, Point, Point];
-type EnemySymbol = { readonly color: string; readonly symbol: string };
-
 const ACTOR_STROKE_COLOR = "#101217";
-const PLAYER_COLOR = "#f0c84b";
-const NPC_COLOR = "#59d39b";
-const ENEMY_COLOR = "#df4f45";
-const DOG_COLOR = "#ef4444";
-const GUNSLINGER_COLOR = "#38bdf8";
-const NETWORK_NEOPHYTE_COLOR = "#34d399";
-const SYSTEM_SENTINEL_COLOR = "#f59e0b";
-const AGENTIC_ACOLYTE_COLOR = "#a78bfa";
 const ENEMY_SYMBOL_COLOR = "#101217";
 const ENEMY_HP_BACK = "#111827";
 const ENEMY_HP_HEALTHY = "#22c55e";
@@ -31,23 +17,12 @@ const DOOR_COLOR = "#9a6a3a";
 const LOCKED_DOOR_COLOR = "#b14b4b";
 /** Matches the top-down wall fill so an unrevealed secret door reads as a wall. */
 const SECRET_DOOR_WALL_COLOR = "#5a5f68";
-const UPLINK_CODE_COLOR = "#7dd3fc";
-const UPLINK_TERMINAL_COLOR = "#22c55e";
 const UPLINK_TERMINAL_SCREEN = "#0f172a";
-const WEAPON_PICKUP_COLOR = "#c084fc";
-const WEAPON_PICKUP_TEXT = "#101217";
 const ITEM_TEXT = "#101217";
 const KEY_COLORS: Record<KeyColorType, string> = {
   [KeyColor.Red]: "#df4f45",
   [KeyColor.Blue]: "#4f8df7",
   [KeyColor.Yellow]: "#f4d35e",
-};
-const ENEMY_SYMBOLS: Readonly<Record<EnemyArchetype, EnemySymbol>> = {
-  [EnemyArchetype.MeleeDog]: { color: DOG_COLOR, symbol: "D" },
-  [EnemyArchetype.Gunslinger]: { color: GUNSLINGER_COLOR, symbol: "G" },
-  [EnemyArchetype.NetworkNeophyte]: { color: NETWORK_NEOPHYTE_COLOR, symbol: "N" },
-  [EnemyArchetype.SystemSentinel]: { color: SYSTEM_SENTINEL_COLOR, symbol: "S" },
-  [EnemyArchetype.AgenticAcolyte]: { color: AGENTIC_ACOLYTE_COLOR, symbol: "A" },
 };
 const PLAYER_RADIUS_RATIO = 0.34;
 const PLAYER_BASE_WIDTH_RATIO = 0.75;
@@ -72,20 +47,60 @@ function renderDrawableEntity(
     case DrawableKind.Player:
       renderPlayer(ctx, drawable.x, drawable.y, drawable.dir, metrics);
       return;
-    case DrawableKind.Npc:
-      renderActor(ctx, drawable.x, drawable.y, drawable.dir, NPC_COLOR, metrics);
-      return;
-    case DrawableKind.Enemy:
-      renderEnemy(ctx, drawable.x, drawable.y, drawable.dir, drawable.enemyArchetype, drawable.health, metrics);
+    case DrawableKind.Actor:
+      renderActorDrawable(ctx, drawable, metrics);
       return;
     case DrawableKind.Door:
       renderDoor(ctx, drawable.x, drawable.y, drawable.open, drawable.locked, drawable.secret, drawable.color, metrics);
       return;
-    case DrawableKind.UplinkTerminal:
-      renderUplinkTerminal(ctx, drawable.x, drawable.y, metrics);
+    case DrawableKind.Sprite:
+      renderSpriteDrawable(ctx, drawable, metrics);
       return;
-    case DrawableKind.Item:
-      renderItem(ctx, drawable.x, drawable.y, drawable.icon, metrics);
+  }
+}
+
+function renderActorDrawable(
+  ctx: CanvasRenderingContext2D,
+  drawable: ActorDrawableEntity,
+  metrics: MapRenderMetrics,
+): void {
+  const appearance = spriteAppearance(drawable.spriteId);
+  renderActorSymbol(
+    ctx,
+    drawable.x,
+    drawable.y,
+    drawable.dir,
+    appearance.topDownColor,
+    appearance.topDownSymbol,
+    metrics,
+  );
+  renderEnemyHealth(ctx, drawable.x, drawable.y, drawable.health, metrics);
+}
+
+function renderSpriteDrawable(
+  ctx: CanvasRenderingContext2D,
+  drawable: SpriteDrawableEntity,
+  metrics: MapRenderMetrics,
+): void {
+  const appearance = spriteAppearance(drawable.spriteId);
+  switch (appearance.topDownShape) {
+    case "badge":
+      renderBadge(ctx, drawable.x, drawable.y, appearance.topDownColor, appearance.topDownSymbol ?? "", metrics);
+      return;
+    case "corpse":
+      renderCorpse(ctx, drawable.x, drawable.y, appearance.topDownColor, metrics);
+      return;
+    case "key":
+      renderKey(ctx, drawable.x, drawable.y, appearance.topDownColor, metrics);
+      return;
+    case "terminal":
+      renderUplinkTerminal(ctx, drawable.x, drawable.y, appearance.topDownColor, metrics);
+      return;
+    case "uplinkCode":
+      renderUplinkCode(ctx, drawable.x, drawable.y, appearance.topDownColor, metrics);
+      return;
+    case "weapon":
+      renderWeaponPickup(ctx, drawable.x, drawable.y, appearance.topDownColor, appearance.topDownSymbol ?? "", metrics);
       return;
   }
 }
@@ -94,18 +109,19 @@ function renderKey(
   ctx: CanvasRenderingContext2D,
   x: number,
   y: number,
-  color: KeyColorType,
+  color: string,
   metrics: MapRenderMetrics,
 ): void {
   const { tileSize } = metrics;
-  const center = tileCenter(metrics, x, y);
+  const centerX = tileCenterX(metrics, x);
+  const centerY = tileCenterY(metrics, y);
   const radius = tileSize * 0.18;
-  ctx.fillStyle = KEY_COLORS[color];
+  ctx.fillStyle = color;
   ctx.beginPath();
-  ctx.moveTo(center.x, center.y - radius);
-  ctx.lineTo(center.x + radius, center.y);
-  ctx.lineTo(center.x, center.y + radius);
-  ctx.lineTo(center.x - radius, center.y);
+  ctx.moveTo(centerX, centerY - radius);
+  ctx.lineTo(centerX + radius, centerY);
+  ctx.lineTo(centerX, centerY + radius);
+  ctx.lineTo(centerX - radius, centerY);
   ctx.closePath();
   ctx.fill();
 }
@@ -143,28 +159,31 @@ function renderUplinkCode(
   ctx: CanvasRenderingContext2D,
   x: number,
   y: number,
+  color: string,
   metrics: MapRenderMetrics,
 ): void {
   const { tileSize } = metrics;
-  const center = tileCenter(metrics, x, y);
+  const centerX = tileCenterX(metrics, x);
+  const centerY = tileCenterY(metrics, y);
   const width = tileSize * 0.46;
   const height = tileSize * 0.28;
   const notch = Math.max(2, tileSize * 0.08);
 
-  ctx.fillStyle = UPLINK_CODE_COLOR;
-  ctx.fillRect(center.x - width / 2, center.y - height / 2, width, height);
+  ctx.fillStyle = color;
+  ctx.fillRect(centerX - width / 2, centerY - height / 2, width, height);
   ctx.fillStyle = ACTOR_STROKE_COLOR;
-  ctx.fillRect(center.x + width / 2 - notch, center.y - height / 4, notch, height / 2);
+  ctx.fillRect(centerX + width / 2 - notch, centerY - height / 4, notch, height / 2);
 }
 
 function renderUplinkTerminal(
   ctx: CanvasRenderingContext2D,
   x: number,
   y: number,
+  color: string,
   metrics: MapRenderMetrics,
 ): void {
   const { offsetX, offsetY, tileSize } = metrics;
-  const center = tileCenter(metrics, x, y);
+  const centerX = tileCenterX(metrics, x);
   const tileX = offsetX + x * tileSize;
   const tileY = offsetY + y * tileSize;
   const inset = Math.max(3, tileSize * 0.16);
@@ -172,7 +191,7 @@ function renderUplinkTerminal(
   const height = tileSize - inset * 2;
   const screenInset = Math.max(2, tileSize * 0.1);
 
-  ctx.fillStyle = UPLINK_TERMINAL_COLOR;
+  ctx.fillStyle = color;
   ctx.fillRect(tileX + inset, tileY + inset, width, height);
   ctx.fillStyle = UPLINK_TERMINAL_SCREEN;
   ctx.fillRect(
@@ -183,12 +202,12 @@ function renderUplinkTerminal(
   );
   ctx.strokeStyle = UPLINK_TERMINAL_SCREEN;
   ctx.beginPath();
-  ctx.moveTo(center.x, tileY + inset);
-  ctx.lineTo(center.x, tileY + inset / 2);
-  ctx.moveTo(center.x, tileY + inset / 2);
-  ctx.lineTo(center.x - inset, tileY);
-  ctx.moveTo(center.x, tileY + inset / 2);
-  ctx.lineTo(center.x + inset, tileY);
+  ctx.moveTo(centerX, tileY + inset);
+  ctx.lineTo(centerX, tileY + inset / 2);
+  ctx.moveTo(centerX, tileY + inset / 2);
+  ctx.lineTo(centerX - inset, tileY);
+  ctx.moveTo(centerX, tileY + inset / 2);
+  ctx.lineTo(centerX + inset, tileY);
   ctx.stroke();
 }
 
@@ -196,46 +215,25 @@ function renderWeaponPickup(
   ctx: CanvasRenderingContext2D,
   x: number,
   y: number,
-  slot: number,
+  color: string,
+  label: string,
   metrics: MapRenderMetrics,
 ): void {
   const { tileSize } = metrics;
-  const center = tileCenter(metrics, x, y);
+  const centerX = tileCenterX(metrics, x);
+  const centerY = tileCenterY(metrics, y);
   const radius = tileSize * 0.22;
 
-  ctx.fillStyle = WEAPON_PICKUP_COLOR;
+  ctx.fillStyle = color;
   ctx.beginPath();
-  ctx.arc(center.x, center.y, radius, 0, Math.PI * 2);
+  ctx.arc(centerX, centerY, radius, 0, Math.PI * 2);
   ctx.fill();
 
-  ctx.fillStyle = WEAPON_PICKUP_TEXT;
+  ctx.fillStyle = ITEM_TEXT;
   ctx.font = monoFont(700, Math.max(8, Math.floor(tileSize * 0.32)));
   ctx.textAlign = "center";
   ctx.textBaseline = "middle";
-  ctx.fillText(String(slot), center.x, center.y + 0.5);
-}
-
-function renderItem(
-  ctx: CanvasRenderingContext2D,
-  x: number,
-  y: number,
-  icon: ItemIcon,
-  metrics: MapRenderMetrics,
-): void {
-  switch (icon.type) {
-    case "badge":
-      renderBadge(ctx, x, y, icon.color, icon.label, metrics);
-      return;
-    case "key":
-      renderKey(ctx, x, y, icon.color, metrics);
-      return;
-    case "uplinkCode":
-      renderUplinkCode(ctx, x, y, metrics);
-      return;
-    case "weapon":
-      renderWeaponPickup(ctx, x, y, icon.slot, metrics);
-      return;
-  }
+  ctx.fillText(label, centerX, centerY + 0.5);
 }
 
 function renderBadge(
@@ -247,34 +245,35 @@ function renderBadge(
   metrics: MapRenderMetrics,
 ): void {
   const { tileSize } = metrics;
-  const center = tileCenter(metrics, x, y);
+  const centerX = tileCenterX(metrics, x);
+  const centerY = tileCenterY(metrics, y);
   const radius = tileSize * 0.2;
 
   ctx.fillStyle = color;
-  ctx.fillRect(center.x - radius, center.y - radius, radius * 2, radius * 2);
+  ctx.fillRect(centerX - radius, centerY - radius, radius * 2, radius * 2);
   ctx.fillStyle = ITEM_TEXT;
   ctx.font = monoFont(700, Math.max(8, Math.floor(tileSize * 0.28)));
   ctx.textAlign = "center";
   ctx.textBaseline = "middle";
-  ctx.fillText(label, center.x, center.y + 0.5);
+  ctx.fillText(label, centerX, centerY + 0.5);
 }
 
-function renderEnemy(
+function renderCorpse(
   ctx: CanvasRenderingContext2D,
   x: number,
   y: number,
-  dir: number,
-  archetype: EnemyArchetype | undefined,
-  health: { readonly current: number; readonly max: number } | undefined,
+  color: string,
   metrics: MapRenderMetrics,
 ): void {
-  if (archetype === undefined) {
-    renderActor(ctx, x, y, dir, ENEMY_COLOR, metrics);
-  } else {
-    const enemySymbol = ENEMY_SYMBOLS[archetype];
-    renderActorSymbol(ctx, x, y, dir, enemySymbol.color, enemySymbol.symbol, metrics);
-  }
-  renderEnemyHealth(ctx, x, y, health, metrics);
+  const { tileSize } = metrics;
+  const centerX = tileCenterX(metrics, x);
+  const centerY = tileCenterY(metrics, y);
+  const radius = tileSize * 0.22;
+
+  ctx.fillStyle = color;
+  ctx.beginPath();
+  ctx.ellipse(centerX, centerY, radius * 1.2, radius * 0.72, -0.45, 0, Math.PI * 2);
+  ctx.fill();
 }
 
 function renderEnemyHealth(
@@ -290,9 +289,9 @@ function renderEnemyHealth(
   const ratio = Math.max(0, Math.min(1, health.current / health.max));
   const barWidth = tileSize * 0.52;
   const barHeight = Math.max(3, Math.floor(tileSize * 0.08));
-  const center = tileCenter(metrics, x, y);
+  const centerX = tileCenterX(metrics, x);
   const topY = offsetY + y * tileSize + Math.max(2, tileSize * 0.08);
-  const leftX = center.x - barWidth / 2;
+  const leftX = centerX - barWidth / 2;
 
   ctx.fillStyle = ENEMY_HP_BACK;
   ctx.fillRect(leftX, topY, barWidth, barHeight);
@@ -308,17 +307,6 @@ function enemyHealthColor(ratio: number): string {
   return ENEMY_HP_HEALTHY;
 }
 
-function renderActor(
-  ctx: CanvasRenderingContext2D,
-  x: number,
-  y: number,
-  dir: number,
-  color: string,
-  metrics: MapRenderMetrics,
-): void {
-  renderActorSymbol(ctx, x, y, dir, color, undefined, metrics);
-}
-
 function renderActorSymbol(
   ctx: CanvasRenderingContext2D,
   x: number,
@@ -329,17 +317,18 @@ function renderActorSymbol(
   metrics: MapRenderMetrics,
 ): void {
   const { tileSize } = metrics;
-  const center = tileCenter(metrics, x, y);
+  const centerX = tileCenterX(metrics, x);
+  const centerY = tileCenterY(metrics, y);
   const radius = tileSize * NPC_RADIUS_RATIO;
   const forward = directionDelta(dir);
   ctx.fillStyle = color;
   ctx.beginPath();
-  ctx.arc(center.x, center.y, radius, 0, Math.PI * 2);
+  ctx.arc(centerX, centerY, radius, 0, Math.PI * 2);
   ctx.fill();
   ctx.strokeStyle = ACTOR_STROKE_COLOR;
   ctx.beginPath();
-  ctx.moveTo(center.x, center.y);
-  ctx.lineTo(center.x + forward.dx * radius, center.y + forward.dy * radius);
+  ctx.moveTo(centerX, centerY);
+  ctx.lineTo(centerX + forward.dx * radius, centerY + forward.dy * radius);
   ctx.stroke();
   if (symbol === undefined) return;
 
@@ -347,7 +336,7 @@ function renderActorSymbol(
   ctx.font = monoFont(700, Math.max(8, Math.floor(tileSize * 0.25)));
   ctx.textAlign = "center";
   ctx.textBaseline = "middle";
-  ctx.fillText(symbol, center.x, center.y + 0.5);
+  ctx.fillText(symbol, centerX, centerY + 0.5);
 }
 
 function renderPlayer(
@@ -358,41 +347,29 @@ function renderPlayer(
   metrics: MapRenderMetrics,
 ): void {
   const { tileSize } = metrics;
-  const center = tileCenter(metrics, x, y);
+  const centerX = tileCenterX(metrics, x);
+  const centerY = tileCenterY(metrics, y);
   const radius = tileSize * PLAYER_RADIUS_RATIO;
-  const [tip, left, right] = playerTriangle(center.x, center.y, radius, dir);
-  ctx.fillStyle = PLAYER_COLOR;
+  const forward = directionDelta(dir);
+  const sideX = -forward.dy;
+  const sideY = forward.dx;
+  const baseCenterX = centerX - forward.dx * radius;
+  const baseCenterY = centerY - forward.dy * radius;
+  const baseOffset = radius * PLAYER_BASE_WIDTH_RATIO;
+
+  ctx.fillStyle = spriteAppearance(SpriteId.Player).topDownColor;
   ctx.beginPath();
-  ctx.moveTo(tip.x, tip.y);
-  ctx.lineTo(left.x, left.y);
-  ctx.lineTo(right.x, right.y);
+  ctx.moveTo(centerX + forward.dx * radius, centerY + forward.dy * radius);
+  ctx.lineTo(baseCenterX + sideX * baseOffset, baseCenterY + sideY * baseOffset);
+  ctx.lineTo(baseCenterX - sideX * baseOffset, baseCenterY - sideY * baseOffset);
   ctx.closePath();
   ctx.fill();
 }
 
-function tileCenter(metrics: MapRenderMetrics, x: number, y: number): Point {
-  return {
-    x: metrics.offsetX + x * metrics.tileSize + metrics.tileSize / 2,
-    y: metrics.offsetY + y * metrics.tileSize + metrics.tileSize / 2,
-  };
+function tileCenterX(metrics: MapRenderMetrics, x: number): number {
+  return metrics.offsetX + x * metrics.tileSize + metrics.tileSize / 2;
 }
 
-function playerTriangle(
-  centerX: number,
-  centerY: number,
-  radius: number,
-  dir: number,
-): Triangle {
-  const forward = directionDelta(dir);
-  const side = { x: -forward.dy, y: forward.dx };
-  const baseCenter = {
-    x: centerX - forward.dx * radius,
-    y: centerY - forward.dy * radius,
-  };
-  const baseOffset = radius * PLAYER_BASE_WIDTH_RATIO;
-  return [
-    { x: centerX + forward.dx * radius, y: centerY + forward.dy * radius },
-    { x: baseCenter.x + side.x * baseOffset, y: baseCenter.y + side.y * baseOffset },
-    { x: baseCenter.x - side.x * baseOffset, y: baseCenter.y - side.y * baseOffset },
-  ];
+function tileCenterY(metrics: MapRenderMetrics, y: number): number {
+  return metrics.offsetY + y * metrics.tileSize + metrics.tileSize / 2;
 }

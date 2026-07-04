@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { DialogueTreeId, type DialogueTreeId as DialogueTreeIdType } from "@/src/dialogue/dialogue.ts";
+import { ItemKind, type ItemKind as ItemKindType } from "@/src/ecs/components.ts";
 import { EnemyArchetype, type EnemyArchetype as EnemyArchetypeType } from "@/src/ecs/enemy_catalog.ts";
 import {
   AttackFacingRequirement,
@@ -11,7 +12,6 @@ import {
 } from "@/src/game/attack.ts";
 import type { AttackDef } from "@/src/game/attack.ts";
 import { ExamineTextId, type ExamineTextId as ExamineTextIdType } from "@/src/game/examine.ts";
-import { ItemKind, type ItemKind as ItemKindType } from "@/src/game/items.ts";
 import { DisplayName, type DisplayName as DisplayNameType } from "@/src/game/names.ts";
 import { type DoorSlide, KeyColor, type KeyColor as KeyColorType } from "@/src/map/map.ts";
 
@@ -23,6 +23,7 @@ const POSITIVE_INTEGER_SCHEMA = INTEGER_SCHEMA.positive();
 const DIRECTION_SCHEMA = INTEGER_SCHEMA.min(0).max(3);
 const KEY_COLOR_SCHEMA = z.enum([KeyColor.Red, KeyColor.Blue, KeyColor.Yellow]) satisfies z.ZodType<KeyColorType>;
 const DOOR_SLIDE_SCHEMA = z.enum(DOOR_SLIDES);
+const LIGHT_COLOR_SCHEMA = z.string().regex(/^#[0-9a-fA-F]{6}$/);
 const DISPLAY_NAME_SCHEMA = numberEnumSchema<DisplayNameType>(Object.values(DisplayName), "displayName");
 const DIALOGUE_TREE_ID_SCHEMA = numberEnumSchema<DialogueTreeIdType>(
   Object.values(DialogueTreeId),
@@ -124,6 +125,12 @@ const ENTITY_DEFINITIONS = [
     item: ITEM_KIND_SCHEMA,
     amount: POSITIVE_INTEGER_SCHEMA,
   }),
+  entityDefinition("light", ["prefab", "color", "radius", "flickerAmount", "flickerSpeed"], {
+    color: LIGHT_COLOR_SCHEMA,
+    radius: POSITIVE_INTEGER_SCHEMA,
+    flickerAmount: z.number().min(0).max(1).optional(),
+    flickerSpeed: z.number().positive().optional(),
+  }),
 ] as const;
 
 const ENTITY_SCHEMAS = ENTITY_DEFINITIONS.map((definition) => definition.schema) as [
@@ -136,6 +143,7 @@ const ENTITY_SCHEMAS = ENTITY_DEFINITIONS.map((definition) => definition.schema)
   (typeof ENTITY_DEFINITIONS)[6]["schema"],
   (typeof ENTITY_DEFINITIONS)[7]["schema"],
   (typeof ENTITY_DEFINITIONS)[8]["schema"],
+  (typeof ENTITY_DEFINITIONS)[9]["schema"],
 ];
 
 export const ENTITY_SCHEMA = z.discriminatedUnion("prefab", ENTITY_SCHEMAS);
@@ -152,6 +160,7 @@ export type UplinkCodeDef = EntityDefFor<"uplinkCode">;
 export type UplinkTerminalDef = EntityDefFor<"uplinkTerminal">;
 export type WeaponPickupDef = EntityDefFor<"weaponPickup">;
 export type ItemDef = EntityDefFor<"item">;
+export type LightDef = EntityDefFor<"light">;
 
 const ENTITY_PREFABS = ENTITY_DEFINITIONS.map((definition) => definition.prefab) as readonly EntityPrefab[];
 export const ENTITY_AUTHORING_PROPERTY_NAMES: ReadonlySet<string> = propertySet(

@@ -14,6 +14,7 @@ import {
 } from "@/src/ecs/components.ts";
 import type { AttackSchema } from "@/src/ecs/components.ts";
 import type { Player } from "@/src/ecs/player.ts";
+import { createCorpse } from "@/src/ecs/prefabs.ts";
 import type { SpatialAccess, SpatialLookup, SpatialMutations } from "@/src/ecs/spatial.ts";
 import { CARDINAL_DELTAS, directionDelta } from "@/src/grid/direction.ts";
 import { DEFAULT_ATTACK } from "@/src/game/attack.ts";
@@ -178,6 +179,8 @@ export function attackEntity(
   // The player entity survives defeat so the session can report the loss;
   // everything else is removed from play immediately.
   if (!world.components.entityHas(PlayerTag, defender)) {
+    const position = world.components.readEntityData(GridPos, defender);
+    if (position !== undefined) createCorpse(world, position);
     spatial.removeEntity(defender);
   }
   return events;

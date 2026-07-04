@@ -146,11 +146,9 @@ export const Interactable: Component<null> = new Component<null>({ name: "intera
 
 export const DrawableKind = {
   Player: 1,
-  Npc: 2,
-  Enemy: 3,
-  Door: 4,
-  UplinkTerminal: 7,
-  Item: 9,
+  Actor: 2,
+  Door: 3,
+  Sprite: 4,
 } as const;
 export type DrawableKind = (typeof DrawableKind)[keyof typeof DrawableKind];
 
@@ -171,6 +169,39 @@ export const Drawable: Component<DrawableSchema, typeof DRAWABLE_STORAGE> = new 
 >({
   name: "drawable",
   schema: DRAWABLE_STORAGE,
+});
+
+export const SpriteId = {
+  Player: 1,
+  Npc: 2,
+  John: 3,
+  DigitalDog: 4,
+  GigabitGunslinger: 5,
+  NetworkNeophyte: 6,
+  SystemSentinel: 7,
+  AgenticAcolyte: 8,
+  UplinkTerminal: 9,
+  HealthPatch: 10,
+  RedKey: 11,
+  BlueKey: 12,
+  YellowKey: 13,
+  Weapon2: 14,
+  Weapon3: 15,
+  UplinkCode: 16,
+  Corpse: 17,
+  PistolAmmo: 18,
+  CannonAmmo: 19,
+} as const;
+export type SpriteId = (typeof SpriteId)[keyof typeof SpriteId];
+
+const SPRITE_STORAGE = { id: Uint8Array };
+export type SpriteSchema = { id: SpriteId };
+export const Sprite: Component<SpriteSchema, typeof SPRITE_STORAGE> = new Component<
+  SpriteSchema,
+  typeof SPRITE_STORAGE
+>({
+  name: "sprite",
+  schema: SPRITE_STORAGE,
 });
 
 export type DoorSchema = {
@@ -201,11 +232,46 @@ export const Secret: Component<null> = new Component<null>({ name: "secret" });
 
 export const UplinkTerminal: Component<null> = new Component<null>({ name: "uplinkTerminal" });
 
-export type ItemSchema = { kind: number; value: number };
+export const ItemKind = {
+  HealthPatch: 1,
+  PistolAmmo: 2,
+  CannonAmmo: 3,
+  Key: 4,
+  UplinkCode: 5,
+  Weapon: 6,
+} as const;
+export type ItemKind = (typeof ItemKind)[keyof typeof ItemKind];
+export const ITEM_KIND_CODES = Object.values(ItemKind);
+
+export type ItemSchema = { kind: ItemKind; value: number };
 const ITEM_STORAGE = { kind: Uint8Array, value: Uint8Array };
 export const Item: Component<ItemSchema, typeof ITEM_STORAGE> = new Component<ItemSchema, typeof ITEM_STORAGE>({
   name: "item",
   schema: ITEM_STORAGE,
+});
+
+export type LightEmitterSchema = {
+  red: number;
+  green: number;
+  blue: number;
+  radius: number;
+  flickerAmount: number;
+  flickerSpeed: number;
+};
+const LIGHT_EMITTER_STORAGE = {
+  red: Uint8Array,
+  green: Uint8Array,
+  blue: Uint8Array,
+  radius: Uint8Array,
+  flickerAmount: Float32Array,
+  flickerSpeed: Float32Array,
+};
+export const LightEmitter: Component<LightEmitterSchema, typeof LIGHT_EMITTER_STORAGE> = new Component<
+  LightEmitterSchema,
+  typeof LIGHT_EMITTER_STORAGE
+>({
+  name: "lightEmitter",
+  schema: LIGHT_EMITTER_STORAGE,
 });
 
 export const TurnTaker: Component<null> = new Component<null>({ name: "turnTaker" });
@@ -327,11 +393,13 @@ export const ALL_COMPONENTS: DynamicComponent[] = [
   Blocking,
   Interactable,
   Drawable,
+  Sprite,
   Door,
   Locked,
   Secret,
   UplinkTerminal,
   Item,
+  LightEmitter,
   TurnTaker,
   Enemy,
   EnemyAwareness,

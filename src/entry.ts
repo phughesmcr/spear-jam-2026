@@ -198,15 +198,6 @@ class Game implements Disposable {
     if (result.events.length > 0) {
       this.addMessageHudMessages(result.events.map((event) => messageForEvent(playerEntity, event)));
     }
-    for (const event of result.events) {
-      // First-person sprite animation: enemies strike a pose when they
-      // attack and play a death sequence when defeated.
-      if ((event.type === "damageDealt" || event.type === "attackMissed") && event.actor !== playerEntity) {
-        this.firstPersonRenderer.markSpriteAttack(event.actor);
-      } else if (event.type === "entityDefeated") {
-        this.firstPersonRenderer.markSpriteDeath(event.entity);
-      }
-    }
     this.apply({
       type: "playerCommandResult",
       result,

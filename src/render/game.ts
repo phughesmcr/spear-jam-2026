@@ -9,7 +9,7 @@ import {
 } from "@/src/render/combat_feedback.ts";
 import { renderDrawableEntities } from "@/src/render/drawables.ts";
 import { preloadDialogueAssets, renderDialogue } from "@/src/render/dialogue.ts";
-import { createFirstPersonRenderer, type FirstPersonRenderer } from "@/src/render/first_person.ts";
+import type { FirstPersonRenderer } from "@/src/render/first_person.ts";
 import { preloadHudAssets, renderFirstPersonHud, renderHud } from "@/src/render/hud.ts";
 import type { FirstPersonHudOptions } from "@/src/render/hud.ts";
 import { renderMap } from "@/src/render/map.ts";
@@ -73,7 +73,7 @@ export function renderGameFrame(
   combatFeedback: readonly CombatFeedback[] = [],
   viewMode: ViewMode = "firstPerson",
   weaponHudPhase: WeaponHudPhase = "idle",
-  firstPersonRenderer: FirstPersonRenderer = createFirstPersonRenderer(),
+  firstPersonRenderer?: FirstPersonRenderer,
   firstPersonHud: FirstPersonHudOptions = {},
   onAssetLoad?: () => void,
 ): void {
@@ -83,6 +83,9 @@ export function renderGameFrame(
   if (session) {
     const { map } = session;
     if (viewMode === "firstPerson") {
+      if (firstPersonRenderer === undefined) {
+        throw new Error("renderGameFrame requires a first-person renderer for first-person sessions.");
+      }
       const playRect = gameRenderRect(canvasSize, viewMode);
       const playerState = session.getPlayerState();
       firstPersonRenderer.render(

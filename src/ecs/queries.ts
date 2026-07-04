@@ -1,19 +1,17 @@
 import { Query } from "@phughesmcr/miski";
 import {
-  DisplayNameComponent,
   Door,
   Drawable,
   Enemy,
-  EnemyArchetypeComponent,
   EnemyAwareness,
   Facing,
   GridPos,
   Health,
-  Item,
+  LightEmitter,
   Locked,
   Secret,
+  Sprite,
   TurnTaker,
-  UplinkTerminal,
 } from "./components.ts";
 
 /** All entities with a grid position */
@@ -26,15 +24,17 @@ export const drawableRenderQuery = new Query({
   all: { gridPos: GridPos, drawable: Drawable },
   include: {
     facing: Facing,
-    displayName: DisplayNameComponent,
-    enemyArchetype: EnemyArchetypeComponent,
     health: Health,
     door: Door,
     locked: Locked,
     secret: Secret,
-    uplinkTerminal: UplinkTerminal,
-    item: Item,
+    sprite: Sprite,
   },
+});
+
+/** All map-authored light emitters */
+export const lightRenderQuery = new Query({
+  all: { gridPos: GridPos, lightEmitter: LightEmitter },
 });
 
 /** All enemies that participate in the turn loop */

@@ -20,20 +20,29 @@ import {
   IDLE_AWARENESS,
   Interactable,
   Item,
+  ItemKind,
+  LightEmitter,
   Locked,
   Npc,
   Player,
   Secret,
+  Sprite,
+  SpriteId,
   TurnTaker,
   UplinkTerminal,
 } from "@/src/ecs/components.ts";
 import type { AttackSchema } from "@/src/ecs/components.ts";
-import { DEFAULT_ENEMY_ARCHETYPE, type EnemyCatalogEntry, enemyCatalogEntry } from "@/src/ecs/enemy_catalog.ts";
+import {
+  DEFAULT_ENEMY_ARCHETYPE,
+  EnemyArchetype,
+  type EnemyCatalogEntry,
+  enemyCatalogEntry,
+} from "@/src/ecs/enemy_catalog.ts";
 import { DEFAULT_PLAYER_HEALTH } from "@/src/ecs/progression.ts";
 import { DEFAULT_ATTACK } from "@/src/game/attack.ts";
+import { DisplayName } from "@/src/game/names.ts";
 import { normalizeDirection } from "@/src/grid/direction.ts";
-import { doorSlideCode, keyColorCode } from "@/src/map/map.ts";
-import { ItemKind } from "@/src/game/items.ts";
+import { doorSlideCode, KeyColor, keyColorCode, keyColorForCode } from "@/src/map/map.ts";
 import type {
   DoorDef,
   EnemyDef,
@@ -42,6 +51,7 @@ import type {
   EntityPrefab,
   ItemDef,
   KeyDef,
+  LightDef,
   NpcDef,
   PlayerDef,
   UplinkCodeDef,
@@ -68,7 +78,7 @@ type ExaminePrefab = {
 export type PlayerPrefab = Omit<PlayerDef, "prefab">;
 
 export function createPlayer(world: World, prefab: PlayerPrefab): Entity {
-  const entity = createGridActor(world, prefab, DrawableKind.Player, DrawableLayer.Player);
+  const entity = createGridActor(world, prefab, DrawableKind.Player, DrawableLayer.Player, SpriteId.Player);
   world.components.addBundle(
     entity,
     [
@@ -83,7 +93,13 @@ export function createPlayer(world: World, prefab: PlayerPrefab): Entity {
 export type NpcPrefab = Omit<NpcDef, "prefab">;
 
 export function createNpc(world: World, prefab: NpcPrefab): Entity {
-  const entity = createGridActor(world, prefab, DrawableKind.Npc, DrawableLayer.Npc);
+  const entity = createGridActor(
+    world,
+    prefab,
+    DrawableKind.Actor,
+    DrawableLayer.Npc,
+    spriteIdForNpc(prefab.displayName),
+  );
   world.components.addBundle(
     entity,
     [
@@ -106,7 +122,7 @@ export function createEnemy(world: World, prefab: EnemyPrefab): Entity {
   const catalog = enemyCatalogEntry(archetype);
   const health = prefab.health ?? catalog.health;
   const hitDc = prefab.hitDc ?? catalog.hitDc;
-  const entity = createGridActor(world, prefab, DrawableKind.Enemy, DrawableLayer.Enemy);
+  const entity = createGridActor(world, prefab, DrawableKind.Actor, DrawableLayer.Enemy, spriteIdForEnemy(archetype));
   world.components.addBundle(
     entity,
     [
@@ -178,7 +194,8 @@ export function createUplinkTerminal(world: World, prefab: UplinkTerminalPrefab)
   const entity = world.entities.createWithOrThrow(
     [
       [GridPos, { x: prefab.x, y: prefab.y }],
-      [Drawable, { kind: DrawableKind.UplinkTerminal, layer: DrawableLayer.Structure }],
+      [Drawable, { kind: DrawableKind.Sprite, layer: DrawableLayer.Structure }],
+      [Sprite, { id: SpriteId.UplinkTerminal }],
       [UplinkTerminal],
       [Interactable],
       [Blocking],
@@ -200,6 +217,25 @@ export function createItem(world: World, prefab: ItemPrefab): Entity {
   return createPickup(world, prefab, prefab.item, prefab.amount);
 }
 
+export type LightPrefab = Omit<LightDef, "prefab">;
+
+export function createLight(world: World, prefab: LightPrefab): Entity {
+  const [red, green, blue] = colorChannels(prefab.color);
+  return world.entities.createWithOrThrow(
+    [
+      [GridPos, { x: prefab.x, y: prefab.y }],
+      [LightEmitter, {
+        red,
+        green,
+        blue,
+        radius: prefab.radius,
+        flickerAmount: prefab.flickerAmount ?? 0,
+        flickerSpeed: prefab.flickerSpeed ?? 0,
+      }],
+    ] as const,
+  );
+}
+
 type MapEntityCreator<Prefab extends EntityPrefab> = (world: World, prefab: EntityDefFor<Prefab>) => Entity;
 
 type MapEntityCreators = {
@@ -216,13 +252,15 @@ const MAP_ENTITY_CREATORS = {
   uplinkTerminal: createUplinkTerminal,
   weaponPickup: createWeaponPickup,
   item: createItem,
+  light: createLight,
 } satisfies MapEntityCreators;
 
 function createPickup(world: World, prefab: PositionedPrefab, item: ItemKind, value: number): Entity {
   return world.entities.createWithOrThrow(
     [
       [GridPos, { x: prefab.x, y: prefab.y }],
-      [Drawable, { kind: DrawableKind.Item, layer: DrawableLayer.Item }],
+      [Drawable, { kind: DrawableKind.Sprite, layer: DrawableLayer.Item }],
+      [Sprite, { id: spriteIdForItem(item, value) }],
       [Item, { kind: item, value }],
     ] as const,
   );
@@ -233,12 +271,14 @@ function createGridActor(
   prefab: GridActorPrefab,
   kind: DrawableKind,
   layer: DrawableLayer,
+  sprite: SpriteId,
 ): Entity {
   return world.entities.createWithOrThrow(
     [
       [GridPos, { x: prefab.x, y: prefab.y }],
       [Facing, { dir: normalizeDirection(prefab.dir) }],
       [Drawable, { kind, layer }],
+      [Sprite, { id: sprite }],
       [Blocking],
       [TurnTaker],
     ] as const,
@@ -254,4 +294,67 @@ function addExamine(world: World, entity: Entity, prefab: ExaminePrefab): void {
 export function createMapEntity(world: World, prefab: EntityDef): Entity {
   const create = MAP_ENTITY_CREATORS[prefab.prefab] as MapEntityCreator<typeof prefab.prefab>;
   return create(world, prefab);
+}
+
+export function createCorpse(world: World, position: PositionedPrefab): Entity {
+  return world.entities.createWithOrThrow(
+    [
+      [GridPos, position],
+      [Drawable, { kind: DrawableKind.Sprite, layer: DrawableLayer.Item }],
+      [Sprite, { id: SpriteId.Corpse }],
+    ] as const,
+  );
+}
+
+function spriteIdForNpc(displayName: number): SpriteId {
+  return displayName === DisplayName.John ? SpriteId.John : SpriteId.Npc;
+}
+
+function spriteIdForEnemy(archetype: EnemyArchetype): SpriteId {
+  switch (archetype) {
+    case EnemyArchetype.MeleeDog:
+      return SpriteId.DigitalDog;
+    case EnemyArchetype.Gunslinger:
+      return SpriteId.GigabitGunslinger;
+    case EnemyArchetype.NetworkNeophyte:
+      return SpriteId.NetworkNeophyte;
+    case EnemyArchetype.SystemSentinel:
+      return SpriteId.SystemSentinel;
+    case EnemyArchetype.AgenticAcolyte:
+      return SpriteId.AgenticAcolyte;
+  }
+}
+
+function spriteIdForItem(item: ItemKind, value: number): SpriteId {
+  switch (item) {
+    case ItemKind.HealthPatch:
+      return SpriteId.HealthPatch;
+    case ItemKind.PistolAmmo:
+      return SpriteId.PistolAmmo;
+    case ItemKind.CannonAmmo:
+      return SpriteId.CannonAmmo;
+    case ItemKind.Key:
+      switch (keyColorForCode(value)) {
+        case KeyColor.Red:
+          return SpriteId.RedKey;
+        case KeyColor.Blue:
+          return SpriteId.BlueKey;
+        case KeyColor.Yellow:
+          return SpriteId.YellowKey;
+        default:
+          throw new Error(`Unknown key color code: ${value}`);
+      }
+    case ItemKind.UplinkCode:
+      return SpriteId.UplinkCode;
+    case ItemKind.Weapon:
+      return value === 2 ? SpriteId.Weapon2 : SpriteId.Weapon3;
+  }
+}
+
+function colorChannels(color: string): readonly [number, number, number] {
+  return [
+    Number.parseInt(color.slice(1, 3), 16),
+    Number.parseInt(color.slice(3, 5), 16),
+    Number.parseInt(color.slice(5, 7), 16),
+  ] as const;
 }

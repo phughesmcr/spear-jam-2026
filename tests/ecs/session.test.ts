@@ -1,8 +1,8 @@
 import { assertEquals, assertRejects } from "@std/assert";
+import { ItemKind } from "@/src/ecs/components.ts";
 import { DrawableKind } from "@/src/ecs/drawables.ts";
 import { EnemyArchetype } from "@/src/ecs/enemy_catalog.ts";
 import { createGameSession } from "@/src/ecs/session.ts";
-import { ItemKind } from "@/src/game/items.ts";
 import type { PlayerCommandResult } from "@/src/game/commands.ts";
 import { TurnEffectKind } from "@/src/game/turn_effects.ts";
 import { DisplayName } from "@/src/game/names.ts";
@@ -174,7 +174,7 @@ Deno.test("consumed player actions run enemy phase, turn effects, and visibility
     const result = session.handlePlayerCommand({ type: "interact" });
     const enemies: { readonly x: number; readonly y: number }[] = [];
     session.forEachDrawable((drawable) => {
-      if (drawable.kind === DrawableKind.Enemy) enemies.push({ x: drawable.x, y: drawable.y });
+      if (drawable.kind === DrawableKind.Actor) enemies.push({ x: drawable.x, y: drawable.y });
     });
 
     assertEquals(eventTypes(result), ["doorOpened"]);

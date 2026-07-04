@@ -15,8 +15,8 @@ import type {
   PlayerTurnEffectsSchema,
 } from "@/src/ecs/components.ts";
 import { weaponLabel } from "@/src/ecs/combat.ts";
+import type { ItemPickup } from "@/src/ecs/interactions.ts";
 import type { GameEvent } from "@/src/game/events.ts";
-import type { ItemPickup } from "@/src/game/items.ts";
 import { commandSlotForCode } from "@/src/game/state.ts";
 import type {
   AmmoKind,

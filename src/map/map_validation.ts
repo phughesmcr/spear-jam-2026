@@ -47,14 +47,8 @@ function validateGameMap(map: GameMap, mapNames: ReadonlySet<string>): readonly 
     }
 
     const terrain = terrainAt(map, entity.x, entity.y);
-    if (terrain === undefined || terrain.blocking === true) {
+    if (entity.prefab !== "light" && (terrain === undefined || terrain.blocking === true)) {
       issues.push(`${map.name}: ${entity.prefab} at (${entity.x},${entity.y}) is placed on blocking terrain.`);
-    }
-  }
-
-  for (const light of map.lights) {
-    if (!inBounds(light.x, light.y, width, height)) {
-      issues.push(`${map.name}: light at (${light.x},${light.y}) is outside the ${width}x${height} map.`);
     }
   }
 
@@ -187,6 +181,7 @@ function reachabilityIndexes(map: GameMap): ReachabilityIndexes {
       }
       case "enemy":
       case "item":
+      case "light":
       case "npc":
       case "player":
       case "weaponPickup":

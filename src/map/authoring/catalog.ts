@@ -1,8 +1,8 @@
 import { DialogueTreeId } from "@/src/dialogue/dialogue.ts";
+import { ItemKind } from "@/src/ecs/components.ts";
 import { ENEMY_ARCHETYPE_CODES, enemyCatalogEntry } from "@/src/ecs/enemy_catalog.ts";
 import { AttackPattern } from "@/src/game/attack.ts";
 import { ExamineTextId } from "@/src/game/examine.ts";
-import { ItemKind } from "@/src/game/items.ts";
 import { DisplayName } from "@/src/game/names.ts";
 import { KeyColor, TexturePack, VICTORY_GOTO } from "@/src/map/map.ts";
 import {

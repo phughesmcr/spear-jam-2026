@@ -12,12 +12,15 @@
  * facing relative to the camera, Wolf3D style.
  */
 
-import { DrawableKind } from "@/src/ecs/drawables.ts";
-import type { DrawableEntity, DrawableEntityVisitor } from "@/src/ecs/drawables.ts";
-import { EnemyArchetype } from "@/src/ecs/enemy_catalog.ts";
+import { DrawableKind, spriteAppearance, SpriteId } from "@/src/ecs/drawables.ts";
+import type {
+  DrawableEntity,
+  DrawableEntityVisitor,
+  LightEntityVisitor,
+  SpriteAppearance,
+} from "@/src/ecs/drawables.ts";
+import type { SpriteId as SpriteIdType } from "@/src/ecs/components.ts";
 import { type CardinalDirection, directionDelta, normalizeDirection } from "@/src/grid/direction.ts";
-import type { ItemIcon } from "@/src/game/items.ts";
-import { DisplayName } from "@/src/game/names.ts";
 import type { TargetMarkerTone } from "@/src/game/target_marker.ts";
 import { KeyColor, mapDimensions, terrainAt, TexturePack } from "@/src/map/map.ts";
 import type { CeilingTexture, DoorSlide, FloorTexture, GameMap, TexturePackRef, WallTexture } from "@/src/map/map.ts";
@@ -123,54 +126,11 @@ const SHEET_COLUMNS = 4;
 const SHEET_SLOTS = 16;
 const ROW_IDLE = 0;
 const ROW_WALK = 1;
-const ROW_ATTACK = 2;
-/** Death row frames play in sequence and are not directional. */
-const ROW_DEATH = 3;
 /** Relative facing (entity dir - camera dir) to enemy sheet column. */
 const REL_DIR_TO_SHEET_COLUMN: readonly [number, number, number, number] = [2, 3, 0, 1];
 
-const SPRITE_DOG = 0;
-const SPRITE_GUNSLINGER = 16;
-const SPRITE_NEOPHYTE = 32;
-const SPRITE_SENTINEL = 48;
-const SPRITE_ACOLYTE = 64;
-const SPRITE_TERMINAL = 80;
-const SPRITE_HEALTH = 81;
-const SPRITE_KEY_BY_COLOR: Readonly<Record<KeyColor, number>> = {
-  [KeyColor.Red]: 82,
-  [KeyColor.Blue]: 83,
-  [KeyColor.Yellow]: 84,
-};
-const SPRITE_WEAPON_2 = 85;
-const SPRITE_WEAPON_3 = 86;
-const SPRITE_NPC = 87;
-const SPRITE_JOHN = 88;
-const SPRITE_UPLINK_CODE = 89;
-const SPRITE_CORPSE = 90;
-const SPRITE_PISTOL_AMMO = 91;
-const SPRITE_CANNON_AMMO = 92;
-const FIRST_ORB_SPRITE = 93;
-
 /** Alternate walk and idle poses at this cadence while an enemy moves. */
 const WALK_FRAME_MS = 90;
-/** How long an enemy holds its attack pose after striking. */
-const ATTACK_POSE_MS = 380;
-/** Per-frame duration of the four-frame death sequence. */
-const DEATH_FRAME_MS = 140;
-const MAX_CORPSES = 48;
-const CORPSE_SCALE = 0.6;
-
-const ENEMY_SPRITES: Readonly<Record<EnemyArchetype, number>> = {
-  [EnemyArchetype.MeleeDog]: SPRITE_DOG,
-  [EnemyArchetype.Gunslinger]: SPRITE_GUNSLINGER,
-  [EnemyArchetype.NetworkNeophyte]: SPRITE_NEOPHYTE,
-  [EnemyArchetype.SystemSentinel]: SPRITE_SENTINEL,
-  [EnemyArchetype.AgenticAcolyte]: SPRITE_ACOLYTE,
-};
-
-const ACTOR_SCALE = 0.75;
-const TERMINAL_SCALE = 0.9;
-const ITEM_SCALE = 0.4;
 const ITEM_BOB_PERIOD_MS = 1_200;
 const ITEM_BOB_BASE_ELEVATION = 0.03;
 const ITEM_BOB_ELEVATION_AMPLITUDE = 0.025;
@@ -186,7 +146,6 @@ const TARGET_COLORS: Readonly<Record<TargetMarkerTone, string>> = {
 
 const LIGHT_AMBIENT = 96;
 const DEFAULT_FLICKER_SPEED = 8;
-const HEX_COLOR = /^#[0-9a-fA-F]{6}$/;
 
 /** Tints are relative to mid-grey so the wall texture keeps its detail. */
 const DOOR_TINT: readonly [number, number, number] = [1.2, 0.83, 0.45];
@@ -195,6 +154,12 @@ const DOOR_TINTS_BY_COLOR: Readonly<Record<KeyColor, readonly [number, number, n
   [KeyColor.Blue]: [0.6, 1.05, 1.85],
   [KeyColor.Yellow]: [1.7, 1.5, 0.65],
 };
+
+function firstPersonSlot(spriteId: SpriteIdType): number {
+  const slot = spriteAppearance(spriteId).firstPersonSlot;
+  if (slot === undefined) throw new Error(`Sprite ${spriteId} has no first-person slot.`);
+  return slot;
+}
 
 function managedAsset(src: string, targets: readonly BakeTargetInput[], cropFrame?: SourceFrame): ManagedAsset {
   return {
@@ -262,69 +227,69 @@ function createAssetCatalog(): AssetCatalog {
     ]),
     managedAsset(
       new URL("../../assets/game/sprites/digital_dog.png", import.meta.url).href,
-      enemySheetTargets(SPRITE_DOG),
+      enemySheetTargets(firstPersonSlot(SpriteId.DigitalDog)),
       ENEMY_CROP_FRAME,
     ),
     managedAsset(
       new URL("../../assets/game/sprites/digital_dog_lightmap.png", import.meta.url).href,
-      enemySheetTargets(SPRITE_DOG, "spriteLightmaps"),
+      enemySheetTargets(firstPersonSlot(SpriteId.DigitalDog), "spriteLightmaps"),
     ),
     managedAsset(
       new URL("../../assets/game/sprites/gigabit_gun_slinger.png", import.meta.url).href,
-      enemySheetTargets(SPRITE_GUNSLINGER),
+      enemySheetTargets(firstPersonSlot(SpriteId.GigabitGunslinger)),
       ENEMY_CROP_FRAME,
     ),
     managedAsset(
       new URL("../../assets/game/sprites/network_neophyte.png", import.meta.url).href,
-      enemySheetTargets(SPRITE_NEOPHYTE),
+      enemySheetTargets(firstPersonSlot(SpriteId.NetworkNeophyte)),
       ENEMY_CROP_FRAME,
     ),
     managedAsset(
       new URL("../../assets/game/sprites/system_sentinel.png", import.meta.url).href,
-      enemySheetTargets(SPRITE_SENTINEL),
+      enemySheetTargets(firstPersonSlot(SpriteId.SystemSentinel)),
       ENEMY_CROP_FRAME,
     ),
     managedAsset(
       new URL("../../assets/game/sprites/agentic_acolyte.png", import.meta.url).href,
-      enemySheetTargets(SPRITE_ACOLYTE),
+      enemySheetTargets(firstPersonSlot(SpriteId.AgenticAcolyte)),
       ENEMY_CROP_FRAME,
     ),
     managedAsset(new URL("../../assets/game/sprites/corpse.png", import.meta.url).href, [
-      { layer: "sprites", slot: SPRITE_CORPSE },
+      { layer: "sprites", slot: firstPersonSlot(SpriteId.Corpse) },
     ]),
     managedAsset(new URL("../../assets/game/sprites/uplink_terminal.png", import.meta.url).href, [
       // Left half of the sheet is the inactive terminal, right half is active.
-      { layer: "sprites", slot: SPRITE_TERMINAL, frame: [0.5, 0, 0.5, 1] },
+      { layer: "sprites", slot: firstPersonSlot(SpriteId.UplinkTerminal), frame: [0.5, 0, 0.5, 1] },
     ]),
     managedAsset(new URL("../../assets/game/sprites/health.png", import.meta.url).href, [
-      { layer: "sprites", slot: SPRITE_HEALTH },
+      { layer: "sprites", slot: firstPersonSlot(SpriteId.HealthPatch) },
     ]),
     managedAsset(new URL("../../assets/game/sprites/pistol_ammo.png", import.meta.url).href, [
-      { layer: "sprites", slot: SPRITE_PISTOL_AMMO },
+      { layer: "sprites", slot: firstPersonSlot(SpriteId.PistolAmmo) },
     ]),
     managedAsset(new URL("../../assets/game/sprites/cannon_ammo.png", import.meta.url).href, [
-      { layer: "sprites", slot: SPRITE_CANNON_AMMO },
+      { layer: "sprites", slot: firstPersonSlot(SpriteId.CannonAmmo) },
     ]),
     managedAsset(new URL("../../assets/game/sprites/red_key.png", import.meta.url).href, [
-      { layer: "sprites", slot: SPRITE_KEY_BY_COLOR[KeyColor.Red] },
+      { layer: "sprites", slot: firstPersonSlot(SpriteId.RedKey) },
     ]),
     managedAsset(new URL("../../assets/game/sprites/blue_key.png", import.meta.url).href, [
-      { layer: "sprites", slot: SPRITE_KEY_BY_COLOR[KeyColor.Blue] },
+      { layer: "sprites", slot: firstPersonSlot(SpriteId.BlueKey) },
     ]),
     managedAsset(new URL("../../assets/game/sprites/yellow_key.png", import.meta.url).href, [
-      { layer: "sprites", slot: SPRITE_KEY_BY_COLOR[KeyColor.Yellow] },
+      { layer: "sprites", slot: firstPersonSlot(SpriteId.YellowKey) },
     ]),
     managedAsset(new URL("../../assets/game/sprites/weapon_2.png", import.meta.url).href, [
-      { layer: "sprites", slot: SPRITE_WEAPON_2 },
+      { layer: "sprites", slot: firstPersonSlot(SpriteId.Weapon2) },
     ]),
     managedAsset(new URL("../../assets/game/sprites/weapon_3.png", import.meta.url).href, [
-      { layer: "sprites", slot: SPRITE_WEAPON_3 },
+      { layer: "sprites", slot: firstPersonSlot(SpriteId.Weapon3) },
     ]),
     managedAsset(new URL("../../assets/game/sprites/john.png", import.meta.url).href, [
-      { layer: "sprites", slot: SPRITE_JOHN },
+      { layer: "sprites", slot: firstPersonSlot(SpriteId.John) },
     ]),
     managedAsset(new URL("../../assets/game/sprites/uplink_code.png", import.meta.url).href, [
-      { layer: "sprites", slot: SPRITE_UPLINK_CODE },
+      { layer: "sprites", slot: firstPersonSlot(SpriteId.UplinkCode) },
     ]),
     texturePackAssets[TexturePack.Pack1],
     texturePackAssets[TexturePack.Pack2],
@@ -348,23 +313,24 @@ function buildAtlas(): RaycastAtlas {
 
   const sprites: BakedTexture[] = [];
   const spriteLightmaps: BakedTexture[] = [];
-  fillEnemyFallback(sprites, SPRITE_DOG, "#ef4444");
-  fillEnemyFallback(sprites, SPRITE_GUNSLINGER, "#38bdf8");
-  fillEnemyFallback(sprites, SPRITE_NEOPHYTE, "#34d399");
-  fillEnemyFallback(sprites, SPRITE_SENTINEL, "#f59e0b");
-  fillEnemyFallback(sprites, SPRITE_ACOLYTE, "#a78bfa");
-  sprites[SPRITE_TERMINAL] = bakeOrb("#22c55e");
-  sprites[SPRITE_HEALTH] = bakeOrb("#59d39b");
-  sprites[SPRITE_KEY_BY_COLOR[KeyColor.Red]] = bakeOrb("#df4f45");
-  sprites[SPRITE_KEY_BY_COLOR[KeyColor.Blue]] = bakeOrb("#4f8df7");
-  sprites[SPRITE_KEY_BY_COLOR[KeyColor.Yellow]] = bakeOrb("#f4d35e");
-  sprites[SPRITE_WEAPON_2] = bakeOrb("#c084fc");
-  sprites[SPRITE_WEAPON_3] = bakeOrb("#c084fc");
-  sprites[SPRITE_NPC] = bakeOrb("#59d39b");
-  sprites[SPRITE_UPLINK_CODE] = bakeOrb("#7dd3fc");
-  sprites[SPRITE_CORPSE] = bakeOrb("#4b5563");
-  sprites[SPRITE_PISTOL_AMMO] = bakeOrb("#38bdf8");
-  sprites[SPRITE_CANNON_AMMO] = bakeOrb("#f97316");
+  fillEnemyFallback(sprites, firstPersonSlot(SpriteId.DigitalDog), "#ef4444");
+  fillEnemyFallback(sprites, firstPersonSlot(SpriteId.GigabitGunslinger), "#38bdf8");
+  fillEnemyFallback(sprites, firstPersonSlot(SpriteId.NetworkNeophyte), "#34d399");
+  fillEnemyFallback(sprites, firstPersonSlot(SpriteId.SystemSentinel), "#f59e0b");
+  fillEnemyFallback(sprites, firstPersonSlot(SpriteId.AgenticAcolyte), "#a78bfa");
+  sprites[firstPersonSlot(SpriteId.UplinkTerminal)] = bakeOrb("#22c55e");
+  sprites[firstPersonSlot(SpriteId.HealthPatch)] = bakeOrb("#59d39b");
+  sprites[firstPersonSlot(SpriteId.RedKey)] = bakeOrb("#df4f45");
+  sprites[firstPersonSlot(SpriteId.BlueKey)] = bakeOrb("#4f8df7");
+  sprites[firstPersonSlot(SpriteId.YellowKey)] = bakeOrb("#f4d35e");
+  sprites[firstPersonSlot(SpriteId.Weapon2)] = bakeOrb("#c084fc");
+  sprites[firstPersonSlot(SpriteId.Weapon3)] = bakeOrb("#c084fc");
+  sprites[firstPersonSlot(SpriteId.Npc)] = bakeOrb("#59d39b");
+  sprites[firstPersonSlot(SpriteId.John)] = bakeOrb("#59d39b");
+  sprites[firstPersonSlot(SpriteId.UplinkCode)] = bakeOrb("#7dd3fc");
+  sprites[firstPersonSlot(SpriteId.Corpse)] = bakeOrb("#4b5563");
+  sprites[firstPersonSlot(SpriteId.PistolAmmo)] = bakeOrb("#38bdf8");
+  sprites[firstPersonSlot(SpriteId.CannonAmmo)] = bakeOrb("#f97316");
 
   return { walls, planes, sprites, spriteLightmaps };
 }
@@ -374,10 +340,6 @@ function fillEnemyFallback(sprites: BakedTexture[], baseSlot: number, color: str
   for (let slot = 0; slot < SHEET_SLOTS; slot++) {
     sprites[baseSlot + slot] = orb;
   }
-}
-
-function npcSprite(displayName: number | undefined): number {
-  return displayName === DisplayName.John ? SPRITE_JOHN : SPRITE_NPC;
 }
 
 /** Procedural billboard for entities without a dedicated sprite asset. */
@@ -407,11 +369,10 @@ function bakeOrb(hexColor: string): BakedTexture {
   return bakeTexture(orbSource(red, green, blue), { transpose: true });
 }
 
-type DeathEffect = { x: number; y: number; base: number; startMs: number };
-
 export interface FirstPersonRenderSession {
   readonly map: GameMap;
   forEachDrawable(visit: DrawableEntityVisitor): void;
+  forEachLight(visit: LightEntityVisitor): void;
 }
 
 export interface FirstPersonRenderer {
@@ -419,8 +380,6 @@ export interface FirstPersonRenderer {
   sceneForMap(map: GameMap): RaycastScene;
   reset(): void;
   bump(dirX: number, dirY: number): void;
-  markSpriteAttack(entity: DrawableEntity["entity"]): void;
-  markSpriteDeath(entity: DrawableEntity["entity"]): void;
   render(
     ctx: CanvasRenderingContext2D,
     rect: ViewRect,
@@ -438,8 +397,6 @@ function createFirstPersonRendererState() {
     sceneByMap: new WeakMap<GameMap, RaycastScene>(),
     packWallSlots: new Map<TexturePackRef, number>(),
     packPlaneSlots: new Map<TexturePackRef, number>(),
-    lightColorChannels: new Map<string, readonly [number, number, number]>(),
-    orbSpriteByColor: new Map<string, number>(),
     spriteCropBySlot: new Map<number, ContentCrop | undefined>(),
     spriteCropReady: new Set<number>(),
     drawableScratch: [] as DrawableEntity[],
@@ -452,10 +409,6 @@ function createFirstPersonRendererState() {
     spritePoint: { x: 0, y: 0, settled: true } satisfies SpritePoint,
     doorTweens: new Map<DrawableEntity["entity"], ScalarTween>(),
     doorSample: { value: 0, settled: true } satisfies ScalarSample,
-    attackPoseUntil: new Map<DrawableEntity["entity"], number>(),
-    lastSeenEnemies: new Map<DrawableEntity["entity"], { x: number; y: number; base: number }>(),
-    deathEffects: [] as DeathEffect[],
-    corpses: [] as { x: number; y: number }[],
     poseInitialized: false,
     repaintScheduled: false,
     lastRepaint: undefined as (() => void) | undefined,
@@ -487,14 +440,6 @@ class OwnedFirstPersonRenderer implements FirstPersonRenderer {
     bumpFirstPersonRenderer(this.state, dirX, dirY);
   }
 
-  markSpriteAttack(entity: DrawableEntity["entity"]): void {
-    markFirstPersonSpriteAttack(this.state, entity);
-  }
-
-  markSpriteDeath(entity: DrawableEntity["entity"]): void {
-    markFirstPersonSpriteDeath(this.state, entity);
-  }
-
   render(
     ctx: CanvasRenderingContext2D,
     rect: ViewRect,
@@ -510,10 +455,6 @@ export function createFirstPersonRenderer(): FirstPersonRenderer {
   return new OwnedFirstPersonRenderer();
 }
 
-export function sceneForMap(map: GameMap): RaycastScene {
-  return createFirstPersonRenderer().sceneForMap(map);
-}
-
 function resetFirstPersonRendererState(state: FirstPersonRendererState): void {
   state.sceneByMap = new WeakMap<GameMap, RaycastScene>();
   state.drawableScratch.length = 0;
@@ -521,10 +462,6 @@ function resetFirstPersonRendererState(state: FirstPersonRendererState): void {
   state.nudgeTween.active = false;
   state.spriteTweens.clear();
   state.doorTweens.clear();
-  state.attackPoseUntil.clear();
-  state.lastSeenEnemies.clear();
-  state.deathEffects.length = 0;
-  state.corpses.length = 0;
   state.repaintScheduled = false;
   state.lastRepaint = undefined;
 }
@@ -546,27 +483,6 @@ function scheduleRepaint(state: FirstPersonRendererState, repaint: () => void): 
  */
 function bumpFirstPersonRenderer(state: FirstPersonRendererState, dirX: number, dirY: number): void {
   startNudgeTween(state.nudgeTween, dirX, dirY, performance.now());
-  if (state.lastRepaint !== undefined) scheduleRepaint(state, state.lastRepaint);
-}
-
-/** Show the entity in its attack pose briefly (it just struck something). */
-function markFirstPersonSpriteAttack(state: FirstPersonRendererState, entity: DrawableEntity["entity"]): void {
-  state.attackPoseUntil.set(entity, performance.now() + ATTACK_POSE_MS);
-  if (state.lastRepaint !== undefined) scheduleRepaint(state, state.lastRepaint);
-}
-
-/**
- * Play the death sequence where the entity last stood, then leave a corpse.
- * The ECS destroys defeated entities immediately, so this echo is the only
- * record the renderer keeps of them.
- */
-function markFirstPersonSpriteDeath(state: FirstPersonRendererState, entity: DrawableEntity["entity"]): void {
-  const seen = state.lastSeenEnemies.get(entity);
-  if (seen === undefined) return;
-  state.deathEffects.push({ x: seen.x, y: seen.y, base: seen.base, startMs: performance.now() });
-  state.lastSeenEnemies.delete(entity);
-  state.spriteTweens.delete(entity);
-  state.attackPoseUntil.delete(entity);
   if (state.lastRepaint !== undefined) scheduleRepaint(state, state.lastRepaint);
 }
 
@@ -705,16 +621,6 @@ function bakeLoadedAssets(
   }
 }
 
-function orbSprite(state: FirstPersonRendererState, color: string): number {
-  const existing = state.orbSpriteByColor.get(color);
-  if (existing !== undefined) return existing;
-
-  const id = FIRST_ORB_SPRITE + state.orbSpriteByColor.size;
-  state.atlas.sprites[id] = bakeOrb(color);
-  state.orbSpriteByColor.set(color, id);
-  return id;
-}
-
 function isTexturePack(value: string): value is TexturePack {
   return value === TexturePack.Pack1 || value === TexturePack.Pack2 || value === TexturePack.Pack3;
 }
@@ -826,26 +732,26 @@ function sceneForMapForState(state: FirstPersonRendererState, map: GameMap): Ray
 }
 
 function raycastSpriteCapacity(map: GameMap, cellCount: number): number {
-  return Math.max(cellCount, map.entities.length + MAX_CORPSES);
+  return Math.max(cellCount, map.entities.length);
 }
 
 function updateSceneLights(
-  state: FirstPersonRendererState,
   scene: RaycastScene,
-  map: GameMap,
+  session: FirstPersonRenderSession,
   nowMs: number,
 ): boolean {
-  if (map.lights.length === 0) return false;
-
-  scene.lightRed.fill(LIGHT_AMBIENT);
-  scene.lightGreen.fill(LIGHT_AMBIENT);
-  scene.lightBlue.fill(LIGHT_AMBIENT);
-
+  let foundLight = false;
   let animating = false;
-  for (const light of map.lights) {
-    if (light.radius <= 0) continue;
-    const [sourceRed, sourceGreen, sourceBlue] = lightColorChannels(state, light.color);
-    const flickerAmount = light.flickerAmount ?? 0;
+  session.forEachLight((light): void => {
+    if (light.radius <= 0) return;
+    if (!foundLight) {
+      scene.lightRed.fill(LIGHT_AMBIENT);
+      scene.lightGreen.fill(LIGHT_AMBIENT);
+      scene.lightBlue.fill(LIGHT_AMBIENT);
+      foundLight = true;
+    }
+
+    const flickerAmount = light.flickerAmount;
     const intensity = flickerAmount > 0 ?
       flickerIntensity(light.x, light.y, flickerAmount, light.flickerSpeed, nowMs) :
       1;
@@ -862,28 +768,14 @@ function updateSceneLights(
 
         const strength = (1 - distance / (light.radius + 1)) * intensity;
         const cell = y * scene.mapWidth + x;
-        addLightChannel(scene.lightRed, cell, sourceRed * strength);
-        addLightChannel(scene.lightGreen, cell, sourceGreen * strength);
-        addLightChannel(scene.lightBlue, cell, sourceBlue * strength);
+        addLightChannel(scene.lightRed, cell, light.red * strength);
+        addLightChannel(scene.lightGreen, cell, light.green * strength);
+        addLightChannel(scene.lightBlue, cell, light.blue * strength);
       }
     }
-  }
+  });
 
   return animating;
-}
-
-function lightColorChannels(state: FirstPersonRendererState, color: string): readonly [number, number, number] {
-  const existing = state.lightColorChannels.get(color);
-  if (existing !== undefined) return existing;
-  if (!HEX_COLOR.test(color)) throw new Error(`Light color must be a #rrggbb hex color, received "${color}".`);
-
-  const channels = [
-    Number.parseInt(color.slice(1, 3), 16),
-    Number.parseInt(color.slice(3, 5), 16),
-    Number.parseInt(color.slice(5, 7), 16),
-  ] as const;
-  state.lightColorChannels.set(color, channels);
-  return channels;
 }
 
 function flickerIntensity(
@@ -895,7 +787,7 @@ function flickerIntensity(
 ): number {
   const seconds = nowMs / 1000;
   const phase = x * 12.9898 + y * 78.233;
-  const cadence = speed ?? DEFAULT_FLICKER_SPEED;
+  const cadence = speed === undefined || speed <= 0 ? DEFAULT_FLICKER_SPEED : speed;
   const wave = Math.sin(seconds * cadence + phase) * 0.6 +
     Math.sin(seconds * cadence * 2.7 + phase * 3.1) * 0.4;
   return 1 - amount * 0.5 + wave * amount * 0.5;
@@ -975,46 +867,37 @@ function tweenedDoorOpenness(
   sampleScalarTween(tween, nowMs, state.doorSample);
 }
 
-function itemSprite(state: FirstPersonRendererState, icon: ItemIcon): number {
-  switch (icon.type) {
-    case "key":
-      return SPRITE_KEY_BY_COLOR[icon.color];
-    case "weapon":
-      return icon.slot === 2 ? SPRITE_WEAPON_2 : SPRITE_WEAPON_3;
-    case "uplinkCode":
-      return SPRITE_UPLINK_CODE;
-    case "badge":
-      switch (icon.label) {
-        case "+":
-          return SPRITE_HEALTH;
-        case "P":
-          return SPRITE_PISTOL_AMMO;
-        case "C":
-          return SPRITE_CANNON_AMMO;
-        default:
-          return orbSprite(state, icon.color);
-      }
-  }
-}
-
 function itemElevation(nowMs: number): number {
   const phase = (nowMs / ITEM_BOB_PERIOD_MS) * Math.PI * 2;
   return ITEM_BOB_BASE_ELEVATION + Math.sin(phase) * ITEM_BOB_ELEVATION_AMPLITUDE;
 }
 
-function enemySprite(archetype: EnemyArchetype, dir: number, cameraDir: CardinalDirection, row: number): number {
-  const relative = (normalizeDirection(dir) - cameraDir + 4) & 3;
-  return ENEMY_SPRITES[archetype] + row * SHEET_COLUMNS + REL_DIR_TO_SHEET_COLUMN[relative]!;
+function addAppearanceSprite(
+  scene: RaycastScene,
+  x: number,
+  y: number,
+  appearance: SpriteAppearance,
+  nowMs: number,
+): boolean {
+  if (appearance.firstPersonSlot === undefined) return false;
+  addSprite(
+    scene,
+    x,
+    y,
+    appearance.firstPersonSlot,
+    appearance.firstPersonScale,
+    appearance.itemBob ? itemElevation(nowMs) : 0,
+  );
+  return appearance.itemBob;
 }
 
-/** Pick the sheet row for an enemy: attack pose, mid-stride gait, or idle. */
-function enemySheetRow(
-  state: FirstPersonRendererState,
-  entity: DrawableEntity["entity"],
-  moving: boolean,
-  nowMs: number,
-): number {
-  if (nowMs < (state.attackPoseUntil.get(entity) ?? 0)) return ROW_ATTACK;
+function enemySprite(baseSlot: number, dir: number, cameraDir: CardinalDirection, row: number): number {
+  const relative = (normalizeDirection(dir) - cameraDir + 4) & 3;
+  return baseSlot + row * SHEET_COLUMNS + REL_DIR_TO_SHEET_COLUMN[relative]!;
+}
+
+/** Pick the sheet row for an enemy: mid-stride gait or idle. */
+function enemySheetRow(moving: boolean, nowMs: number): number {
   if (moving && ((nowMs / WALK_FRAME_MS) & 1) === 1) return ROW_WALK;
   return ROW_IDLE;
 }
@@ -1077,28 +960,18 @@ function addDrawable(
   switch (drawable.kind) {
     case DrawableKind.Player:
       return false;
-    case DrawableKind.Npc:
-      addSprite(scene, centerX, centerY, npcSprite(drawable.displayName), ACTOR_SCALE);
-      return false;
-    case DrawableKind.Enemy: {
+    case DrawableKind.Actor: {
       tweenedSpritePosition(state, drawable, nowMs);
-      if (drawable.enemyArchetype === undefined) {
-        addSprite(scene, state.spritePoint.x, state.spritePoint.y, SPRITE_NPC, ACTOR_SCALE);
+      const appearance = spriteAppearance(drawable.spriteId);
+      if (!appearance.enemySheet) {
+        addAppearanceSprite(scene, state.spritePoint.x, state.spritePoint.y, appearance, nowMs);
         return !state.spritePoint.settled;
       }
-      const attacking = nowMs < (state.attackPoseUntil.get(drawable.entity) ?? 0);
-      const row = enemySheetRow(state, drawable.entity, !state.spritePoint.settled, nowMs);
-      const sprite = enemySprite(drawable.enemyArchetype, drawable.dir, cameraDir, row);
-      let seen = state.lastSeenEnemies.get(drawable.entity);
-      if (seen === undefined) {
-        seen = { x: 0, y: 0, base: 0 };
-        state.lastSeenEnemies.set(drawable.entity, seen);
-      }
-      seen.x = state.spritePoint.x;
-      seen.y = state.spritePoint.y;
-      seen.base = ENEMY_SPRITES[drawable.enemyArchetype];
-      addSprite(scene, state.spritePoint.x, state.spritePoint.y, sprite, ACTOR_SCALE);
-      return !state.spritePoint.settled || attacking;
+      if (appearance.firstPersonSlot === undefined) return !state.spritePoint.settled;
+      const row = enemySheetRow(!state.spritePoint.settled, nowMs);
+      const sprite = enemySprite(appearance.firstPersonSlot, drawable.dir, cameraDir, row);
+      addSprite(scene, state.spritePoint.x, state.spritePoint.y, sprite, appearance.firstPersonScale);
+      return !state.spritePoint.settled;
     }
     case DrawableKind.Door: {
       // A secret door stays disguised as its surrounding wall for its whole
@@ -1130,12 +1003,8 @@ function addDrawable(
       );
       return !state.doorSample.settled;
     }
-    case DrawableKind.UplinkTerminal:
-      addSprite(scene, centerX, centerY, SPRITE_TERMINAL, TERMINAL_SCALE);
-      return false;
-    case DrawableKind.Item:
-      addSprite(scene, centerX, centerY, itemSprite(state, drawable.icon), ITEM_SCALE, itemElevation(nowMs));
-      return true;
+    case DrawableKind.Sprite:
+      return addAppearanceSprite(scene, centerX, centerY, spriteAppearance(drawable.spriteId), nowMs);
   }
 }
 
@@ -1158,7 +1027,7 @@ function renderFirstPersonView(
   bakeLoadedAssets(state, ctx, repaint);
   clearSceneDynamic(scene);
   const nowMs = performance.now();
-  const lightsAnimating = updateSceneLights(state, scene, map, nowMs);
+  const lightsAnimating = updateSceneLights(scene, session, nowMs);
 
   // Two passes over the drawables: the camera pose must be known before
   // enemies pick a directional sprite.
@@ -1187,29 +1056,9 @@ function renderFirstPersonView(
     retargetPoseTween(state.poseTween, playerX + 0.5, playerY + 0.5, targetAngle, nowMs);
   }
 
-  // Corpses first so anything else on the tile draws over them.
-  for (const corpse of state.corpses) {
-    addSprite(scene, corpse.x, corpse.y, SPRITE_CORPSE, CORPSE_SCALE);
-  }
-
   let spritesAnimating = false;
   for (const drawable of state.drawableScratch) {
     spritesAnimating = addDrawable(state, scene, map, drawable, playerDir, nowMs) || spritesAnimating;
-  }
-
-  // Death sequences play out where the entity last stood, then settle into
-  // corpses that persist for the rest of the session.
-  for (let i = state.deathEffects.length - 1; i >= 0; i--) {
-    const death = state.deathEffects[i]!;
-    const frame = ((nowMs - death.startMs) / DEATH_FRAME_MS) | 0;
-    if (frame >= SHEET_COLUMNS) {
-      if (state.corpses.length >= MAX_CORPSES) state.corpses.shift();
-      state.corpses.push({ x: death.x, y: death.y });
-      state.deathEffects.splice(i, 1);
-      continue;
-    }
-    addSprite(scene, death.x, death.y, death.base + ROW_DEATH * SHEET_COLUMNS + frame, ACTOR_SCALE);
-    spritesAnimating = true;
   }
 
   samplePoseTween(state.poseTween, nowMs, state.poseSample);

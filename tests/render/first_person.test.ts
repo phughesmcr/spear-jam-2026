@@ -1,18 +1,26 @@
 import { assert, assertAlmostEquals, assertEquals, assertNotEquals, assertThrows } from "@std/assert";
-import { DrawableKind } from "@/src/ecs/drawables.ts";
-import type { DrawableEntity } from "@/src/ecs/drawables.ts";
+import { DrawableKind, spriteAppearance, SpriteId } from "@/src/ecs/drawables.ts";
+import type { DrawableEntity, LightEntity } from "@/src/ecs/drawables.ts";
+import type { SpriteId as SpriteIdType } from "@/src/ecs/components.ts";
 import { Direction } from "@/src/grid/direction.ts";
-import { itemIconFor, ItemKind } from "@/src/game/items.ts";
-import { DisplayName } from "@/src/game/names.ts";
+import type { CardinalDirection } from "@/src/grid/direction.ts";
 import { createGameMap, TexturePack } from "@/src/map/map.ts";
+import type { GameMap } from "@/src/map/map.ts";
 import { GAME_MAPS } from "@/src/map/maps.ts";
-import { createFirstPersonRenderer, sceneForMap } from "@/src/render/first_person.ts";
+import { createFirstPersonRenderer } from "@/src/render/first_person.ts";
 import type { FirstPersonRenderSession } from "@/src/render/first_person.ts";
+import type { RaycastScene } from "@/src/render/raycast/scene.ts";
 
 type FakeImageEvent = "load" | "error";
 type FakeImageListener = () => void;
 
-const SPRITE_JOHN = 88;
+const SPRITE_JOHN = firstPersonSlot(SpriteId.John);
+
+function firstPersonSlot(spriteId: SpriteIdType): number {
+  const slot = spriteAppearance(spriteId).firstPersonSlot;
+  if (slot === undefined) throw new Error(`Sprite ${spriteId} has no first-person slot.`);
+  return slot;
+}
 
 class FakeImage {
   decoding: "async" | "auto" | "sync" = "auto";
@@ -132,6 +140,30 @@ function withFakeRequestAnimationFrame(run: () => void): number {
   }
 }
 
+function playerDrawable(x: number, y: number, dir: CardinalDirection): DrawableEntity {
+  return { kind: DrawableKind.Player, entity: 1, x, y, dir, spriteId: SpriteId.Player };
+}
+
+function sessionFor(
+  map: ReturnType<typeof createGameMap>,
+  drawables: readonly DrawableEntity[],
+  lights: readonly LightEntity[] = [],
+): FirstPersonRenderSession {
+  return {
+    map,
+    forEachDrawable(visit): void {
+      for (const drawable of drawables) visit(drawable);
+    },
+    forEachLight(visit): void {
+      for (const light of lights) visit(light);
+    },
+  };
+}
+
+function sceneForMap(map: GameMap): RaycastScene {
+  return createFirstPersonRenderer().sceneForMap(map);
+}
+
 Deno.test("sceneForMap uses terrain palette texture refs for wall and plane slots", () => {
   const map = createGameMap(
     "Textured",
@@ -198,23 +230,27 @@ Deno.test("first-person rendering updates flickering lights and schedules repain
       ],
       [],
       {
-        lights: [
-          { x: 1, y: 1, color: "#ffffff", radius: 2, flickerAmount: 1, flickerSpeed: 7 },
-        ],
         palette: [
           { id: 1, color: "#000000", floor_texture: "floor", ceiling_texture: "ceiling" },
         ],
       },
     );
     const drawables: DrawableEntity[] = [
-      { kind: DrawableKind.Player, entity: 1, x: 1, y: 1, dir: Direction.East, enemyArchetype: undefined },
+      playerDrawable(1, 1, Direction.East),
     ];
-    const session: FirstPersonRenderSession = {
-      map,
-      forEachDrawable(visit): void {
-        for (const drawable of drawables) visit(drawable);
+    const session = sessionFor(map, drawables, [
+      {
+        entity: 2,
+        x: 1,
+        y: 1,
+        red: 255,
+        green: 255,
+        blue: 255,
+        radius: 2,
+        flickerAmount: 1,
+        flickerSpeed: 7,
       },
-    };
+    ]);
     const renderer = createFirstPersonRenderer();
     const ctx = new FakeCanvasContext() as unknown as CanvasRenderingContext2D;
 
@@ -253,15 +289,10 @@ Deno.test("first-person rendering keeps open doors in the raycast scene for jamb
       },
     );
     const drawables: DrawableEntity[] = [
-      { kind: DrawableKind.Player, entity: 1, x: 1, y: 1, dir: Direction.East, enemyArchetype: undefined },
+      playerDrawable(1, 1, Direction.East),
       { kind: DrawableKind.Door, entity: 2, x: 2, y: 1, open: true, locked: false, secret: false, openMs: 0 },
     ];
-    const session: FirstPersonRenderSession = {
-      map,
-      forEachDrawable(visit): void {
-        for (const drawable of drawables) visit(drawable);
-      },
-    };
+    const session = sessionFor(map, drawables);
     const renderer = createFirstPersonRenderer();
 
     renderer.render(
@@ -298,7 +329,7 @@ Deno.test("first-person rendering uses sliding solid walls for closed secret doo
       },
     );
     const drawables: DrawableEntity[] = [
-      { kind: DrawableKind.Player, entity: 1, x: 1, y: 1, dir: Direction.East, enemyArchetype: undefined },
+      playerDrawable(1, 1, Direction.East),
       {
         kind: DrawableKind.Door,
         entity: 2,
@@ -310,12 +341,7 @@ Deno.test("first-person rendering uses sliding solid walls for closed secret doo
         openMs: 0,
       },
     ];
-    const session: FirstPersonRenderSession = {
-      map,
-      forEachDrawable(visit): void {
-        for (const drawable of drawables) visit(drawable);
-      },
-    };
+    const session = sessionFor(map, drawables);
     const renderer = createFirstPersonRenderer();
 
     renderer.render(
@@ -352,15 +378,10 @@ Deno.test("first-person rendering keeps open secret doors out of the thin-wall p
       },
     );
     const drawables: DrawableEntity[] = [
-      { kind: DrawableKind.Player, entity: 1, x: 1, y: 1, dir: Direction.East, enemyArchetype: undefined },
+      playerDrawable(1, 1, Direction.East),
       { kind: DrawableKind.Door, entity: 2, x: 2, y: 1, open: true, locked: false, secret: true, openMs: 0 },
     ];
-    const session: FirstPersonRenderSession = {
-      map,
-      forEachDrawable(visit): void {
-        for (const drawable of drawables) visit(drawable);
-      },
-    };
+    const session = sessionFor(map, drawables);
     const renderer = createFirstPersonRenderer();
 
     renderer.render(
@@ -399,23 +420,17 @@ Deno.test("first-person rendering uses John's single-frame NPC sprite", () => {
       },
     );
     const drawables: DrawableEntity[] = [
-      { kind: DrawableKind.Player, entity: 1, x: 1, y: 2, dir: Direction.North, enemyArchetype: undefined },
+      playerDrawable(1, 2, Direction.North),
       {
-        kind: DrawableKind.Npc,
+        kind: DrawableKind.Actor,
         entity: 2,
         x: 1,
         y: 1,
         dir: Direction.South,
-        displayName: DisplayName.John,
-        enemyArchetype: undefined,
+        spriteId: SpriteId.John,
       },
     ];
-    const session: FirstPersonRenderSession = {
-      map,
-      forEachDrawable(visit): void {
-        for (const drawable of drawables) visit(drawable);
-      },
-    };
+    const session = sessionFor(map, drawables);
     const renderer = createFirstPersonRenderer();
     const ctx = new FakeCanvasContext() as unknown as CanvasRenderingContext2D;
 
@@ -453,15 +468,10 @@ Deno.test("first-person rendering bobs pickup item sprites vertically", () => {
         },
       );
       const drawables: DrawableEntity[] = [
-        { kind: DrawableKind.Player, entity: 1, x: 1, y: 2, dir: Direction.North, enemyArchetype: undefined },
-        { kind: DrawableKind.Item, entity: 2, x: 1, y: 1, icon: itemIconFor(ItemKind.HealthPatch, 1) },
+        playerDrawable(1, 2, Direction.North),
+        { kind: DrawableKind.Sprite, entity: 2, x: 1, y: 1, spriteId: SpriteId.HealthPatch },
       ];
-      const session: FirstPersonRenderSession = {
-        map,
-        forEachDrawable(visit): void {
-          for (const drawable of drawables) visit(drawable);
-        },
-      };
+      const session = sessionFor(map, drawables);
       const renderer = createFirstPersonRenderer();
 
       const scheduled = withFakeRequestAnimationFrame((): void => {
