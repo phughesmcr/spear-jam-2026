@@ -188,6 +188,106 @@ Deno.test("first-person rendering keeps open doors in the raycast scene for jamb
   });
 });
 
+Deno.test("first-person rendering uses sliding solid walls for closed secret doors", () => {
+  withFakeOffscreenCanvas((): void => {
+    const map = createGameMap(
+      "Closed Secret Door",
+      [
+        [2, 2, 2, 2, 2],
+        [2, 1, 1, 1, 2],
+        [2, 2, 2, 2, 2],
+      ],
+      [],
+      {
+        palette: [
+          { id: 1, color: "#000000", floor_texture: "floor", ceiling_texture: "ceiling" },
+          { id: 2, color: "#ffffff", wall_texture: "wall", blocking: true },
+        ],
+      },
+    );
+    const drawables: DrawableEntity[] = [
+      { kind: DrawableKind.Player, entity: 1, x: 1, y: 1, dir: Direction.East, enemyArchetype: undefined },
+      {
+        kind: DrawableKind.Door,
+        entity: 2,
+        x: 2,
+        y: 1,
+        open: false,
+        locked: false,
+        secret: true,
+        openMs: 0,
+      },
+    ];
+    const session: FirstPersonRenderSession = {
+      map,
+      forEachDrawable(visit): void {
+        for (const drawable of drawables) visit(drawable);
+      },
+    };
+    const renderer = createFirstPersonRenderer();
+
+    renderer.render(
+      new FakeCanvasContext() as unknown as CanvasRenderingContext2D,
+      { x: 0, y: 0, width: 64, height: 64 },
+      session,
+    );
+
+    const scene = renderer.sceneForMap(map);
+    const cell = 1 * 5 + 2;
+
+    assertNotEquals(scene.slidingSolidByCell[cell], -1);
+    assertEquals(scene.slidingSolidCount, 1);
+    assertEquals(scene.thinByCell[cell], -1);
+    assertEquals(scene.walls[cell], 0);
+  });
+});
+
+Deno.test("first-person rendering keeps open secret doors out of the thin-wall path", () => {
+  withFakeOffscreenCanvas((): void => {
+    const map = createGameMap(
+      "Open Secret Door",
+      [
+        [2, 2, 2, 2, 2],
+        [2, 1, 1, 1, 2],
+        [2, 2, 2, 2, 2],
+      ],
+      [],
+      {
+        palette: [
+          { id: 1, color: "#000000", floor_texture: "floor", ceiling_texture: "ceiling" },
+          { id: 2, color: "#ffffff", wall_texture: "wall", blocking: true },
+        ],
+      },
+    );
+    const drawables: DrawableEntity[] = [
+      { kind: DrawableKind.Player, entity: 1, x: 1, y: 1, dir: Direction.East, enemyArchetype: undefined },
+      { kind: DrawableKind.Door, entity: 2, x: 2, y: 1, open: true, locked: false, secret: true, openMs: 0 },
+    ];
+    const session: FirstPersonRenderSession = {
+      map,
+      forEachDrawable(visit): void {
+        for (const drawable of drawables) visit(drawable);
+      },
+    };
+    const renderer = createFirstPersonRenderer();
+
+    renderer.render(
+      new FakeCanvasContext() as unknown as CanvasRenderingContext2D,
+      { x: 0, y: 0, width: 64, height: 64 },
+      session,
+    );
+
+    const scene = renderer.sceneForMap(map);
+    const cell = 1 * 5 + 2;
+    const slidingIndex = scene.slidingSolidByCell[cell]!;
+
+    assertNotEquals(slidingIndex, -1);
+    assertEquals(scene.slidingSolidCount, 1);
+    assertEquals(scene.slidingSolidOffset[slidingIndex], 1);
+    assertEquals(scene.thinByCell[cell], -1);
+  });
+});
+
 Deno.test("first-person rendering uses John's single-frame NPC sprite", () => {
   withFakeOffscreenCanvas((): void => {
     const map = createGameMap(

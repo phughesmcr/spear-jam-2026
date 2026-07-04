@@ -24,7 +24,7 @@ import type { CeilingTexture, DoorSlide, FloorTexture, GameMap, TexturePackRef, 
 import { createImageAsset, loadedImage, preloadImageAssets } from "@/src/render/assets.ts";
 import type { ImageAsset } from "@/src/render/assets.ts";
 import {
-  addSolidWall,
+  addSlidingSolidWall,
   addSprite,
   addThinWall,
   cameraForAngle,
@@ -147,7 +147,9 @@ const SPRITE_NPC = 87;
 const SPRITE_JOHN = 88;
 const SPRITE_UPLINK_CODE = 89;
 const SPRITE_CORPSE = 90;
-const FIRST_ORB_SPRITE = 91;
+const SPRITE_PISTOL_AMMO = 91;
+const SPRITE_CANNON_AMMO = 92;
+const FIRST_ORB_SPRITE = 93;
 
 /** Alternate walk and idle poses at this cadence while an enemy moves. */
 const WALK_FRAME_MS = 90;
@@ -283,6 +285,12 @@ function createAssetCatalog(): AssetCatalog {
     managedAsset(new URL("../../assets/game/sprites/health.png", import.meta.url).href, [
       { layer: "sprites", slot: SPRITE_HEALTH },
     ]),
+    managedAsset(new URL("../../assets/game/sprites/pistol_ammo.png", import.meta.url).href, [
+      { layer: "sprites", slot: SPRITE_PISTOL_AMMO },
+    ]),
+    managedAsset(new URL("../../assets/game/sprites/cannon_ammo.png", import.meta.url).href, [
+      { layer: "sprites", slot: SPRITE_CANNON_AMMO },
+    ]),
     managedAsset(new URL("../../assets/game/sprites/red_key.png", import.meta.url).href, [
       { layer: "sprites", slot: SPRITE_KEY_BY_COLOR[KeyColor.Red] },
     ]),
@@ -300,6 +308,9 @@ function createAssetCatalog(): AssetCatalog {
     ]),
     managedAsset(new URL("../../assets/game/sprites/john.png", import.meta.url).href, [
       { layer: "sprites", slot: SPRITE_JOHN },
+    ]),
+    managedAsset(new URL("../../assets/game/sprites/uplink_code.png", import.meta.url).href, [
+      { layer: "sprites", slot: SPRITE_UPLINK_CODE },
     ]),
     texturePackAssets[TexturePack.Pack1],
     texturePackAssets[TexturePack.Pack2],
@@ -337,6 +348,8 @@ function buildAtlas(): RaycastAtlas {
   sprites[SPRITE_NPC] = bakeOrb("#59d39b");
   sprites[SPRITE_UPLINK_CODE] = bakeOrb("#7dd3fc");
   sprites[SPRITE_CORPSE] = bakeOrb("#4b5563");
+  sprites[SPRITE_PISTOL_AMMO] = bakeOrb("#38bdf8");
+  sprites[SPRITE_CANNON_AMMO] = bakeOrb("#f97316");
 
   return { walls, planes, sprites };
 }
@@ -869,7 +882,16 @@ function itemSprite(state: FirstPersonRendererState, icon: ItemIcon): number {
     case "uplinkCode":
       return SPRITE_UPLINK_CODE;
     case "badge":
-      return icon.label === "+" ? SPRITE_HEALTH : orbSprite(state, icon.color);
+      switch (icon.label) {
+        case "+":
+          return SPRITE_HEALTH;
+        case "P":
+          return SPRITE_PISTOL_AMMO;
+        case "C":
+          return SPRITE_CANNON_AMMO;
+        default:
+          return orbSprite(state, icon.color);
+      }
   }
 }
 
@@ -973,17 +995,11 @@ function addDrawable(
     }
     case DrawableKind.Door: {
       // A secret door stays disguised as its surrounding wall for its whole
-      // lifecycle. While shut it is a flush full-cell wall (no mid-tile slab, no
-      // jambs); once opened it slides a wall-textured panel away — using the
-      // wall texture also makes the flanking jamb faces blend into the wall.
+      // lifecycle and slides from the same full-cell face it uses while shut.
       if (drawable.secret) {
         tweenedDoorOpenness(state, drawable, nowMs);
-        if (!drawable.open) {
-          addSolidWall(scene, drawable.x, drawable.y, secretWallTextureSlot(state, map, drawable.x, drawable.y));
-          return false;
-        }
         const secretAxis = doorAxis(map, drawable.x, drawable.y);
-        addThinWall(
+        addSlidingSolidWall(
           scene,
           drawable.x,
           drawable.y,

@@ -1,5 +1,6 @@
 import { assert, assertAlmostEquals, assertEquals, assertThrows } from "@std/assert";
 import {
+  addSlidingSolidWall,
   addSolidWall,
   addSprite,
   addThinWall,
@@ -10,6 +11,7 @@ import {
   createScene,
   renderFrame,
   THIN_AXIS_X,
+  THIN_SLIDE_DOWN,
   THIN_SLIDE_NEG,
   THIN_SLIDE_UP,
 } from "@/src/render/raycast/scene.ts";
@@ -75,6 +77,7 @@ function corridorScene(): RaycastScene {
 }
 
 const CAMERA = cameraForGridPose(1, 1, 1, 0);
+const REVERSE_CAMERA = cameraForGridPose(3, 1, -1, 0);
 
 function texel(atlas: RaycastAtlas, layer: keyof RaycastAtlas, id: number, band: number): number {
   return atlas[layer][id]!.mips[0]!.bands[band]![0]!;
@@ -214,6 +217,91 @@ Deno.test("addSolidWall stops rays at the near cell face like a full wall", () =
   assertEquals(scene.walls[1 * 5 + 2], DOOR + 1);
 });
 
+Deno.test("closed sliding solid walls stop rays at the near cell face", () => {
+  const atlas = testAtlas();
+  const scene = corridorScene();
+  addSlidingSolidWall(scene, 2, 1, DOOR, THIN_AXIS_X);
+  const frame = createFrame(VIEW, VIEW);
+
+  renderFrame(frame, scene, atlas, CAMERA);
+
+  assertAlmostEquals(frame.zbuffer[CENTER]!, 0.5, 1e-9);
+  assertEquals(pixel(frame, CENTER, CENTER), texel(atlas, "walls", DOOR, 0));
+});
+
+Deno.test("sliding solid walls at offset zero do not jump to the thin-wall mid-plane", () => {
+  const atlas = testAtlas();
+  const scene = corridorScene();
+  addSlidingSolidWall(scene, 2, 1, DOOR, THIN_AXIS_X, THIN_SLIDE_NEG, 0);
+  const frame = createFrame(VIEW, VIEW);
+
+  renderFrame(frame, scene, atlas, CAMERA);
+
+  assertAlmostEquals(frame.zbuffer[CENTER]!, 0.5, 1e-9);
+});
+
+Deno.test("sliding solid walls still stop rays that hit the slab", () => {
+  const atlas = testAtlas();
+  const scene = corridorScene();
+  addSlidingSolidWall(scene, 2, 1, DOOR, THIN_AXIS_X, THIN_SLIDE_NEG, 0.25);
+  const frame = createFrame(VIEW, VIEW);
+
+  renderFrame(frame, scene, atlas, CAMERA);
+
+  assertAlmostEquals(frame.zbuffer[CENTER]!, 0.5, 1e-9);
+  assertEquals(pixel(frame, CENTER, CENTER), texel(atlas, "walls", DOOR, 0));
+});
+
+Deno.test("sliding solid walls pass rays through the opened gap", () => {
+  const atlas = testAtlas();
+  const scene = corridorScene();
+  addSlidingSolidWall(scene, 2, 1, DOOR, THIN_AXIS_X, THIN_SLIDE_NEG, 0.75);
+  const frame = createFrame(VIEW, VIEW);
+
+  renderFrame(frame, scene, atlas, CAMERA);
+
+  assertAlmostEquals(frame.zbuffer[CENTER]!, 2.5, 1e-9);
+  assertEquals(pixel(frame, CENTER, CENTER), texel(atlas, "walls", WALL, 2));
+});
+
+Deno.test("sliding solid walls use the opposite near face when viewed from behind", () => {
+  const atlas = testAtlas();
+  const scene = corridorScene();
+  addSlidingSolidWall(scene, 2, 1, DOOR, THIN_AXIS_X);
+  const frame = createFrame(VIEW, VIEW);
+
+  renderFrame(frame, scene, atlas, REVERSE_CAMERA);
+
+  assertAlmostEquals(frame.zbuffer[CENTER]!, 0.5, 1e-9);
+  assertEquals(pixel(frame, CENTER, CENTER), texel(atlas, "walls", DOOR, 0));
+});
+
+Deno.test("rising sliding solid walls draw the front slab over the wall behind", () => {
+  const atlas = testAtlas();
+  const scene = corridorScene();
+  addSlidingSolidWall(scene, 2, 1, DOOR, THIN_AXIS_X, THIN_SLIDE_UP, 0.5);
+  const frame = createFrame(VIEW, VIEW);
+
+  renderFrame(frame, scene, atlas, CAMERA);
+
+  assertAlmostEquals(frame.zbuffer[CENTER]!, 2.5, 1e-9);
+  assertEquals(pixel(frame, CENTER, CENTER - (CENTER >> 2)), texel(atlas, "walls", DOOR, 0));
+  assertEquals(pixel(frame, CENTER, CENTER + (CENTER >> 3)), texel(atlas, "walls", WALL, 2));
+});
+
+Deno.test("sinking sliding solid walls draw the front slab over the wall behind", () => {
+  const atlas = testAtlas();
+  const scene = corridorScene();
+  addSlidingSolidWall(scene, 2, 1, DOOR, THIN_AXIS_X, THIN_SLIDE_DOWN, 0.5);
+  const frame = createFrame(VIEW, VIEW);
+
+  renderFrame(frame, scene, atlas, CAMERA);
+
+  assertAlmostEquals(frame.zbuffer[CENTER]!, 2.5, 1e-9);
+  assertEquals(pixel(frame, CENTER, CENTER - (CENTER >> 2)), texel(atlas, "walls", WALL, 2));
+  assertEquals(pixel(frame, CENTER, CENTER + (CENTER >> 2)), texel(atlas, "walls", DOOR, 0));
+});
+
 Deno.test("clearSceneDynamic restores a solid-wall cell to its baked value", () => {
   const atlas = testAtlas();
   const scene = corridorScene();
@@ -328,16 +416,19 @@ Deno.test("a rising door draws the slab on top and the wall behind below", () =>
   assertEquals(pixel(frame, CENTER, CENTER + (CENTER >> 3)), texel(atlas, "walls", WALL, 2));
 });
 
-Deno.test("clearSceneDynamic removes thin walls and sprites", () => {
+Deno.test("clearSceneDynamic removes thin walls, sliding solid walls, and sprites", () => {
   const scene = corridorScene();
   addThinWall(scene, 2, 1, DOOR, THIN_AXIS_X);
+  addSlidingSolidWall(scene, 3, 1, DOOR, THIN_AXIS_X);
   addSprite(scene, 2.5, 1.5, SPRITE, 1);
 
   clearSceneDynamic(scene);
 
   assertEquals(scene.thinCount, 0);
+  assertEquals(scene.slidingSolidCount, 0);
   assertEquals(scene.spriteCount, 0);
   assert(scene.thinByCell.every((index) => index === -1));
+  assert(scene.slidingSolidByCell.every((index) => index === -1));
 });
 
 Deno.test("createScene sizes thin wall storage from map cell count", () => {

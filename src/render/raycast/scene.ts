@@ -137,6 +137,14 @@ export type RaycastScene = {
   solidWallCount: number;
   readonly solidWallCell: Int32Array;
   readonly solidWallPrev: Uint8Array;
+  /** Index into sliding solid-wall arrays per cell; -1 means none. */
+  readonly slidingSolidByCell: Int32Array;
+  slidingSolidCount: number;
+  readonly slidingSolidTex: Int16Array;
+  readonly slidingSolidAxis: Uint8Array;
+  readonly slidingSolidSlide: Uint8Array;
+  readonly slidingSolidOffset: Float32Array;
+  readonly slidingSolidCell: Int32Array;
   spriteCount: number;
   readonly spriteX: Float64Array;
   readonly spriteY: Float64Array;
@@ -170,6 +178,13 @@ export function createScene(mapWidth: number, mapHeight: number, options: Raycas
     solidWallCount: 0,
     solidWallCell: new Int32Array(cellCount),
     solidWallPrev: new Uint8Array(cellCount),
+    slidingSolidByCell: new Int32Array(cellCount).fill(-1),
+    slidingSolidCount: 0,
+    slidingSolidTex: new Int16Array(cellCount),
+    slidingSolidAxis: new Uint8Array(cellCount),
+    slidingSolidSlide: new Uint8Array(cellCount),
+    slidingSolidOffset: new Float32Array(cellCount),
+    slidingSolidCell: new Int32Array(cellCount),
     spriteCount: 0,
     spriteX: new Float64Array(spriteCapacity),
     spriteY: new Float64Array(spriteCapacity),
@@ -205,6 +220,10 @@ export function clearSceneDynamic(scene: RaycastScene): void {
     scene.walls[scene.solidWallCell[i]!] = scene.solidWallPrev[i]!;
   }
   scene.solidWallCount = 0;
+  for (let i = 0; i < scene.slidingSolidCount; i++) {
+    scene.slidingSolidByCell[scene.slidingSolidCell[i]!] = -1;
+  }
+  scene.slidingSolidCount = 0;
   scene.spriteCount = 0;
 }
 
@@ -226,6 +245,32 @@ export function addSolidWall(scene: RaycastScene, cellX: number, cellY: number, 
   scene.solidWallCell[index] = cell;
   scene.solidWallPrev[index] = scene.walls[cell]!;
   scene.walls[cell] = (textureId + 1) & 0xff;
+}
+
+export function addSlidingSolidWall(
+  scene: RaycastScene,
+  cellX: number,
+  cellY: number,
+  textureId: number,
+  axis: ThinWallAxis,
+  slide: ThinWallSlide = THIN_SLIDE_NEG,
+  offset = 0,
+): void {
+  const cell = cellY * scene.mapWidth + cellX;
+  if (cell < 0 || cell >= scene.slidingSolidByCell.length) return;
+  if (scene.slidingSolidCount >= scene.slidingSolidTex.length) {
+    throw new Error(
+      `Raycast scene sliding solid wall capacity ${scene.slidingSolidTex.length} exceeded while adding cell (${cellX}, ${cellY}).`,
+    );
+  }
+
+  const index = scene.slidingSolidCount++;
+  scene.slidingSolidByCell[cell] = index;
+  scene.slidingSolidTex[index] = textureId;
+  scene.slidingSolidAxis[index] = axis;
+  scene.slidingSolidSlide[index] = slide;
+  scene.slidingSolidOffset[index] = offset;
+  scene.slidingSolidCell[index] = cell;
 }
 
 export function addThinWall(
@@ -439,6 +484,7 @@ function renderWalls(
   const mapHeight = scene.mapHeight;
   const walls = scene.walls;
   const thinByCell = scene.thinByCell;
+  const slidingSolidByCell = scene.slidingSolidByCell;
   const maxSteps = (mapWidth + mapHeight) * 2;
   const startCellX = camera.x | 0;
   const startCellY = camera.y | 0;
@@ -478,15 +524,48 @@ function renderWalls(
       const cell = mapY * mapWidth + mapX;
       const wallId = walls[cell]!;
       if (wallId !== 0) {
-        hitDistance = side === 0 ?
-          (mapX - camera.x + (1 - stepX) / 2) / rayX :
-          (mapY - camera.y + (1 - stepY) / 2) / rayY;
+        hitDistance = solidFaceDistance(side, mapX, mapY, stepX, stepY, rayX, rayY, camera);
         const wallX = side === 0 ? camera.y + hitDistance * rayY : camera.x + hitDistance * rayX;
-        let texX = ((wallX - Math.floor(wallX)) * TEX_SIZE) | 0;
-        if ((side === 0 && rayX > 0) || (side === 1 && rayY < 0)) texX = TEX_MASK - texX;
+        const texX = solidFaceTexX(side, rayX, rayY, wallX - Math.floor(wallX));
         hitTexture = jambTextureFromPreviousCell(scene, atlas, previousCell, side) ?? atlas.walls[wallId - 1];
         hitTexX = texX;
         break;
+      }
+
+      const slidingSolidIndex = slidingSolidByCell[cell]!;
+      if (slidingSolidIndex >= 0 && side === scene.slidingSolidAxis[slidingSolidIndex]!) {
+        const slide = scene.slidingSolidSlide[slidingSolidIndex]!;
+        const offset = scene.slidingSolidOffset[slidingSolidIndex]!;
+        if (offset < 1) {
+          const distance = solidFaceDistance(side, mapX, mapY, stepX, stepY, rayX, rayY, camera);
+          const planeHit = side === 0 ? camera.y + distance * rayY : camera.x + distance * rayX;
+          const planeCell = side === 0 ? mapY : mapX;
+          const local = planeHit - planeCell;
+          const texLocal = slideTexLocal(local, slide, offset);
+          if (texLocal >= 0) {
+            const textureId = scene.slidingSolidTex[slidingSolidIndex]!;
+            const texture = atlas.walls[textureId];
+            if (texture !== undefined) {
+              const texX = solidFaceTexX(side, rayX, rayY, texLocal);
+              const verticalSlide = offset > 0 && (slide === THIN_SLIDE_UP || slide === THIN_SLIDE_DOWN);
+              if (texture.opaque && !verticalSlide) {
+                hitDistance = distance;
+                hitTexture = texture;
+                hitTexX = texX;
+                break;
+              }
+              if (thinHits < MAX_THIN_HITS) {
+                const slot = thinBase + thinHits++;
+                frame.thinHitDist[slot] = distance;
+                frame.thinHitTex[slot] = textureId;
+                frame.thinHitTexX[slot] = texX;
+                frame.thinHitBand[slot] = thinShadeBand(distance, side);
+                frame.thinHitSlide[slot] = verticalSlide ? slide : THIN_SLIDE_NEG;
+                frame.thinHitOffset[slot] = verticalSlide ? offset : 0;
+              }
+            }
+          }
+        }
       }
 
       const thinIndex = thinByCell[cell]!;
@@ -566,6 +645,36 @@ function renderWalls(
       true,
     );
   }
+}
+
+function solidFaceDistance(
+  side: number,
+  mapX: number,
+  mapY: number,
+  stepX: number,
+  stepY: number,
+  rayX: number,
+  rayY: number,
+  camera: RaycastCamera,
+): number {
+  return side === 0 ? (mapX - camera.x + (1 - stepX) / 2) / rayX : (mapY - camera.y + (1 - stepY) / 2) / rayY;
+}
+
+function solidFaceTexX(side: number, rayX: number, rayY: number, local: number): number {
+  let texX = ((local * TEX_SIZE) | 0) & TEX_MASK;
+  if ((side === 0 && rayX > 0) || (side === 1 && rayY < 0)) texX = TEX_MASK - texX;
+  return texX;
+}
+
+function slideTexLocal(local: number, slide: number, offset: number): number {
+  if (local < 0 || local >= 1) return -1;
+  if (offset > 0 && slide === THIN_SLIDE_NEG) {
+    return local >= 1 - offset ? -1 : local + offset;
+  }
+  if (offset > 0 && slide === THIN_SLIDE_POS) {
+    return local < offset ? -1 : local - offset;
+  }
+  return offset >= 1 ? -1 : local;
 }
 
 function jambTextureFromPreviousCell(
