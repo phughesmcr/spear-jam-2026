@@ -106,6 +106,6 @@
     "trailingCommas": "onlyMultiLine",
     "useBraces": "whenNotSingleLine",
     "useTabs": false,
-    "exclude": ["*.md", "**/*.md", "LICENSE", "src/map/compiled_maps.json"]
+    "exclude": ["*.md", "**/*.md", "LICENSE", "**/*.tiled.json", "src/map/compiled_maps.json"]
   }
 }

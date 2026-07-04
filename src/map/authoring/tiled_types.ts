@@ -12,6 +12,13 @@ export type TiledTilesetTile = {
 
 export type TiledTileset = {
   readonly name?: string;
+  readonly image?: string;
+  readonly imageheight?: number;
+  readonly imagewidth?: number;
+  readonly margin?: number;
+  readonly spacing?: number;
+  readonly tileheight?: number;
+  readonly tilewidth?: number;
   readonly tilecount?: number;
   readonly columns?: number;
   readonly tiles?: readonly TiledTilesetTile[];

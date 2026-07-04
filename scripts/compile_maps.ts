@@ -12,6 +12,22 @@ import {
 
 const MAPS_DIR = "game_assets/maps";
 const COMPILED_MAPS_PATH = "src/map/compiled_maps.json";
+const ENTITY_MARKERS_TILESET = "entity_markers.tsj";
+const ENTITY_MARKER_TYPES = [
+  "player",
+  "npc",
+  "enemy",
+  "door",
+  "key",
+  "uplinkCode",
+  "uplinkTerminal",
+  "weaponPickup",
+  "item",
+] as const;
+const TERRAIN_AUTHORING_TILES = "terrain_authoring_tiles.png";
+const AUTHORING_TILE_SIZE = 16;
+const TERRAIN_AUTHORING_TILE_COUNT = 6;
+const PNG_SIGNATURE = [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a] as const;
 
 const PALETTES = {
   boot_sector: BOOT_SECTOR_PALETTE,
@@ -108,7 +124,77 @@ async function loadTilesets(): Promise<Readonly<Record<string, TiledTileset>>> {
     const path = `${MAPS_DIR}/${entry.name}`;
     tilesets[entry.name] = parseJson<TiledTileset>(path, await Deno.readTextFile(path));
   }
+  await validateAuthoringAssets(tilesets);
   return tilesets;
+}
+
+async function validateAuthoringAssets(tilesets: Readonly<Record<string, TiledTileset>>): Promise<void> {
+  const markers = tilesets[ENTITY_MARKERS_TILESET];
+  if (markers === undefined) throw new Error(`${ENTITY_MARKERS_TILESET} is missing.`);
+  await validateEntityMarkers(markers);
+  await validateTerrainAuthoringTiles();
+}
+
+async function validateEntityMarkers(tileset: TiledTileset): Promise<void> {
+  const expectedCount = ENTITY_MARKER_TYPES.length;
+  requireTilesetField(tileset.tilewidth, "tilewidth", ENTITY_MARKERS_TILESET, AUTHORING_TILE_SIZE);
+  requireTilesetField(tileset.tileheight, "tileheight", ENTITY_MARKERS_TILESET, AUTHORING_TILE_SIZE);
+  requireTilesetField(tileset.columns, "columns", ENTITY_MARKERS_TILESET, expectedCount);
+  requireTilesetField(tileset.tilecount, "tilecount", ENTITY_MARKERS_TILESET, expectedCount);
+  requireTilesetField(tileset.imagewidth, "imagewidth", ENTITY_MARKERS_TILESET, AUTHORING_TILE_SIZE * expectedCount);
+  requireTilesetField(tileset.imageheight, "imageheight", ENTITY_MARKERS_TILESET, AUTHORING_TILE_SIZE);
+
+  const dimensions = await pngDimensions(`${MAPS_DIR}/${tileset.image ?? "entity_markers.png"}`);
+  if (dimensions.width !== tileset.imagewidth || dimensions.height !== tileset.imageheight) {
+    throw new Error(
+      `${ENTITY_MARKERS_TILESET} image dimensions ${dimensions.width}x${dimensions.height} do not match tileset metadata.`,
+    );
+  }
+
+  for (let id = 0; id < ENTITY_MARKER_TYPES.length; id++) {
+    const tile = tileset.tiles?.find((candidate) => candidate.id === id);
+    const expectedType = ENTITY_MARKER_TYPES[id]!;
+    if (tile?.type !== expectedType) {
+      throw new Error(`${ENTITY_MARKERS_TILESET} tile ${id} must be "${expectedType}".`);
+    }
+  }
+}
+
+async function validateTerrainAuthoringTiles(): Promise<void> {
+  const dimensions = await pngDimensions(`${MAPS_DIR}/${TERRAIN_AUTHORING_TILES}`);
+  if (
+    dimensions.width !== AUTHORING_TILE_SIZE * TERRAIN_AUTHORING_TILE_COUNT ||
+    dimensions.height !== AUTHORING_TILE_SIZE
+  ) {
+    throw new Error(
+      `${TERRAIN_AUTHORING_TILES} must be ${
+        AUTHORING_TILE_SIZE * TERRAIN_AUTHORING_TILE_COUNT
+      }x${AUTHORING_TILE_SIZE}.`,
+    );
+  }
+}
+
+function requireTilesetField(
+  actual: number | undefined,
+  field: string,
+  tileset: string,
+  expected: number,
+): void {
+  if (actual !== expected) throw new Error(`${tileset} ${field} must be ${expected}.`);
+}
+
+async function pngDimensions(path: string): Promise<{ readonly width: number; readonly height: number }> {
+  const bytes = await Deno.readFile(path);
+  if (bytes.length < 24) throw new Error(`${path} is not a valid PNG file.`);
+  for (let index = 0; index < PNG_SIGNATURE.length; index++) {
+    if (bytes[index] !== PNG_SIGNATURE[index]) throw new Error(`${path} is not a valid PNG file.`);
+  }
+
+  const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
+  return {
+    width: view.getUint32(16),
+    height: view.getUint32(20),
+  };
 }
 
 function compiledMapsData(maps: readonly GeneratedMap[]): CompiledMapsData {
