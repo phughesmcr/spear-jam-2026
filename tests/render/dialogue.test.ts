@@ -13,12 +13,12 @@ Deno.test("dialoguePanelRect centers a Strife-style panel over the first-person 
   });
 });
 
-Deno.test("dialogueLayout keeps speaker text, portrait, and choices in stacked bands", () => {
+Deno.test("dialogueLayout stacks the portrait above speaker text and choices", () => {
   const layout = dialogueLayout(CANVAS, THREE_CHOICES);
 
-  assertEquals(layout.header, { x: 72, y: 290, width: 576, height: 29 });
-  assertEquals(layout.message, { x: 72, y: 327, width: 576, height: 97 });
-  assertEquals(layout.portrait, { x: 72, y: 434, width: 576, height: 240 });
+  assertEquals(layout.portrait, { x: 72, y: 304, width: 576, height: 226 });
+  assertEquals(layout.header, { x: 72, y: 540, width: 576, height: 29 });
+  assertEquals(layout.message, { x: 72, y: 577, width: 576, height: 97 });
   assertEquals(layout.choices.map((choice) => ({ slot: choice.slot, label: choice.label, rect: choice.rect })), [
     {
       slot: 1,
@@ -38,15 +38,18 @@ Deno.test("dialogueLayout keeps speaker text, portrait, and choices in stacked b
   ]);
 });
 
-Deno.test("dialogueLayout grows the portrait when fewer choices are offered", () => {
+Deno.test("dialogueLayout keeps the portrait and bands fixed regardless of choice count", () => {
   const layout = dialogueLayout(CANVAS, [{ label: "GOT IT." }]);
 
-  assertEquals(layout.portrait, { x: 72, y: 434, width: 576, height: 340 });
+  // Same portrait, header, and message as the three-choice layout: only the drawn choices differ.
+  assertEquals(layout.portrait, { x: 72, y: 304, width: 576, height: 226 });
+  assertEquals(layout.header, { x: 72, y: 540, width: 576, height: 29 });
+  assertEquals(layout.message, { x: 72, y: 577, width: 576, height: 97 });
   assertEquals(layout.choices.map((choice) => ({ slot: choice.slot, label: choice.label, rect: choice.rect })), [
     {
       slot: 1,
       label: "GOT IT.",
-      rect: { x: 72, y: 786, width: 576, height: 44 },
+      rect: { x: 72, y: 686, width: 576, height: 44 },
     },
   ]);
 });
@@ -61,8 +64,10 @@ Deno.test("dialogueOptionSlotAt maps pointer hits to 44px dialogue buttons", () 
 Deno.test("dialogueOptionSlotAt ignores rows that have no choice", () => {
   const oneChoice = [{ label: "GOT IT." }];
 
-  assertEquals(dialogueOptionSlotAt(CANVAS, oneChoice, { x: 100, y: 700 }), undefined);
-  assertEquals(dialogueOptionSlotAt(CANVAS, oneChoice, { x: 100, y: 800 }), 1);
+  // The single choice keeps slot 1's fixed position; the empty slots below are dead space.
+  assertEquals(dialogueOptionSlotAt(CANVAS, oneChoice, { x: 100, y: 700 }), 1);
+  assertEquals(dialogueOptionSlotAt(CANVAS, oneChoice, { x: 100, y: 750 }), undefined);
+  assertEquals(dialogueOptionSlotAt(CANVAS, oneChoice, { x: 100, y: 800 }), undefined);
 });
 
 Deno.test("wrapDialogueText wraps without exceeding the configured line count", () => {

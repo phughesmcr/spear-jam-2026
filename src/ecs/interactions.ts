@@ -159,7 +159,7 @@ function interactWithNpc(world: World, npc: Entity): PlayerInteractionResult {
   return {
     type: "dialogue",
     events: [],
-    dialogue: npcDialogueState(world, npc, displayNameLabel),
+    dialogue: npcDialogueState(world, npc, displayNameLabel, displayName),
   };
 }
 
@@ -194,13 +194,14 @@ function failedVerb(verb: InteractVerb): PlayerInteractionResult {
   };
 }
 
-function npcDialogueState(world: World, npc: Entity, title: string): DialogueState {
+function npcDialogueState(world: World, npc: Entity, title: string, speaker: number): DialogueState {
   const start = world.components.entityHas(Dialogue, npc) ?
     dialogueTreeStart(world.components.getEntityData(Dialogue, npc).dialogueTreeId) :
     undefined;
   if (start === undefined) {
     return {
       title,
+      speaker,
       message: `${title} stayed silent.`,
       choices: [{ label: "BYE!" }],
     };
@@ -208,6 +209,7 @@ function npcDialogueState(world: World, npc: Entity, title: string): DialogueSta
 
   return {
     title,
+    speaker,
     treeKey: start.treeKey,
     message: start.node.text,
     choices: start.node.choices,

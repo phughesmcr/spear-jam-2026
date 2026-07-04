@@ -24,6 +24,7 @@ export type ActorDrawableKind =
 export type ActorDrawableEntity = DrawableBase & {
   readonly kind: ActorDrawableKind;
   readonly dir: number;
+  readonly displayName?: number;
   readonly enemyArchetype: EnemyArchetype | undefined;
   readonly health?: {
     readonly current: number;
@@ -70,6 +71,7 @@ type DrawableEntityScratch = {
   y: number;
   kind: DrawableKind;
   dir: number;
+  displayName: number | undefined;
   enemyArchetype: EnemyArchetype | undefined;
   health: DrawableHealthScratch | undefined;
   open: boolean;
@@ -167,6 +169,7 @@ function createDrawableEntityScratch(): DrawableEntityScratch {
     y: 0,
     kind: DrawableKind.Item,
     dir: 0,
+    displayName: undefined,
     enemyArchetype: undefined,
     health: undefined,
     open: false,
@@ -216,6 +219,7 @@ function resetDrawableScratch(
   drawable.x = x;
   drawable.y = y;
   drawable.dir = 0;
+  drawable.displayName = undefined;
   drawable.enemyArchetype = undefined;
   drawable.health = undefined;
   drawable.open = false;
@@ -263,6 +267,9 @@ function actorDrawableEntityFor(
   if (!components.facing.has(entity)) return undefined;
 
   drawable.dir = components.facing.partitions.dir[entity]!;
+  drawable.displayName = components.displayName.has(entity) ?
+    components.displayName.partitions.displayName[entity]! :
+    undefined;
   drawable.enemyArchetype = kind === DrawableKind.Enemy ? enemyArchetypeForEntity(components, entity) : undefined;
   drawable.health = kind === DrawableKind.Enemy && writeHealthForEntity(components, entity, health) ?
     health :

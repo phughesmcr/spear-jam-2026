@@ -17,6 +17,7 @@ import type { DrawableEntity, DrawableEntityVisitor } from "@/src/ecs/drawables.
 import { EnemyArchetype } from "@/src/ecs/enemy_catalog.ts";
 import { type CardinalDirection, directionDelta, normalizeDirection } from "@/src/grid/direction.ts";
 import type { ItemIcon } from "@/src/game/items.ts";
+import { DisplayName } from "@/src/game/names.ts";
 import type { TargetMarkerTone } from "@/src/game/target_marker.ts";
 import { KeyColor, mapDimensions, terrainAt, TexturePack } from "@/src/map/map.ts";
 import type { CeilingTexture, DoorSlide, FloorTexture, GameMap, TexturePackRef, WallTexture } from "@/src/map/map.ts";
@@ -142,9 +143,10 @@ const SPRITE_KEY_BY_COLOR: Readonly<Record<KeyColor, number>> = {
 const SPRITE_WEAPON_2 = 85;
 const SPRITE_WEAPON_3 = 86;
 const SPRITE_NPC = 87;
-const SPRITE_UPLINK_CODE = 88;
-const SPRITE_CORPSE = 89;
-const FIRST_ORB_SPRITE = 90;
+const SPRITE_JOHN = 88;
+const SPRITE_UPLINK_CODE = 89;
+const SPRITE_CORPSE = 90;
+const FIRST_ORB_SPRITE = 91;
 
 /** Alternate walk and idle poses at this cadence while an enemy moves. */
 const WALK_FRAME_MS = 90;
@@ -295,6 +297,9 @@ function createAssetCatalog(): AssetCatalog {
     managedAsset(new URL("../../assets/game/sprites/weapon_3.png", import.meta.url).href, [
       { layer: "sprites", slot: SPRITE_WEAPON_3 },
     ]),
+    managedAsset(new URL("../../assets/game/sprites/john.png", import.meta.url).href, [
+      { layer: "sprites", slot: SPRITE_JOHN },
+    ]),
     texturePackAssets[TexturePack.Pack1],
     texturePackAssets[TexturePack.Pack2],
     texturePackAssets[TexturePack.Pack3],
@@ -340,6 +345,10 @@ function fillEnemyFallback(sprites: BakedTexture[], baseSlot: number, color: str
   for (let slot = 0; slot < SHEET_SLOTS; slot++) {
     sprites[baseSlot + slot] = orb;
   }
+}
+
+function npcSprite(displayName: number | undefined): number {
+  return displayName === DisplayName.John ? SPRITE_JOHN : SPRITE_NPC;
 }
 
 /** Procedural billboard for entities without a dedicated sprite asset. */
@@ -925,7 +934,7 @@ function addDrawable(
     case DrawableKind.Player:
       return false;
     case DrawableKind.Npc:
-      addSprite(scene, centerX, centerY, SPRITE_NPC, ACTOR_SCALE);
+      addSprite(scene, centerX, centerY, npcSprite(drawable.displayName), ACTOR_SCALE);
       return false;
     case DrawableKind.Enemy: {
       tweenedSpritePosition(state, drawable, nowMs);

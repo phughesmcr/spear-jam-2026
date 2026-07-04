@@ -145,6 +145,7 @@ function selectDialogueChoice(model: GameModel, mode: DialogueMode, slot: number
     mode: {
       type: "dialogue",
       title: mode.title,
+      speaker: mode.speaker,
       treeKey: mode.treeKey,
       message: node.text,
       choices: node.choices,

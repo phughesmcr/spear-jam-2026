@@ -8,7 +8,7 @@ import {
   renderFirstPersonCombatFeedback,
 } from "@/src/render/combat_feedback.ts";
 import { renderDrawableEntities } from "@/src/render/drawables.ts";
-import { renderDialogue } from "@/src/render/dialogue.ts";
+import { preloadDialogueAssets, renderDialogue } from "@/src/render/dialogue.ts";
 import { createFirstPersonRenderer, type FirstPersonRenderer } from "@/src/render/first_person.ts";
 import { preloadHudAssets, renderFirstPersonHud, renderHud } from "@/src/render/hud.ts";
 import type { FirstPersonHudOptions } from "@/src/render/hud.ts";
@@ -40,6 +40,7 @@ export async function preloadGameAssets(
     preloadWeaponHudAssets(document, onAssetLoad),
     preloadHudAssets(document, onAssetLoad),
     preloadCombatFeedbackAssets(document, onAssetLoad),
+    preloadDialogueAssets(document, onAssetLoad),
   ]);
 }
 
@@ -120,7 +121,7 @@ export function renderGameFrame(
       renderOverlay(ctx, canvasSize, "MENU", "Esc to resume");
       return;
     case "dialogue":
-      renderDialogue(ctx, canvasSize, mode);
+      renderDialogue(ctx, canvasSize, mode, onAssetLoad);
       return;
     case "intermission":
       renderOverlay(ctx, canvasSize, "INTERMISSION", mode.message);

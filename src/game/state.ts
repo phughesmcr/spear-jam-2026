@@ -49,6 +49,8 @@ export type DialogueState = {
   readonly title: string;
   readonly message: string;
   readonly choices: readonly DialogueChoice[];
+  /** Speaker's DisplayName, used to pick a portrait sprite; absent falls back to a drawn bust. */
+  readonly speaker?: number;
   /** Tree that resolves choice "next" links; absent for one-off dialogues that always close. */
   readonly treeKey?: string;
 };

@@ -1,6 +1,7 @@
 import { assertEquals } from "@std/assert";
 import type { Entity } from "@phughesmcr/miski";
 import { createGameModel, type GameModel, transition } from "@/src/game/transition.ts";
+import { DisplayName } from "@/src/game/names.ts";
 import { KeyColor } from "@/src/map/map.ts";
 
 const PLAYER = 1 as Entity;
@@ -91,6 +92,7 @@ Deno.test("transition passes smart action through as a player command", () => {
 const DIALOGUE_MODE = {
   type: "dialogue",
   title: "John",
+  speaker: DisplayName.John,
   treeKey: "john_intro",
   message: "Stay sharp.",
   choices: [
@@ -106,6 +108,7 @@ Deno.test("transition lets dialogue choices advance or close the conversation", 
   assertEquals(advanced.model.mode, {
     type: "dialogue",
     title: "John",
+    speaker: DisplayName.John,
     treeKey: "john_intro",
     message: "The uplink is down. Find the code and get to the terminal.",
     choices: [{ label: "GOT IT." }],

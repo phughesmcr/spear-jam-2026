@@ -1,5 +1,6 @@
 import { Query } from "@phughesmcr/miski";
 import {
+  DisplayNameComponent,
   Door,
   Drawable,
   Enemy,
@@ -24,6 +25,7 @@ export const drawableRenderQuery = new Query({
   all: { gridPos: GridPos, drawable: Drawable },
   include: {
     facing: Facing,
+    displayName: DisplayNameComponent,
     enemyArchetype: EnemyArchetypeComponent,
     health: Health,
     door: Door,

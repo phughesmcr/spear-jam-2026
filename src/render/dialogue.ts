@@ -1,4 +1,6 @@
 import type { DialogueState } from "@/src/game/state.ts";
+import { DisplayName } from "@/src/game/names.ts";
+import { createImageAsset, type ImageAsset, loadedImage, preloadImageAssets } from "@/src/render/assets.ts";
 import type { GameCanvasSize } from "@/src/render/canvas.ts";
 import { fitText, monoFont } from "@/src/render/text.ts";
 
@@ -62,10 +64,20 @@ const CHOICE_HEIGHT = 44;
 const CHOICE_GAP = 6;
 const DIALOGUE_OPTION_SLOTS = [1, 2, 3] as const satisfies readonly DialogueOptionSlot[];
 
+const DIALOGUE_PORTRAIT_ASSETS: Readonly<Record<number, ImageAsset>> = {
+  [DisplayName.John]: createImageAsset(new URL("../../assets/game/ui/dialogue_john.png", import.meta.url).href),
+};
+const DIALOGUE_IMAGE_ASSETS = Object.freeze(Object.values(DIALOGUE_PORTRAIT_ASSETS));
+
+export async function preloadDialogueAssets(document: Document, onAssetLoad?: () => void): Promise<void> {
+  await preloadImageAssets(document, DIALOGUE_IMAGE_ASSETS, onAssetLoad);
+}
+
 export function renderDialogue(
   ctx: CanvasRenderingContext2D,
   canvasSize: GameCanvasSize,
   dialogue: DialogueState,
+  onAssetLoad?: () => void,
 ): void {
   const layout = dialogueLayout(canvasSize, dialogue.choices);
 
@@ -76,7 +88,7 @@ export function renderDialogue(
   drawPanel(ctx, layout.panel);
   drawHeader(ctx, layout.header, dialogue.title);
   drawMessage(ctx, layout.message, dialogue.message);
-  drawPortrait(ctx, layout.portrait, dialogue.title);
+  drawPortrait(ctx, layout.portrait, dialogue.title, dialogue.speaker, onAssetLoad);
   drawChoices(ctx, layout.choices);
 
   ctx.restore();
@@ -91,27 +103,30 @@ export function dialogueLayout(
   const inset = Math.max(14, Math.round(panel.width * 0.035));
   const headerHeight = Math.max(24, Math.round(panel.height * 0.05));
   const messageHeight = Math.max(78, Math.round(panel.height * 0.17));
-  const choiceStackHeight = slottedChoices.length * CHOICE_HEIGHT + (slottedChoices.length - 1) * CHOICE_GAP;
+  // Reserve the full slot stack so the portrait, header, and message never shift
+  // with the number of options; unused slots simply stay empty.
+  const slotCount = DIALOGUE_OPTION_SLOTS.length;
+  const choiceStackHeight = slotCount * CHOICE_HEIGHT + (slotCount - 1) * CHOICE_GAP;
 
-  const header = {
-    x: panel.x + inset,
-    y: panel.y + 8,
-    width: panel.width - inset * 2,
-    height: headerHeight,
-  };
+  const choicesY = panel.y + panel.height - inset - choiceStackHeight;
   const message = {
     x: panel.x + inset,
-    y: header.y + header.height + 8,
+    y: choicesY - 12 - messageHeight,
     width: panel.width - inset * 2,
     height: messageHeight,
   };
-  const choicesY = panel.y + panel.height - inset - choiceStackHeight;
-  const portraitY = message.y + message.height + 10;
+  const header = {
+    x: panel.x + inset,
+    y: message.y - 8 - headerHeight,
+    width: panel.width - inset * 2,
+    height: headerHeight,
+  };
+  const portraitY = panel.y + inset;
   const portrait = {
     x: panel.x + inset,
     y: portraitY,
     width: panel.width - inset * 2,
-    height: Math.max(1, choicesY - portraitY - 12),
+    height: Math.max(1, header.y - 10 - portraitY),
   };
   const choices = slottedChoices.map(({ label }, index) => ({
     slot: DIALOGUE_OPTION_SLOTS[index]!,
@@ -211,7 +226,7 @@ function drawPanel(ctx: CanvasRenderingContext2D, rect: DialogueRect): void {
 }
 
 function drawHeader(ctx: CanvasRenderingContext2D, rect: DialogueRect, title: string): void {
-  const label = title.toUpperCase();
+  const label = `${title} says...`.toUpperCase();
   ctx.font = monoFont(800, Math.max(13, Math.floor(rect.height * 0.58)));
   ctx.textAlign = "left";
   ctx.textBaseline = "middle";
@@ -250,7 +265,13 @@ function drawMessage(ctx: CanvasRenderingContext2D, rect: DialogueRect, message:
   }
 }
 
-function drawPortrait(ctx: CanvasRenderingContext2D, rect: DialogueRect, title: string): void {
+function drawPortrait(
+  ctx: CanvasRenderingContext2D,
+  rect: DialogueRect,
+  title: string,
+  speaker?: number,
+  onAssetLoad?: () => void,
+): void {
   ctx.save();
   ctx.beginPath();
   ctx.rect(rect.x, rect.y, rect.width, rect.height);
@@ -262,12 +283,32 @@ function drawPortrait(ctx: CanvasRenderingContext2D, rect: DialogueRect, title: 
   ctx.fillStyle = background;
   ctx.fillRect(rect.x, rect.y, rect.width, rect.height);
 
-  drawPortraitBust(ctx, rect, title);
+  const portrait = speaker === undefined ? undefined : DIALOGUE_PORTRAIT_ASSETS[speaker];
+  const image = portrait === undefined ? undefined : loadedImage(ctx, portrait, onAssetLoad);
+  if (image !== undefined) {
+    drawPortraitImage(ctx, rect, image);
+  } else {
+    drawPortraitBust(ctx, rect, title);
+  }
 
   ctx.restore();
   ctx.strokeStyle = "rgba(232, 214, 151, 0.58)";
   ctx.lineWidth = 2;
   ctx.strokeRect(rect.x + 0.5, rect.y + 0.5, rect.width - 1, rect.height - 1);
+}
+
+/** Fits the whole portrait inside the band (no cropping), centered both ways with the gradient showing through any gutters. */
+function drawPortraitImage(ctx: CanvasRenderingContext2D, rect: DialogueRect, image: HTMLImageElement): void {
+  const imageWidth = image.naturalWidth || image.width;
+  const imageHeight = image.naturalHeight || image.height;
+  if (imageWidth <= 0 || imageHeight <= 0) return;
+
+  const scale = Math.min(rect.width / imageWidth, rect.height / imageHeight);
+  const drawWidth = imageWidth * scale;
+  const drawHeight = imageHeight * scale;
+  const dx = rect.x + (rect.width - drawWidth) / 2;
+  const dy = rect.y + (rect.height - drawHeight) / 2;
+  ctx.drawImage(image, dx, dy, drawWidth, drawHeight);
 }
 
 function drawPortraitBust(ctx: CanvasRenderingContext2D, rect: DialogueRect, title: string): void {

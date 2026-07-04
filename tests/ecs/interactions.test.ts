@@ -35,6 +35,7 @@ Deno.test("interactWithEntity applies default verbs for doors, NPCs, and termina
     events: [],
     dialogue: {
       title: "John",
+      speaker: DisplayName.John,
       treeKey: "john_intro",
       message: "Stay sharp.",
       choices: [
