@@ -24,7 +24,7 @@ import type { RandomSource } from "@/src/game/rng.ts";
 import { displayNameText } from "@/src/game/names.ts";
 import type { AmmoKind, CommandSlot } from "@/src/game/state.ts";
 
-type WeaponSpec = AttackSchema & {
+export type PlayerWeaponSpec = AttackSchema & {
   readonly label: string;
   readonly ammo?: AmmoKind;
   readonly noiseRadius: number;
@@ -44,7 +44,7 @@ export type AttackOutcome =
 
 const MELEE_ATTACK_NOISE_RADIUS = 4;
 const RANGED_ATTACK_NOISE_RADIUS = 8;
-const PLAYER_WEAPONS: Readonly<Record<CommandSlot, WeaponSpec>> = {
+const PLAYER_WEAPON_SPECS: Readonly<Record<CommandSlot, PlayerWeaponSpec>> = {
   1: {
     ...DEFAULT_ATTACK,
     label: "Bit Shifter",
@@ -73,16 +73,8 @@ const PLAYER_WEAPONS: Readonly<Record<CommandSlot, WeaponSpec>> = {
   },
 };
 
-export function weaponLabel(slot: CommandSlot): string {
-  return PLAYER_WEAPONS[slot].label;
-}
-
-export function weaponAmmoKind(slot: CommandSlot): AmmoKind | undefined {
-  return PLAYER_WEAPONS[slot].ammo;
-}
-
-export function weaponNoiseRadius(slot: CommandSlot): number {
-  return PLAYER_WEAPONS[slot].noiseRadius;
+export function playerWeaponSpec(slot: CommandSlot): PlayerWeaponSpec {
+  return PLAYER_WEAPON_SPECS[slot];
 }
 
 export function attackWithSelectedWeapon(
@@ -92,7 +84,7 @@ export function attackWithSelectedWeapon(
   spatial: SpatialAccess,
   random: RandomSource,
 ): readonly GameEvent[] {
-  const weapon = PLAYER_WEAPONS[selectedWeapon];
+  const weapon = playerWeaponSpec(selectedWeapon);
   const targets = attackTargetsForSelectedWeapon(world, player, selectedWeapon, spatial);
 
   if (targets.length === 0) {
@@ -119,7 +111,7 @@ export function attackTargetsForSelectedWeapon(
   return attackTargets(
     world,
     player,
-    PLAYER_WEAPONS[selectedWeapon],
+    playerWeaponSpec(selectedWeapon),
     spatial,
     (entity) => world.components.entityHas(Enemy, entity),
   );

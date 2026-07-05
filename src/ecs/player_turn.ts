@@ -1,12 +1,6 @@
 import { type Entity, System, type World } from "@phughesmcr/miski";
 import { Door, Facing, GridPos, Interactable, Locked, Npc, Secret, UplinkTerminal } from "@/src/ecs/components.ts";
-import {
-  attackTargetsForSelectedWeapon,
-  attackWithSelectedWeapon,
-  weaponAmmoKind,
-  weaponLabel,
-  weaponNoiseRadius,
-} from "@/src/ecs/combat.ts";
+import { attackTargetsForSelectedWeapon, attackWithSelectedWeapon, playerWeaponSpec } from "@/src/ecs/combat.ts";
 import { collectItemAt, interactWithEntity, type PlayerInteractionResult } from "@/src/ecs/interactions.ts";
 import {
   applyItemPickupToPlayer,
@@ -94,7 +88,8 @@ export function targetMarkerTone(context: PlayerTurnContext): TargetMarkerTone |
   }
 
   const selectedWeapon = selectedPlayerWeapon(context.world, context.player);
-  const ammoKind = weaponAmmoKind(selectedWeapon);
+  const weapon = playerWeaponSpec(selectedWeapon);
+  const ammoKind = weapon.ammo;
   if (
     (ammoKind === undefined || playerAmmoAmount(context.world, context.player, ammoKind) > 0) &&
     attackTargetsForSelectedWeapon(context.world, context.player, selectedWeapon, context.spatial).length > 0
@@ -171,7 +166,8 @@ function smartActionInteractionTarget(context: PlayerTurnContext): Entity | unde
 
 function resolvePlayerAttackAction(context: PlayerTurnContext): PlayerActionResolution {
   const selectedWeapon = selectedPlayerWeapon(context.world, context.player);
-  const ammoKind = weaponAmmoKind(selectedWeapon);
+  const weapon = playerWeaponSpec(selectedWeapon);
+  const ammoKind = weapon.ammo;
   if (ammoKind !== undefined && !spendPlayerAmmo(context.world, context.player, ammoKind)) {
     return { type: "immediate", events: [{ type: "noAmmo", ammo: ammoKind }] };
   }
@@ -186,12 +182,12 @@ function resolvePlayerAttackAction(context: PlayerTurnContext): PlayerActionReso
   return {
     type: "consumeTurn",
     events: ammoKind === undefined ? attackEvents : [{ type: "ammoSpent", ammo: ammoKind, amount: 1 }, ...attackEvents],
-    noise: playerNoise(context, weaponNoiseRadius(selectedWeapon)),
+    noise: playerNoise(context, weapon.noiseRadius),
   };
 }
 
 function resolvePlayerSelectWeaponAction(context: PlayerTurnContext, slot: CommandSlot): PlayerActionResolution {
-  const label = weaponLabel(slot);
+  const label = playerWeaponSpec(slot).label;
   const available = playerHasWeapon(context.world, context.player, slot);
   if (available) selectPlayerWeapon(context.world, context.player, slot);
   return {

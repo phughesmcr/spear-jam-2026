@@ -1,12 +1,13 @@
 import { assertEquals, assertThrows } from "@std/assert";
 import { AttackFacingRequirement, AttackPattern, AttackTargetMode } from "@/src/game/attack.ts";
 import { DialogueTreeId } from "@/src/dialogue/dialogue.ts";
+import { DecorationKind, ItemKind } from "@/src/ecs/components.ts";
+import { EnemyArchetype } from "@/src/ecs/enemy_catalog.ts";
 import { ExamineTextId } from "@/src/game/examine_content.ts";
 import { DisplayName } from "@/src/game/names.ts";
 import { StoryEventId, StoryTargetId } from "@/src/game/story.ts";
 import { compileTiledMap } from "@/src/map/authoring/compile.ts";
 import type { TiledMap, TiledObject, TiledProperty, TiledTemplate } from "@/src/map/authoring/tiled_types.ts";
-import { MapDecorationKind, MapEnemyArchetype, MapItemKind } from "@/src/map/entity_content.ts";
 import { KeyColor, VICTORY_GOTO } from "@/src/map/map.ts";
 import { DEFAULT_BARS_TERRAIN_ID, DEFAULT_WALL_TERRAIN_ID, TERRAIN_CATALOG } from "@/src/map/terrain_palettes.ts";
 
@@ -272,7 +273,7 @@ Deno.test("compileTiledMap applies marker defaults before object overrides", () 
   );
 
   assertEquals(compiled.gameMap.entities, [
-    { prefab: "item", x: 0, y: 0, item: MapItemKind.CannonAmmo, amount: 9 },
+    { prefab: "item", x: 0, y: 0, item: ItemKind.CannonAmmo, amount: 9 },
   ]);
 });
 
@@ -357,7 +358,7 @@ Deno.test("compileTiledMap decodes template marker GIDs through the template til
   );
 
   assertEquals(compiled.gameMap.entities, [
-    { prefab: "item", x: 1, y: 0, item: MapItemKind.CannonAmmo, amount: 9 },
+    { prefab: "item", x: 1, y: 0, item: ItemKind.CannonAmmo, amount: 9 },
   ]);
 });
 
@@ -495,7 +496,7 @@ Deno.test("compileTiledMap compiles representative prefabs and enemy attack over
       y: 0,
       dir: 3,
       displayName: DisplayName.SystemSentinel,
-      archetype: MapEnemyArchetype.SystemSentinel,
+      archetype: EnemyArchetype.SystemSentinel,
       health: 11,
       hitDc: 14,
       damage: 4,
@@ -531,8 +532,8 @@ Deno.test("compileTiledMap compiles representative prefabs and enemy attack over
       examineTextId: ExamineTextId.BootSectorUplinkTerminal,
     },
     { prefab: "weaponPickup", x: 1, y: 2, slot: 3 },
-    { prefab: "item", x: 2, y: 2, item: MapItemKind.HealthPatch, amount: 4 },
-    { prefab: "decoration", x: 0, y: 3, decoration: MapDecorationKind.CeilingLight },
+    { prefab: "item", x: 2, y: 2, item: ItemKind.HealthPatch, amount: 4 },
+    { prefab: "decoration", x: 0, y: 3, decoration: DecorationKind.CeilingLight },
   ]);
 });
 
@@ -562,7 +563,7 @@ Deno.test("compileTiledMap lets enemy archetypes supply display names", () => {
       x: 0,
       y: 0,
       dir: 0,
-      archetype: MapEnemyArchetype.NetworkNeophyte,
+      archetype: EnemyArchetype.NetworkNeophyte,
     },
   ]);
 });
@@ -591,6 +592,30 @@ Deno.test("compileTiledMap compiles optional colored lights", () => {
   assertEquals(compiled.gameMap.entities, [
     { prefab: "light", x: 1, y: 1, color: "#ff8844", radius: 3, flickerAmount: 0.25, flickerSpeed: 7 },
   ]);
+});
+
+Deno.test("compileTiledMap rejects lights on the objects layer", () => {
+  assertThrows(
+    () =>
+      compileTiledMap(
+        tiledMap({
+          objects: [
+            object({
+              x: TILE_SIZE,
+              y: TILE_SIZE,
+              type: "light",
+              properties: [
+                property("color", "#ff8844"),
+                property("radius", 3),
+              ],
+            }),
+          ],
+        }),
+        compileOptions(),
+      ),
+    Error,
+    'Light objects must be authored on the dedicated "lights" layer.',
+  );
 });
 
 type TiledMapOverrides = {

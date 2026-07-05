@@ -3,9 +3,7 @@ export const StoryEventId = {
 } as const;
 export type StoryEventId = (typeof StoryEventId)[keyof typeof StoryEventId];
 
-export const StoryFlag = {
-  JohnSpoken: "johnSpoken",
-} as const;
+export const StoryFlag = StoryEventId;
 export type StoryFlag = (typeof StoryFlag)[keyof typeof StoryFlag];
 
 export const StoryTargetId = {
@@ -13,25 +11,20 @@ export const StoryTargetId = {
 } as const;
 export type StoryTargetId = (typeof StoryTargetId)[keyof typeof StoryTargetId];
 
-export const StoryPathId = {
-  JohnAfterIntro: "johnAfterIntro",
-} as const;
-export type StoryPathId = (typeof StoryPathId)[keyof typeof StoryPathId];
+type StoryDestination = {
+  readonly x: number;
+  readonly y: number;
+};
 
 export type StoryAction = {
   readonly type: "moveEntity";
   readonly target: StoryTargetId;
-  readonly path: StoryPathId;
+  readonly destination: StoryDestination;
 };
 
 export type StoryEventDefinition = {
   readonly flag: StoryFlag;
   readonly actions: readonly StoryAction[];
-};
-
-type StoryPathDestination = {
-  readonly x: number;
-  readonly y: number;
 };
 
 const STORY_EVENT_DEFINITIONS: Readonly<Record<StoryEventId, StoryEventDefinition>> = {
@@ -40,53 +33,23 @@ const STORY_EVENT_DEFINITIONS: Readonly<Record<StoryEventId, StoryEventDefinitio
     actions: [{
       type: "moveEntity",
       target: StoryTargetId.John,
-      path: StoryPathId.JohnAfterIntro,
+      destination: { x: 1, y: 3 },
     }],
   },
-};
-
-const STORY_PATH_DESTINATIONS: Readonly<Record<StoryPathId, StoryPathDestination>> = {
-  [StoryPathId.JohnAfterIntro]: { x: 1, y: 3 },
 };
 
 const STORY_FLAG_ORDER: readonly StoryFlag[] = [
   StoryFlag.JohnSpoken,
 ];
 
-const STORY_EVENTS: Readonly<Record<string, StoryEventId>> = {
-  [StoryEventId.JohnSpoken]: StoryEventId.JohnSpoken,
-};
+const STORY_EVENT_IDS: readonly StoryEventId[] = Object.values(StoryEventId);
+const STORY_TARGET_IDS: readonly StoryTargetId[] = Object.values(StoryTargetId);
 
-const STORY_TARGETS: Readonly<Record<string, StoryTargetId>> = {
-  [StoryTargetId.John]: StoryTargetId.John,
-};
-
-const STORY_PATHS: Readonly<Record<string, StoryPathId>> = {
-  [StoryPathId.JohnAfterIntro]: StoryPathId.JohnAfterIntro,
-};
-
-const STORY_EVENT_CODES: Readonly<Record<StoryEventId, number>> = {
-  [StoryEventId.JohnSpoken]: 1,
-};
-
-const STORY_EVENTS_BY_CODE = new Map<number, StoryEventId>(
-  Object.entries(STORY_EVENT_CODES).map(([event, code]) => [code, event as StoryEventId]),
-);
-
-const STORY_TARGET_CODES: Readonly<Record<StoryTargetId, number>> = {
-  [StoryTargetId.John]: 1,
-};
-
-const STORY_TARGETS_BY_CODE = new Map<number, StoryTargetId>(
-  Object.entries(STORY_TARGET_CODES).map(([target, code]) => [code, target as StoryTargetId]),
-);
+const JOHN_SPOKEN_EVENT_CODE = 1;
+const JOHN_TARGET_CODE = 1;
 
 export function storyEventDefinition(event: StoryEventId): StoryEventDefinition {
   return STORY_EVENT_DEFINITIONS[event];
-}
-
-export function storyPathDestination(path: StoryPathId): StoryPathDestination {
-  return STORY_PATH_DESTINATIONS[path];
 }
 
 export function normalizeStoryFlags(flags: readonly StoryFlag[] = []): readonly StoryFlag[] {
@@ -94,44 +57,33 @@ export function normalizeStoryFlags(flags: readonly StoryFlag[] = []): readonly 
   return STORY_FLAG_ORDER.filter((flag) => input.has(flag));
 }
 
-export function storyEventCode(event: StoryEventId): number {
-  return STORY_EVENT_CODES[event];
+export function storyEventCode(_event: StoryEventId): number {
+  return JOHN_SPOKEN_EVENT_CODE;
 }
 
 export function storyEventForCode(code: number): StoryEventId {
-  const event = STORY_EVENTS_BY_CODE.get(code);
-  if (event === undefined) throw new Error(`Unknown story event code: ${code}`);
-  return event;
+  if (code === JOHN_SPOKEN_EVENT_CODE) return StoryEventId.JohnSpoken;
+  throw new Error(`Unknown story event code: ${code}`);
 }
 
-export function storyTargetCode(target: StoryTargetId): number {
-  return STORY_TARGET_CODES[target];
+export function storyTargetCode(_target: StoryTargetId): number {
+  return JOHN_TARGET_CODE;
 }
 
 export function storyTargetForCode(code: number): StoryTargetId {
-  const target = STORY_TARGETS_BY_CODE.get(code);
-  if (target === undefined) throw new Error(`Unknown story target code: ${code}`);
-  return target;
+  if (code === JOHN_TARGET_CODE) return StoryTargetId.John;
+  throw new Error(`Unknown story target code: ${code}`);
 }
 
 export function storyEventIdFor(value: string, context: string): StoryEventId {
-  return lookup(STORY_EVENTS, value, "story event", context);
+  return knownIdFor(STORY_EVENT_IDS, value, "story event", context);
 }
 
 export function storyTargetIdFor(value: string, context: string): StoryTargetId {
-  return lookup(STORY_TARGETS, value, "story target", context);
+  return knownIdFor(STORY_TARGET_IDS, value, "story target", context);
 }
 
-export function storyPathIdFor(value: string, context: string): StoryPathId {
-  return lookup(STORY_PATHS, value, "story path", context);
-}
-
-function lookup<T>(table: Readonly<Record<string, T>>, value: string, kind: string, context: string): T {
-  const mapped = table[value] ?? table[lowerFirst(value)];
-  if (mapped === undefined) throw new Error(`${context}: Unknown ${kind} "${value}".`);
-  return mapped;
-}
-
-function lowerFirst(value: string): string {
-  return value.length === 0 ? value : `${value[0]!.toLowerCase()}${value.slice(1)}`;
+function knownIdFor<T extends string>(ids: readonly T[], value: string, kind: string, context: string): T {
+  if ((ids as readonly string[]).includes(value)) return value as T;
+  throw new Error(`${context}: Unknown ${kind} "${value}".`);
 }

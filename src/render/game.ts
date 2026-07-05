@@ -31,6 +31,7 @@ type GameRenderRect = {
   height: number;
 };
 const FIRST_PERSON_PLAY_RECT: GameRenderRect = { x: 0, y: 0, width: 0, height: 0 };
+const ANIMATING_MODES: ReadonlySet<GameMode["type"]> = new Set(["playing", "verbMenu"]);
 
 export async function preloadGameAssets(
   document: Document,
@@ -65,7 +66,9 @@ export function renderGameFrame(
   ctx.fillStyle = BACKGROUND_COLOR;
   ctx.fillRect(0, 0, canvasSize.width, canvasSize.height);
   if (session) {
-    const spritesAnimating = session.advanceSpriteAnimations(performance.now());
+    const spritesAnimating = ANIMATING_MODES.has(mode.type) ?
+      session.advanceSpriteAnimations(performance.now()) :
+      false;
     const { map } = session;
     if (viewMode === "firstPerson") {
       if (firstPersonRenderer === undefined) {

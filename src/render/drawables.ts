@@ -38,7 +38,9 @@ export function renderDrawableEntities(
   session: GameSession,
   metrics: MapRenderMetrics,
 ): void {
+  const visibility = session.getVisibility();
   session.forEachDrawable((drawable) => {
+    if (drawable.kind !== DrawableKind.Player && !visibility.isVisible(drawable.x, drawable.y)) return;
     renderDrawableEntity(ctx, drawable, metrics);
   });
 }

@@ -16,14 +16,16 @@ import {
   storyTargetIdFor,
 } from "@/src/game/story.ts";
 import {
-  MAP_ENEMY_ARCHETYPE_CODES,
-  MapDecorationKind,
-  type MapDecorationKind as MapDecorationKindType,
-  type MapEnemyArchetype as MapEnemyArchetypeType,
-  mapEnemyArchetypeAuthoringKey,
-  MapItemKind,
-  type MapItemKind as MapItemKindType,
-} from "@/src/map/entity_content.ts";
+  DecorationKind,
+  type DecorationKind as DecorationKindType,
+  ItemKind,
+  type ItemKind as ItemKindType,
+} from "@/src/ecs/components.ts";
+import {
+  ENEMY_ARCHETYPE_CODES,
+  type EnemyArchetype as EnemyArchetypeType,
+  enemyCatalogEntry,
+} from "@/src/ecs/enemy_catalog.ts";
 import { type DoorSlide, KeyColor, type KeyColor as KeyColorType } from "@/src/map/map.ts";
 
 const DIRECTIONS: Readonly<Record<string, number>> = {
@@ -52,8 +54,8 @@ const EXAMINE_TEXT_IDS: Readonly<Record<string, ExamineTextIdType>> = {
   bootSectorUplinkTerminal: ExamineTextId.BootSectorUplinkTerminal,
 };
 
-const ENEMY_ARCHETYPES: Readonly<Record<string, MapEnemyArchetypeType>> = Object.fromEntries(
-  MAP_ENEMY_ARCHETYPE_CODES.map((archetype) => [mapEnemyArchetypeAuthoringKey(archetype), archetype]),
+const ENEMY_ARCHETYPES: Readonly<Record<string, EnemyArchetypeType>> = Object.fromEntries(
+  ENEMY_ARCHETYPE_CODES.map((archetype) => [enemyCatalogEntry(archetype).authoringKey, archetype]),
 );
 
 const KEY_COLORS: Readonly<Record<string, KeyColorType>> = {
@@ -71,18 +73,18 @@ const DOOR_SLIDES: Readonly<Record<string, DoorSlide>> = {
   down: "down",
 };
 
-const ITEM_KINDS: Readonly<Record<string, MapItemKindType>> = {
-  healthPatch: MapItemKind.HealthPatch,
-  pistolAmmo: MapItemKind.PistolAmmo,
-  cannonAmmo: MapItemKind.CannonAmmo,
-};
+const ITEM_KINDS = {
+  healthPatch: ItemKind.HealthPatch,
+  pistolAmmo: ItemKind.PistolAmmo,
+  cannonAmmo: ItemKind.CannonAmmo,
+} as const satisfies Readonly<Record<string, ItemKindType>>;
 
-const DECORATION_KINDS: Readonly<Record<string, MapDecorationKindType>> = {
-  serverPile: MapDecorationKind.ServerPile,
-  cyborg: MapDecorationKind.Cyborg,
-  ceilingHook: MapDecorationKind.CeilingHook,
-  ceilingLight: MapDecorationKind.CeilingLight,
-  ceilingWires: MapDecorationKind.CeilingWires,
+const DECORATION_KINDS: Readonly<Record<string, DecorationKindType>> = {
+  serverPile: DecorationKind.ServerPile,
+  cyborg: DecorationKind.Cyborg,
+  ceilingHook: DecorationKind.CeilingHook,
+  ceilingLight: DecorationKind.CeilingLight,
+  ceilingWires: DecorationKind.CeilingWires,
 };
 
 const ATTACK_PATTERNS: Readonly<Record<string, AttackPatternType>> = {
@@ -124,7 +126,7 @@ export function mapStoryEventId(value: string, context: string): StoryEventIdTyp
   return storyEventIdFor(value, context);
 }
 
-export function mapEnemyArchetype(value: string, context: string): MapEnemyArchetypeType {
+export function mapEnemyArchetype(value: string, context: string): EnemyArchetypeType {
   return lookup(ENEMY_ARCHETYPES, value, "enemy archetype", context);
 }
 
@@ -136,11 +138,11 @@ export function mapDoorSlide(value: string, context: string): DoorSlide {
   return lookup(DOOR_SLIDES, value, "door slide", context);
 }
 
-export function mapItemKind(value: string, context: string): MapItemKindType {
+export function mapItemKind(value: string, context: string): (typeof ITEM_KINDS)[keyof typeof ITEM_KINDS] {
   return lookup(ITEM_KINDS, value, "item kind", context);
 }
 
-export function mapDecorationKind(value: string, context: string): MapDecorationKindType {
+export function mapDecorationKind(value: string, context: string): DecorationKindType {
   return lookup(DECORATION_KINDS, value, "decoration kind", context);
 }
 

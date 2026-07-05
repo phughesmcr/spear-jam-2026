@@ -140,7 +140,6 @@ function playerSnapshot(): PlayerStateSnapshot {
       xp: 0,
       levelCredits: 0,
     },
-    turnEffects: [],
     storyFlags: [],
   };
 }

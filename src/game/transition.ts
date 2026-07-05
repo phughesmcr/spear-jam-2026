@@ -580,9 +580,6 @@ function clonePlayerStateInput(playerState: PlayerStateInput): PlayerStateInput 
     ...(playerState.health === undefined ? {} : { health: { ...playerState.health } }),
     ...(playerState.hasUplinkCode === undefined ? {} : { hasUplinkCode: playerState.hasUplinkCode }),
     ...(playerState.progress === undefined ? {} : { progress: { ...playerState.progress } }),
-    ...(playerState.turnEffects === undefined ?
-      {} :
-      { turnEffects: playerState.turnEffects.map((effect) => ({ ...effect })) }),
     ...(playerState.storyFlags === undefined ? {} : { storyFlags: [...playerState.storyFlags] }),
   };
 }

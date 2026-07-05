@@ -164,4 +164,22 @@ Deno.test("SpatialIndex updates blocking ownership through the gateway", async (
   assertEquals(spatial.blockingEntityAt(2, 1), door);
 });
 
+Deno.test("SpatialIndex distance fields route multiple starts around the same blocker", async () => {
+  const world = await createWorld();
+  const actor = createEntity(world);
+  const blocker = createEntity(world);
+
+  world.components.addToEntity(GridPos, actor, { x: 1, y: 1 });
+  world.components.addToEntity(Blocking, actor);
+  world.components.addToEntity(GridPos, blocker, { x: 2, y: 1 });
+  world.components.addToEntity(Blocking, blocker);
+  world.refresh();
+
+  const spatial = new SpatialIndex(world, flatTestMap(5, 3));
+  const field = spatial.distanceFieldTo({ x: 4, y: 1 });
+
+  assertEquals(field.nextStepFrom({ x: 1, y: 1 }), { x: 1, y: 0 });
+  assertEquals(field.nextStepFrom({ x: 1, y: 2 }), { x: 2, y: 2 });
+});
+
 const TEST_MAP = flatTestMap(5, 2);

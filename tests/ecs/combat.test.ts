@@ -13,14 +13,7 @@ import {
   Player as PlayerTag,
 } from "@/src/ecs/components.ts";
 import type { AttackSchema } from "@/src/ecs/components.ts";
-import {
-  attackEntity,
-  attackTargets,
-  resolveAttack,
-  weaponAmmoKind,
-  weaponLabel,
-  weaponNoiseRadius,
-} from "@/src/ecs/combat.ts";
+import { attackEntity, attackTargets, playerWeaponSpec, resolveAttack } from "@/src/ecs/combat.ts";
 import { DisplayName } from "@/src/game/names.ts";
 import { SpatialIndex } from "@/src/ecs/spatial.ts";
 import type { SpatialLookup } from "@/src/ecs/spatial.ts";
@@ -39,18 +32,34 @@ const BASE_ATTACK: AttackSchema = {
   targets: AttackTargetMode.First,
 };
 
-Deno.test("weapon metadata exposes labels, ammo, and attack noise from the combat table", () => {
-  assertEquals(weaponLabel(1), "Bit Shifter");
-  assertEquals(weaponAmmoKind(1), undefined);
-  assertEquals(weaponNoiseRadius(1), 4);
-
-  assertEquals(weaponLabel(2), "Pulse Pistol");
-  assertEquals(weaponAmmoKind(2), "pistol");
-  assertEquals(weaponNoiseRadius(2), 8);
-
-  assertEquals(weaponLabel(3), "Current Cannon");
-  assertEquals(weaponAmmoKind(3), "cannon");
-  assertEquals(weaponNoiseRadius(3), 8);
+Deno.test("player weapon specs expose metadata and attack fields from one combat table", () => {
+  assertEquals(playerWeaponSpec(1), {
+    ...BASE_ATTACK,
+    label: "Bit Shifter",
+    noiseRadius: 4,
+    maxDamage: 2,
+    attackBonus: 4,
+  });
+  assertEquals(playerWeaponSpec(2), {
+    ...BASE_ATTACK,
+    label: "Pulse Pistol",
+    ammo: "pistol",
+    noiseRadius: 8,
+    minDamage: 2,
+    maxDamage: 3,
+    range: 2,
+    attackBonus: 2,
+  });
+  assertEquals(playerWeaponSpec(3), {
+    ...BASE_ATTACK,
+    label: "Current Cannon",
+    ammo: "cannon",
+    noiseRadius: 8,
+    minDamage: 2,
+    maxDamage: 4,
+    range: 6,
+    attackBonus: 1,
+  });
 });
 
 Deno.test("resolveAttack misses when the d20 total is below defense", () => {

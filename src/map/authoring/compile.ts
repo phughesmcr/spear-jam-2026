@@ -280,6 +280,9 @@ function compileEntity(
   const context = objectContext(object, index);
   const resolved = resolveObject(source, object, context, registry, options);
   const prefab = mapEntityPrefab(requiredString(resolved.properties, "prefab", context), context);
+  if (prefab === "light") {
+    throw new Error(`${context}: Light objects must be authored on the dedicated "lights" layer.`);
+  }
   validatePropertyNames(resolved.properties, PREFAB_AUTHORING_PROPERTY_NAMES[prefab], context);
 
   let entity: EntityDef;
@@ -355,9 +358,6 @@ function compileEntity(
         y: resolved.y,
         decoration: requiredDecorationKind(resolved.properties, context),
       };
-      break;
-    case "light":
-      entity = compileLightEntity(resolved, resolved.properties, context);
       break;
   }
   return parseEntity(entity, context);

@@ -1,14 +1,10 @@
 import { DialogueTreeId } from "@/src/dialogue/dialogue.ts";
+import { DecorationKind } from "@/src/ecs/components.ts";
+import { ENEMY_ARCHETYPE_CODES, enemyCatalogEntry } from "@/src/ecs/enemy_catalog.ts";
 import { AttackPattern } from "@/src/game/attack.ts";
 import { ExamineTextId } from "@/src/game/examine_content.ts";
 import { DisplayName } from "@/src/game/names.ts";
 import { StoryEventId, StoryTargetId } from "@/src/game/story.ts";
-import {
-  MAP_ENEMY_ARCHETYPE_CODES,
-  MapDecorationKind,
-  mapEnemyArchetypeAuthoringKey,
-  MapItemKind,
-} from "@/src/map/entity_content.ts";
 import { type EntityPrefab, KeyColor, SKY_CEILING_TEXTURE, TexturePack, VICTORY_GOTO } from "@/src/map/map.ts";
 import {
   BARRIER_TERRAIN_COUNT,
@@ -155,17 +151,17 @@ export const PROPERTY_TYPES: readonly TiledPropertyType[] = [
   enumPropertyType(6, "DisplayName", authoringKeys(DisplayName)),
   enumPropertyType(7, "DialogueTreeId", authoringKeys(DialogueTreeId)),
   enumPropertyType(8, "ExamineTextId", authoringKeys(ExamineTextId)),
-  enumPropertyType(9, "ItemKind", authoringKeys(MapItemKind)),
+  enumPropertyType(9, "ItemKind", ["healthPatch", "pistolAmmo", "cannonAmmo"]),
   enumPropertyType(
     10,
     "EnemyArchetype",
-    MAP_ENEMY_ARCHETYPE_CODES.map(mapEnemyArchetypeAuthoringKey),
+    ENEMY_ARCHETYPE_CODES.map((archetype) => enemyCatalogEntry(archetype).authoringKey),
   ),
   enumPropertyType(11, "AttackPattern", authoringKeys(AttackPattern)),
   enumPropertyType(12, "AttackTargets", ["first", "all"]),
   enumPropertyType(13, "AttackRequiresFacing", ["required", "none"]),
   enumPropertyType(14, "TextureRef", TEXTURE_REFS),
-  enumPropertyType(15, "DecorationKind", authoringKeys(MapDecorationKind)),
+  enumPropertyType(15, "DecorationKind", authoringKeys(DecorationKind)),
   enumPropertyType(16, "StoryTargetId", Object.values(StoryTargetId)),
   enumPropertyType(17, "StoryEventId", Object.values(StoryEventId)),
   classPropertyType(20, "map_metadata", "#ff0ea5e9", true, ["map"], [
@@ -245,8 +241,8 @@ export const TEMPLATE_DEFINITIONS: readonly TemplateDefinition[] = [
     property("storyId", "john", "StoryTargetId"),
     property("onTalkEvent", "johnSpoken", "StoryEventId"),
   ]),
-  ...MAP_ENEMY_ARCHETYPE_CODES.map((archetype) => {
-    const authoringKey = mapEnemyArchetypeAuthoringKey(archetype);
+  ...ENEMY_ARCHETYPE_CODES.map((archetype) => {
+    const authoringKey = enemyCatalogEntry(archetype).authoringKey;
     return templateDefinition(`enemy_${snakeCase(authoringKey)}.tx`, "enemy", "enemy", authoringKey, [
       property("prefab", "enemy", "Prefab"),
       property("facing", "north", "Facing"),

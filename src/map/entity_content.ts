@@ -1,6 +1,17 @@
 import { z } from "zod";
 import { DialogueTreeId, type DialogueTreeId as DialogueTreeIdType } from "@/src/dialogue/dialogue.ts";
 import {
+  type DecorationKind as DecorationKindType,
+  DecorationKind as EcsDecorationKind,
+  ItemKind as EcsItemKind,
+  type ItemKind as ItemKindType,
+} from "@/src/ecs/components.ts";
+import {
+  ENEMY_ARCHETYPE_CODES,
+  EnemyArchetype as EcsEnemyArchetype,
+  type EnemyArchetype as EnemyArchetypeType,
+} from "@/src/ecs/enemy_catalog.ts";
+import {
   type AttackDef,
   AttackFacingRequirement,
   type AttackFacingRequirement as AttackFacingRequirementType,
@@ -28,44 +39,18 @@ export type KeyColor = (typeof KeyColor)[keyof typeof KeyColor];
 export type DoorSlide = "north" | "east" | "south" | "west" | "up" | "down";
 export const DOOR_SLIDES = ["north", "east", "south", "west", "up", "down"] as const satisfies readonly DoorSlide[];
 
-export const MapItemKind = {
-  HealthPatch: 1,
-  PistolAmmo: 2,
-  CannonAmmo: 3,
-} as const;
-export type MapItemKind = (typeof MapItemKind)[keyof typeof MapItemKind];
+export const DecorationKind = EcsDecorationKind;
+export type DecorationKind = DecorationKindType;
+export const EnemyArchetype = EcsEnemyArchetype;
+export type EnemyArchetype = EnemyArchetypeType;
+export const ItemKind = EcsItemKind;
+export type ItemKind = ItemKindType;
 
-export const MapDecorationKind = {
-  ServerPile: 1,
-  Cyborg: 2,
-  CeilingHook: 3,
-  CeilingLight: 4,
-  CeilingWires: 5,
-} as const;
-export type MapDecorationKind = (typeof MapDecorationKind)[keyof typeof MapDecorationKind];
-
-export const MapEnemyArchetype = {
-  MeleeDog: 1,
-  Gunslinger: 2,
-  NetworkNeophyte: 3,
-  SystemSentinel: 4,
-  AgenticAcolyte: 5,
-} as const;
-export type MapEnemyArchetype = (typeof MapEnemyArchetype)[keyof typeof MapEnemyArchetype];
-
-const MAP_ENEMY_ARCHETYPE_AUTHORING_KEYS: Readonly<Record<MapEnemyArchetype, string>> = {
-  [MapEnemyArchetype.MeleeDog]: "meleeDog",
-  [MapEnemyArchetype.Gunslinger]: "gunslinger",
-  [MapEnemyArchetype.NetworkNeophyte]: "networkNeophyte",
-  [MapEnemyArchetype.SystemSentinel]: "systemSentinel",
-  [MapEnemyArchetype.AgenticAcolyte]: "agenticAcolyte",
-};
-
-export const MAP_ENEMY_ARCHETYPE_CODES = Object.values(MapEnemyArchetype);
-
-export function mapEnemyArchetypeAuthoringKey(archetype: MapEnemyArchetype): string {
-  return MAP_ENEMY_ARCHETYPE_AUTHORING_KEYS[archetype];
-}
+const MAP_ITEM_KIND_CODES = [
+  EcsItemKind.HealthPatch,
+  EcsItemKind.PistolAmmo,
+  EcsItemKind.CannonAmmo,
+] as const satisfies readonly ItemKindType[];
 
 const INTEGER_SCHEMA = z.number().int();
 const UINT8_SCHEMA = INTEGER_SCHEMA.min(0).max(255);
@@ -83,10 +68,10 @@ const DIALOGUE_TREE_ID_SCHEMA = numberEnumSchema<DialogueTreeIdType>(
   Object.values(DialogueTreeId),
   "dialogueTreeId",
 );
-const ENEMY_ARCHETYPE_SCHEMA = numberEnumSchema<MapEnemyArchetype>(MAP_ENEMY_ARCHETYPE_CODES, "archetype");
+const ENEMY_ARCHETYPE_SCHEMA = numberEnumSchema<EnemyArchetypeType>(ENEMY_ARCHETYPE_CODES, "archetype");
 const EXAMINE_TEXT_ID_SCHEMA = numberEnumSchema<ExamineTextIdType>(Object.values(ExamineTextId), "examineTextId");
-const ITEM_KIND_SCHEMA = numberEnumSchema<MapItemKind>(Object.values(MapItemKind), "item");
-const DECORATION_KIND_SCHEMA = numberEnumSchema<MapDecorationKind>(Object.values(MapDecorationKind), "decoration");
+const ITEM_KIND_SCHEMA = numberEnumSchema<ItemKindType>(MAP_ITEM_KIND_CODES, "item");
+const DECORATION_KIND_SCHEMA = numberEnumSchema<DecorationKindType>(Object.values(EcsDecorationKind), "decoration");
 const ATTACK_FACING_REQUIREMENT_SCHEMA = numberEnumSchema<AttackFacingRequirementType>(
   Object.values(AttackFacingRequirement),
   "attack.requiresFacing",

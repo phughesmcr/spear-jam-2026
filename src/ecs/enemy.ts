@@ -14,7 +14,7 @@ import {
 import { attackEntity, attackTargets, entityAttack } from "@/src/ecs/combat.ts";
 import { DEFAULT_ENEMY_BEHAVIOR, EnemyBehavior, enemyCatalogEntry } from "@/src/ecs/enemy_catalog.ts";
 import { enemyTurnQuery } from "@/src/ecs/queries.ts";
-import type { SpatialAccess, SpatialLookup, SpatialMutations } from "@/src/ecs/spatial.ts";
+import type { SpatialAccess, SpatialDistanceField, SpatialLookup, SpatialMutations } from "@/src/ecs/spatial.ts";
 import type { GameEvent } from "@/src/game/events.ts";
 import { type BlocksSight, canHearNoise, canSeePoint, type NoiseStimulus } from "@/src/game/perception.ts";
 import type { RandomSource } from "@/src/game/rng.ts";
@@ -41,6 +41,7 @@ export type EnemyTurnContext = {
 
 type EnemySpatialAccess = SpatialAccess & {
   nextStepToward(start: GridPoint, target: GridPoint): GridPoint | undefined;
+  distanceFieldTo?(target: GridPoint): SpatialDistanceField;
 };
 
 export type EnemyTurnSystem = (context: EnemyTurnContext) => readonly GameEvent[];
@@ -66,15 +67,42 @@ export const enemyTurnSystem = new System({
     const markers = { facing: components.facing, enemyAwareness: components.enemyAwareness };
     const indices = enemies.indices;
     const count = enemies.count;
+    const phaseContext = { ...context, spatial: phasePathingSpatial(context.spatial) };
     const events: GameEvent[] = [];
 
     for (let i = 0; i < count; i++) {
-      if (isPlayerDefeated(context)) break;
-      events.push(...advanceEnemyTurn(context, indices[i]!, gridPos, facing, enemyAwareness, markers));
+      if (isPlayerDefeated(phaseContext)) break;
+      events.push(...advanceEnemyTurn(phaseContext, indices[i]!, gridPos, facing, enemyAwareness, markers));
     }
     return events;
   },
 });
+
+function phasePathingSpatial(spatial: EnemySpatialAccess): EnemySpatialAccess {
+  if (spatial.distanceFieldTo === undefined) return spatial;
+
+  const fields = new Map<string, SpatialDistanceField>();
+  return {
+    tileBlocks: (x, y) => spatial.tileBlocks(x, y),
+    tileBlocksSight: (x, y) => spatial.tileBlocksSight(x, y),
+    tileBlocksAttacks: (x, y) => spatial.tileBlocksAttacks(x, y),
+    blockingEntityAt: (x, y) => spatial.blockingEntityAt(x, y),
+    positionBlocks: (x, y) => spatial.positionBlocks(x, y),
+    moveEntity: (entity, to) => spatial.moveEntity(entity, to),
+    removeEntity: (entity) => spatial.removeEntity(entity),
+    setBlocking: (entity, blocking) => spatial.setBlocking(entity, blocking),
+    nextStepToward(start, target) {
+      const key = `${target.x},${target.y}`;
+      let field = fields.get(key);
+      if (field === undefined) {
+        field = spatial.distanceFieldTo!(target);
+        fields.set(key, field);
+      }
+      return field.nextStepFrom(start);
+    },
+    distanceFieldTo: (target) => spatial.distanceFieldTo!(target),
+  };
+}
 
 function isPlayerDefeated(context: EnemyTurnContext): boolean {
   const health = context.world.components.readEntityData(Health, context.player);
@@ -357,12 +385,14 @@ function faceEntityToward(
   facing: FacingPartitions,
   markers: EnemyMutationMarkers,
 ): void {
+  const dx = target.x - gridPos.x[entity]!;
+  const dy = target.y - gridPos.y[entity]!;
   const delta = {
-    dx: Math.sign(target.x - gridPos.x[entity]!),
-    dy: Math.sign(target.y - gridPos.y[entity]!),
+    dx: Math.sign(dx),
+    dy: Math.sign(dy),
   };
 
-  if (Math.abs(delta.dx) >= Math.abs(delta.dy) && delta.dx !== 0) {
+  if (Math.abs(dx) >= Math.abs(dy) && delta.dx !== 0) {
     setFacingDirection(entity, facing, markers, directionForStep({ dx: delta.dx, dy: 0 }));
   } else if (delta.dy !== 0) {
     setFacingDirection(entity, facing, markers, directionForStep({ dx: 0, dy: delta.dy }));

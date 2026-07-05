@@ -169,7 +169,6 @@ function playerSnapshot(patch: PlayerSnapshotPatch = {}): PlayerStateSnapshot {
       xp: patch.progress?.xp ?? 0,
       levelCredits: patch.progress?.levelCredits ?? 0,
     },
-    turnEffects: patch.turnEffects ?? [],
     storyFlags: patch.storyFlags ?? [],
   };
 }

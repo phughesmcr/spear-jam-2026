@@ -56,26 +56,37 @@ function hasLineOfSight(
 ): boolean {
   let x = originX;
   let y = originY;
-  const dx = Math.abs(targetX - originX);
-  const sx = originX < targetX ? 1 : -1;
-  const dy = -Math.abs(targetY - originY);
-  const sy = originY < targetY ? 1 : -1;
-  let error = dx + dy;
+  const dx = targetX - originX;
+  const dy = targetY - originY;
+  const stepX = Math.sign(dx);
+  const stepY = Math.sign(dy);
+  const width = Math.abs(dx);
+  const height = Math.abs(dy);
+  let traversedX = 0;
+  let traversedY = 0;
 
-  while (true) {
+  while (traversedX < width || traversedY < height) {
+    const decision = (1 + 2 * traversedX) * height - (1 + 2 * traversedY) * width;
+
+    if (decision === 0) {
+      if (blocksSight(x + stepX, y) || blocksSight(x, y + stepY)) return false;
+      x += stepX;
+      y += stepY;
+      traversedX++;
+      traversedY++;
+    } else if (decision < 0) {
+      x += stepX;
+      traversedX++;
+    } else {
+      y += stepY;
+      traversedY++;
+    }
+
     if (x === targetX && y === targetY) return true;
-    if ((x !== originX || y !== originY) && blocksSight(x, y)) return false;
-
-    const doubledError = error * 2;
-    if (doubledError >= dy) {
-      error += dy;
-      x += sx;
-    }
-    if (doubledError <= dx) {
-      error += dx;
-      y += sy;
-    }
+    if (blocksSight(x, y)) return false;
   }
+
+  return true;
 }
 
 function isWithinFacingCone(

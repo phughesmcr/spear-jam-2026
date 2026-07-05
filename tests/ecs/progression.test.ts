@@ -1,6 +1,6 @@
 import { assertEquals } from "@std/assert";
 import type { Entity } from "@phughesmcr/miski";
-import { Health, PlayerEquipment, PlayerInventory, PlayerProgress, PlayerTurnEffects } from "@/src/ecs/components.ts";
+import { Health, PlayerEquipment, PlayerInventory, PlayerProgress } from "@/src/ecs/components.ts";
 import {
   awardCreditsForDefeats,
   clearTransientPlayerState,
@@ -9,10 +9,8 @@ import {
   playerStateSnapshotFor,
   selectedPlayerWeapon,
   spendPlayerAmmo,
-  tickPlayerTurnEffects,
 } from "@/src/ecs/progression.ts";
 import { createWorld } from "@/src/ecs/world.ts";
-import { TurnEffectKind } from "@/src/game/turn_effects.ts";
 import { StoryFlag } from "@/src/game/story.ts";
 import { KeyColor } from "@/src/map/map.ts";
 import { createEntity } from "@/tests/ecs/helpers.ts";
@@ -31,7 +29,6 @@ Deno.test("player progression defaults to melee with empty ECS resources", async
     health: { current: 10, max: 10 },
     hasUplinkCode: false,
     progress: { credits: 0, score: 0, xp: 0, levelCredits: 0 },
-    turnEffects: [],
     storyFlags: [],
   });
   assertEquals(world.components.getEntityData(PlayerInventory, player), {
@@ -101,30 +98,6 @@ Deno.test("player progression tracks weapons and ammo in ECS components", async 
     pistolAmmo: 0,
     cannonAmmo: 0,
   });
-});
-
-Deno.test("player progression ticks active turn effects in ECS components", async () => {
-  const world = await createWorld();
-  const player = createEntity(world);
-
-  initializePlayerProgression(world, player, {
-    turnEffects: [{ kind: TurnEffectKind.Invisibility, remainingTurns: 2 }],
-  });
-
-  assertEquals(world.components.getEntityData(PlayerTurnEffects, player), {
-    invisibility: 2,
-    overclock: 0,
-    toughness: 0,
-    healthRegen: 0,
-  });
-
-  tickPlayerTurnEffects(world, player);
-  assertEquals(playerStateSnapshotFor(world, player).turnEffects, [
-    { kind: TurnEffectKind.Invisibility, remainingTurns: 1 },
-  ]);
-
-  tickPlayerTurnEffects(world, player);
-  assertEquals(playerStateSnapshotFor(world, player).turnEffects, []);
 });
 
 Deno.test("player progression returns credit and XP events from ECS progress", async () => {

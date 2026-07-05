@@ -139,26 +139,6 @@ export const PlayerProgress: Component<PlayerProgressSchema, typeof PLAYER_PROGR
   schema: PLAYER_PROGRESS_STORAGE,
 });
 
-export type PlayerTurnEffectsSchema = {
-  invisibility: number;
-  overclock: number;
-  toughness: number;
-  healthRegen: number;
-};
-const PLAYER_TURN_EFFECTS_STORAGE = {
-  invisibility: Uint16Array,
-  overclock: Uint16Array,
-  toughness: Uint16Array,
-  healthRegen: Uint16Array,
-};
-export const PlayerTurnEffects: Component<PlayerTurnEffectsSchema, typeof PLAYER_TURN_EFFECTS_STORAGE> = new Component<
-  PlayerTurnEffectsSchema,
-  typeof PLAYER_TURN_EFFECTS_STORAGE
->({
-  name: "playerTurnEffects",
-  schema: PLAYER_TURN_EFFECTS_STORAGE,
-});
-
 export const Blocking: Component<null> = new Component<null>({ name: "blocking" });
 
 export const Interactable: Component<null> = new Component<null>({ name: "interactable" });
@@ -462,7 +442,6 @@ export const ALL_COMPONENTS: DynamicComponent[] = [
   PlayerInventory,
   PlayerEquipment,
   PlayerProgress,
-  PlayerTurnEffects,
   Blocking,
   Interactable,
   Drawable,

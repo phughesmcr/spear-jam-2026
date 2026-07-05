@@ -12,7 +12,6 @@ import { EnemyArchetype } from "@/src/ecs/enemy_catalog.ts";
 import { createGameSession } from "@/src/ecs/session.ts";
 import { DialogueTreeId } from "@/src/dialogue/dialogue.ts";
 import type { PlayerCommandResult } from "@/src/game/commands.ts";
-import { TurnEffectKind } from "@/src/game/turn_effects.ts";
 import { DisplayName } from "@/src/game/names.ts";
 import { StoryEventId, StoryFlag, StoryTargetId } from "@/src/game/story.ts";
 import { Direction } from "@/src/grid/direction.ts";
@@ -161,7 +160,7 @@ Deno.test("createGameSession rejects duplicate component-backed story targets", 
   );
 });
 
-Deno.test("blocked story path destination leaves John in place and does not set the flag", async () => {
+Deno.test("blocked story destination leaves John in place and does not set the flag", async () => {
   const session = await createGameSession(storyTestMap([{ prefab: "door", x: 1, y: 3 }]), () => 0);
   try {
     const result = session.handlePlayerCommand({ type: "interact" });
@@ -281,7 +280,7 @@ Deno.test("explicitly opening a secret door opens it while keeping the wall disg
   }
 });
 
-Deno.test("consumed player actions run enemy phase, turn effects, and visibility refresh", async () => {
+Deno.test("consumed player actions run enemy phase and visibility refresh", async () => {
   const session = await createGameSession(
     testMap([
       { prefab: "door", x: 2, y: 1 },
@@ -295,9 +294,6 @@ Deno.test("consumed player actions run enemy phase, turn effects, and visibility
       },
     ], 6),
     () => 0,
-    {
-      turnEffects: [{ kind: TurnEffectKind.Invisibility, remainingTurns: 2 }],
-    },
   );
   try {
     const result = session.handlePlayerCommand({ type: "interact" });
@@ -308,9 +304,6 @@ Deno.test("consumed player actions run enemy phase, turn effects, and visibility
 
     assertEquals(eventTypes(result), ["doorOpened"]);
     assertEquals(enemies, [{ x: 3, y: 1 }]);
-    assertEquals(session.getPlayerState().turnEffects, [
-      { kind: TurnEffectKind.Invisibility, remainingTurns: 1 },
-    ]);
     assertEquals(session.getVisibility().isVisible(3, 1), true);
   } finally {
     session[Symbol.dispose]();
@@ -498,29 +491,6 @@ Deno.test("defeated enemies render as ECS death effects before becoming corpses"
       session[Symbol.dispose]();
     }
   });
-});
-
-Deno.test("only consumed player turns tick active turn effects", async () => {
-  const session = await createGameSession(
-    testMap([]),
-    () => 0,
-    {
-      turnEffects: [{ kind: TurnEffectKind.Invisibility, remainingTurns: 2 }],
-    },
-  );
-  try {
-    session.handlePlayerCommand({ type: "turn", direction: "left" });
-    assertEquals(session.getPlayerState().turnEffects, [
-      { kind: TurnEffectKind.Invisibility, remainingTurns: 2 },
-    ]);
-
-    session.handlePlayerCommand({ type: "wait" });
-    assertEquals(session.getPlayerState().turnEffects, [
-      { kind: TurnEffectKind.Invisibility, remainingTurns: 1 },
-    ]);
-  } finally {
-    session[Symbol.dispose]();
-  }
 });
 
 function testMap(entities: readonly EntityDef[], width = 5): GameMap {

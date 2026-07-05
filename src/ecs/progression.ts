@@ -9,10 +9,8 @@ import {
   type PlayerInventorySchema,
   PlayerProgress,
   type PlayerProgressSchema,
-  PlayerTurnEffects,
-  type PlayerTurnEffectsSchema,
 } from "@/src/ecs/components.ts";
-import { weaponLabel } from "@/src/ecs/combat.ts";
+import { playerWeaponSpec } from "@/src/ecs/combat.ts";
 import type { ItemPickup } from "@/src/ecs/interactions.ts";
 import type { GameEvent } from "@/src/game/events.ts";
 import {
@@ -25,12 +23,6 @@ import {
   type PlayerStateInput,
 } from "@/src/game/state.ts";
 import { normalizeStoryFlags, type StoryFlag } from "@/src/game/story.ts";
-import {
-  normalizeTurnEffects,
-  TurnEffectKind,
-  type TurnEffectKind as TurnEffectKindType,
-  type TurnEffectState,
-} from "@/src/game/turn_effects.ts";
 import { KeyColor, type KeyColor as KeyColorType, keyColorCode } from "@/src/map/map.ts";
 
 const ENEMY_DEFEAT_CREDITS = 10;
@@ -61,13 +53,6 @@ const DEFAULT_PLAYER_PROGRESS: PlayerProgressSchema = {
   levelCredits: 0,
 };
 
-const DEFAULT_PLAYER_TURN_EFFECTS: PlayerTurnEffectsSchema = {
-  invisibility: 0,
-  overclock: 0,
-  toughness: 0,
-  healthRegen: 0,
-};
-
 const KEY_COLOR_ORDER: readonly KeyColorType[] = [
   KeyColor.Red,
   KeyColor.Blue,
@@ -75,16 +60,6 @@ const KEY_COLOR_ORDER: readonly KeyColorType[] = [
 ];
 
 const WEAPON_SLOT_ORDER: readonly CommandSlot[] = [1, 2, 3];
-
-const TURN_EFFECT_FIELDS: readonly {
-  readonly kind: TurnEffectKindType;
-  readonly field: keyof PlayerTurnEffectsSchema;
-}[] = [
-  { kind: TurnEffectKind.Invisibility, field: "invisibility" },
-  { kind: TurnEffectKind.Overclock, field: "overclock" },
-  { kind: TurnEffectKind.Toughness, field: "toughness" },
-  { kind: TurnEffectKind.HealthRegen, field: "healthRegen" },
-];
 
 /** Boundary snapshot generated from ECS components; ECS remains the owner. */
 export type PlayerStateSnapshot = {
@@ -95,7 +70,6 @@ export type PlayerStateSnapshot = {
   readonly health: PlayerHealthState;
   readonly hasUplinkCode: boolean;
   readonly progress: PlayerProgressState;
-  readonly turnEffects: readonly TurnEffectState[];
   readonly storyFlags: readonly StoryFlag[];
 };
 
@@ -108,7 +82,6 @@ export function initializePlayerProgression(
   upsertPlayerInventory(world, playerEntity, inventoryForInput(input));
   upsertPlayerEquipment(world, playerEntity, equipmentForInput(input));
   upsertPlayerProgress(world, playerEntity, progressForInput(input));
-  upsertPlayerTurnEffects(world, playerEntity, turnEffectsForInput(input.turnEffects));
 }
 
 export function playerStateSnapshotFor(
@@ -119,7 +92,6 @@ export function playerStateSnapshotFor(
   const inventory = playerInventoryFor(world, playerEntity);
   const equipment = playerEquipmentFor(world, playerEntity);
   const progress = playerProgressFor(world, playerEntity);
-  const turnEffects = turnEffectsForComponent(playerTurnEffectsFor(world, playerEntity));
   const health = healthFor(world, playerEntity) ?? DEFAULT_PLAYER_HEALTH;
 
   return {
@@ -133,7 +105,6 @@ export function playerStateSnapshotFor(
     health: { ...health },
     hasUplinkCode: inventory.hasUplinkCode === 1,
     progress: { ...progress },
-    turnEffects,
     storyFlags: normalizeStoryFlags(storyFlags),
   };
 }
@@ -206,7 +177,7 @@ export function applyItemPickupToPlayer(
         type: "weaponPickedUp",
         entity: pickup.entity,
         slot: pickup.slot,
-        label: weaponLabel(pickup.slot),
+        label: playerWeaponSpec(pickup.slot).label,
       }];
     case "health":
       return applyHealthPatch(world, playerEntity, pickup.entity, pickup.amount);
@@ -271,16 +242,6 @@ export function clearTransientPlayerState(world: World, playerEntity: Entity): v
   });
 }
 
-export function tickPlayerTurnEffects(world: World, playerEntity: Entity): void {
-  const effects = playerTurnEffectsFor(world, playerEntity);
-  upsertPlayerTurnEffects(world, playerEntity, {
-    invisibility: Math.max(0, effects.invisibility - 1),
-    overclock: Math.max(0, effects.overclock - 1),
-    toughness: Math.max(0, effects.toughness - 1),
-    healthRegen: Math.max(0, effects.healthRegen - 1),
-  });
-}
-
 function addPlayerKey(world: World, playerEntity: Entity, color: KeyColorType): void {
   const inventory = playerInventoryFor(world, playerEntity);
   upsertPlayerInventory(world, playerEntity, {
@@ -338,10 +299,6 @@ function playerProgressFor(world: World, playerEntity: Entity): PlayerProgressSc
   return world.components.readEntityData(PlayerProgress, playerEntity) ?? { ...DEFAULT_PLAYER_PROGRESS };
 }
 
-function playerTurnEffectsFor(world: World, playerEntity: Entity): PlayerTurnEffectsSchema {
-  return world.components.readEntityData(PlayerTurnEffects, playerEntity) ?? { ...DEFAULT_PLAYER_TURN_EFFECTS };
-}
-
 function healthForInput(input: PlayerStateInput): HealthSchema {
   if (input.health === undefined) return DEFAULT_PLAYER_HEALTH;
 
@@ -388,33 +345,6 @@ function progressForInput(input: PlayerStateInput): PlayerProgressSchema {
     xp: input.progress?.xp ?? DEFAULT_PLAYER_PROGRESS.xp,
     levelCredits: input.progress?.levelCredits ?? DEFAULT_PLAYER_PROGRESS.levelCredits,
   };
-}
-
-function turnEffectsForInput(effects: readonly TurnEffectState[] = []): PlayerTurnEffectsSchema {
-  const state: PlayerTurnEffectsSchema = {
-    ...DEFAULT_PLAYER_TURN_EFFECTS,
-  };
-
-  for (const effect of normalizeTurnEffects(effects)) {
-    state[turnEffectField(effect.kind)] = effect.remainingTurns;
-  }
-  return state;
-}
-
-function turnEffectField(kind: TurnEffectKindType): keyof PlayerTurnEffectsSchema {
-  for (const effect of TURN_EFFECT_FIELDS) {
-    if (effect.kind === kind) return effect.field;
-  }
-  throw new Error(`Unknown turn effect kind: ${kind}`);
-}
-
-function turnEffectsForComponent(effects: PlayerTurnEffectsSchema): readonly TurnEffectState[] {
-  const state: TurnEffectState[] = [];
-  for (const { kind, field } of TURN_EFFECT_FIELDS) {
-    const remainingTurns = effects[field];
-    if (remainingTurns > 0) state.push({ kind, remainingTurns });
-  }
-  return state;
 }
 
 function keyMaskFor(keys: readonly KeyColorType[]): number {
@@ -500,21 +430,6 @@ function upsertPlayerProgress(
   } else {
     world.components.addToEntity(PlayerProgress, playerEntity, {
       ...DEFAULT_PLAYER_PROGRESS,
-      ...data,
-    });
-  }
-}
-
-function upsertPlayerTurnEffects(
-  world: World,
-  playerEntity: Entity,
-  data: Partial<PlayerTurnEffectsSchema>,
-): void {
-  if (world.components.entityHas(PlayerTurnEffects, playerEntity)) {
-    world.components.setEntityData(PlayerTurnEffects, playerEntity, data);
-  } else {
-    world.components.addToEntity(PlayerTurnEffects, playerEntity, {
-      ...DEFAULT_PLAYER_TURN_EFFECTS,
       ...data,
     });
   }

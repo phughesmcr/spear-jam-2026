@@ -68,6 +68,19 @@ Deno.test("VisibilityMap reveals opaque tiles but hides tiles behind them", () =
   assertEquals(visibility.isVisible(4, 0), false);
 });
 
+Deno.test("VisibilityMap does not reveal diagonally through a blocked corner", () => {
+  const visibility = new VisibilityMap({ width: 2, height: 2 });
+
+  visibility.revealFrom({ x: 0, y: 0 }, {
+    radius: 2,
+    blocksSight: (x, y) => (x === 1 && y === 0) || (x === 0 && y === 1),
+  });
+
+  assertEquals(visibility.isVisible(1, 0), true);
+  assertEquals(visibility.isVisible(0, 1), true);
+  assertEquals(visibility.isVisible(1, 1), false);
+});
+
 Deno.test("VisibilityMap treats out-of-bounds reads as hidden and unexplored", () => {
   const visibility = new VisibilityMap({ width: 2, height: 2 });
 

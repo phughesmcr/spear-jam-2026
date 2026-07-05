@@ -25,9 +25,13 @@ export interface SpatialMutations {
   setBlocking(entity: Entity, blocking: boolean): void;
 }
 
+export interface SpatialDistanceField {
+  nextStepFrom(start: GridPoint): GridPoint | undefined;
+}
+
 export type SpatialAccess = SpatialLookup & SpatialMutations;
 const EMPTY_ENTITY = -1;
-const NO_TILE = -1;
+const UNREACHABLE = -1;
 
 /**
  * Map-aware spatial owner for terrain and entity occupancy.
@@ -42,9 +46,6 @@ export class SpatialIndex implements SpatialLookup, SpatialMutations {
   private readonly entityTiles = new Map<Entity, number>();
   private readonly blockingTiles = new Map<Entity, number>();
   private readonly itemTiles = new Map<Entity, number>();
-  private pathMark = 0;
-  private readonly pathMarks: Uint16Array;
-  private readonly pathParents: Int32Array;
   private readonly pathQueue: Int32Array;
 
   constructor(world: World, map: GameMap) {
@@ -58,8 +59,6 @@ export class SpatialIndex implements SpatialLookup, SpatialMutations {
     const tileCount = width * height;
     this.blockingOccupancy = filledEntityArray(tileCount);
     this.itemOccupancy = filledEntityArray(tileCount);
-    this.pathMarks = new Uint16Array(tileCount);
-    this.pathParents = new Int32Array(tileCount);
     this.pathQueue = new Int32Array(tileCount);
 
     this.indexPositionedEntities();
@@ -101,51 +100,52 @@ export class SpatialIndex implements SpatialLookup, SpatialMutations {
   }
 
   nextStepToward(start: GridPoint, target: GridPoint): GridPoint | undefined {
-    const startTile = this.tileIndex(start.x, start.y);
+    return this.distanceFieldTo(target).nextStepFrom(start);
+  }
+
+  distanceFieldTo(target: GridPoint): SpatialDistanceField {
     const targetTile = this.tileIndex(target.x, target.y);
-    if (startTile === undefined || targetTile === undefined) return undefined;
+    const distances = new Int32Array(this.width * this.height);
+    distances.fill(UNREACHABLE);
+    if (targetTile === undefined) return { nextStepFrom: () => undefined };
 
     const targetBlocks = this.positionBlocks(target.x, target.y);
-    this.pathMark++;
-    if (this.pathMark >= 0xffff) {
-      this.pathMarks.fill(0);
-      this.pathMark = 1;
-    }
-    const mark = this.pathMark;
     let head = 0;
     let tail = 0;
 
-    this.pathMarks[startTile] = mark;
-    this.pathParents[startTile] = NO_TILE;
-    this.pathQueue[tail++] = startTile;
+    if (targetBlocks) {
+      for (const delta of CARDINAL_DELTAS) {
+        const x = target.x + delta.dx;
+        const y = target.y + delta.dy;
+        const tile = this.tileIndex(x, y);
+        if (tile === undefined || this.positionBlocks(x, y)) continue;
+        distances[tile] = 0;
+        this.pathQueue[tail++] = tile;
+      }
+    } else {
+      distances[targetTile] = 0;
+      this.pathQueue[tail++] = targetTile;
+    }
 
     while (head < tail) {
       const tile = this.pathQueue[head++]!;
       const x = tile % this.width;
       const y = Math.trunc(tile / this.width);
-      if (
-        tile !== startTile &&
-        (targetBlocks ? Math.abs(x - target.x) + Math.abs(y - target.y) === 1 : tile === targetTile)
-      ) {
-        const step = this.firstPathStep(startTile, tile);
-        return { x: step % this.width, y: Math.trunc(step / this.width) };
-      }
+      const distance = distances[tile]!;
 
       for (const delta of CARDINAL_DELTAS) {
         const nextX = x + delta.dx;
         const nextY = y + delta.dy;
         const nextTile = this.tileIndex(nextX, nextY);
-        if (nextTile === undefined || this.pathMarks[nextTile] === mark) continue;
-        if (targetBlocks && nextTile === targetTile) continue;
+        if (nextTile === undefined || distances[nextTile] !== UNREACHABLE) continue;
         if (this.positionBlocks(nextX, nextY)) continue;
 
-        this.pathMarks[nextTile] = mark;
-        this.pathParents[nextTile] = tile;
+        distances[nextTile] = distance + 1;
         this.pathQueue[tail++] = nextTile;
       }
     }
 
-    return undefined;
+    return { nextStepFrom: (start) => this.nextStepFromDistances(start, distances) };
   }
 
   moveEntity(entity: Entity, to: { readonly x: number; readonly y: number }): void {
@@ -258,14 +258,27 @@ export class SpatialIndex implements SpatialLookup, SpatialMutations {
     entityTiles.delete(entity);
   }
 
-  private firstPathStep(startTile: number, goalTile: number): number {
-    let step = goalTile;
-    let parent = this.pathParents[step]!;
-    while (parent !== startTile && parent !== NO_TILE) {
-      step = parent;
-      parent = this.pathParents[step]!;
+  private nextStepFromDistances(start: GridPoint, distances: Int32Array): GridPoint | undefined {
+    const startTile = this.tileIndex(start.x, start.y);
+    if (startTile === undefined) return undefined;
+
+    const startDistance = distances[startTile]!;
+    let bestTile = UNREACHABLE;
+    let bestDistance = startDistance === UNREACHABLE ? Number.MAX_SAFE_INTEGER : startDistance;
+
+    for (const delta of CARDINAL_DELTAS) {
+      const x = start.x + delta.dx;
+      const y = start.y + delta.dy;
+      const tile = this.tileIndex(x, y);
+      if (tile === undefined || this.positionBlocks(x, y)) continue;
+
+      const distance = distances[tile]!;
+      if (distance === UNREACHABLE || distance >= bestDistance) continue;
+      bestTile = tile;
+      bestDistance = distance;
     }
-    return step;
+
+    return bestTile === UNREACHABLE ? undefined : { x: bestTile % this.width, y: Math.trunc(bestTile / this.width) };
   }
 }
 

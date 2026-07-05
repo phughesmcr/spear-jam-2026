@@ -21,7 +21,6 @@ import { normalizeDirection } from "@/src/grid/direction.ts";
 import {
   createDrawableRenderScratch,
   createLightEntityScratch,
-  type DrawableEntity,
   type DrawableEntityVisitor,
   DrawableKind,
   type DrawableSystem,
@@ -52,7 +51,6 @@ import {
   initializePlayerProgression,
   type PlayerStateSnapshot,
   playerStateSnapshotFor,
-  tickPlayerTurnEffects,
 } from "@/src/ecs/progression.ts";
 import type { RandomSource } from "@/src/game/rng.ts";
 import type { PlayerStateInput, TargetMarkerTone } from "@/src/game/state.ts";
@@ -63,7 +61,6 @@ import {
   storyEventForCode,
   type StoryEventId,
   type StoryFlag,
-  storyPathDestination,
   storyTargetCode,
   storyTargetForCode,
 } from "@/src/game/story.ts";
@@ -176,9 +173,7 @@ export class GameSession implements Disposable {
   forEachDrawable(visit: DrawableEntityVisitor): void {
     this.drawableSystem({
       scratch: this.drawableScratch,
-      visit: (drawable) => {
-        if (this.drawableIsVisible(drawable)) visit(drawable);
-      },
+      visit,
     });
   }
 
@@ -259,7 +254,7 @@ export class GameSession implements Disposable {
         case "moveEntity": {
           const target = this.storyTargetEntity(action.target);
           if (target === undefined) return;
-          this.spatial.moveEntity(target, storyPathDestination(action.path));
+          this.spatial.moveEntity(target, action.destination);
           this.setSpriteAnimation(target, {
             kind: SpriteAnimationKind.Walk,
             startedAtMs: nowMs,
@@ -282,7 +277,7 @@ export class GameSession implements Disposable {
           const target = this.storyTargetEntity(action.target);
           if (target === undefined) return false;
 
-          const destination = storyPathDestination(action.path);
+          const destination = action.destination;
           if (this.spatial.tileBlocks(destination.x, destination.y)) return false;
 
           const blocker = this.spatial.blockingEntityAt(destination.x, destination.y);
@@ -355,7 +350,6 @@ export class GameSession implements Disposable {
       blocksSight: (x, y) => this.tileBlocksSight(x, y),
       noises: this.noisesForPlayerAction(actionEvents, action.noise),
     });
-    tickPlayerTurnEffects(this.world, this.playerEntity);
     const allEvents = [...actionEvents, ...enemyEvents];
     const nowMs = performance.now();
     this.applyWalkAnimations(actorPositions, nowMs);
@@ -433,10 +427,6 @@ export class GameSession implements Disposable {
     const blockingEntity = this.spatial.blockingEntityAt(x, y);
     if (blockingEntity === undefined) return false;
     return this.world.components.readEntityData(Door, blockingEntity)?.open === 0;
-  }
-
-  private drawableIsVisible(drawable: DrawableEntity): boolean {
-    return drawable.kind === DrawableKind.Player || this.visibility.isVisible(drawable.x, drawable.y);
   }
 
   private noisesForPlayerAction(

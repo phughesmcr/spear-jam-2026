@@ -4,7 +4,6 @@ import {
   Attack,
   type AttackSchema,
   Blocking,
-  DecorationKind,
   Defense,
   Dialogue,
   DisplayNameComponent,
@@ -47,7 +46,6 @@ import {
 } from "@/src/ecs/drawables.ts";
 import {
   DEFAULT_ENEMY_ARCHETYPE,
-  EnemyArchetype,
   type EnemyArchetype as EnemyArchetypeType,
   type EnemyCatalogEntry,
   enemyCatalogEntry,
@@ -56,7 +54,6 @@ import { DEFAULT_PLAYER_HEALTH } from "@/src/ecs/progression.ts";
 import { DEFAULT_ATTACK } from "@/src/game/attack.ts";
 import { storyEventCode, storyTargetCode } from "@/src/game/story.ts";
 import { normalizeDirection } from "@/src/grid/direction.ts";
-import { MapDecorationKind, MapEnemyArchetype, MapItemKind } from "@/src/map/entity_content.ts";
 import {
   type DecorationDef,
   type DoorDef,
@@ -91,28 +88,6 @@ type FacingPrefab = {
 type GridActorPrefab = PositionedPrefab & FacingPrefab;
 type ExaminePrefab = {
   readonly examineTextId?: number;
-};
-
-const ENEMY_ARCHETYPES_BY_MAP_CONTENT: Readonly<Record<MapEnemyArchetype, EnemyArchetypeType>> = {
-  [MapEnemyArchetype.MeleeDog]: EnemyArchetype.MeleeDog,
-  [MapEnemyArchetype.Gunslinger]: EnemyArchetype.Gunslinger,
-  [MapEnemyArchetype.NetworkNeophyte]: EnemyArchetype.NetworkNeophyte,
-  [MapEnemyArchetype.SystemSentinel]: EnemyArchetype.SystemSentinel,
-  [MapEnemyArchetype.AgenticAcolyte]: EnemyArchetype.AgenticAcolyte,
-};
-
-const ITEM_KINDS_BY_MAP_CONTENT: Readonly<Record<MapItemKind, ItemKind>> = {
-  [MapItemKind.HealthPatch]: ItemKind.HealthPatch,
-  [MapItemKind.PistolAmmo]: ItemKind.PistolAmmo,
-  [MapItemKind.CannonAmmo]: ItemKind.CannonAmmo,
-};
-
-const DECORATION_KINDS_BY_MAP_CONTENT: Readonly<Record<MapDecorationKind, DecorationKind>> = {
-  [MapDecorationKind.ServerPile]: DecorationKind.ServerPile,
-  [MapDecorationKind.Cyborg]: DecorationKind.Cyborg,
-  [MapDecorationKind.CeilingHook]: DecorationKind.CeilingHook,
-  [MapDecorationKind.CeilingLight]: DecorationKind.CeilingLight,
-  [MapDecorationKind.CeilingWires]: DecorationKind.CeilingWires,
 };
 
 export type PlayerPrefab = Omit<PlayerDef, "prefab">;
@@ -266,7 +241,7 @@ export function createWeaponPickup(world: World, prefab: WeaponPickupPrefab): En
 export type ItemPrefab = Omit<ItemDef, "prefab">;
 
 export function createItem(world: World, prefab: ItemPrefab): Entity {
-  return createPickup(world, prefab, itemKindForPrefab(prefab.item), prefab.amount);
+  return createPickup(world, prefab, prefab.item, prefab.amount);
 }
 
 export type DecorationPrefab = Omit<DecorationDef, "prefab">;
@@ -276,7 +251,7 @@ export function createDecoration(world: World, prefab: DecorationPrefab): Entity
     [
       [GridPos, { x: prefab.x, y: prefab.y }],
       [Drawable, { kind: DrawableKind.Sprite, layer: DrawableLayer.Structure }],
-      [Sprite, { id: spriteIdForDecoration(decorationKindForPrefab(prefab.decoration)) }],
+      [Sprite, { id: spriteIdForDecoration(prefab.decoration) }],
     ] as const,
   );
 }
@@ -320,16 +295,8 @@ const MAP_ENTITY_CREATORS = {
   light: createLight,
 } satisfies MapEntityCreators;
 
-function enemyArchetypeForPrefab(archetype: MapEnemyArchetype | undefined): EnemyArchetypeType {
-  return archetype === undefined ? DEFAULT_ENEMY_ARCHETYPE : ENEMY_ARCHETYPES_BY_MAP_CONTENT[archetype];
-}
-
-function itemKindForPrefab(item: MapItemKind): ItemKind {
-  return ITEM_KINDS_BY_MAP_CONTENT[item];
-}
-
-function decorationKindForPrefab(decoration: MapDecorationKind): DecorationKind {
-  return DECORATION_KINDS_BY_MAP_CONTENT[decoration];
+function enemyArchetypeForPrefab(archetype: EnemyArchetypeType | undefined): EnemyArchetypeType {
+  return archetype ?? DEFAULT_ENEMY_ARCHETYPE;
 }
 
 function createPickup(world: World, prefab: PositionedPrefab, item: ItemKind, value: number): Entity {

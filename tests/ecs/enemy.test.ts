@@ -189,6 +189,31 @@ Deno.test("system sentinels investigate noise by watching without moving", async
   assertEquals(events, []);
 });
 
+Deno.test("system sentinels face the dominant axis when watching a noise", async () => {
+  const world = await createWorld();
+  const playerEntity = spawnPlayer(world, {
+    x: 0,
+    y: 5,
+    dir: Direction.North,
+    health: { current: 5, max: 5 },
+  });
+  const sentinel = spawnEnemy(world, {
+    x: 1,
+    y: 1,
+    dir: Direction.West,
+    displayName: DisplayName.SystemSentinel,
+    attack: MELEE_ATTACK,
+    archetype: EnemyArchetype.SystemSentinel,
+  });
+  world.refresh();
+
+  const events = runEnemyTurn(world, playerEntity, flatTestMap(4, 6), [{ x: 2, y: 4, radius: 5 }]);
+
+  assertEquals(world.components.getEntityData(GridPos, sentinel), { x: 1, y: 1 });
+  assertEquals(world.components.getEntityData(Facing, sentinel), { dir: Direction.South });
+  assertEquals(events, []);
+});
+
 Deno.test("enemyTurnSystem keeps investigating the last known position after noise stops", async () => {
   const world = await createWorld();
   const playerEntity = spawnPlayer(world, {
