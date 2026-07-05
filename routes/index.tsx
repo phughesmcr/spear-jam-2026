@@ -3,10 +3,10 @@ import { define } from "../utils.ts";
 
 export default define.page(function Home(ctx) {
   const seedParam = Number.parseInt(
-    ctx.url.searchParams.get("seed") ?? "0",
+    ctx.url.searchParams.get("seed") ?? "42",
     10,
   );
-  const seed = Number.isFinite(seedParam) ? seedParam : 0;
+  const seed = Number.isFinite(seedParam) ? seedParam : 42;
   const mapName = ctx.url.searchParams.get("map") ?? undefined;
   ctx.state.seed = seed;
 

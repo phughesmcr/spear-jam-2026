@@ -7,7 +7,7 @@ app.use(staticFiles());
 
 // Pass a shared value from a middleware
 app.use(async (ctx) => {
-  ctx.state.seed = 0;
+  ctx.state.seed = 42;
   return await ctx.next();
 });
 
