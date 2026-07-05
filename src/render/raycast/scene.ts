@@ -72,6 +72,15 @@ const CEILING_SHADE_OFFSET = 2;
 const MIN_WALL_DISTANCE = 1e-4;
 const MIN_SPRITE_DISTANCE = 0.05;
 const SPRITE_EMISSIVE_GAIN = 2;
+const HEALTH_BAR_WIDTH_FRACTION = 0.55;
+const HEALTH_BAR_MIN_WIDTH = 8;
+const HEALTH_BAR_MAX_WIDTH = 28;
+const HEALTH_BAR_HEIGHT = 4;
+const HEALTH_BAR_GAP = 2;
+const HEALTH_BAR_BORDER = 1;
+const HEALTH_BAR_BORDER_COLOR = 0xff000000;
+const HEALTH_BAR_EMPTY_COLOR = 0xff1d1d7f;
+const HEALTH_BAR_FILL_COLOR = 0xff5ec522;
 const FIXED_ONE = 65536;
 const SKY_NEAR_PARALLAX_SCALE = 0.035;
 const SKY_FAR_PARALLAX_SCALE = 0.008;
@@ -179,6 +188,9 @@ export type RaycastScene = {
   readonly spriteHeight: Float32Array;
   /** Vertical world-tile offset above the floor for floor-anchored sprites. */
   readonly spriteElevation: Float32Array;
+  /** Optional sprite health bar values; max 0 means no bar. */
+  readonly spriteHealthCurrent: Uint8Array;
+  readonly spriteHealthMax: Uint8Array;
 };
 
 export type RaycastSceneOptions = {
@@ -233,6 +245,8 @@ export function createScene(mapWidth: number, mapHeight: number, options: Raycas
     spriteWidth: new Float32Array(spriteCapacity),
     spriteHeight: new Float32Array(spriteCapacity),
     spriteElevation: new Float32Array(spriteCapacity),
+    spriteHealthCurrent: new Uint8Array(spriteCapacity),
+    spriteHealthMax: new Uint8Array(spriteCapacity),
   };
 }
 
@@ -350,6 +364,8 @@ export function addSprite(
   height: number,
   elevation = 0,
   width = height,
+  healthCurrent = 0,
+  healthMax = 0,
 ): void {
   if (scene.spriteCount >= scene.spriteX.length) {
     throw new Error(
@@ -363,6 +379,8 @@ export function addSprite(
   scene.spriteWidth[index] = width;
   scene.spriteHeight[index] = height;
   scene.spriteElevation[index] = elevation;
+  scene.spriteHealthCurrent[index] = healthCurrent;
+  scene.spriteHealthMax[index] = healthMax;
 }
 
 export type RaycastFrame = {
@@ -953,6 +971,8 @@ function renderSpritesAndThinWalls(
       scene.spriteWidth[sprite]!,
       scene.spriteHeight[sprite]!,
       scene.spriteElevation[sprite]!,
+      scene.spriteHealthCurrent[sprite]!,
+      scene.spriteHealthMax[sprite]!,
       lit ? scene.lightRed[spriteCell]! : 255,
       lit ? scene.lightGreen[spriteCell]! : 255,
       lit ? scene.lightBlue[spriteCell]! : 255,
@@ -1003,6 +1023,8 @@ function drawSprite(
   widthScale: number,
   heightScale: number,
   elevation: number,
+  healthCurrent: number,
+  healthMax: number,
   lightRed: number,
   lightGreen: number,
   lightBlue: number,
@@ -1024,6 +1046,19 @@ function drawSprite(
   const bottom = horizon + ((CAMERA_HEIGHT - elevation) * focal) / depth;
   const top = bottom - spriteHeight;
   const left = screenX - spriteWidth * 0.5;
+  const healthRatio = healthRatioFor(healthCurrent, healthMax);
+  const healthBarWidth = spriteWidth >= HEALTH_BAR_MIN_WIDTH && healthMax > 0 ?
+    Math.max(
+      HEALTH_BAR_MIN_WIDTH,
+      Math.min(HEALTH_BAR_MAX_WIDTH, Math.round(spriteWidth * HEALTH_BAR_WIDTH_FRACTION)),
+    ) :
+    0;
+  const healthBarLeft = Math.round(screenX - healthBarWidth * 0.5);
+  const healthBarRight = healthBarLeft + healthBarWidth;
+  const healthBarTop = Math.round(top) - HEALTH_BAR_GAP - HEALTH_BAR_HEIGHT;
+  const healthBarBottom = healthBarTop + HEALTH_BAR_HEIGHT;
+  const healthBarFillRight = healthBarLeft + HEALTH_BAR_BORDER +
+    Math.round((healthBarWidth - HEALTH_BAR_BORDER * 2) * healthRatio);
   let yStart = Math.ceil(top);
   let yEnd = Math.ceil(bottom);
   if (yStart < 0) yStart = 0;
@@ -1064,6 +1099,47 @@ function drawSprite(
       texYPos += texStepY;
       offset += width;
     }
+    if (healthBarWidth > 0) {
+      drawHealthBarColumn(frame, x, healthBarLeft, healthBarRight, healthBarTop, healthBarBottom, healthBarFillRight);
+    }
+  }
+}
+
+function healthRatioFor(current: number, max: number): number {
+  if (max <= 0 || current <= 0) return 0;
+  if (current >= max) return 1;
+  return current / max;
+}
+
+function drawHealthBarColumn(
+  frame: RaycastFrame,
+  x: number,
+  left: number,
+  right: number,
+  top: number,
+  bottom: number,
+  fillRight: number,
+): void {
+  if (x < left || x >= right) return;
+
+  const frameHeight = frame.height;
+  let yStart = top;
+  let yEnd = bottom;
+  if (yStart < 0) yStart = 0;
+  if (yEnd > frameHeight) yEnd = frameHeight;
+  if (yStart >= yEnd) return;
+
+  const borderRight = right - HEALTH_BAR_BORDER;
+  const borderBottom = bottom - HEALTH_BAR_BORDER;
+  let offset = yStart * frame.width + x;
+  for (let y = yStart; y < yEnd; y++) {
+    frame.pixels[offset] = x < left + HEALTH_BAR_BORDER || x >= borderRight || y < top + HEALTH_BAR_BORDER ||
+        y >= borderBottom ?
+      HEALTH_BAR_BORDER_COLOR :
+      x < fillRight ?
+      HEALTH_BAR_FILL_COLOR :
+      HEALTH_BAR_EMPTY_COLOR;
+    offset += frame.width;
   }
 }
 

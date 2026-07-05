@@ -20,7 +20,7 @@ import { configureCanvasDpi, DEFAULT_GAME_CANVAS_SIZE, type GameCanvasSize } fro
 import { dialogueOptionSlotAt } from "@/src/render/dialogue.ts";
 import { createFirstPersonRenderer, type FirstPersonRenderer } from "@/src/render/first_person.ts";
 import { preloadGameAssets, renderGameFrame } from "@/src/render/game.ts";
-import { verbMenuHotspotIndexAt } from "@/src/render/verb_menu.ts";
+import { verbMenuTargetAt } from "@/src/render/verb_menu.ts";
 import type { WeaponHudPhase } from "@/src/render/weapon_hud.ts";
 
 const WEAPON_HUD_ACTIVE_MS = 140;
@@ -177,7 +177,7 @@ class Game implements Disposable {
     this.apply({
       type: "verbPointer",
       phase: input.phase,
-      hotspotIndex: verbMenuHotspotIndexAt(this.canvasSize, input),
+      target: verbMenuTargetAt(this.canvasSize, input),
     });
   }
 

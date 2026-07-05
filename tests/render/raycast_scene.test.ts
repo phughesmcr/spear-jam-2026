@@ -582,6 +582,18 @@ Deno.test("renderFrame preserves non-square sprite billboard dimensions", () => 
   assertNotEquals(pixel(frame, CENTER - 13, CENTER), texel(atlas, "sprites", SPRITE, 1));
 });
 
+Deno.test("renderFrame draws compact health bars above sprites with health", () => {
+  const atlas = testAtlas();
+  const scene = corridorScene();
+  addSprite(scene, 2.5, 1.5, SPRITE, 1, 0, 1, 5, 10);
+  const frame = createFrame(VIEW, VIEW);
+
+  renderFrame(frame, scene, atlas, CAMERA);
+
+  assertEquals(rgba(pixel(frame, CENTER - 8, 4)), [34, 197, 94, 255]);
+  assertEquals(rgba(pixel(frame, CENTER + 8, 4)), [127, 29, 29, 255]);
+});
+
 Deno.test("a horizontally sliding door passes rays through the gap", () => {
   const atlas = testAtlas();
   const scene = corridorScene();

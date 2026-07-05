@@ -950,8 +950,20 @@ function addFirstPersonSprite(
   slot: number,
   height: number,
   elevation = 0,
+  healthCurrent = 0,
+  healthMax = 0,
 ): void {
-  addSprite(scene, x, y, slot, height, elevation, height * (state.spriteAspectBySlot.get(slot) ?? 1));
+  addSprite(
+    scene,
+    x,
+    y,
+    slot,
+    height,
+    elevation,
+    height * (state.spriteAspectBySlot.get(slot) ?? 1),
+    healthCurrent,
+    healthMax,
+  );
 }
 
 function addAppearanceSprite(
@@ -1074,7 +1086,17 @@ function addDrawable(
       if (appearance.firstPersonSlot === undefined) return !state.spritePoint.settled;
       const row = enemySheetRow(drawable.animation, nowMs);
       const sprite = enemySprite(appearance.firstPersonSlot, drawable.dir, cameraDir, row);
-      addFirstPersonSprite(state, scene, state.spritePoint.x, state.spritePoint.y, sprite, appearance.firstPersonScale);
+      addFirstPersonSprite(
+        state,
+        scene,
+        state.spritePoint.x,
+        state.spritePoint.y,
+        sprite,
+        appearance.firstPersonScale,
+        0,
+        drawable.health?.current ?? 0,
+        drawable.health?.max ?? 0,
+      );
       return !state.spritePoint.settled || animationIsActive(drawable.animation, nowMs);
     }
     case DrawableKind.Door: {

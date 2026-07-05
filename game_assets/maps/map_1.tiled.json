@@ -1074,17 +1074,17 @@
                         {
                          "name":"color",
                          "type":"string",
-                         "value":"#5ee7ff"
+                         "value":"#0233f4"
                         }, 
                         {
                          "name":"flickerAmount",
                          "type":"float",
-                         "value":0.63
+                         "value":0.8
                         }, 
                         {
                          "name":"flickerSpeed",
                          "type":"float",
-                         "value":11
+                         "value":7
                         }, 
                         {
                          "name":"radius",
@@ -1107,17 +1107,17 @@
                         {
                          "name":"color",
                          "type":"string",
-                         "value":"#5ee7ff"
+                         "value":"#0233f4"
                         }, 
                         {
                          "name":"flickerAmount",
                          "type":"float",
-                         "value":0.63
+                         "value":0.8
                         }, 
                         {
                          "name":"flickerSpeed",
                          "type":"float",
-                         "value":11
+                         "value":7
                         }, 
                         {
                          "name":"radius",
@@ -1130,6 +1130,39 @@
                  "width":16,
                  "x":64,
                  "y":208
+                }, 
+                {
+                 "height":16,
+                 "id":42,
+                 "name":"secret_exit_amber_light",
+                 "opacity":1,
+                 "properties":[
+                        {
+                         "name":"color",
+                         "type":"string",
+                         "value":"#f41e1e"
+                        }, 
+                        {
+                         "name":"flickerAmount",
+                         "type":"float",
+                         "value":0.8
+                        }, 
+                        {
+                         "name":"flickerSpeed",
+                         "type":"float",
+                         "value":7
+                        }, 
+                        {
+                         "name":"radius",
+                         "type":"int",
+                         "value":2
+                        }],
+                 "rotation":0,
+                 "type":"",
+                 "visible":true,
+                 "width":16,
+                 "x":128,
+                 "y":192
                 }],
          "opacity":1,
          "type":"objectgroup",
@@ -1138,7 +1171,7 @@
          "y":0
         }],
  "nextlayerid":4,
- "nextobjectid":42,
+ "nextobjectid":43,
  "orientation":"orthogonal",
  "properties":[
         {

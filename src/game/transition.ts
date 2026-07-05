@@ -8,8 +8,8 @@ import {
   type PlayerCommandResult,
 } from "@/src/game/commands.ts";
 import { hasNextIntermissionPage, type IntermissionMode, isMessageRevealed } from "@/src/game/intermission.ts";
-import type { GameMode, PlayerStateInput, ViewMode } from "@/src/game/state.ts";
-import { VERBS, verbToCommand } from "@/src/game/verbs.ts";
+import type { CommandSlot, GameMode, PlayerStateInput, ViewMode } from "@/src/game/state.ts";
+import { type VerbMenuTarget, VERBS, verbToCommand } from "@/src/game/verbs.ts";
 
 type DialogueMode = Extract<GameMode, { readonly type: "dialogue" }>;
 type VerbMenuMode = Extract<GameMode, { readonly type: "verbMenu" }>;
@@ -41,7 +41,7 @@ export type GameModel = {
   readonly mode: GameMode;
   readonly viewMode: ViewMode;
   readonly lastVerbIndex: number;
-  readonly verbPointerDownIndex?: number;
+  readonly verbPointerDownTarget?: VerbMenuTarget;
   readonly dialoguePointerDownSlot?: number;
 };
 
@@ -57,7 +57,7 @@ export type GameTransitionEvent =
   | { readonly type: "mapLoaded"; readonly mapName: string; readonly playerState?: PlayerStateInput }
   | { readonly type: "loadFailed"; readonly message: string }
   | { readonly type: "gameCommand"; readonly command: GameCommand; readonly nowMs?: number }
-  | { readonly type: "verbPointer"; readonly phase: VerbPointerPhase; readonly hotspotIndex?: number }
+  | { readonly type: "verbPointer"; readonly phase: VerbPointerPhase; readonly target?: VerbMenuTarget }
   | { readonly type: "dialoguePointer"; readonly phase: DialoguePointerPhase; readonly optionSlot?: number }
   | {
     readonly type: "playerCommandResult";
@@ -111,7 +111,7 @@ export function transition(model: GameModel, event: GameTransitionEvent): GameTr
     case "gameCommand":
       return gameCommand(model, event.command, event.nowMs ?? 0);
     case "verbPointer":
-      return verbPointer(model, event.phase, event.hotspotIndex);
+      return verbPointer(model, event.phase, event.target);
     case "dialoguePointer":
       return dialoguePointer(model, event.phase, event.optionSlot);
     case "playerCommandResult":
@@ -243,7 +243,7 @@ function verbMenuCommand(model: GameModel, mode: VerbMenuMode, command: GameComm
     case "action":
       return confirmVerbSelection(model, mode);
     case "menu":
-      return done({ ...model, verbPointerDownIndex: undefined, mode: { type: "playing" } }, [{ type: "render" }]);
+      return done({ ...model, verbPointerDownTarget: undefined, mode: { type: "playing" } }, [{ type: "render" }]);
     case "turn":
     case "interact":
     case "examine":
@@ -259,36 +259,41 @@ function verbMenuCommand(model: GameModel, mode: VerbMenuMode, command: GameComm
 function verbPointer(
   model: GameModel,
   phase: VerbPointerPhase,
-  hotspotIndex: number | undefined,
+  target: VerbMenuTarget | undefined,
 ): GameTransition {
   const mode = model.mode;
   if (mode.type !== "verbMenu") return done(model);
 
   switch (phase) {
     case "move":
-      if (hotspotIndex !== undefined && hotspotIndex !== mode.selectedIndex) {
-        return done(selectVerb(model, hotspotIndex), [{ type: "render" }]);
+      if (target?.kind === "verb" && target.verbIndex !== mode.selectedIndex) {
+        return done(selectVerb(model, target.verbIndex), [{ type: "render" }]);
       }
       return done(model);
     case "down": {
-      const downModel = { ...model, verbPointerDownIndex: hotspotIndex };
-      if (hotspotIndex !== undefined && hotspotIndex !== mode.selectedIndex) {
-        return done(selectVerb(downModel, hotspotIndex), [{ type: "render" }]);
+      const downModel = { ...model, verbPointerDownTarget: target };
+      if (target?.kind === "verb" && target.verbIndex !== mode.selectedIndex) {
+        return done(selectVerb(downModel, target.verbIndex), [{ type: "render" }]);
       }
       return done(downModel);
     }
     case "up": {
-      const downIndex = model.verbPointerDownIndex;
-      const upModel = { ...model, verbPointerDownIndex: undefined };
-      if (hotspotIndex === undefined) return done(upModel);
+      const downTarget = model.verbPointerDownTarget;
+      const upModel = { ...model, verbPointerDownTarget: undefined };
+      if (target === undefined) return done(upModel);
 
-      const selectedMode = { type: "verbMenu", selectedIndex: hotspotIndex } satisfies VerbMenuMode;
+      if (target.kind === "weapon") {
+        if (sameVerbMenuTarget(downTarget, target)) return confirmWeaponSelection(upModel, target.slot);
+        return done(upModel);
+      }
+
+      const selectedMode = { type: "verbMenu", selectedIndex: target.verbIndex } satisfies VerbMenuMode;
       const selectedModel = { ...upModel, mode: selectedMode };
-      if (downIndex === hotspotIndex) return confirmVerbSelection(selectedModel, selectedMode);
+      if (sameVerbMenuTarget(downTarget, target)) return confirmVerbSelection(selectedModel, selectedMode);
       return done(selectedModel, [{ type: "render" }]);
     }
     case "cancel":
-      return done({ ...model, verbPointerDownIndex: undefined });
+      return done({ ...model, verbPointerDownTarget: undefined });
   }
 }
 
@@ -381,7 +386,7 @@ function openVerbMenu(model: GameModel): GameModel {
   return {
     ...model,
     dialoguePointerDownSlot: undefined,
-    verbPointerDownIndex: undefined,
+    verbPointerDownTarget: undefined,
     mode: { type: "verbMenu", selectedIndex: model.lastVerbIndex },
   };
 }
@@ -397,10 +402,25 @@ function confirmVerbSelection(model: GameModel, mode: VerbMenuMode): GameTransit
   return done({
     ...model,
     dialoguePointerDownSlot: undefined,
-    verbPointerDownIndex: undefined,
+    verbPointerDownTarget: undefined,
     lastVerbIndex: selectedIndex,
     mode: { type: "playing" },
   }, [{ type: "runPlayerCommand", command: verbToCommand(selectedIndex) }]);
+}
+
+function confirmWeaponSelection(model: GameModel, slot: CommandSlot): GameTransition {
+  return done({
+    ...model,
+    dialoguePointerDownSlot: undefined,
+    verbPointerDownTarget: undefined,
+    mode: { type: "playing" },
+  }, [{ type: "runPlayerCommand", command: { type: "selectWeapon", slot } }]);
+}
+
+function sameVerbMenuTarget(a: VerbMenuTarget | undefined, b: VerbMenuTarget): boolean {
+  if (a === undefined) return false;
+  if (a.kind === "verb") return b.kind === "verb" && a.verbIndex === b.verbIndex;
+  return b.kind === "weapon" && a.slot === b.slot;
 }
 
 function closeDialogue(model: GameModel): GameTransition {

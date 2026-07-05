@@ -791,6 +791,53 @@ Deno.test("first-person rendering uses ECS attack animation sheet row", () => {
   });
 });
 
+Deno.test("first-person rendering passes enemy health to raycast sprites", () => {
+  withFakeOffscreenCanvas((): void => {
+    withFakePerformanceNow(100, (): void => {
+      const map = createGameMap(
+        "Enemy Health",
+        [
+          [2, 2, 2],
+          [2, 1, 2],
+          [2, 1, 2],
+          [2, 2, 2],
+        ],
+        [],
+        {
+          palette: [
+            { kind: "floor", id: 1, color: "#000000", floor_texture: "floor", ceiling_texture: "ceiling" },
+            { kind: "wall", id: 2, color: "#ffffff", wall_texture: "wall" },
+          ],
+        },
+      );
+      const session = sessionFor(map, [
+        playerDrawable(1, 2, Direction.North),
+        {
+          kind: DrawableKind.Actor,
+          entity: 2,
+          x: 1,
+          y: 1,
+          dir: Direction.South,
+          spriteId: SpriteId.DigitalDog,
+          health: { current: 4, max: 10 },
+        },
+      ]);
+      const renderer = createFirstPersonRenderer();
+
+      renderer.render(
+        new FakeCanvasContext() as unknown as CanvasRenderingContext2D,
+        { x: 0, y: 0, width: 64, height: 64 },
+        session,
+      );
+      const scene = renderer.sceneForMap(map);
+
+      assertEquals(scene.spriteCount, 1);
+      assertEquals(scene.spriteHealthCurrent[0], 4);
+      assertEquals(scene.spriteHealthMax[0], 10);
+    });
+  });
+});
+
 Deno.test("first-person rendering uses ECS walk animation sheet row", () => {
   withFakeOffscreenCanvas((): void => {
     withFakePerformanceNow(SPRITE_WALK_MS / 2, (): void => {

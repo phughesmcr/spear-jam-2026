@@ -111,18 +111,39 @@ Deno.test("transition confirms pointer verbs only when down and up hit the same 
   ({ model } = transition(model, { type: "gameCommand", command: { type: "action" } }));
   assertEquals(model.mode, { type: "verbMenu", selectedIndex: 0 });
 
-  ({ model } = transition(model, { type: "verbPointer", phase: "down", hotspotIndex: 1 }));
+  ({ model } = transition(model, { type: "verbPointer", phase: "down", target: { kind: "verb", verbIndex: 1 } }));
   assertEquals(model.mode, { type: "verbMenu", selectedIndex: 1 });
 
-  let result = transition(model, { type: "verbPointer", phase: "up", hotspotIndex: 2 });
+  let result = transition(model, { type: "verbPointer", phase: "up", target: { kind: "verb", verbIndex: 2 } });
   model = result.model;
   assertEquals(model.mode, { type: "verbMenu", selectedIndex: 2 });
   assertEquals(result.effects, [{ type: "render" }]);
 
-  ({ model } = transition(model, { type: "verbPointer", phase: "down", hotspotIndex: 2 }));
-  result = transition(model, { type: "verbPointer", phase: "up", hotspotIndex: 2 });
+  ({ model } = transition(model, { type: "verbPointer", phase: "down", target: { kind: "verb", verbIndex: 2 } }));
+  result = transition(model, { type: "verbPointer", phase: "up", target: { kind: "verb", verbIndex: 2 } });
   assertEquals(result.model.mode, { type: "playing" });
   assertEquals(result.effects, [{ type: "runPlayerCommand", command: { type: "interact", verb: "open" } }]);
+});
+
+Deno.test("transition confirms pointer weapon buttons only when down and up hit the same button", () => {
+  let model = transition(createGameModel("Level 1"), {
+    type: "mapLoaded",
+    mapName: "Level 1",
+  }).model;
+
+  ({ model } = transition(model, { type: "gameCommand", command: { type: "action" } }));
+  assertEquals(model.mode, { type: "verbMenu", selectedIndex: 0 });
+
+  ({ model } = transition(model, { type: "verbPointer", phase: "down", target: { kind: "weapon", slot: 2 } }));
+  let result = transition(model, { type: "verbPointer", phase: "up", target: { kind: "weapon", slot: 3 } });
+  model = result.model;
+  assertEquals(model.mode, { type: "verbMenu", selectedIndex: 0 });
+  assertEquals(result.effects, []);
+
+  ({ model } = transition(model, { type: "verbPointer", phase: "down", target: { kind: "weapon", slot: 2 } }));
+  result = transition(model, { type: "verbPointer", phase: "up", target: { kind: "weapon", slot: 2 } });
+  assertEquals(result.model.mode, { type: "playing" });
+  assertEquals(result.effects, [{ type: "runPlayerCommand", command: { type: "selectWeapon", slot: 2 } }]);
 });
 
 Deno.test("transition passes smart action through as a player command", () => {
