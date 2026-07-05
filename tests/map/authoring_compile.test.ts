@@ -648,12 +648,38 @@ function tiledMap(overrides: TiledMapOverrides = {}): TiledMap {
         name: "terrain",
         tilecount: TERRAIN_CATALOG.length,
         tiles: [
-          { id: 0, properties: [property("terrainId", 0), property("blocking", false)] },
+          {
+            id: 0,
+            properties: [
+              property("terrainId", 0),
+              property("blocking", false),
+              property("blocksSight", false),
+              property("blocksAttacks", false),
+              property("floorTexture", "pack1:0,0"),
+              property("ceilingTexture", "pack1:0,0"),
+            ],
+          },
           { id: 2, properties: [property("terrainId", 999), property("blocking", false)] },
-          { id: 5, properties: [property("terrainId", 5), property("blocking", false)] },
+          {
+            id: 5,
+            properties: [
+              property("terrainId", 5),
+              property("blocking", false),
+              property("blocksSight", false),
+              property("blocksAttacks", false),
+              property("floorTexture", "pack1:0,1"),
+              property("ceilingTexture", "pack1:0,1"),
+            ],
+          },
           {
             id: DEFAULT_WALL_TERRAIN_ID,
-            properties: [property("terrainId", DEFAULT_WALL_TERRAIN_ID), property("blocking", true)],
+            properties: [
+              property("terrainId", DEFAULT_WALL_TERRAIN_ID),
+              property("blocking", true),
+              property("blocksSight", true),
+              property("blocksAttacks", true),
+              property("wallTexture", "pack1:0,0"),
+            ],
           },
           {
             id: DEFAULT_BARS_TERRAIN_ID,
@@ -664,6 +690,8 @@ function tiledMap(overrides: TiledMapOverrides = {}): TiledMap {
               property("blocksSight", false),
               property("blocksAttacks", true),
               property("barrierTexture", "bars"),
+              property("floorTexture", "pack1:0,0"),
+              property("ceilingTexture", "pack1:0,0"),
             ],
           },
         ],

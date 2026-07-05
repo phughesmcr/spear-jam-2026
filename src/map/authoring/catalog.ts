@@ -14,6 +14,8 @@ import {
   BARRIER_TERRAIN_COUNT,
   PALETTE_KEYS,
   TERRAIN_CATALOG_TILE_COLUMNS,
+  TEXTURE_PACK_COLUMNS,
+  TEXTURE_PACK_ROWS,
   TEXTURE_TERRAIN_COUNT,
 } from "@/src/map/terrain_palettes.ts";
 import type { EntityPrefab } from "@/src/map/map.ts";
@@ -40,13 +42,10 @@ export const BARRIER_TILESET_IMAGE = "barriers.png";
 export const FLOOR_TILESET_FIRST_GID = 1;
 export const WALL_TILESET_FIRST_GID = FLOOR_TILESET_FIRST_GID + TEXTURE_TERRAIN_COUNT;
 export const BARRIER_TILESET_FIRST_GID = WALL_TILESET_FIRST_GID + TEXTURE_TERRAIN_COUNT;
-export const TERRAIN_TILESET_FIRST_GID = FLOOR_TILESET_FIRST_GID;
 export const ENTITY_MARKERS_FIRST_GID = BARRIER_TILESET_FIRST_GID + BARRIER_TERRAIN_COUNT;
 export const TERRAIN_PASSABLE_TILE_ID = 0;
 export const TERRAIN_BLOCKING_TILE_ID = WALL_TILESET_FIRST_GID - 1;
 export const TEXTURE_PACK_TILE_SIZE = 128;
-export const TEXTURE_PACK_COLUMNS = 5;
-export const TEXTURE_PACK_ROWS = 4;
 export const PNG_SIGNATURE = [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a] as const;
 
 export type TexturePackDefinition = {

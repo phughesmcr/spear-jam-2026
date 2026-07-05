@@ -1,4 +1,4 @@
-import type { TerrainTile, TexturePack } from "@/src/map/map.ts";
+import type { TerrainTile, TexturePack, TexturePackRef } from "@/src/map/map.ts";
 
 export const SKY_CEILING_TEXTURE = "sky";
 
@@ -61,12 +61,53 @@ export const PALETTE_KEYS = [
 
 export type PaletteKey = (typeof PALETTE_KEYS)[number];
 
-function textureRefs(): readonly `${TexturePack}:${number},${number}`[] {
+export function isTexturePack(value: string): value is TexturePack {
+  return (TEXTURE_PACKS as readonly string[]).includes(value);
+}
+
+export function isTexturePackRef(value: string): value is TexturePackRef {
+  try {
+    parseTexturePackRef(value);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+export function parseTexturePackRef(value: string): {
+  readonly pack: TexturePack;
+  readonly column: number;
+  readonly row: number;
+} {
+  const [pack, cell, extra] = value.split(":");
+  if (pack === undefined || cell === undefined || extra !== undefined || !isTexturePack(pack)) {
+    throw new Error(`Unknown texture pack ref: ${value}`);
+  }
+
+  const [columnText, rowText, extraCell] = cell.split(",");
+  const column = Number(columnText);
+  const row = Number(rowText);
+  if (
+    extraCell !== undefined ||
+    !Number.isInteger(column) ||
+    !Number.isInteger(row) ||
+    column < 0 ||
+    row < 0 ||
+    column >= TEXTURE_PACK_COLUMNS ||
+    row >= TEXTURE_PACK_ROWS
+  ) {
+    throw new Error(`Texture pack ref "${value}" must address a ${TEXTURE_PACK_COLUMNS}x${TEXTURE_PACK_ROWS} grid.`);
+  }
+
+  return { pack, column, row };
+}
+
+function textureRefs(): readonly TexturePackRef[] {
   return TEXTURE_PACKS.flatMap((pack) =>
     Array.from(
       { length: TEXTURE_PACK_TILE_COUNT },
       (_value, tileId) =>
-        `${pack}:${tileId % TEXTURE_PACK_COLUMNS},${Math.floor(tileId / TEXTURE_PACK_COLUMNS)}` as const,
+        `${pack}:${tileId % TEXTURE_PACK_COLUMNS},${Math.floor(tileId / TEXTURE_PACK_COLUMNS)}` as TexturePackRef,
     )
   );
 }

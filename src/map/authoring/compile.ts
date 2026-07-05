@@ -203,25 +203,45 @@ function terrainIdFromGid(gid: number, registry: TilesetRegistry, context: strin
     throw new Error(`${context}: Property "terrainKind" does not match terrainId ${terrainId}.`);
   }
   const blocking = optionalBoolean(properties, "blocking", context);
-  if ((blocking ?? false) !== (catalogTile.kind !== "floor")) {
+  if (blocking !== (catalogTile.kind !== "floor")) {
     throw new Error(`${context}: Property "blocking" does not match terrainId ${terrainId}.`);
   }
   const blocksSight = optionalBoolean(properties, "blocksSight", context);
-  if (blocksSight !== undefined && blocksSight !== (catalogTile.kind === "wall")) {
+  if (blocksSight !== (catalogTile.kind === "wall")) {
     throw new Error(`${context}: Property "blocksSight" does not match terrainId ${terrainId}.`);
   }
   const blocksAttacks = optionalBoolean(properties, "blocksAttacks", context);
-  if (blocksAttacks !== undefined && blocksAttacks !== (catalogTile.kind !== "floor")) {
+  if (blocksAttacks !== (catalogTile.kind !== "floor")) {
     throw new Error(`${context}: Property "blocksAttacks" does not match terrainId ${terrainId}.`);
   }
-  const barrierTexture = optionalString(properties, "barrierTexture", context);
-  if (
-    barrierTexture !== undefined &&
-    (catalogTile.kind !== "barrier" || barrierTexture !== catalogTile.barrier_texture)
-  ) {
-    throw new Error(`${context}: Property "barrierTexture" does not match terrainId ${terrainId}.`);
+
+  switch (catalogTile.kind) {
+    case "floor":
+      requireMatchingTerrainString(properties, "floorTexture", catalogTile.floor_texture, terrainId, context);
+      requireMatchingTerrainString(properties, "ceilingTexture", catalogTile.ceiling_texture, terrainId, context);
+      break;
+    case "wall":
+      requireMatchingTerrainString(properties, "wallTexture", catalogTile.wall_texture, terrainId, context);
+      break;
+    case "barrier":
+      requireMatchingTerrainString(properties, "barrierTexture", catalogTile.barrier_texture, terrainId, context);
+      requireMatchingTerrainString(properties, "floorTexture", catalogTile.floor_texture, terrainId, context);
+      requireMatchingTerrainString(properties, "ceilingTexture", catalogTile.ceiling_texture, terrainId, context);
+      break;
   }
   return terrainId;
+}
+
+function requireMatchingTerrainString(
+  properties: PropertyMap,
+  name: string,
+  expected: string,
+  terrainId: number,
+  context: string,
+): void {
+  if (optionalString(properties, name, context) !== expected) {
+    throw new Error(`${context}: Property "${name}" does not match terrainId ${terrainId}.`);
+  }
 }
 
 function compileEntities(

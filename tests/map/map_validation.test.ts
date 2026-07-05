@@ -1,9 +1,9 @@
 import { assert, assertEquals } from "@std/assert";
-import { createGameMap, KeyColor, SKY_CEILING_TEXTURE, TexturePack, VICTORY_GOTO } from "@/src/map/map.ts";
+import { createGameMap, KeyColor, SKY_CEILING_TEXTURE, VICTORY_GOTO } from "@/src/map/map.ts";
 import type { TerrainTile } from "@/src/map/map.ts";
 import { GAME_MAPS } from "@/src/map/maps.ts";
 import { validateGameMaps } from "@/src/map/map_validation.ts";
-import { DEFAULT_BARS_TERRAIN_ID, DEFAULT_WALL_TERRAIN_ID } from "@/src/map/terrain_palettes.ts";
+import { DEFAULT_BARS_TERRAIN_ID, DEFAULT_WALL_TERRAIN_ID, isTexturePackRef } from "@/src/map/terrain_palettes.ts";
 
 Deno.test("authored game maps pass softlock validation", () => {
   assertEquals(validateGameMaps(GAME_MAPS), []);
@@ -72,18 +72,14 @@ Deno.test("map validation rejects overlapping blocking entities", () => {
 });
 
 function terrainTextures(tile: TerrainTile): readonly string[] {
-  if (tile.kind === "wall") return tile.wall_texture === undefined ? [] : [tile.wall_texture];
+  if (tile.kind === "wall") return [tile.wall_texture];
   return [tile.floor_texture, tile.ceiling_texture];
 }
 
 function terrainTexturesAreValid(tile: TerrainTile): boolean {
-  if (tile.kind === "wall") return tile.wall_texture === undefined || isTexturePackRef(tile.wall_texture);
+  if (tile.kind === "wall") return isTexturePackRef(tile.wall_texture);
   return isTexturePackRef(tile.floor_texture) &&
     (isTexturePackRef(tile.ceiling_texture) || tile.ceiling_texture === SKY_CEILING_TEXTURE);
-}
-
-function isTexturePackRef(texture: string): boolean {
-  return Object.values(TexturePack).some((pack) => texture.startsWith(`${pack}:`));
 }
 
 function paletteTerrainTextures(palette: readonly TerrainTile[]): {
@@ -96,7 +92,7 @@ function paletteTerrainTextures(palette: readonly TerrainTile[]): {
   const walls = new Set<string>();
   for (const tile of palette) {
     if (tile.kind === "wall") {
-      if (tile.wall_texture !== undefined) walls.add(tile.wall_texture);
+      walls.add(tile.wall_texture);
       continue;
     }
     floors.add(tile.floor_texture);

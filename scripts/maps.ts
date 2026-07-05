@@ -26,11 +26,8 @@ import {
   TERRAIN_ATLAS_TILE_COLUMNS,
   TERRAIN_BLOCKING_TILE_ID,
   TERRAIN_PASSABLE_TILE_ID,
-  TERRAIN_TILESET_FIRST_GID,
   TERRAIN_TILESETS_DIR,
-  TEXTURE_PACK_COLUMNS,
   TEXTURE_PACK_DEFINITIONS,
-  TEXTURE_PACK_ROWS,
   TEXTURE_PACK_TILE_SIZE,
   TILED_PROJECT_AUTOMAP_RULES_FILE,
   TILED_PROJECT_COMMANDS,
@@ -44,9 +41,16 @@ import type { TiledProjectCommand } from "@/src/map/authoring/catalog.ts";
 import type { TiledMap, TiledProperty, TiledTemplate, TiledTileset } from "@/src/map/authoring/tiled_types.ts";
 import { BarrierTexture } from "@/src/map/map.ts";
 import type { EntityDef, TerrainTile, TexturePackRef } from "@/src/map/map.ts";
-import { PALETTE_KEYS, TERRAIN_CATALOG } from "@/src/map/terrain_palettes.ts";
-import type { PaletteKey } from "@/src/map/terrain_palettes.ts";
 import { validateGameMaps } from "@/src/map/map_validation.ts";
+import {
+  isTexturePackRef,
+  PALETTE_KEYS,
+  parseTexturePackRef,
+  TERRAIN_CATALOG,
+  TEXTURE_PACK_COLUMNS,
+  TEXTURE_PACK_ROWS,
+} from "@/src/map/terrain_palettes.ts";
+import type { PaletteKey } from "@/src/map/terrain_palettes.ts";
 
 type GeneratedMap = CompiledTiledMap & {
   readonly sourcePath: string;
@@ -193,8 +197,6 @@ async function syncAuthoring(): Promise<void> {
     }
   }
 
-  await syncAuthoredMapTerrainTilesets();
-
   for await (const entry of Deno.readDir(TERRAIN_TILESETS_DIR)) {
     if (!entry.isFile) continue;
     const path = `${TERRAIN_TILESETS_DIR}/${entry.name}`;
@@ -206,115 +208,6 @@ async function syncAuthoring(): Promise<void> {
   } catch (error) {
     if (!(error instanceof Deno.errors.NotFound)) throw error;
   }
-}
-
-async function syncAuthoredMapTerrainTilesets(): Promise<void> {
-  for await (const entry of Deno.readDir(MAPS_DIR)) {
-    if (!entry.isFile || !entry.name.endsWith(".tiled.json")) continue;
-    const path = `${MAPS_DIR}/${entry.name}`;
-    const map = parseJson<TiledMap>(path, await Deno.readTextFile(path));
-    const existingTilesets = map.tilesets ?? [];
-    const terrainTileset = existingTilesets.find((tileset) => tileset.firstgid === TERRAIN_TILESET_FIRST_GID);
-    const entityTileset = existingTilesets.find((tileset) => tileset.source === ENTITY_MARKERS_TILESET);
-    const terrainIdMap = terrainTileset === undefined ?
-      new Map<number, number>() :
-      await terrainIdMigrationMap(terrainTileset);
-    const migratedLayers = terrainTileset === undefined ?
-      map.layers :
-      migrateTerrainLayerGids(map.layers, terrainTileset, terrainIdMap);
-    const migratedObjectLayers = entityTileset === undefined ?
-      migratedLayers :
-      migrateEntityObjectGids(migratedLayers, entityTileset.firstgid, entityMarkersTilesetReference().firstgid);
-    const nonTerrainTilesets = existingTilesets.filter((tileset) =>
-      tileset.firstgid !== TERRAIN_TILESET_FIRST_GID &&
-      tileset.firstgid !== FLOOR_TILESET_FIRST_GID &&
-      tileset.firstgid !== WALL_TILESET_FIRST_GID &&
-      tileset.firstgid !== BARRIER_TILESET_FIRST_GID &&
-      tileset.source !== ENTITY_MARKERS_TILESET
-    );
-    const nextTilesets = [
-      floorTilesetReference(),
-      wallTilesetReference(),
-      barrierTilesetReference(),
-      entityMarkersTilesetReference(),
-      ...nonTerrainTilesets,
-    ];
-    if (JSON.stringify(existingTilesets) === JSON.stringify(nextTilesets) && migratedObjectLayers === map.layers) {
-      continue;
-    }
-    await Deno.writeTextFile(path, jsonSource({ ...map, layers: migratedObjectLayers, tilesets: nextTilesets }));
-  }
-}
-
-async function terrainIdMigrationMap(
-  terrainTileset: NonNullable<TiledMap["tilesets"]>[number],
-): Promise<ReadonlyMap<number, number>> {
-  if (
-    terrainTileset.source === floorTilesetReference().source || terrainTileset.source === wallTilesetReference().source
-  ) {
-    return new Map();
-  }
-  const source = terrainTileset.source === undefined ? terrainTileset : parseJson<TiledTileset>(
-    `${MAPS_DIR}/${terrainTileset.source}`,
-    await Deno.readTextFile(`${MAPS_DIR}/${terrainTileset.source}`),
-  );
-  return new Map((source.tiles ?? []).map((tile) => [tile.id, globalTerrainIdForTile(tile)]));
-}
-
-function globalTerrainIdForTile(tile: NonNullable<TiledTileset["tiles"]>[number]): number {
-  const terrainKind = tile.properties?.find((property) => property.name === "terrainKind")?.value;
-  const blocking = tile.properties?.find((property) => property.name === "blocking")?.value === true;
-  const kind = terrainKind === "barrier" || terrainKind === "wall" || terrainKind === "floor" ?
-    terrainKind :
-    blocking ?
-    "wall" :
-    "floor";
-  const textureProperty = kind === "barrier" ? "barrierTexture" : kind === "wall" ? "wallTexture" : "floorTexture";
-  const texture = tile.properties?.find((property) => property.name === textureProperty)?.value;
-  if (typeof texture !== "string") return tile.id;
-  const terrain = TERRAIN_CATALOG.find((candidate) => {
-    if (candidate.kind !== kind) return false;
-    if (candidate.kind === "barrier") return candidate.barrier_texture === texture;
-    if (candidate.kind === "wall") return candidate.wall_texture === texture;
-    return candidate.floor_texture === texture;
-  });
-  return terrain?.id ?? tile.id;
-}
-
-function migrateTerrainLayerGids(
-  layers: readonly TiledMap["layers"][number][],
-  terrainTileset: NonNullable<TiledMap["tilesets"]>[number],
-  terrainIdMap: ReadonlyMap<number, number>,
-): readonly TiledMap["layers"][number][] {
-  const firstgid = terrainTileset.firstgid;
-  return layers.map((layer) => {
-    if (layer.name !== "terrain" || layer.data === undefined) return layer;
-    return {
-      ...layer,
-      data: layer.data.map((gid) => {
-        if (gid === 0) return gid;
-        const localId = gid - firstgid;
-        return (terrainIdMap.get(localId) ?? localId) + 1;
-      }),
-    };
-  });
-}
-
-function migrateEntityObjectGids(
-  layers: readonly TiledMap["layers"][number][],
-  oldFirstGid: number,
-  nextFirstGid: number,
-): readonly TiledMap["layers"][number][] {
-  if (oldFirstGid === nextFirstGid) return layers;
-  return layers.map((layer) => {
-    if (layer.name !== "objects" || layer.objects === undefined) return layer;
-    return {
-      ...layer,
-      objects: layer.objects.map((object) =>
-        object.gid === undefined ? object : { ...object, gid: object.gid - oldFirstGid + nextFirstGid }
-      ),
-    };
-  });
 }
 
 async function createNewMap(args: readonly string[]): Promise<void> {
@@ -574,7 +467,7 @@ function barrierTerrainTiles(): readonly TerrainTile[] {
 
 function terrainDisplayTexture(tile: TerrainTile): TexturePackRef {
   if (tile.kind === "wall") {
-    if (tile.wall_texture === undefined || !isTexturePackRef(tile.wall_texture)) {
+    if (!isTexturePackRef(tile.wall_texture)) {
       throw new Error(`Terrain tile ${tile.id} must use a texture pack wall texture for Tiled authoring.`);
     }
     return tile.wall_texture;
@@ -598,7 +491,7 @@ function terrainTileProperties(tile: TerrainTile): readonly TiledProperty[] {
       return [
         property("blocksSight", true),
         property("blocksAttacks", true),
-        ...(tile.wall_texture === undefined ? [] : [property("wallTexture", tile.wall_texture, "TextureRef")]),
+        property("wallTexture", tile.wall_texture, "TextureRef"),
       ];
     case "barrier":
       return [
@@ -808,37 +701,6 @@ function setTile(data: number[], width: number, x: number, y: number, gid: numbe
 
 function terrainGid(terrainId: number): number {
   return terrainId + 1;
-}
-
-function isTexturePackRef(value: string): value is TexturePackRef {
-  try {
-    parseTexturePackRef(value);
-    return true;
-  } catch {
-    return false;
-  }
-}
-
-function parseTexturePackRef(value: string): { readonly pack: string; readonly column: number; readonly row: number } {
-  const [pack, cell, extra] = value.split(":");
-  const [columnText, rowText, extraCell] = cell?.split(",") ?? [];
-  const column = Number(columnText);
-  const row = Number(rowText);
-  const knownPack = TEXTURE_PACK_DEFINITIONS.some((definition) => definition.pack === pack);
-  if (
-    !knownPack ||
-    extra !== undefined ||
-    extraCell !== undefined ||
-    !Number.isInteger(column) ||
-    !Number.isInteger(row) ||
-    column < 0 ||
-    row < 0 ||
-    column >= TEXTURE_PACK_COLUMNS ||
-    row >= TEXTURE_PACK_ROWS
-  ) {
-    throw new Error(`Invalid texture pack ref "${value}".`);
-  }
-  return { pack: pack!, column, row };
 }
 
 function automapFloorTilesetReference(): ReturnType<typeof floorTilesetReference> {

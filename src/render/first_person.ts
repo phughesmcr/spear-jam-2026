@@ -42,6 +42,7 @@ import type {
   TexturePackRef,
   WallTexture,
 } from "@/src/map/map.ts";
+import { parseTexturePackRef, TEXTURE_PACK_COLUMNS, TEXTURE_PACK_ROWS } from "@/src/map/terrain_palettes.ts";
 import { createImageAsset, loadedImage, preloadImageAssets } from "@/src/render/assets.ts";
 import type { ImageAsset } from "@/src/render/assets.ts";
 import {
@@ -122,9 +123,6 @@ type TexturePackAsset = ManagedAsset & {
   readonly columns: number;
   readonly rows: number;
 };
-
-const TEXTURE_PACK_COLUMNS = 5;
-const TEXTURE_PACK_ROWS = 4;
 
 const WALL_TEX = 0;
 const DOOR_TEX = 1;
@@ -704,52 +702,11 @@ function bakeLoadedAssets(
   }
 }
 
-function isTexturePack(value: string): value is TexturePack {
-  return value === TexturePack.Pack1 || value === TexturePack.Pack2 || value === TexturePack.Pack3;
-}
-
-function parseTexturePackRef(
-  texture: TexturePackRef,
-  texturePackAssets: Readonly<Record<TexturePack, TexturePackAsset>>,
-): {
-  readonly pack: TexturePack;
-  readonly column: number;
-  readonly row: number;
-} {
-  const packParts = texture.split(":");
-  const packText = packParts[0];
-  const cellText = packParts[1];
-  if (packParts.length !== 2 || packText === undefined || cellText === undefined || !isTexturePack(packText)) {
-    throw new Error(`Unknown texture pack ref: ${texture}`);
-  }
-
-  const cellParts = cellText.split(",");
-  const columnText = cellParts[0];
-  const rowText = cellParts[1];
-  const column = Number(columnText);
-  const row = Number(rowText);
-  const entry = texturePackAssets[packText];
-  if (
-    cellParts.length !== 2 ||
-    !Number.isInteger(column) ||
-    !Number.isInteger(row) ||
-    column < 0 ||
-    row < 0 ||
-    column >= entry.columns ||
-    row >= entry.rows
-  ) {
-    throw new Error(`Texture pack ref "${texture}" must address a ${entry.columns}x${entry.rows} grid.`);
-  }
-
-  return { pack: packText, column, row };
-}
-
 function texturePackFrame(
   texture: TexturePackRef,
   entry: TexturePackAsset,
-  texturePackAssets: Readonly<Record<TexturePack, TexturePackAsset>>,
 ): SourceFrame {
-  const { column, row } = parseTexturePackRef(texture, texturePackAssets);
+  const { column, row } = parseTexturePackRef(texture);
   return [column / entry.columns, row / entry.rows, 1 / entry.columns, 1 / entry.rows];
 }
 
@@ -763,17 +720,17 @@ function texturePackSlot(
   const existing = slots.get(texture);
   if (existing !== undefined) return existing;
 
-  const { pack } = parseTexturePackRef(texture, state.assetCatalog.texturePackAssets);
+  const { pack } = parseTexturePackRef(texture);
   const slot = (layer === "walls" ? FIRST_PACK_WALL_TEX : FIRST_PACK_PLANE_TEX) + slots.size;
   const entry = state.assetCatalog.texturePackAssets[pack];
   slots.set(texture, slot);
   state.atlas[layer][slot] = fallback;
-  addBakeTarget(entry, { layer, slot, frame: texturePackFrame(texture, entry, state.assetCatalog.texturePackAssets) });
+  addBakeTarget(entry, { layer, slot, frame: texturePackFrame(texture, entry) });
   return slot;
 }
 
-function wallTextureSlot(state: FirstPersonRendererState, texture: WallTexture | undefined): number {
-  if (texture === undefined || texture === "wall") return WALL_TEX;
+function wallTextureSlot(state: FirstPersonRendererState, texture: WallTexture): number {
+  if (texture === "wall") return WALL_TEX;
   return texturePackSlot(state, "walls", texture, state.atlas.walls[WALL_TEX]!);
 }
 
@@ -808,7 +765,7 @@ function sceneForMapForState(state: FirstPersonRendererState, map: GameMap): Ray
       const terrain = terrainAt(map, x, y);
       // Missing terrain blocks movement, so render it as wall to match.
       if (terrain === undefined) {
-        scene.walls[cell] = wallTextureSlot(state, undefined) + 1;
+        scene.walls[cell] = wallTextureSlot(state, "wall") + 1;
         continue;
       }
       if (terrain.kind === "wall") {
@@ -924,7 +881,7 @@ function secretWallTextureSlot(state: FirstPersonRendererState, map: GameMap, x:
       return wallTextureSlot(state, terrain.wall_texture);
     }
   }
-  return wallTextureSlot(state, undefined);
+  return wallTextureSlot(state, "wall");
 }
 
 function addTerrainBarriers(state: FirstPersonRendererState, scene: RaycastScene): void {

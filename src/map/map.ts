@@ -49,7 +49,7 @@ export type WallTile = {
   kind: "wall";
   id: number;
   color: string;
-  wall_texture?: WallTexture;
+  wall_texture: WallTexture;
 };
 
 export type FloorTile = {
