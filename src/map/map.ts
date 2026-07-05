@@ -1,9 +1,13 @@
-import type { EntityDef } from "@/src/map/entity_content.ts";
+import { KeyColor as ContentKeyColor } from "@/src/map/entity_content.ts";
+import type { DoorSlide, EntityDef, KeyColor as KeyColorType } from "@/src/map/entity_content.ts";
 import { SKY_CEILING_TEXTURE, TERRAIN_CATALOG } from "@/src/map/terrain_palettes.ts";
 
+export const KeyColor = ContentKeyColor;
+export type KeyColor = KeyColorType;
 export type {
   DecorationDef,
   DoorDef,
+  DoorSlide,
   EnemyDef,
   EntityDef,
   EntityDefFor,
@@ -11,6 +15,9 @@ export type {
   ItemDef,
   KeyDef,
   LightDef,
+  MapDecorationKind,
+  MapEnemyArchetype,
+  MapItemKind,
   NpcDef,
   PlayerDef,
   UplinkCodeDef,
@@ -66,29 +73,21 @@ export type TerrainTile = BarrierTile | FloorTile | WallTile;
 
 export const DEFAULT_TERRAIN_PALETTE: readonly TerrainTile[] = TERRAIN_CATALOG;
 
-export const KeyColor = {
-  Red: "red",
-  Blue: "blue",
-  Yellow: "yellow",
-} as const;
-
-export type KeyColor = (typeof KeyColor)[keyof typeof KeyColor];
-
-const KEY_COLOR_CODES: Record<KeyColor, number> = {
-  [KeyColor.Red]: 1,
-  [KeyColor.Blue]: 2,
-  [KeyColor.Yellow]: 3,
+const KEY_COLOR_CODES: Record<KeyColorType, number> = {
+  [ContentKeyColor.Red]: 1,
+  [ContentKeyColor.Blue]: 2,
+  [ContentKeyColor.Yellow]: 3,
 };
 
-const KEY_COLORS_BY_CODE = new Map<number, KeyColor>(
-  Object.entries(KEY_COLOR_CODES).map(([color, code]) => [code, color as KeyColor]),
+const KEY_COLORS_BY_CODE = new Map<number, KeyColorType>(
+  Object.entries(KEY_COLOR_CODES).map(([color, code]) => [code, color as KeyColorType]),
 );
 
-export function keyColorCode(color: KeyColor): number {
+export function keyColorCode(color: KeyColorType): number {
   return KEY_COLOR_CODES[color];
 }
 
-export function keyColorForCode(code: number): KeyColor {
+export function keyColorForCode(code: number): KeyColorType {
   const color = KEY_COLORS_BY_CODE.get(code);
   if (color === undefined) throw new Error(`Unknown key color code: ${code}`);
   return color;
@@ -102,8 +101,6 @@ export const VICTORY_GOTO = "victory";
  * door's span (east/west for doors in north-south walls, north/south for
  * doors in east-west walls); invalid directions fall back to the default.
  */
-export type DoorSlide = "north" | "east" | "south" | "west" | "up" | "down";
-
 const DOOR_SLIDE_CODES: Readonly<Record<DoorSlide, number>> = {
   north: 1,
   east: 2,

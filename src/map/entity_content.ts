@@ -1,13 +1,6 @@
 import { z } from "zod";
 import { DialogueTreeId, type DialogueTreeId as DialogueTreeIdType } from "@/src/dialogue/dialogue.ts";
 import {
-  DecorationKind,
-  type DecorationKind as DecorationKindType,
-  ItemKind,
-  type ItemKind as ItemKindType,
-} from "@/src/ecs/components.ts";
-import { EnemyArchetype, type EnemyArchetype as EnemyArchetypeType } from "@/src/ecs/enemy_catalog.ts";
-import {
   AttackFacingRequirement,
   type AttackFacingRequirement as AttackFacingRequirementType,
   AttackPattern,
@@ -16,7 +9,7 @@ import {
   type AttackTargetMode as AttackTargetModeType,
 } from "@/src/game/attack.ts";
 import type { AttackDef } from "@/src/game/attack.ts";
-import { ExamineTextId, type ExamineTextId as ExamineTextIdType } from "@/src/game/examine.ts";
+import { ExamineTextId, type ExamineTextId as ExamineTextIdType } from "@/src/game/examine_content.ts";
 import { DisplayName, type DisplayName as DisplayNameType } from "@/src/game/names.ts";
 import {
   StoryEventId,
@@ -24,9 +17,55 @@ import {
   StoryTargetId,
   type StoryTargetId as StoryTargetIdType,
 } from "@/src/game/story.ts";
-import { type DoorSlide, KeyColor, type KeyColor as KeyColorType } from "@/src/map/map.ts";
 
-const DOOR_SLIDES = ["north", "east", "south", "west", "up", "down"] as const satisfies readonly DoorSlide[];
+export const KeyColor = {
+  Red: "red",
+  Blue: "blue",
+  Yellow: "yellow",
+} as const;
+export type KeyColor = (typeof KeyColor)[keyof typeof KeyColor];
+
+export type DoorSlide = "north" | "east" | "south" | "west" | "up" | "down";
+export const DOOR_SLIDES = ["north", "east", "south", "west", "up", "down"] as const satisfies readonly DoorSlide[];
+
+export const MapItemKind = {
+  HealthPatch: 1,
+  PistolAmmo: 2,
+  CannonAmmo: 3,
+} as const;
+export type MapItemKind = (typeof MapItemKind)[keyof typeof MapItemKind];
+
+export const MapDecorationKind = {
+  ServerPile: 1,
+  Cyborg: 2,
+  CeilingHook: 3,
+  CeilingLight: 4,
+  CeilingWires: 5,
+} as const;
+export type MapDecorationKind = (typeof MapDecorationKind)[keyof typeof MapDecorationKind];
+
+export const MapEnemyArchetype = {
+  MeleeDog: 1,
+  Gunslinger: 2,
+  NetworkNeophyte: 3,
+  SystemSentinel: 4,
+  AgenticAcolyte: 5,
+} as const;
+export type MapEnemyArchetype = (typeof MapEnemyArchetype)[keyof typeof MapEnemyArchetype];
+
+const MAP_ENEMY_ARCHETYPE_AUTHORING_KEYS: Readonly<Record<MapEnemyArchetype, string>> = {
+  [MapEnemyArchetype.MeleeDog]: "meleeDog",
+  [MapEnemyArchetype.Gunslinger]: "gunslinger",
+  [MapEnemyArchetype.NetworkNeophyte]: "networkNeophyte",
+  [MapEnemyArchetype.SystemSentinel]: "systemSentinel",
+  [MapEnemyArchetype.AgenticAcolyte]: "agenticAcolyte",
+};
+
+export const MAP_ENEMY_ARCHETYPE_CODES = Object.values(MapEnemyArchetype);
+
+export function mapEnemyArchetypeAuthoringKey(archetype: MapEnemyArchetype): string {
+  return MAP_ENEMY_ARCHETYPE_AUTHORING_KEYS[archetype];
+}
 
 const INTEGER_SCHEMA = z.number().int();
 const UINT8_SCHEMA = INTEGER_SCHEMA.min(0).max(255);
@@ -34,7 +73,7 @@ const INT8_SCHEMA = INTEGER_SCHEMA.min(-128).max(127);
 const UINT16_SCHEMA = INTEGER_SCHEMA.min(0).max(65535);
 const NON_NEGATIVE_INTEGER_SCHEMA = INTEGER_SCHEMA.nonnegative();
 const DIRECTION_SCHEMA = INTEGER_SCHEMA.min(0).max(3);
-const KEY_COLOR_SCHEMA = z.enum([KeyColor.Red, KeyColor.Blue, KeyColor.Yellow]) satisfies z.ZodType<KeyColorType>;
+const KEY_COLOR_SCHEMA = z.enum([KeyColor.Red, KeyColor.Blue, KeyColor.Yellow]) satisfies z.ZodType<KeyColor>;
 const DOOR_SLIDE_SCHEMA = z.enum(DOOR_SLIDES);
 const LIGHT_COLOR_SCHEMA = z.string().regex(/^#[0-9a-fA-F]{6}$/);
 const DISPLAY_NAME_SCHEMA = numberEnumSchema<DisplayNameType>(Object.values(DisplayName), "displayName");
@@ -44,11 +83,10 @@ const DIALOGUE_TREE_ID_SCHEMA = numberEnumSchema<DialogueTreeIdType>(
   Object.values(DialogueTreeId),
   "dialogueTreeId",
 );
-const ENEMY_ARCHETYPE_SCHEMA = numberEnumSchema<EnemyArchetypeType>(Object.values(EnemyArchetype), "archetype");
+const ENEMY_ARCHETYPE_SCHEMA = numberEnumSchema<MapEnemyArchetype>(MAP_ENEMY_ARCHETYPE_CODES, "archetype");
 const EXAMINE_TEXT_ID_SCHEMA = numberEnumSchema<ExamineTextIdType>(Object.values(ExamineTextId), "examineTextId");
-const GENERIC_ITEM_KINDS = [ItemKind.HealthPatch, ItemKind.PistolAmmo, ItemKind.CannonAmmo] as const;
-const ITEM_KIND_SCHEMA = numberEnumSchema<ItemKindType>(GENERIC_ITEM_KINDS, "item");
-const DECORATION_KIND_SCHEMA = numberEnumSchema<DecorationKindType>(Object.values(DecorationKind), "decoration");
+const ITEM_KIND_SCHEMA = numberEnumSchema<MapItemKind>(Object.values(MapItemKind), "item");
+const DECORATION_KIND_SCHEMA = numberEnumSchema<MapDecorationKind>(Object.values(MapDecorationKind), "decoration");
 const ATTACK_FACING_REQUIREMENT_SCHEMA = numberEnumSchema<AttackFacingRequirementType>(
   Object.values(AttackFacingRequirement),
   "attack.requiresFacing",
