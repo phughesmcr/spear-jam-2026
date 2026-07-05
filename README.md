@@ -18,6 +18,11 @@
 - [Aquilarius' Retro Textures (CC0)](https://aquilarius.itch.io/aquilariusrt)
 - Sprites/HUD and titlescreen generated with GPT Image 2
 
+**Sound Assets:**
+
+- [RPG Sound Pack](https://opengameart.org/content/rpg-sound-pack)
+- [www.kenney.nl - 50 RPG Sound Effects](https://opengameart.org/content/50-rpg-sound-effects)
+
 **Tools:**
 
 - [Tiled](https://www.mapeditor.org/)
