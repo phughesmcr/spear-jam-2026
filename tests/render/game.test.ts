@@ -11,7 +11,7 @@ const FULL_CANVAS = { width: 720, height: 1280 };
 Deno.test("renderGameFrame draws a visible first-person vignette over the play area", () => {
   const ctx = new FakeGameContext();
 
-  renderGameFrame(
+  const result = renderGameFrame(
     ctx as unknown as CanvasRenderingContext2D,
     FULL_CANVAS,
     fakeSession(),
@@ -21,7 +21,10 @@ Deno.test("renderGameFrame draws a visible first-person vignette over the play a
     "firstPerson",
     "idle",
     fakeFirstPersonRenderer(),
+    {},
+    0,
   );
+  assertEquals(result, { needsFrame: false });
 
   const gradient = ctx.gradients[0];
   assert(gradient !== undefined);
@@ -43,25 +46,27 @@ Deno.test("renderGameFrame draws a visible first-person vignette over the play a
   assertEquals(vignetteFill.globalCompositeOperation, "source-over");
 });
 
-Deno.test("renderGameFrame schedules top-down repaint while ECS sprite animations are active", () => {
-  const callbacks: FrameRequestCallback[] = [];
+Deno.test("renderGameFrame does not schedule RAF or tick the session in top-down mode", () => {
+  let scheduledFrames = 0;
+  let sessionTicks = 0;
   const hadOwnRaf = Object.hasOwn(globalThis, "requestAnimationFrame");
   const ownRaf = Object.getOwnPropertyDescriptor(globalThis, "requestAnimationFrame");
   Object.defineProperty(globalThis, "requestAnimationFrame", {
     configurable: true,
     writable: true,
-    value: (callback: FrameRequestCallback): number => {
-      callbacks.push(callback);
-      return callbacks.length;
+    value: (_callback: FrameRequestCallback): number => {
+      scheduledFrames++;
+      return scheduledFrames;
     },
   });
 
-  let repaints = 0;
   try {
-    renderGameFrame(
+    const result = renderGameFrame(
       new FakeGameContext() as unknown as CanvasRenderingContext2D,
       FULL_CANVAS,
-      fakeSession(true),
+      fakeSession(() => {
+        sessionTicks++;
+      }),
       { type: "playing" },
       [],
       [],
@@ -69,14 +74,13 @@ Deno.test("renderGameFrame schedules top-down repaint while ECS sprite animation
       "idle",
       undefined,
       {},
-      () => {
-        repaints++;
-      },
+      120,
+      () => {},
     );
 
-    assertEquals(callbacks.length, 1);
-    callbacks[0]?.(0);
-    assertEquals(repaints, 1);
+    assertEquals(result, { needsFrame: false });
+    assertEquals(scheduledFrames, 0);
+    assertEquals(sessionTicks, 0);
   } finally {
     if (hadOwnRaf && ownRaf !== undefined) {
       Object.defineProperty(globalThis, "requestAnimationFrame", ownRaf);
@@ -90,17 +94,43 @@ Deno.test("renderGameFrame requests the help image in help mode", () => {
   const document = new FakeGameDocument();
   const ctx = new FakeGameContext(document);
 
-  renderGameFrame(
+  const result = renderGameFrame(
     ctx as unknown as CanvasRenderingContext2D,
     FULL_CANVAS,
     undefined,
     { type: "help", selectedIndex: 0 },
+    [],
+    [],
+    "firstPerson",
+    "idle",
+    undefined,
+    {},
+    0,
   );
 
+  assertEquals(result, { needsFrame: false });
   assert(document.images.some((image) => image.src.endsWith("/assets/game/help.png")));
 });
 
-function fakeFirstPersonRenderer(): FirstPersonRenderer {
+Deno.test("renderGameFrame returns first-person renderer frame demand", () => {
+  const result = renderGameFrame(
+    new FakeGameContext() as unknown as CanvasRenderingContext2D,
+    FULL_CANVAS,
+    fakeSession(),
+    { type: "playing" },
+    [],
+    [],
+    "firstPerson",
+    "idle",
+    fakeFirstPersonRenderer(true),
+    {},
+    240,
+  );
+
+  assertEquals(result, { needsFrame: true });
+});
+
+function fakeFirstPersonRenderer(needsFrame = false): FirstPersonRenderer {
   return {
     preloadAssets: () => Promise.resolve(),
     sceneForMap(): never {
@@ -108,11 +138,11 @@ function fakeFirstPersonRenderer(): FirstPersonRenderer {
     },
     reset(): void {},
     bump(): void {},
-    render(): void {},
+    render: () => ({ needsFrame }),
   };
 }
 
-function fakeSession(spriteAnimationsActive = false): GameSession {
+function fakeSession(onTick?: () => void): GameSession {
   return {
     map: createGameMap("Fake Map", [[1]], [], {
       palette: [{ kind: "floor", id: 1, color: "#000000", floor_texture: "floor", ceiling_texture: "ceiling" }],
@@ -121,7 +151,10 @@ function fakeSession(spriteAnimationsActive = false): GameSession {
     getVisibility: () => undefined,
     forEachDrawable: () => {},
     targetMarkerTone: () => undefined,
-    advanceSpriteAnimations: () => spriteAnimationsActive,
+    tick: () => {
+      onTick?.();
+      return { needsFrame: true };
+    },
     getPlayerFacing: () => ({ dir: Direction.North }),
   } as unknown as GameSession;
 }

@@ -142,49 +142,6 @@ function withFakeOffscreenCanvas(run: () => void): void {
   }
 }
 
-function withFakePerformanceNow(nowMs: number, run: () => void): void {
-  const hadOwnNow = Object.hasOwn(performance, "now");
-  const ownNow = Object.getOwnPropertyDescriptor(performance, "now");
-  Object.defineProperty(performance, "now", {
-    configurable: true,
-    writable: true,
-    value: (): number => nowMs,
-  });
-  try {
-    run();
-  } finally {
-    if (hadOwnNow && ownNow !== undefined) {
-      Object.defineProperty(performance, "now", ownNow);
-    } else {
-      delete (performance as { now?: () => number }).now;
-    }
-  }
-}
-
-function withFakeRequestAnimationFrame(run: () => void): number {
-  const hadOwnRaf = Object.hasOwn(globalThis, "requestAnimationFrame");
-  const ownRaf = Object.getOwnPropertyDescriptor(globalThis, "requestAnimationFrame");
-  let scheduled = 0;
-  Object.defineProperty(globalThis, "requestAnimationFrame", {
-    configurable: true,
-    writable: true,
-    value: (_callback: FrameRequestCallback): number => {
-      scheduled++;
-      return scheduled;
-    },
-  });
-  try {
-    run();
-    return scheduled;
-  } finally {
-    if (hadOwnRaf && ownRaf !== undefined) {
-      Object.defineProperty(globalThis, "requestAnimationFrame", ownRaf);
-    } else {
-      delete (globalThis as { requestAnimationFrame?: typeof requestAnimationFrame }).requestAnimationFrame;
-    }
-  }
-}
-
 function playerDrawable(x: number, y: number, dir: CardinalDirection): DrawableEntity {
   return { kind: DrawableKind.Player, entity: 1, x, y, dir, spriteId: SpriteId.Player };
 }
@@ -279,6 +236,7 @@ Deno.test("first-person rendering maps barrier terrain to a transparent thin wal
       new FakeCanvasContext() as unknown as CanvasRenderingContext2D,
       { x: 0, y: 0, width: 64, height: 64 },
       sessionFor(map, [playerDrawable(1, 1, Direction.East)]),
+      0,
     );
 
     const scene = renderer.sceneForMap(map);
@@ -345,6 +303,7 @@ Deno.test("first-person renderer requests lightmap assets for every enemy sheet"
       ctx,
       { x: 0, y: 0, width: 64, height: 64 },
       sessionFor(map, [playerDrawable(1, 1, Direction.East)]),
+      0,
     );
 
     const imageSources = (ctx.canvas.ownerDocument as unknown as FakeDocument).images.map((image) => image.src);
@@ -380,6 +339,7 @@ Deno.test("first-person renderer requests the authored sky texture", () => {
       ctx,
       { x: 0, y: 0, width: 64, height: 64 },
       sessionFor(map, [playerDrawable(1, 1, Direction.East)]),
+      0,
     );
 
     const imageSources = (ctx.canvas.ownerDocument as unknown as FakeDocument).images.map((image) => image.src);
@@ -390,7 +350,7 @@ Deno.test("first-person renderer requests the authored sky texture", () => {
   });
 });
 
-Deno.test("first-person rendering schedules repaint for scrolling sky ceilings", () => {
+Deno.test("first-person rendering requests another frame for scrolling sky ceilings", () => {
   withFakeOffscreenCanvas((): void => {
     const map = createGameMap(
       "Scrolling Sky",
@@ -410,23 +370,20 @@ Deno.test("first-person rendering schedules repaint for scrolling sky ceilings",
     const renderer = createFirstPersonRenderer();
     const ctx = new FakeCanvasContext() as unknown as CanvasRenderingContext2D;
 
-    const scheduled = withFakeRequestAnimationFrame((): void => {
-      withFakePerformanceNow(0, (): void => {
-        renderer.render(
-          ctx,
-          { x: 0, y: 0, width: 64, height: 64 },
-          sessionFor(map, [playerDrawable(1, 1, Direction.East)]),
-          undefined,
-          () => {},
-        );
-      });
-    });
+    const result = renderer.render(
+      ctx,
+      { x: 0, y: 0, width: 64, height: 64 },
+      sessionFor(map, [playerDrawable(1, 1, Direction.East)]),
+      0,
+      undefined,
+      () => {},
+    );
 
-    assertEquals(scheduled, 1);
+    assertEquals(result, { needsFrame: true });
   });
 });
 
-Deno.test("first-person rendering updates flickering lights and schedules repaint", () => {
+Deno.test("first-person rendering updates flickering lights and requests another frame", () => {
   withFakeOffscreenCanvas((): void => {
     const map = createGameMap(
       "Flicker",
@@ -461,20 +418,14 @@ Deno.test("first-person rendering updates flickering lights and schedules repain
     const renderer = createFirstPersonRenderer();
     const ctx = new FakeCanvasContext() as unknown as CanvasRenderingContext2D;
 
-    const scheduled = withFakeRequestAnimationFrame((): void => {
-      withFakePerformanceNow(0, (): void => {
-        renderer.render(ctx, { x: 0, y: 0, width: 64, height: 64 }, session, undefined, () => {});
-      });
-    });
+    const result = renderer.render(ctx, { x: 0, y: 0, width: 64, height: 64 }, session, 0, undefined, () => {});
     const scene = renderer.sceneForMap(map);
     const firstAdjacentLight = scene.lightRed[1 * 3 + 2]!;
 
-    withFakePerformanceNow(250, (): void => {
-      renderer.render(ctx, { x: 0, y: 0, width: 64, height: 64 }, session);
-    });
+    renderer.render(ctx, { x: 0, y: 0, width: 64, height: 64 }, session, 250);
 
     assertNotEquals(scene.lightRed[1 * 3 + 2], firstAdjacentLight);
-    assertEquals(scheduled, 1);
+    assertEquals(result, { needsFrame: true });
   });
 });
 
@@ -506,6 +457,7 @@ Deno.test("first-person rendering keeps open doors in the raycast scene for jamb
       new FakeCanvasContext() as unknown as CanvasRenderingContext2D,
       { x: 0, y: 0, width: 64, height: 64 },
       session,
+      0,
     );
 
     const scene = renderer.sceneForMap(map);
@@ -555,6 +507,7 @@ Deno.test("first-person rendering uses sliding solid walls for closed secret doo
       new FakeCanvasContext() as unknown as CanvasRenderingContext2D,
       { x: 0, y: 0, width: 64, height: 64 },
       session,
+      0,
     );
 
     const scene = renderer.sceneForMap(map);
@@ -595,6 +548,7 @@ Deno.test("first-person rendering keeps open secret doors out of the thin-wall p
       new FakeCanvasContext() as unknown as CanvasRenderingContext2D,
       { x: 0, y: 0, width: 64, height: 64 },
       session,
+      0,
     );
 
     const scene = renderer.sceneForMap(map);
@@ -641,7 +595,7 @@ Deno.test("first-person rendering uses John's single-frame NPC sprite", () => {
     const renderer = createFirstPersonRenderer();
     const ctx = new FakeCanvasContext() as unknown as CanvasRenderingContext2D;
 
-    renderer.render(ctx, { x: 0, y: 0, width: 64, height: 64 }, session);
+    renderer.render(ctx, { x: 0, y: 0, width: 64, height: 64 }, session, 0);
 
     const scene = renderer.sceneForMap(map);
 
@@ -687,14 +641,14 @@ Deno.test("first-person rendering preserves loaded sprite source aspect ratios",
       },
     ]);
 
-    renderer.render(ctx, { x: 0, y: 0, width: 64, height: 64 }, session);
+    renderer.render(ctx, { x: 0, y: 0, width: 64, height: 64 }, session, 0);
     const image = (ctx.canvas.ownerDocument as unknown as FakeDocument).images.find((image) =>
       image.src.includes("/assets/game/sprites/john.png")
     );
     assert(image !== undefined);
     image.load(1024, 1365);
 
-    renderer.render(ctx, { x: 0, y: 0, width: 64, height: 64 }, session);
+    renderer.render(ctx, { x: 0, y: 0, width: 64, height: 64 }, session, 0);
     const scene = renderer.sceneForMap(map);
 
     assertEquals(scene.spriteCount, 1);
@@ -729,7 +683,7 @@ Deno.test("first-person rendering places ceiling decorations near the ceiling", 
     const renderer = createFirstPersonRenderer();
     const ctx = new FakeCanvasContext() as unknown as CanvasRenderingContext2D;
 
-    renderer.render(ctx, { x: 0, y: 0, width: 64, height: 64 }, session);
+    renderer.render(ctx, { x: 0, y: 0, width: 64, height: 64 }, session, 0);
 
     const scene = renderer.sceneForMap(map);
 
@@ -746,231 +700,226 @@ Deno.test("first-person rendering places ceiling decorations near the ceiling", 
 
 Deno.test("first-person rendering uses ECS attack animation sheet row", () => {
   withFakeOffscreenCanvas((): void => {
-    withFakePerformanceNow(100, (): void => {
-      const map = createGameMap(
-        "Attack Animation",
-        [
-          [2, 2, 2],
-          [2, 1, 2],
-          [2, 1, 2],
-          [2, 2, 2],
+    const nowMs = 100;
+    const map = createGameMap(
+      "Attack Animation",
+      [
+        [2, 2, 2],
+        [2, 1, 2],
+        [2, 1, 2],
+        [2, 2, 2],
+      ],
+      [],
+      {
+        palette: [
+          { kind: "floor", id: 1, color: "#000000", floor_texture: "floor", ceiling_texture: "ceiling" },
+          { kind: "wall", id: 2, color: "#ffffff", wall_texture: "wall" },
         ],
-        [],
-        {
-          palette: [
-            { kind: "floor", id: 1, color: "#000000", floor_texture: "floor", ceiling_texture: "ceiling" },
-            { kind: "wall", id: 2, color: "#ffffff", wall_texture: "wall" },
-          ],
-        },
-      );
-      const base = firstPersonSlot(SpriteId.DigitalDog);
-      const session = sessionFor(map, [
-        playerDrawable(1, 2, Direction.North),
-        {
-          kind: DrawableKind.Actor,
-          entity: 2,
-          x: 1,
-          y: 1,
-          dir: Direction.South,
-          spriteId: SpriteId.DigitalDog,
-          animation: { kind: SpriteAnimationKind.Attack, startedAtMs: 100, durationMs: SPRITE_ATTACK_MS },
-        },
-      ]);
-      const renderer = createFirstPersonRenderer();
+      },
+    );
+    const base = firstPersonSlot(SpriteId.DigitalDog);
+    const session = sessionFor(map, [
+      playerDrawable(1, 2, Direction.North),
+      {
+        kind: DrawableKind.Actor,
+        entity: 2,
+        x: 1,
+        y: 1,
+        dir: Direction.South,
+        spriteId: SpriteId.DigitalDog,
+        animation: { kind: SpriteAnimationKind.Attack, startedAtMs: nowMs, durationMs: SPRITE_ATTACK_MS },
+      },
+    ]);
+    const renderer = createFirstPersonRenderer();
 
-      renderer.render(
-        new FakeCanvasContext() as unknown as CanvasRenderingContext2D,
-        { x: 0, y: 0, width: 64, height: 64 },
-        session,
-      );
-      const scene = renderer.sceneForMap(map);
+    renderer.render(
+      new FakeCanvasContext() as unknown as CanvasRenderingContext2D,
+      { x: 0, y: 0, width: 64, height: 64 },
+      session,
+      nowMs,
+    );
+    const scene = renderer.sceneForMap(map);
 
-      assertEquals(scene.spriteCount, 1);
-      assertEquals(scene.spriteTex[0], base + ROW_ATTACK * ENEMY_SHEET_COLUMNS);
-    });
+    assertEquals(scene.spriteCount, 1);
+    assertEquals(scene.spriteTex[0], base + ROW_ATTACK * ENEMY_SHEET_COLUMNS);
   });
 });
 
 Deno.test("first-person rendering passes enemy health to raycast sprites", () => {
   withFakeOffscreenCanvas((): void => {
-    withFakePerformanceNow(100, (): void => {
-      const map = createGameMap(
-        "Enemy Health",
-        [
-          [2, 2, 2],
-          [2, 1, 2],
-          [2, 1, 2],
-          [2, 2, 2],
+    const map = createGameMap(
+      "Enemy Health",
+      [
+        [2, 2, 2],
+        [2, 1, 2],
+        [2, 1, 2],
+        [2, 2, 2],
+      ],
+      [],
+      {
+        palette: [
+          { kind: "floor", id: 1, color: "#000000", floor_texture: "floor", ceiling_texture: "ceiling" },
+          { kind: "wall", id: 2, color: "#ffffff", wall_texture: "wall" },
         ],
-        [],
-        {
-          palette: [
-            { kind: "floor", id: 1, color: "#000000", floor_texture: "floor", ceiling_texture: "ceiling" },
-            { kind: "wall", id: 2, color: "#ffffff", wall_texture: "wall" },
-          ],
-        },
-      );
-      const session = sessionFor(map, [
-        playerDrawable(1, 2, Direction.North),
-        {
-          kind: DrawableKind.Actor,
-          entity: 2,
-          x: 1,
-          y: 1,
-          dir: Direction.South,
-          spriteId: SpriteId.DigitalDog,
-          health: { current: 4, max: 10 },
-        },
-      ]);
-      const renderer = createFirstPersonRenderer();
+      },
+    );
+    const session = sessionFor(map, [
+      playerDrawable(1, 2, Direction.North),
+      {
+        kind: DrawableKind.Actor,
+        entity: 2,
+        x: 1,
+        y: 1,
+        dir: Direction.South,
+        spriteId: SpriteId.DigitalDog,
+        health: { current: 4, max: 10 },
+      },
+    ]);
+    const renderer = createFirstPersonRenderer();
 
-      renderer.render(
-        new FakeCanvasContext() as unknown as CanvasRenderingContext2D,
-        { x: 0, y: 0, width: 64, height: 64 },
-        session,
-      );
-      const scene = renderer.sceneForMap(map);
+    renderer.render(
+      new FakeCanvasContext() as unknown as CanvasRenderingContext2D,
+      { x: 0, y: 0, width: 64, height: 64 },
+      session,
+      100,
+    );
+    const scene = renderer.sceneForMap(map);
 
-      assertEquals(scene.spriteCount, 1);
-      assertEquals(scene.spriteHealthCurrent[0], 4);
-      assertEquals(scene.spriteHealthMax[0], 10);
-    });
+    assertEquals(scene.spriteCount, 1);
+    assertEquals(scene.spriteHealthCurrent[0], 4);
+    assertEquals(scene.spriteHealthMax[0], 10);
   });
 });
 
 Deno.test("first-person rendering uses ECS walk animation sheet row", () => {
   withFakeOffscreenCanvas((): void => {
-    withFakePerformanceNow(SPRITE_WALK_MS / 2, (): void => {
-      const map = createGameMap(
-        "Walk Animation",
-        [
-          [2, 2, 2],
-          [2, 1, 2],
-          [2, 1, 2],
-          [2, 2, 2],
+    const nowMs = SPRITE_WALK_MS / 2;
+    const map = createGameMap(
+      "Walk Animation",
+      [
+        [2, 2, 2],
+        [2, 1, 2],
+        [2, 1, 2],
+        [2, 2, 2],
+      ],
+      [],
+      {
+        palette: [
+          { kind: "floor", id: 1, color: "#000000", floor_texture: "floor", ceiling_texture: "ceiling" },
+          { kind: "wall", id: 2, color: "#ffffff", wall_texture: "wall" },
         ],
-        [],
-        {
-          palette: [
-            { kind: "floor", id: 1, color: "#000000", floor_texture: "floor", ceiling_texture: "ceiling" },
-            { kind: "wall", id: 2, color: "#ffffff", wall_texture: "wall" },
-          ],
-        },
-      );
-      const base = firstPersonSlot(SpriteId.DigitalDog);
-      const session = sessionFor(map, [
-        playerDrawable(1, 2, Direction.North),
-        {
-          kind: DrawableKind.Actor,
-          entity: 2,
-          x: 1,
-          y: 1,
-          dir: Direction.South,
-          spriteId: SpriteId.DigitalDog,
-          animation: { kind: SpriteAnimationKind.Walk, startedAtMs: 0, durationMs: SPRITE_WALK_MS },
-        },
-      ]);
-      const renderer = createFirstPersonRenderer();
+      },
+    );
+    const base = firstPersonSlot(SpriteId.DigitalDog);
+    const session = sessionFor(map, [
+      playerDrawable(1, 2, Direction.North),
+      {
+        kind: DrawableKind.Actor,
+        entity: 2,
+        x: 1,
+        y: 1,
+        dir: Direction.South,
+        spriteId: SpriteId.DigitalDog,
+        animation: { kind: SpriteAnimationKind.Walk, startedAtMs: 0, durationMs: SPRITE_WALK_MS },
+      },
+    ]);
+    const renderer = createFirstPersonRenderer();
 
-      renderer.render(
-        new FakeCanvasContext() as unknown as CanvasRenderingContext2D,
-        { x: 0, y: 0, width: 64, height: 64 },
-        session,
-      );
-      const scene = renderer.sceneForMap(map);
+    renderer.render(
+      new FakeCanvasContext() as unknown as CanvasRenderingContext2D,
+      { x: 0, y: 0, width: 64, height: 64 },
+      session,
+      nowMs,
+    );
+    const scene = renderer.sceneForMap(map);
 
-      assertEquals(scene.spriteCount, 1);
-      assertEquals(scene.spriteTex[0], base + ROW_WALK * ENEMY_SHEET_COLUMNS);
-    });
+    assertEquals(scene.spriteCount, 1);
+    assertEquals(scene.spriteTex[0], base + ROW_WALK * ENEMY_SHEET_COLUMNS);
   });
 });
 
 Deno.test("first-person rendering uses ECS death animation sheet frames", () => {
   withFakeOffscreenCanvas((): void => {
-    withFakePerformanceNow(SPRITE_DEATH_MS / 2, (): void => {
-      const map = createGameMap(
-        "Death Animation",
-        [
-          [2, 2, 2],
-          [2, 1, 2],
-          [2, 1, 2],
-          [2, 2, 2],
+    const nowMs = SPRITE_DEATH_MS / 2;
+    const map = createGameMap(
+      "Death Animation",
+      [
+        [2, 2, 2],
+        [2, 1, 2],
+        [2, 1, 2],
+        [2, 2, 2],
+      ],
+      [],
+      {
+        palette: [
+          { kind: "floor", id: 1, color: "#000000", floor_texture: "floor", ceiling_texture: "ceiling" },
+          { kind: "wall", id: 2, color: "#ffffff", wall_texture: "wall" },
         ],
-        [],
-        {
-          palette: [
-            { kind: "floor", id: 1, color: "#000000", floor_texture: "floor", ceiling_texture: "ceiling" },
-            { kind: "wall", id: 2, color: "#ffffff", wall_texture: "wall" },
-          ],
-        },
-      );
-      const base = firstPersonSlot(SpriteId.DigitalDog);
-      const session = sessionFor(map, [
-        playerDrawable(1, 2, Direction.North),
-        {
-          kind: DrawableKind.Sprite,
-          entity: 2,
-          x: 1,
-          y: 1,
-          spriteId: SpriteId.DigitalDog,
-          animation: { kind: SpriteAnimationKind.Death, startedAtMs: 0, durationMs: SPRITE_DEATH_MS },
-        },
-      ]);
-      const renderer = createFirstPersonRenderer();
+      },
+    );
+    const base = firstPersonSlot(SpriteId.DigitalDog);
+    const session = sessionFor(map, [
+      playerDrawable(1, 2, Direction.North),
+      {
+        kind: DrawableKind.Sprite,
+        entity: 2,
+        x: 1,
+        y: 1,
+        spriteId: SpriteId.DigitalDog,
+        animation: { kind: SpriteAnimationKind.Death, startedAtMs: 0, durationMs: SPRITE_DEATH_MS },
+      },
+    ]);
+    const renderer = createFirstPersonRenderer();
 
-      renderer.render(
-        new FakeCanvasContext() as unknown as CanvasRenderingContext2D,
-        { x: 0, y: 0, width: 64, height: 64 },
-        session,
-      );
-      const scene = renderer.sceneForMap(map);
+    renderer.render(
+      new FakeCanvasContext() as unknown as CanvasRenderingContext2D,
+      { x: 0, y: 0, width: 64, height: 64 },
+      session,
+      nowMs,
+    );
+    const scene = renderer.sceneForMap(map);
 
-      assertEquals(scene.spriteCount, 1);
-      assertEquals(scene.spriteTex[0], base + ROW_DEATH * ENEMY_SHEET_COLUMNS + 2);
-    });
+    assertEquals(scene.spriteCount, 1);
+    assertEquals(scene.spriteTex[0], base + ROW_DEATH * ENEMY_SHEET_COLUMNS + 2);
   });
 });
 
 Deno.test("first-person rendering bobs pickup item sprites vertically", () => {
   withFakeOffscreenCanvas((): void => {
-    withFakePerformanceNow(300, (): void => {
-      const map = createGameMap(
-        "Item Bob",
-        [
-          [2, 2, 2],
-          [2, 1, 2],
-          [2, 1, 2],
-          [2, 2, 2],
+    const nowMs = 300;
+    const map = createGameMap(
+      "Item Bob",
+      [
+        [2, 2, 2],
+        [2, 1, 2],
+        [2, 1, 2],
+        [2, 2, 2],
+      ],
+      [],
+      {
+        palette: [
+          { kind: "floor", id: 1, color: "#000000", floor_texture: "floor", ceiling_texture: "ceiling" },
+          { kind: "wall", id: 2, color: "#ffffff", wall_texture: "wall" },
         ],
-        [],
-        {
-          palette: [
-            { kind: "floor", id: 1, color: "#000000", floor_texture: "floor", ceiling_texture: "ceiling" },
-            { kind: "wall", id: 2, color: "#ffffff", wall_texture: "wall" },
-          ],
-        },
-      );
-      const drawables: DrawableEntity[] = [
-        playerDrawable(1, 2, Direction.North),
-        { kind: DrawableKind.Sprite, entity: 2, x: 1, y: 1, spriteId: SpriteId.HealthPatch },
-      ];
-      const session = sessionFor(map, drawables);
-      const renderer = createFirstPersonRenderer();
+      },
+    );
+    const drawables: DrawableEntity[] = [
+      playerDrawable(1, 2, Direction.North),
+      { kind: DrawableKind.Sprite, entity: 2, x: 1, y: 1, spriteId: SpriteId.HealthPatch },
+    ];
+    const session = sessionFor(map, drawables);
+    const renderer = createFirstPersonRenderer();
 
-      const scheduled = withFakeRequestAnimationFrame((): void => {
-        renderer.render(
-          new FakeCanvasContext() as unknown as CanvasRenderingContext2D,
-          { x: 0, y: 0, width: 64, height: 64 },
-          session,
-          undefined,
-          () => {},
-        );
-      });
-      const scene = renderer.sceneForMap(map);
+    const result = renderer.render(
+      new FakeCanvasContext() as unknown as CanvasRenderingContext2D,
+      { x: 0, y: 0, width: 64, height: 64 },
+      session,
+      nowMs,
+    );
+    const scene = renderer.sceneForMap(map);
 
-      assertEquals(scene.spriteCount, 1);
-      assertAlmostEquals(scene.spriteElevation[0]!, 0.055, 1e-6);
-      assertEquals(scheduled, 1);
-    });
+    assertEquals(scene.spriteCount, 1);
+    assertAlmostEquals(scene.spriteElevation[0]!, 0.055, 1e-6);
+    assertEquals(result, { needsFrame: true });
   });
 });

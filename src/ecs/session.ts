@@ -84,6 +84,9 @@ const DOOR_NOISE_RADIUS = 4;
 const STORY_MOVE_MS = 260;
 
 type ActorPositionSnapshot = Map<Entity, { readonly x: number; readonly y: number }>;
+export type GameSessionTickResult = {
+  readonly needsFrame: boolean;
+};
 
 export async function createGameSession(
   map: GameMap,
@@ -202,37 +205,8 @@ export class GameSession implements Disposable {
     this.levelEntryCheckpoint = this.captureCheckpoint();
   }
 
-  advanceSpriteAnimations(nowMs: number): boolean {
-    let changed = false;
-    let active = false;
-    for (const entity of this.world.entities.query(spriteAnimationQuery)) {
-      const animation = this.world.components.getEntityData(SpriteAnimation, entity);
-      if (animation.startedAtMs === PENDING_SPRITE_ANIMATION_START_MS) {
-        this.world.components.setEntityData(SpriteAnimation, entity, {
-          kind: animation.kind as SpriteAnimationSchema["kind"],
-          startedAtMs: nowMs,
-          durationMs: animation.durationMs,
-        });
-        changed = true;
-        active = true;
-        continue;
-      }
-      if (nowMs < animation.startedAtMs + animation.durationMs) {
-        active = true;
-        continue;
-      }
-
-      if (animation.kind === SpriteAnimationKind.Death) {
-        const position = this.world.components.readEntityData(GridPos, entity);
-        this.world.entities.destroy(entity);
-        if (position !== undefined) createCorpse(this.world, position);
-      } else {
-        this.world.components.removeFromEntity(SpriteAnimation, entity);
-      }
-      changed = true;
-    }
-    if (changed) this.world.refresh();
-    return active;
+  tick(nowMs: number): GameSessionTickResult {
+    return { needsFrame: this.advanceSpriteAnimations(nowMs) };
   }
 
   handlePlayerCommand(command: PlayerCommand): PlayerCommandResult {
@@ -415,6 +389,39 @@ export class GameSession implements Disposable {
     this.advanceSpriteAnimations(nowMs);
     this.refreshVisibility();
     return this.isPlayerDefeated() ? { events: allEvents, outcome: "defeat" } : { events: allEvents };
+  }
+
+  private advanceSpriteAnimations(nowMs: number): boolean {
+    let changed = false;
+    let active = false;
+    for (const entity of this.world.entities.query(spriteAnimationQuery)) {
+      const animation = this.world.components.getEntityData(SpriteAnimation, entity);
+      if (animation.startedAtMs === PENDING_SPRITE_ANIMATION_START_MS) {
+        this.world.components.setEntityData(SpriteAnimation, entity, {
+          kind: animation.kind as SpriteAnimationSchema["kind"],
+          startedAtMs: nowMs,
+          durationMs: animation.durationMs,
+        });
+        changed = true;
+        active = true;
+        continue;
+      }
+      if (nowMs < animation.startedAtMs + animation.durationMs) {
+        active = true;
+        continue;
+      }
+
+      if (animation.kind === SpriteAnimationKind.Death) {
+        const position = this.world.components.readEntityData(GridPos, entity);
+        this.world.entities.destroy(entity);
+        if (position !== undefined) createCorpse(this.world, position);
+      } else {
+        this.world.components.removeFromEntity(SpriteAnimation, entity);
+      }
+      changed = true;
+    }
+    if (changed) this.world.refresh();
+    return active;
   }
 
   private playerCommandResult(events: readonly GameEvent[]): PlayerCommandResult {

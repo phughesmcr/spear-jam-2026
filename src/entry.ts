@@ -65,8 +65,13 @@ class Game implements Disposable {
   private inputController?: Disposable;
   private session?: GameSession;
   private started = false;
+  private animationFrameId?: number;
+  private readonly runAnimationFrame = (nowMs: number): void => {
+    this.animationFrameId = undefined;
+    this.updateAndRender(nowMs);
+  };
   private readonly renderLoadedAssets = (): void => {
-    if (this.started) this.render();
+    if (this.started) this.updateAndRenderNow();
   };
 
   constructor(spec: GameSpec, controller: AbortController) {
@@ -91,12 +96,20 @@ class Game implements Disposable {
   resize(size: GameCanvasSize): void {
     this.canvasSize = size;
     if (this.started) {
-      this.render();
+      this.updateAndRenderNow();
     }
   }
 
-  private render(): void {
-    renderGameFrame(
+  private updateAndRenderNow(): void {
+    if (!this.started || this.controller.signal.aborted) return;
+    this.cancelPendingFrame();
+    this.updateAndRender(performance.now());
+  }
+
+  private updateAndRender(nowMs: number): void {
+    if (!this.started || this.controller.signal.aborted) return;
+    const tickResult = this.tickSession(nowMs);
+    const renderResult = renderGameFrame(
       this.spec.ctx,
       this.canvasSize,
       this.session,
@@ -107,9 +120,36 @@ class Game implements Disposable {
       this.weaponHudPhase,
       this.firstPersonRenderer,
       { showKeys: this.keyHudVisible },
+      nowMs,
       this.renderLoadedAssets,
-      performance.now(),
     );
+    this.setFrameNeeded(tickResult.needsFrame || renderResult.needsFrame);
+  }
+
+  private tickSession(nowMs: number): { readonly needsFrame: boolean } {
+    if (this.session === undefined) return { needsFrame: false };
+    const mode = this.model.mode.type;
+    if (mode !== "playing" && mode !== "verbMenu") return { needsFrame: false };
+    return this.session.tick(nowMs);
+  }
+
+  private setFrameNeeded(needsFrame: boolean): void {
+    if (needsFrame) {
+      this.requestNextFrame();
+      return;
+    }
+    this.cancelPendingFrame();
+  }
+
+  private requestNextFrame(): void {
+    if (this.animationFrameId !== undefined || this.controller.signal.aborted || !this.started) return;
+    this.animationFrameId = this.spec.window.requestAnimationFrame(this.runAnimationFrame);
+  }
+
+  private cancelPendingFrame(): void {
+    if (this.animationFrameId === undefined) return;
+    this.spec.window.cancelAnimationFrame(this.animationFrameId);
+    this.animationFrameId = undefined;
   }
 
   private async loadMap(mapName: string): Promise<void> {
@@ -254,6 +294,7 @@ class Game implements Disposable {
   private handlePlayerCommand(command: PlayerCommand): void {
     if (!this.session) return;
 
+    const nowMs = performance.now();
     const playerEntity = this.session.playerEntity;
     const moveFrom = command.type === "move" ? this.session.getPlayerPosition() : undefined;
     const result = this.session.handlePlayerCommand(command);
@@ -265,7 +306,7 @@ class Game implements Disposable {
           this.session.getPlayerFacing().dir + relativeMoveDirectionOffset(command.direction),
         );
         const delta = directionDelta(worldDir);
-        this.firstPersonRenderer.bump(delta.dx, delta.dy);
+        this.firstPersonRenderer.bump(delta.dx, delta.dy, nowMs);
       }
     }
     if (playerAttackOccurred(result.events, playerEntity)) {
@@ -281,7 +322,7 @@ class Game implements Disposable {
       type: "playerCommandResult",
       result,
       playerEntity,
-      nowMs: performance.now(),
+      nowMs,
     });
   }
 
@@ -299,7 +340,7 @@ class Game implements Disposable {
     for (const effect of effects) {
       switch (effect.type) {
         case "render":
-          this.render();
+          this.updateAndRenderNow();
           break;
         case "closeDialogue":
           this.session?.closeDialogue();
@@ -340,7 +381,7 @@ class Game implements Disposable {
     this.weaponHudTimeoutId = this.spec.window.setTimeout(() => {
       this.weaponHudTimeoutId = undefined;
       this.weaponHudPhase = "idle";
-      this.render();
+      this.updateAndRenderNow();
     }, WEAPON_HUD_ACTIVE_MS);
   }
 
@@ -356,7 +397,7 @@ class Game implements Disposable {
     this.keyHudTimeoutId = this.spec.window.setTimeout(() => {
       this.keyHudTimeoutId = undefined;
       this.keyHudVisible = false;
-      this.render();
+      this.updateAndRenderNow();
     }, KEY_HUD_VISIBLE_MS);
   }
 
@@ -390,7 +431,7 @@ class Game implements Disposable {
 
   private expireMessageHudEntry(id: number): void {
     this.messageHudEntries = this.messageHudEntries.filter((entry) => entry.id !== id);
-    this.render();
+    this.updateAndRenderNow();
   }
 
   private clearMessageHudEntries(): void {
@@ -402,6 +443,7 @@ class Game implements Disposable {
 
   [Symbol.dispose](): void {
     this.controller.abort();
+    this.cancelPendingFrame();
     this.clearWeaponHudTimeout();
     this.clearKeyHudTimeout();
     this.clearMessageHudEntries();

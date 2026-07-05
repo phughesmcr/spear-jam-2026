@@ -438,7 +438,7 @@ Deno.test("map-scoped entities, death effects, and corpses do not survive map lo
       assertEquals(spriteAt(sessionDrawables(session), 4, 1)?.spriteId, SpriteId.RedKey);
       session.handlePlayerCommand({ type: "attack" });
       assertEquals(spriteAt(sessionDrawables(session), 2, 1)?.spriteId, SpriteId.DigitalDog);
-      session.advanceSpriteAnimations(200 + SPRITE_DEATH_MS);
+      assertEquals(session.tick(200 + SPRITE_DEATH_MS), { needsFrame: false });
       assertEquals(spriteAt(sessionDrawables(session), 2, 1)?.spriteId, SpriteId.Corpse);
 
       session.loadMap(flatTestMap(5, 3, [{ prefab: "player", x: 1, y: 1, dir: Direction.East }]));
@@ -573,7 +573,7 @@ Deno.test("enemy attacks expose short-lived ECS sprite animation state", async (
         durationMs: SPRITE_ATTACK_MS,
       });
 
-      session.advanceSpriteAnimations(100 + SPRITE_ATTACK_MS);
+      assertEquals(session.tick(100 + SPRITE_ATTACK_MS), { needsFrame: false });
       assertEquals(actorAt(sessionDrawables(session), 2, 1)?.animation, undefined);
     } finally {
       session[Symbol.dispose]();
@@ -604,7 +604,7 @@ Deno.test("moving enemies expose short-lived ECS walk animation state", async ()
         durationMs: SPRITE_WALK_MS,
       });
 
-      session.advanceSpriteAnimations(100 + SPRITE_WALK_MS);
+      assertEquals(session.tick(100 + SPRITE_WALK_MS), { needsFrame: false });
       assertEquals(actorAt(sessionDrawables(session), 3, 1)?.animation, undefined);
     } finally {
       session[Symbol.dispose]();
@@ -642,7 +642,7 @@ Deno.test("defeated enemies render as ECS death effects before becoming corpses"
         },
       });
 
-      session.advanceSpriteAnimations(200 + SPRITE_DEATH_MS);
+      assertEquals(session.tick(200 + SPRITE_DEATH_MS), { needsFrame: false });
       assertEquals(spriteAt(sessionDrawables(session), 2, 1), {
         kind: DrawableKind.Sprite,
         x: 2,

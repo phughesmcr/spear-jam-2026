@@ -30,8 +30,11 @@ type GameRenderRect = {
   width: number;
   height: number;
 };
+export type GameFrameResult = {
+  readonly needsFrame: boolean;
+};
+
 const FIRST_PERSON_PLAY_RECT: GameRenderRect = { x: 0, y: 0, width: 0, height: 0 };
-const ANIMATING_MODES: ReadonlySet<GameMode["type"]> = new Set(["playing", "verbMenu"]);
 
 export async function preloadGameAssets(
   document: Document,
@@ -60,15 +63,13 @@ export function renderGameFrame(
   weaponHudPhase: WeaponHudPhase = "idle",
   firstPersonRenderer?: FirstPersonRenderer,
   firstPersonHud: FirstPersonHudOptions = {},
+  nowMs: number = 0,
   onAssetLoad?: () => void,
-  nowMs: number = performance.now(),
-): void {
+): GameFrameResult {
+  let needsFrame = false;
   ctx.fillStyle = BACKGROUND_COLOR;
   ctx.fillRect(0, 0, canvasSize.width, canvasSize.height);
   if (session) {
-    const spritesAnimating = ANIMATING_MODES.has(mode.type) ?
-      session.advanceSpriteAnimations(performance.now()) :
-      false;
     const { map } = session;
     if (viewMode === "firstPerson") {
       if (firstPersonRenderer === undefined) {
@@ -80,13 +81,15 @@ export function renderGameFrame(
       playRect.width = canvasSize.width;
       playRect.height = canvasSize.height;
       const playerStatus = session.getPlayerStatus();
-      firstPersonRenderer.render(
+      const firstPersonResult = firstPersonRenderer.render(
         ctx,
         playRect,
         session,
+        nowMs,
         session.targetMarkerTone(),
         onAssetLoad,
       );
+      needsFrame ||= firstPersonResult.needsFrame;
       renderFirstPersonVignette(ctx, playRect);
       renderWeaponHud(ctx, canvasSize, playerStatus.selectedWeapon, weaponHudPhase, onAssetLoad);
       renderFirstPersonHud(
@@ -102,50 +105,43 @@ export function renderGameFrame(
       renderDrawableEntities(ctx, session, metrics);
       renderCombatFeedback(ctx, metrics, combatFeedback);
       renderHud(ctx, canvasSize, session);
-      if (spritesAnimating) scheduleRepaint(onAssetLoad);
     }
   }
   renderMessageLog(ctx, canvasSize, messages);
   switch (mode.type) {
     case "loading":
       renderOverlay(ctx, canvasSize, "LOADING");
-      return;
+      return { needsFrame };
     case "paused":
       renderOverlay(ctx, canvasSize, "PAUSED", "P to resume");
-      return;
+      return { needsFrame };
     case "menu":
       renderOverlay(ctx, canvasSize, "MENU", "Esc to resume");
-      return;
+      return { needsFrame };
     case "help":
       renderHelp(ctx, canvasSize, onAssetLoad);
-      return;
+      return { needsFrame };
     case "dialogue":
       renderDialogue(ctx, canvasSize, mode, onAssetLoad);
-      return;
+      return { needsFrame };
     case "intermission":
       renderIntermission(ctx, canvasSize, mode, nowMs);
-      scheduleRepaint(onAssetLoad);
-      return;
+      return { needsFrame: true };
     case "victory":
       renderOverlay(ctx, canvasSize, "VICTORY", "Space to play again");
-      return;
+      return { needsFrame };
     case "defeat":
       renderOverlay(ctx, canvasSize, "DEFEAT", "Space to retry level");
-      return;
+      return { needsFrame };
     case "error":
       renderOverlay(ctx, canvasSize, "LOAD FAILED", mode.message);
-      return;
+      return { needsFrame };
     case "verbMenu":
       renderVerbMenu(ctx, canvasSize, mode.selectedIndex, mode.hoverTarget, onAssetLoad);
-      return;
+      return { needsFrame };
     case "playing":
-      return;
+      return { needsFrame };
   }
-}
-
-function scheduleRepaint(repaint: (() => void) | undefined): void {
-  if (repaint === undefined || typeof requestAnimationFrame !== "function") return;
-  requestAnimationFrame((): void => repaint());
 }
 
 function renderOverlay(

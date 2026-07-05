@@ -446,18 +446,23 @@ export interface FirstPersonRenderSession {
   forEachLight(visit: LightEntityVisitor): void;
 }
 
+export type FirstPersonRenderResult = {
+  readonly needsFrame: boolean;
+};
+
 export interface FirstPersonRenderer {
   preloadAssets(document: Document, onAssetLoad?: () => void): Promise<void>;
   sceneForMap(map: GameMap): RaycastScene;
   reset(): void;
-  bump(dirX: number, dirY: number): void;
+  bump(dirX: number, dirY: number, nowMs: number): void;
   render(
     ctx: CanvasRenderingContext2D,
     rect: ViewRect,
     session: FirstPersonRenderSession,
+    nowMs: number,
     targetTone?: TargetMarkerTone,
-    repaint?: () => void,
-  ): void;
+    onAssetLoad?: () => void,
+  ): FirstPersonRenderResult;
 }
 
 function createFirstPersonRendererState() {
@@ -483,8 +488,6 @@ function createFirstPersonRendererState() {
     doorTweens: new Map<DrawableEntity["entity"], ScalarTween>(),
     doorSample: { value: 0, settled: true } satisfies ScalarSample,
     poseInitialized: false,
-    repaintScheduled: false,
-    lastRepaint: undefined as (() => void) | undefined,
   };
 }
 
@@ -509,18 +512,19 @@ class OwnedFirstPersonRenderer implements FirstPersonRenderer {
     resetFirstPersonRendererState(this.state);
   }
 
-  bump(dirX: number, dirY: number): void {
-    bumpFirstPersonRenderer(this.state, dirX, dirY);
+  bump(dirX: number, dirY: number, nowMs: number): void {
+    bumpFirstPersonRenderer(this.state, dirX, dirY, nowMs);
   }
 
   render(
     ctx: CanvasRenderingContext2D,
     rect: ViewRect,
     session: FirstPersonRenderSession,
+    nowMs: number,
     targetTone?: TargetMarkerTone,
-    repaint?: () => void,
-  ): void {
-    renderFirstPersonView(this.state, ctx, rect, session, targetTone, repaint);
+    onAssetLoad?: () => void,
+  ): FirstPersonRenderResult {
+    return renderFirstPersonView(this.state, ctx, rect, session, nowMs, targetTone, onAssetLoad);
   }
 }
 
@@ -536,28 +540,14 @@ function resetFirstPersonRendererState(state: FirstPersonRendererState): void {
   state.nudgeTween.active = false;
   state.spriteTweens.clear();
   state.doorTweens.clear();
-  state.repaintScheduled = false;
-  state.lastRepaint = undefined;
-}
-
-/** One repaint per animation frame while the camera tween is unsettled. */
-function scheduleRepaint(state: FirstPersonRendererState, repaint: () => void): void {
-  if (state.repaintScheduled || typeof requestAnimationFrame !== "function") return;
-  state.repaintScheduled = true;
-  requestAnimationFrame((): void => {
-    state.repaintScheduled = false;
-    repaint();
-  });
 }
 
 /**
  * Play a short recoil lunge toward (dirX, dirY) — the presentation for a
- * move blocked by a wall or entity, which changes no game state. Repaints
- * with the last callback given to the renderer.
+ * move blocked by a wall or entity, which changes no game state.
  */
-function bumpFirstPersonRenderer(state: FirstPersonRendererState, dirX: number, dirY: number): void {
-  startNudgeTween(state.nudgeTween, dirX, dirY, performance.now());
-  if (state.lastRepaint !== undefined) scheduleRepaint(state, state.lastRepaint);
+function bumpFirstPersonRenderer(state: FirstPersonRendererState, dirX: number, dirY: number, nowMs: number): void {
+  startNudgeTween(state.nudgeTween, dirX, dirY, nowMs);
 }
 
 type OpaqueBounds = {
@@ -1062,7 +1052,7 @@ function spriteMoveDuration(drawable: DrawableEntity): number | undefined {
   return drawable.animation?.kind === SpriteAnimationKind.Walk ? drawable.animation.durationMs : undefined;
 }
 
-/** Returns true when the drawable's animation still needs repaints. */
+/** Returns true when the drawable's animation still needs frames. */
 function addDrawable(
   state: FirstPersonRendererState,
   scene: RaycastScene,
@@ -1153,25 +1143,22 @@ function addDrawable(
 }
 
 /**
- * Render the first-person view for the session's current state. `repaint`
- * doubles as the asset-load callback and the animation tick: while the camera
- * is tweening between grid poses, one requestAnimationFrame repaint at a time
- * is scheduled, so idle turns keep costing zero frames.
+ * Render the first-person view for the session's current state.
  */
 function renderFirstPersonView(
   state: FirstPersonRendererState,
   ctx: CanvasRenderingContext2D,
   rect: ViewRect,
   session: FirstPersonRenderSession,
+  nowMs: number,
   targetTone?: TargetMarkerTone,
-  repaint?: () => void,
-): void {
+  onAssetLoad?: () => void,
+): FirstPersonRenderResult {
   const map = session.map;
   const scene = sceneForMapForState(state, map);
-  bakeLoadedAssets(state, ctx, repaint);
+  bakeLoadedAssets(state, ctx, onAssetLoad);
   clearSceneDynamic(scene);
   addTerrainBarriers(state, scene);
-  const nowMs = performance.now();
   const lightsAnimating = updateSceneLights(scene, session, nowMs);
 
   // Two passes over the drawables: the camera pose must be known before
@@ -1189,11 +1176,10 @@ function renderFirstPersonView(
     }
     state.drawableScratch.push(drawable);
   });
-  if (playerDir === undefined) return;
+  if (playerDir === undefined) return { needsFrame: false };
 
   const forward = directionDelta(playerDir);
   const targetAngle = Math.atan2(forward.dy, forward.dx);
-  state.lastRepaint = repaint;
   if (!state.poseInitialized) {
     state.poseInitialized = true;
     snapPoseTween(state.poseTween, playerX + 0.5, playerY + 0.5, targetAngle);
@@ -1209,12 +1195,8 @@ function renderFirstPersonView(
   samplePoseTween(state.poseTween, nowMs, state.poseSample);
   sampleNudgeTween(state.nudgeTween, nowMs, state.nudgeSample);
   const skyAnimating = sceneHasSkyCeiling(scene, state.atlas);
-  if (
-    (!state.poseSample.settled || !state.nudgeSample.settled || spritesAnimating || lightsAnimating || skyAnimating) &&
-    repaint !== undefined
-  ) {
-    scheduleRepaint(state, repaint);
-  }
+  const needsFrame = !state.poseSample.settled || !state.nudgeSample.settled || spritesAnimating || lightsAnimating ||
+    skyAnimating;
 
   state.view.render(
     ctx,
@@ -1231,4 +1213,5 @@ function renderFirstPersonView(
   );
 
   if (targetTone !== undefined) drawTargetHighlight(ctx, rect, targetTone);
+  return { needsFrame };
 }
