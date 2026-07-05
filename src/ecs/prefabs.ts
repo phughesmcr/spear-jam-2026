@@ -3,13 +3,11 @@ import { DialogueTreeId } from "@/src/dialogue/dialogue.ts";
 import {
   Attack,
   Blocking,
-  DecorationKind,
   Defense,
   Dialogue,
   DisplayNameComponent,
   Door,
   Drawable,
-  DrawableKind,
   DrawableLayer,
   Enemy,
   EnemyArchetypeComponent,
@@ -32,22 +30,23 @@ import {
   SPRITE_DEATH_MS,
   SpriteAnimation,
   SpriteAnimationKind,
-  SpriteId,
   TurnTaker,
   UplinkTerminal,
 } from "@/src/ecs/components.ts";
 import type { AttackSchema } from "@/src/ecs/components.ts";
 import {
-  DEFAULT_ENEMY_ARCHETYPE,
-  EnemyArchetype,
-  type EnemyCatalogEntry,
-  enemyCatalogEntry,
-} from "@/src/ecs/enemy_catalog.ts";
+  DrawableKind,
+  SpriteId,
+  spriteIdForDecoration,
+  spriteIdForDisplayName,
+  spriteIdForEnemyArchetype,
+  spriteIdForItem,
+} from "@/src/ecs/drawables.ts";
+import { DEFAULT_ENEMY_ARCHETYPE, type EnemyCatalogEntry, enemyCatalogEntry } from "@/src/ecs/enemy_catalog.ts";
 import { DEFAULT_PLAYER_HEALTH } from "@/src/ecs/progression.ts";
 import { DEFAULT_ATTACK } from "@/src/game/attack.ts";
-import { DisplayName } from "@/src/game/names.ts";
 import { normalizeDirection } from "@/src/grid/direction.ts";
-import { doorSlideCode, KeyColor, keyColorCode, keyColorForCode } from "@/src/map/map.ts";
+import { doorSlideCode, keyColorCode } from "@/src/map/map.ts";
 import type {
   DecorationDef,
   DoorDef,
@@ -104,7 +103,7 @@ export function createNpc(world: World, prefab: NpcPrefab): Entity {
     prefab,
     DrawableKind.Actor,
     DrawableLayer.Npc,
-    spriteIdForNpc(prefab.displayName),
+    spriteIdForDisplayName(prefab.displayName),
   );
   world.components.addBundle(
     entity,
@@ -128,7 +127,13 @@ export function createEnemy(world: World, prefab: EnemyPrefab): Entity {
   const catalog = enemyCatalogEntry(archetype);
   const health = prefab.health ?? catalog.health;
   const hitDc = prefab.hitDc ?? catalog.hitDc;
-  const entity = createGridActor(world, prefab, DrawableKind.Actor, DrawableLayer.Enemy, spriteIdForEnemy(archetype));
+  const entity = createGridActor(
+    world,
+    prefab,
+    DrawableKind.Actor,
+    DrawableLayer.Enemy,
+    spriteIdForEnemyArchetype(archetype),
+  );
   world.components.addBundle(
     entity,
     [
@@ -338,66 +343,6 @@ export function createDeathEffect(world: World, position: PositionedPrefab, spri
       }],
     ] as const,
   );
-}
-
-function spriteIdForNpc(displayName: number): SpriteId {
-  return displayName === DisplayName.John ? SpriteId.John : SpriteId.Npc;
-}
-
-function spriteIdForEnemy(archetype: EnemyArchetype): SpriteId {
-  switch (archetype) {
-    case EnemyArchetype.MeleeDog:
-      return SpriteId.DigitalDog;
-    case EnemyArchetype.Gunslinger:
-      return SpriteId.GigabitGunslinger;
-    case EnemyArchetype.NetworkNeophyte:
-      return SpriteId.NetworkNeophyte;
-    case EnemyArchetype.SystemSentinel:
-      return SpriteId.SystemSentinel;
-    case EnemyArchetype.AgenticAcolyte:
-      return SpriteId.AgenticAcolyte;
-  }
-}
-
-function spriteIdForItem(item: ItemKind, value: number): SpriteId {
-  switch (item) {
-    case ItemKind.HealthPatch:
-      return SpriteId.HealthPatch;
-    case ItemKind.PistolAmmo:
-      return SpriteId.PistolAmmo;
-    case ItemKind.CannonAmmo:
-      return SpriteId.CannonAmmo;
-    case ItemKind.Key:
-      switch (keyColorForCode(value)) {
-        case KeyColor.Red:
-          return SpriteId.RedKey;
-        case KeyColor.Blue:
-          return SpriteId.BlueKey;
-        case KeyColor.Yellow:
-          return SpriteId.YellowKey;
-        default:
-          throw new Error(`Unknown key color code: ${value}`);
-      }
-    case ItemKind.UplinkCode:
-      return SpriteId.UplinkCode;
-    case ItemKind.Weapon:
-      return value === 2 ? SpriteId.Weapon2 : SpriteId.Weapon3;
-  }
-}
-
-function spriteIdForDecoration(decoration: DecorationKind): SpriteId {
-  switch (decoration) {
-    case DecorationKind.ServerPile:
-      return SpriteId.DecorServerPile;
-    case DecorationKind.Cyborg:
-      return SpriteId.DecorCyborg;
-    case DecorationKind.CeilingHook:
-      return SpriteId.DecorCeilingHook;
-    case DecorationKind.CeilingLight:
-      return SpriteId.DecorCeilingLight;
-    case DecorationKind.CeilingWires:
-      return SpriteId.DecorCeilingWires;
-  }
 }
 
 function colorChannels(color: string): readonly [number, number, number] {

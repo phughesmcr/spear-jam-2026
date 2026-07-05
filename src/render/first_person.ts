@@ -12,7 +12,7 @@
  * facing relative to the camera, Wolf3D style.
  */
 
-import { DrawableKind, spriteAppearance, SpriteId } from "@/src/ecs/drawables.ts";
+import { DrawableKind, spriteAppearance, spriteAppearances } from "@/src/ecs/drawables.ts";
 import type {
   DrawableEntity,
   DrawableEntityVisitor,
@@ -20,7 +20,7 @@ import type {
   SpriteAppearance,
 } from "@/src/ecs/drawables.ts";
 import { SpriteAnimationKind } from "@/src/ecs/components.ts";
-import type { SpriteAnimationSchema, SpriteId as SpriteIdType } from "@/src/ecs/components.ts";
+import type { SpriteAnimationSchema } from "@/src/ecs/components.ts";
 import { type CardinalDirection, directionDelta, normalizeDirection } from "@/src/grid/direction.ts";
 import type { TargetMarkerTone } from "@/src/game/state.ts";
 import {
@@ -179,12 +179,6 @@ const DOOR_TINTS_BY_COLOR: Readonly<Record<KeyColor, readonly [number, number, n
   [KeyColor.Yellow]: [1.7, 1.5, 0.65],
 };
 
-function firstPersonSlot(spriteId: SpriteIdType): number {
-  const slot = spriteAppearance(spriteId).firstPersonSlot;
-  if (slot === undefined) throw new Error(`Sprite ${spriteId} has no first-person slot.`);
-  return slot;
-}
-
 function managedAsset(src: string, targets: readonly BakeTargetInput[], cropFrame?: SourceFrame): ManagedAsset {
   return {
     asset: createImageAsset(src),
@@ -219,8 +213,33 @@ function enemySheetTargets(
   return targets;
 }
 
-/** Enemy sheets share the idle-front cell's content crop across all frames. */
-const ENEMY_CROP_FRAME: SourceFrame = [0, 0, 1 / 4, 1 / 4];
+function spriteManagedAssets(): readonly ManagedAsset[] {
+  const assets: ManagedAsset[] = [];
+  for (const appearance of spriteAppearances()) {
+    const slot = appearance.firstPersonSlot;
+    const asset = appearance.asset;
+    if (slot === undefined || asset === undefined) continue;
+
+    if (appearance.enemySheet) {
+      assets.push(managedAsset(asset.src, enemySheetTargets(slot), asset.cropFrame));
+      if (asset.lightmapSrc !== undefined) {
+        assets.push(managedAsset(asset.lightmapSrc, enemySheetTargets(slot, "spriteLightmaps")));
+      }
+      continue;
+    }
+
+    assets.push(
+      managedAsset(asset.src, [
+        {
+          layer: "sprites",
+          slot,
+          ...(asset.frame === undefined ? {} : { frame: asset.frame }),
+        },
+      ]),
+    );
+  }
+  return assets;
+}
 
 type AssetCatalog = {
   readonly managedAssets: readonly ManagedAsset[];
@@ -241,7 +260,7 @@ function createAssetCatalog(): AssetCatalog {
     [TexturePack.Pack3]: texturePackAsset(new URL("../../assets/game/textures/pack3.png", import.meta.url).href),
   };
 
-  // Asset URLs must be fully static `new URL` literals so Vite can resolve them.
+  // Texture asset URLs must be fully static `new URL` literals so Vite can resolve them.
   const managedAssets: readonly ManagedAsset[] = [
     managedAsset(new URL("../../assets/game/textures/wall.png", import.meta.url).href, [
       { layer: "walls", slot: WALL_TEX },
@@ -266,103 +285,7 @@ function createAssetCatalog(): AssetCatalog {
     managedAsset(new URL("../../assets/game/textures/glass.png", import.meta.url).href, [
       { layer: "walls", slot: BARRIER_TEX_BY_TEXTURE[BarrierTexture.Glass] },
     ]),
-    managedAsset(
-      new URL("../../assets/game/sprites/digital_dog.png", import.meta.url).href,
-      enemySheetTargets(firstPersonSlot(SpriteId.DigitalDog)),
-      ENEMY_CROP_FRAME,
-    ),
-    managedAsset(
-      new URL("../../assets/game/sprites/digital_dog_lightmap.png", import.meta.url).href,
-      enemySheetTargets(firstPersonSlot(SpriteId.DigitalDog), "spriteLightmaps"),
-    ),
-    managedAsset(
-      new URL("../../assets/game/sprites/gigabit_gun_slinger.png", import.meta.url).href,
-      enemySheetTargets(firstPersonSlot(SpriteId.GigabitGunslinger)),
-      ENEMY_CROP_FRAME,
-    ),
-    managedAsset(
-      new URL("../../assets/game/sprites/gigabit_gun_slinger_lightmap.png", import.meta.url).href,
-      enemySheetTargets(firstPersonSlot(SpriteId.GigabitGunslinger), "spriteLightmaps"),
-    ),
-    managedAsset(
-      new URL("../../assets/game/sprites/network_neophyte.png", import.meta.url).href,
-      enemySheetTargets(firstPersonSlot(SpriteId.NetworkNeophyte)),
-      ENEMY_CROP_FRAME,
-    ),
-    managedAsset(
-      new URL("../../assets/game/sprites/network_neophyte_lightmap.png", import.meta.url).href,
-      enemySheetTargets(firstPersonSlot(SpriteId.NetworkNeophyte), "spriteLightmaps"),
-    ),
-    managedAsset(
-      new URL("../../assets/game/sprites/system_sentinel.png", import.meta.url).href,
-      enemySheetTargets(firstPersonSlot(SpriteId.SystemSentinel)),
-      ENEMY_CROP_FRAME,
-    ),
-    managedAsset(
-      new URL("../../assets/game/sprites/system_sentinel_lightmap.png", import.meta.url).href,
-      enemySheetTargets(firstPersonSlot(SpriteId.SystemSentinel), "spriteLightmaps"),
-    ),
-    managedAsset(
-      new URL("../../assets/game/sprites/agentic_acolyte.png", import.meta.url).href,
-      enemySheetTargets(firstPersonSlot(SpriteId.AgenticAcolyte)),
-      ENEMY_CROP_FRAME,
-    ),
-    managedAsset(
-      new URL("../../assets/game/sprites/agentic_acolyte_lightmap.png", import.meta.url).href,
-      enemySheetTargets(firstPersonSlot(SpriteId.AgenticAcolyte), "spriteLightmaps"),
-    ),
-    managedAsset(new URL("../../assets/game/sprites/corpse.png", import.meta.url).href, [
-      { layer: "sprites", slot: firstPersonSlot(SpriteId.Corpse) },
-    ]),
-    managedAsset(new URL("../../assets/game/sprites/uplink_terminal.png", import.meta.url).href, [
-      // Left half of the sheet is the inactive terminal, right half is active.
-      { layer: "sprites", slot: firstPersonSlot(SpriteId.UplinkTerminal), frame: [0.5, 0, 0.5, 1] },
-    ]),
-    managedAsset(new URL("../../assets/game/sprites/health.png", import.meta.url).href, [
-      { layer: "sprites", slot: firstPersonSlot(SpriteId.HealthPatch) },
-    ]),
-    managedAsset(new URL("../../assets/game/sprites/pistol_ammo.png", import.meta.url).href, [
-      { layer: "sprites", slot: firstPersonSlot(SpriteId.PistolAmmo) },
-    ]),
-    managedAsset(new URL("../../assets/game/sprites/cannon_ammo.png", import.meta.url).href, [
-      { layer: "sprites", slot: firstPersonSlot(SpriteId.CannonAmmo) },
-    ]),
-    managedAsset(new URL("../../assets/game/sprites/red_key.png", import.meta.url).href, [
-      { layer: "sprites", slot: firstPersonSlot(SpriteId.RedKey) },
-    ]),
-    managedAsset(new URL("../../assets/game/sprites/blue_key.png", import.meta.url).href, [
-      { layer: "sprites", slot: firstPersonSlot(SpriteId.BlueKey) },
-    ]),
-    managedAsset(new URL("../../assets/game/sprites/yellow_key.png", import.meta.url).href, [
-      { layer: "sprites", slot: firstPersonSlot(SpriteId.YellowKey) },
-    ]),
-    managedAsset(new URL("../../assets/game/sprites/weapon_2.png", import.meta.url).href, [
-      { layer: "sprites", slot: firstPersonSlot(SpriteId.Weapon2) },
-    ]),
-    managedAsset(new URL("../../assets/game/sprites/weapon_3.png", import.meta.url).href, [
-      { layer: "sprites", slot: firstPersonSlot(SpriteId.Weapon3) },
-    ]),
-    managedAsset(new URL("../../assets/game/sprites/john.png", import.meta.url).href, [
-      { layer: "sprites", slot: firstPersonSlot(SpriteId.John) },
-    ]),
-    managedAsset(new URL("../../assets/game/sprites/uplink_code.png", import.meta.url).href, [
-      { layer: "sprites", slot: firstPersonSlot(SpriteId.UplinkCode) },
-    ]),
-    managedAsset(new URL("../../assets/game/sprites/decor_server_pile.png", import.meta.url).href, [
-      { layer: "sprites", slot: firstPersonSlot(SpriteId.DecorServerPile) },
-    ]),
-    managedAsset(new URL("../../assets/game/sprites/decor_cyborg.png", import.meta.url).href, [
-      { layer: "sprites", slot: firstPersonSlot(SpriteId.DecorCyborg) },
-    ]),
-    managedAsset(new URL("../../assets/game/sprites/decor_ceiling_hook.png", import.meta.url).href, [
-      { layer: "sprites", slot: firstPersonSlot(SpriteId.DecorCeilingHook) },
-    ]),
-    managedAsset(new URL("../../assets/game/sprites/decor_ceiling_light.png", import.meta.url).href, [
-      { layer: "sprites", slot: firstPersonSlot(SpriteId.DecorCeilingLight) },
-    ]),
-    managedAsset(new URL("../../assets/game/sprites/decor_ceiling_wires.png", import.meta.url).href, [
-      { layer: "sprites", slot: firstPersonSlot(SpriteId.DecorCeilingWires) },
-    ]),
+    ...spriteManagedAssets(),
     texturePackAssets[TexturePack.Pack1],
     texturePackAssets[TexturePack.Pack2],
     texturePackAssets[TexturePack.Pack3],
@@ -389,29 +312,16 @@ function buildAtlas(): RaycastAtlas {
 
   const sprites: BakedTexture[] = [];
   const spriteLightmaps: BakedTexture[] = [];
-  fillEnemyFallback(sprites, firstPersonSlot(SpriteId.DigitalDog), "#ef4444");
-  fillEnemyFallback(sprites, firstPersonSlot(SpriteId.GigabitGunslinger), "#38bdf8");
-  fillEnemyFallback(sprites, firstPersonSlot(SpriteId.NetworkNeophyte), "#34d399");
-  fillEnemyFallback(sprites, firstPersonSlot(SpriteId.SystemSentinel), "#f59e0b");
-  fillEnemyFallback(sprites, firstPersonSlot(SpriteId.AgenticAcolyte), "#a78bfa");
-  sprites[firstPersonSlot(SpriteId.UplinkTerminal)] = bakeOrb("#22c55e");
-  sprites[firstPersonSlot(SpriteId.HealthPatch)] = bakeOrb("#59d39b");
-  sprites[firstPersonSlot(SpriteId.RedKey)] = bakeOrb("#df4f45");
-  sprites[firstPersonSlot(SpriteId.BlueKey)] = bakeOrb("#4f8df7");
-  sprites[firstPersonSlot(SpriteId.YellowKey)] = bakeOrb("#f4d35e");
-  sprites[firstPersonSlot(SpriteId.Weapon2)] = bakeOrb("#c084fc");
-  sprites[firstPersonSlot(SpriteId.Weapon3)] = bakeOrb("#c084fc");
-  sprites[firstPersonSlot(SpriteId.Npc)] = bakeOrb("#59d39b");
-  sprites[firstPersonSlot(SpriteId.John)] = bakeOrb("#59d39b");
-  sprites[firstPersonSlot(SpriteId.UplinkCode)] = bakeOrb("#7dd3fc");
-  sprites[firstPersonSlot(SpriteId.Corpse)] = bakeOrb("#4b5563");
-  sprites[firstPersonSlot(SpriteId.PistolAmmo)] = bakeOrb("#38bdf8");
-  sprites[firstPersonSlot(SpriteId.CannonAmmo)] = bakeOrb("#f97316");
-  sprites[firstPersonSlot(SpriteId.DecorServerPile)] = bakeOrb("#64748b");
-  sprites[firstPersonSlot(SpriteId.DecorCyborg)] = bakeOrb("#94a3b8");
-  sprites[firstPersonSlot(SpriteId.DecorCeilingHook)] = bakeOrb("#9f7a5d");
-  sprites[firstPersonSlot(SpriteId.DecorCeilingLight)] = bakeOrb("#facc15");
-  sprites[firstPersonSlot(SpriteId.DecorCeilingWires)] = bakeOrb("#64748b");
+  for (const appearance of spriteAppearances()) {
+    const slot = appearance.firstPersonSlot;
+    const color = appearance.fallbackColor;
+    if (slot === undefined || color === undefined) continue;
+    if (appearance.enemySheet) {
+      fillEnemyFallback(sprites, slot, color);
+      continue;
+    }
+    sprites[slot] = bakeOrb(color);
+  }
 
   return { walls, planes, skyPlane: SKY_TEX, skyFarPlane: SKY_FAR_TEX, sprites, spriteLightmaps };
 }
