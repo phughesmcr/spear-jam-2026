@@ -10,8 +10,14 @@
  * projection, so the effect costs nothing in the pixel loops.
  */
 
-import { createFrame, renderFrame } from "@/src/render/raycast/scene.ts";
-import type { RaycastAtlas, RaycastCamera, RaycastFrame, RaycastScene } from "@/src/render/raycast/scene.ts";
+import {
+  createFrame,
+  type RaycastAtlas,
+  type RaycastCamera,
+  type RaycastFrame,
+  type RaycastScene,
+  renderFrame,
+} from "@/src/render/raycast/scene.ts";
 
 /** Internal render resolution as a fraction of the logical viewport size. */
 const INTERNAL_SCALE = 0.75;

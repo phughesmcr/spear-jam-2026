@@ -2,6 +2,7 @@ import type { Entity, World } from "@phughesmcr/miski";
 import { DialogueTreeId } from "@/src/dialogue/dialogue.ts";
 import {
   Attack,
+  type AttackSchema,
   Blocking,
   DecorationKind,
   Defense,
@@ -36,7 +37,6 @@ import {
   TurnTaker,
   UplinkTerminal,
 } from "@/src/ecs/components.ts";
-import type { AttackSchema } from "@/src/ecs/components.ts";
 import {
   DrawableKind,
   SpriteId,
@@ -57,22 +57,24 @@ import { DEFAULT_ATTACK } from "@/src/game/attack.ts";
 import { storyEventCode, storyTargetCode } from "@/src/game/story.ts";
 import { normalizeDirection } from "@/src/grid/direction.ts";
 import { MapDecorationKind, MapEnemyArchetype, MapItemKind } from "@/src/map/entity_content.ts";
-import { doorSlideCode, keyColorCode, terminalDestinationCode } from "@/src/map/map.ts";
-import type {
-  DecorationDef,
-  DoorDef,
-  EnemyDef,
-  EntityDef,
-  EntityDefFor,
-  EntityPrefab,
-  ItemDef,
-  KeyDef,
-  LightDef,
-  NpcDef,
-  PlayerDef,
-  UplinkCodeDef,
-  UplinkTerminalDef,
-  WeaponPickupDef,
+import {
+  type DecorationDef,
+  type DoorDef,
+  doorSlideCode,
+  type EnemyDef,
+  type EntityDef,
+  type EntityDefFor,
+  type EntityPrefab,
+  type ItemDef,
+  keyColorCode,
+  type KeyDef,
+  type LightDef,
+  type NpcDef,
+  type PlayerDef,
+  terminalDestinationCode,
+  type UplinkCodeDef,
+  type UplinkTerminalDef,
+  type WeaponPickupDef,
 } from "@/src/map/map.ts";
 
 const DEFAULT_PLAYER_HIT_DC = 10;

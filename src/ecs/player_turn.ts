@@ -7,8 +7,7 @@ import {
   weaponLabel,
   weaponNoiseRadius,
 } from "@/src/ecs/combat.ts";
-import { collectItemAt, interactWithEntity } from "@/src/ecs/interactions.ts";
-import type { PlayerInteractionResult } from "@/src/ecs/interactions.ts";
+import { collectItemAt, interactWithEntity, type PlayerInteractionResult } from "@/src/ecs/interactions.ts";
 import {
   applyItemPickupToPlayer,
   heldKeysForPlayer,
@@ -22,14 +21,17 @@ import {
 import { playerTurnQuery } from "@/src/ecs/queries.ts";
 import type { SpatialIndex } from "@/src/ecs/spatial.ts";
 import { examineEntity } from "@/src/game/examine.ts";
-import { relativeMoveDirectionOffset, turnDirectionDelta } from "@/src/game/commands.ts";
-import type { InteractVerb, PlayerCommand } from "@/src/game/commands.ts";
+import {
+  type InteractVerb,
+  type PlayerCommand,
+  relativeMoveDirectionOffset,
+  turnDirectionDelta,
+} from "@/src/game/commands.ts";
 import type { GameEvent } from "@/src/game/events.ts";
 import type { NoiseStimulus } from "@/src/game/perception.ts";
 import type { RandomSource } from "@/src/game/rng.ts";
 import type { CommandSlot, TargetMarkerTone } from "@/src/game/state.ts";
-import { directionDelta, normalizeDirection } from "@/src/grid/direction.ts";
-import type { GridPoint } from "@/src/grid/direction.ts";
+import { directionDelta, type GridPoint, normalizeDirection } from "@/src/grid/direction.ts";
 
 const MOVE_NOISE_RADIUS = 2;
 

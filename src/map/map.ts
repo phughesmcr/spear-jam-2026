@@ -1,5 +1,9 @@
-import { KeyColor as ContentKeyColor } from "@/src/map/entity_content.ts";
-import type { DoorSlide, EntityDef, KeyColor as KeyColorType } from "@/src/map/entity_content.ts";
+import {
+  type DoorSlide,
+  type EntityDef,
+  KeyColor as ContentKeyColor,
+  type KeyColor as KeyColorType,
+} from "@/src/map/entity_content.ts";
 import { SKY_CEILING_TEXTURE, TERRAIN_CATALOG } from "@/src/map/terrain_palettes.ts";
 
 export const KeyColor = ContentKeyColor;

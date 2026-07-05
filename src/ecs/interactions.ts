@@ -16,10 +16,8 @@ import { displayNameText } from "@/src/game/names.ts";
 import type { SpatialIndex } from "@/src/ecs/spatial.ts";
 import type { InteractVerb } from "@/src/game/commands.ts";
 import type { GameEvent } from "@/src/game/events.ts";
-import { commandSlotForCode } from "@/src/game/state.ts";
-import type { AmmoKind, CommandSlot, DialogueState } from "@/src/game/state.ts";
-import { keyColorForCode } from "@/src/map/map.ts";
-import type { KeyColor } from "@/src/map/map.ts";
+import { type AmmoKind, type CommandSlot, commandSlotForCode, type DialogueState } from "@/src/game/state.ts";
+import { type KeyColor, keyColorForCode } from "@/src/map/map.ts";
 
 export type ItemPickup =
   | { readonly type: "key"; readonly entity: Entity; readonly color: KeyColor }

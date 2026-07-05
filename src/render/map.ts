@@ -1,7 +1,6 @@
 import type { GameCanvasSize } from "@/src/render/canvas.ts";
 import type { TileVisibility } from "@/src/game/visibility.ts";
-import { mapDimensions, terrainAt } from "@/src/map/map.ts";
-import type { GameMap } from "@/src/map/map.ts";
+import { type GameMap, mapDimensions, terrainAt } from "@/src/map/map.ts";
 
 export interface MapRenderMetrics {
   readonly mapWidth: number;

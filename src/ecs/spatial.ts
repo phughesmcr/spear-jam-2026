@@ -1,16 +1,15 @@
 import type { Entity, World } from "@phughesmcr/miski";
 import { Blocking, GridPos, Item } from "@/src/ecs/components.ts";
 import { positionedQuery } from "@/src/ecs/queries.ts";
-import { CARDINAL_DELTAS, directionDelta } from "@/src/grid/direction.ts";
-import type { GridPoint } from "@/src/grid/direction.ts";
+import { CARDINAL_DELTAS, directionDelta, type GridPoint } from "@/src/grid/direction.ts";
 import {
+  type GameMap,
   mapDimensions,
   terrainAt,
   terrainBlocksAttacks,
   terrainBlocksMovement,
   terrainBlocksSight,
 } from "@/src/map/map.ts";
-import type { GameMap } from "@/src/map/map.ts";
 
 export interface SpatialLookup {
   tileBlocks(x: number, y: number): boolean;

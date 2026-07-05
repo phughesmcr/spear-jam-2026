@@ -1,9 +1,12 @@
 import type { Entity } from "@phughesmcr/miski";
 import { dialogueTreeNode } from "@/src/dialogue/dialogue.ts";
-import { combatFeedbackForEvents } from "@/src/game/combat_feedback.ts";
-import type { CombatFeedback } from "@/src/game/combat_feedback.ts";
-import { isPlayerCommand } from "@/src/game/commands.ts";
-import type { GameCommand, PlayerCommand, PlayerCommandResult } from "@/src/game/commands.ts";
+import { type CombatFeedback, combatFeedbackForEvents } from "@/src/game/combat_feedback.ts";
+import {
+  type GameCommand,
+  isPlayerCommand,
+  type PlayerCommand,
+  type PlayerCommandResult,
+} from "@/src/game/commands.ts";
 import type { GameMode, PlayerStateInput, ViewMode } from "@/src/game/state.ts";
 import { VERBS, verbToCommand } from "@/src/game/verbs.ts";
 

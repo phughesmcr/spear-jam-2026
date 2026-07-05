@@ -3,38 +3,42 @@ import {
   Door,
   Drawable,
   Facing,
+  type FacingSchema,
   GridPos,
+  type GridPosSchema,
   healthFor,
   PENDING_SPRITE_ANIMATION_START_MS,
   SPRITE_ATTACK_MS,
   SPRITE_WALK_MS,
   SpriteAnimation,
   SpriteAnimationKind,
+  type SpriteAnimationSchema,
   StoryTarget,
   TalkStoryEvent,
   UplinkTerminal,
 } from "@/src/ecs/components.ts";
-import type { FacingSchema, GridPosSchema, SpriteAnimationSchema } from "@/src/ecs/components.ts";
 import { normalizeDirection } from "@/src/grid/direction.ts";
 import {
   createDrawableRenderScratch,
   createLightEntityScratch,
+  type DrawableEntity,
+  type DrawableEntityVisitor,
   DrawableKind,
+  type DrawableSystem,
   drawableSystem,
+  type LightEntityVisitor,
+  type LightSystem,
   lightSystem,
 } from "@/src/ecs/drawables.ts";
-import type {
-  DrawableEntity,
-  DrawableEntityVisitor,
-  DrawableSystem,
-  LightEntityVisitor,
-  LightSystem,
-} from "@/src/ecs/drawables.ts";
-import { enemyTurnSystem } from "@/src/ecs/enemy.ts";
-import type { EnemyTurnSystem } from "@/src/ecs/enemy.ts";
+import { type EnemyTurnSystem, enemyTurnSystem } from "@/src/ecs/enemy.ts";
 import { createCorpse, createMapEntity } from "@/src/ecs/prefabs.ts";
-import { playerTurnSystem, targetMarkerTone } from "@/src/ecs/player_turn.ts";
-import type { PlayerActionResolution, PlayerTurnContext, PlayerTurnSystem } from "@/src/ecs/player_turn.ts";
+import {
+  type PlayerActionResolution,
+  type PlayerTurnContext,
+  type PlayerTurnSystem,
+  playerTurnSystem,
+  targetMarkerTone,
+} from "@/src/ecs/player_turn.ts";
 import { drawableRenderQuery, spriteAnimationQuery, storyTargetQuery } from "@/src/ecs/queries.ts";
 import { SpatialIndex } from "@/src/ecs/spatial.ts";
 import { createWorld } from "@/src/ecs/world.ts";
@@ -46,25 +50,25 @@ import {
   clearTransientPlayerState,
   completePlayerLevel,
   initializePlayerProgression,
+  type PlayerStateSnapshot,
   playerStateSnapshotFor,
   tickPlayerTurnEffects,
 } from "@/src/ecs/progression.ts";
-import type { PlayerStateSnapshot } from "@/src/ecs/progression.ts";
 import type { RandomSource } from "@/src/game/rng.ts";
 import type { PlayerStateInput, TargetMarkerTone } from "@/src/game/state.ts";
 import {
   normalizeStoryFlags,
+  type StoryAction,
   storyEventDefinition,
   storyEventForCode,
+  type StoryEventId,
+  type StoryFlag,
   storyPathDestination,
   storyTargetCode,
   storyTargetForCode,
 } from "@/src/game/story.ts";
-import type { StoryAction, StoryEventId, StoryFlag } from "@/src/game/story.ts";
-import { VisibilityMap } from "@/src/game/visibility.ts";
-import type { TileVisibility } from "@/src/game/visibility.ts";
-import { mapDimensions, terminalDestinationForCode, VICTORY_GOTO } from "@/src/map/map.ts";
-import type { GameMap } from "@/src/map/map.ts";
+import { type TileVisibility, VisibilityMap } from "@/src/game/visibility.ts";
+import { type GameMap, mapDimensions, terminalDestinationForCode, VICTORY_GOTO } from "@/src/map/map.ts";
 
 const UNCHANGED_PLAYER_COMMAND: PlayerCommandResult = Object.freeze({
   events: [],

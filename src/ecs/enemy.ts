@@ -3,26 +3,29 @@ import {
   AttackFacingRequirement,
   AwarenessState,
   enemyArchetypeFor,
+  type EnemyAwarenessPartitions,
+  type EnemyAwarenessSchema,
+  type FacingPartitions,
   GridPos,
+  type GridPosPartitions,
   Health,
   IDLE_AWARENESS,
-} from "@/src/ecs/components.ts";
-import type {
-  EnemyAwarenessPartitions,
-  EnemyAwarenessSchema,
-  FacingPartitions,
-  GridPosPartitions,
 } from "@/src/ecs/components.ts";
 import { attackEntity, attackTargets, entityAttack } from "@/src/ecs/combat.ts";
 import { DEFAULT_ENEMY_BEHAVIOR, EnemyBehavior, enemyCatalogEntry } from "@/src/ecs/enemy_catalog.ts";
 import { enemyTurnQuery } from "@/src/ecs/queries.ts";
 import type { SpatialAccess, SpatialLookup, SpatialMutations } from "@/src/ecs/spatial.ts";
 import type { GameEvent } from "@/src/game/events.ts";
-import { canHearNoise, canSeePoint } from "@/src/game/perception.ts";
-import type { BlocksSight, NoiseStimulus } from "@/src/game/perception.ts";
+import { type BlocksSight, canHearNoise, canSeePoint, type NoiseStimulus } from "@/src/game/perception.ts";
 import type { RandomSource } from "@/src/game/rng.ts";
-import { CARDINAL_DELTAS, Direction, manhattanDistance } from "@/src/grid/direction.ts";
-import type { CardinalDirection, GridDelta, GridPoint } from "@/src/grid/direction.ts";
+import {
+  CARDINAL_DELTAS,
+  type CardinalDirection,
+  Direction,
+  type GridDelta,
+  type GridPoint,
+  manhattanDistance,
+} from "@/src/grid/direction.ts";
 
 const DEFAULT_ENEMY_SIGHT_RADIUS = 6;
 const MAX_INVESTIGATION_TURNS = 6;

@@ -1,23 +1,24 @@
 import type { Entity } from "@phughesmcr/miski";
 import { createGameSession, type GameSession } from "@/src/ecs/session.ts";
-import { relativeMoveDirectionOffset } from "@/src/game/commands.ts";
-import type { GameCommand } from "@/src/game/commands.ts";
-import type { PlayerCommand } from "@/src/game/commands.ts";
+import { type GameCommand, type PlayerCommand, relativeMoveDirectionOffset } from "@/src/game/commands.ts";
 import { directionDelta, normalizeDirection } from "@/src/grid/direction.ts";
 import type { GameEvent } from "@/src/game/events.ts";
 import { messageForEvent } from "@/src/game/messages.ts";
 import { SplitMix32 } from "@/src/game/rng.ts";
-import { createGameModel, transition } from "@/src/game/transition.ts";
-import type { GameEffect, GameModel, GameTransitionEvent } from "@/src/game/transition.ts";
+import {
+  createGameModel,
+  type GameEffect,
+  type GameModel,
+  type GameTransitionEvent,
+  transition,
+} from "@/src/game/transition.ts";
 import type { PlayerStateInput } from "@/src/game/state.ts";
 import { setupInput } from "@/src/input/input.ts";
 import type { CanvasPointerInput } from "@/src/input/pointer.ts";
 import { getMap, START_MAP_NAME } from "@/src/map/maps.ts";
-import { configureCanvasDpi, DEFAULT_GAME_CANVAS_SIZE } from "@/src/render/canvas.ts";
-import type { GameCanvasSize } from "@/src/render/canvas.ts";
+import { configureCanvasDpi, DEFAULT_GAME_CANVAS_SIZE, type GameCanvasSize } from "@/src/render/canvas.ts";
 import { dialogueOptionSlotAt } from "@/src/render/dialogue.ts";
-import { createFirstPersonRenderer } from "@/src/render/first_person.ts";
-import type { FirstPersonRenderer } from "@/src/render/first_person.ts";
+import { createFirstPersonRenderer, type FirstPersonRenderer } from "@/src/render/first_person.ts";
 import { preloadGameAssets, renderGameFrame } from "@/src/render/game.ts";
 import { verbMenuHotspotIndexAt } from "@/src/render/verb_menu.ts";
 import type { WeaponHudPhase } from "@/src/render/weapon_hud.ts";

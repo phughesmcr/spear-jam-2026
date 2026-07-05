@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { DialogueTreeId, type DialogueTreeId as DialogueTreeIdType } from "@/src/dialogue/dialogue.ts";
 import {
+  type AttackDef,
   AttackFacingRequirement,
   type AttackFacingRequirement as AttackFacingRequirementType,
   AttackPattern,
@@ -8,7 +9,6 @@ import {
   AttackTargetMode,
   type AttackTargetMode as AttackTargetModeType,
 } from "@/src/game/attack.ts";
-import type { AttackDef } from "@/src/game/attack.ts";
 import { ExamineTextId, type ExamineTextId as ExamineTextIdType } from "@/src/game/examine_content.ts";
 import { DisplayName, type DisplayName as DisplayNameType } from "@/src/game/names.ts";
 import {

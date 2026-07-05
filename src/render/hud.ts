@@ -1,8 +1,7 @@
 import type { GameSession } from "@/src/ecs/session.ts";
 import type { PlayerStateSnapshot } from "@/src/ecs/progression.ts";
 import type { AmmoKind, PlayerHealthState } from "@/src/game/state.ts";
-import { Direction, normalizeDirection } from "@/src/grid/direction.ts";
-import type { CardinalDirection } from "@/src/grid/direction.ts";
+import { type CardinalDirection, Direction, normalizeDirection } from "@/src/grid/direction.ts";
 import { KeyColor } from "@/src/map/map.ts";
 import { createImageAsset, loadedImage, preloadImageAssets } from "@/src/render/assets.ts";
 import type { GameCanvasSize } from "@/src/render/canvas.ts";

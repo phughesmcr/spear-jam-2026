@@ -1,18 +1,26 @@
 import { type Entity, System } from "@phughesmcr/miski";
-import { DecorationKind, DrawableKind, ItemKind, SpriteId } from "@/src/ecs/components.ts";
-import type {
-  DecorationKind as DecorationKindType,
-  ItemKind as ItemKindType,
-  LightEmitterSchema,
-  SpriteAnimationSchema,
-  SpriteId as SpriteIdType,
+import {
+  DecorationKind,
+  type DecorationKind as DecorationKindType,
+  DrawableKind,
+  ItemKind,
+  type ItemKind as ItemKindType,
+  type LightEmitterSchema,
+  type SpriteAnimationSchema,
+  SpriteId,
+  type SpriteId as SpriteIdType,
 } from "@/src/ecs/components.ts";
-import { EnemyArchetype } from "@/src/ecs/enemy_catalog.ts";
-import type { EnemyArchetype as EnemyArchetypeType } from "@/src/ecs/enemy_catalog.ts";
+import { EnemyArchetype, type EnemyArchetype as EnemyArchetypeType } from "@/src/ecs/enemy_catalog.ts";
 import { drawableRenderQuery, lightRenderQuery } from "@/src/ecs/queries.ts";
 import { DisplayName } from "@/src/game/names.ts";
-import { DEFAULT_DOOR_OPEN_MS, doorSlideForCode, KeyColor, keyColorForCode } from "@/src/map/map.ts";
-import type { DoorSlide, KeyColor as KeyColorType } from "@/src/map/map.ts";
+import {
+  DEFAULT_DOOR_OPEN_MS,
+  type DoorSlide,
+  doorSlideForCode,
+  KeyColor,
+  type KeyColor as KeyColorType,
+  keyColorForCode,
+} from "@/src/map/map.ts";
 
 export { DrawableKind, SpriteId };
 

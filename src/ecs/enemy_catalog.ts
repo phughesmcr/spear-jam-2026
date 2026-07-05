@@ -1,5 +1,4 @@
-import { AttackFacingRequirement, AttackPattern, AttackTargetMode } from "@/src/game/attack.ts";
-import type { AttackDef } from "@/src/game/attack.ts";
+import { type AttackDef, AttackFacingRequirement, AttackPattern, AttackTargetMode } from "@/src/game/attack.ts";
 import { DisplayName } from "@/src/game/names.ts";
 
 export const EnemyArchetype = {

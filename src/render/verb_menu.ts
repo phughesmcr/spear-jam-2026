@@ -1,7 +1,5 @@
-import { VERBS } from "@/src/game/verbs.ts";
-import type { VerbId } from "@/src/game/verbs.ts";
-import { createImageAsset, loadedImage, preloadImageAssets } from "@/src/render/assets.ts";
-import type { ImageAsset } from "@/src/render/assets.ts";
+import { type VerbId, VERBS } from "@/src/game/verbs.ts";
+import { createImageAsset, type ImageAsset, loadedImage, preloadImageAssets } from "@/src/render/assets.ts";
 import type { GameCanvasSize } from "@/src/render/canvas.ts";
 import { monoFont } from "@/src/render/text.ts";
 

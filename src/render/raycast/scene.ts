@@ -17,8 +17,15 @@
  *      stripes so grates and see-through faces composite correctly.
  */
 
-import { SHADE_BANDS, TEX_MASK, TEX_SHIFT, TEX_SIZE, TRANSPARENT_TEXEL } from "@/src/render/raycast/textures.ts";
-import type { BakedTexture, BakedTextureMip } from "@/src/render/raycast/textures.ts";
+import {
+  type BakedTexture,
+  type BakedTextureMip,
+  SHADE_BANDS,
+  TEX_MASK,
+  TEX_SHIFT,
+  TEX_SIZE,
+  TRANSPARENT_TEXEL,
+} from "@/src/render/raycast/textures.ts";
 
 /** Thin wall plane at `cellX + 0.5`, crossed by rays travelling along x. */
 export const THIN_AXIS_X = 0;

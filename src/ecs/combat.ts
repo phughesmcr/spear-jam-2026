@@ -3,6 +3,7 @@ import {
   Attack,
   AttackFacingRequirement,
   AttackPattern,
+  type AttackSchema,
   AttackTargetMode,
   Defense,
   DisplayNameComponent,
@@ -12,9 +13,8 @@ import {
   Health,
   Player as PlayerTag,
   Sprite,
+  type SpriteId,
 } from "@/src/ecs/components.ts";
-import type { AttackSchema } from "@/src/ecs/components.ts";
-import type { SpriteId } from "@/src/ecs/components.ts";
 import { createDeathEffect } from "@/src/ecs/prefabs.ts";
 import type { SpatialAccess, SpatialLookup, SpatialMutations } from "@/src/ecs/spatial.ts";
 import { CARDINAL_DELTAS, directionDelta } from "@/src/grid/direction.ts";

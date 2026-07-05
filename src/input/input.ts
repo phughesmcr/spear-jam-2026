@@ -1,8 +1,6 @@
 import type { GameCommand } from "@/src/game/commands.ts";
-import Pointer from "@/src/input/pointer.ts";
-import type { CanvasPointerInput } from "@/src/input/pointer.ts";
-import TouchGestures, { windowTouchGestureScheduler } from "@/src/input/touch_gestures.ts";
-import type { TouchGestureEnabled } from "@/src/input/touch_gestures.ts";
+import Pointer, { CanvasPointerInput } from "@/src/input/pointer.ts";
+import TouchGestures, { type TouchGestureEnabled, windowTouchGestureScheduler } from "@/src/input/touch_gestures.ts";
 import type { GameCanvasSize } from "@/src/render/canvas.ts";
 
 export type GameCommandReceiver = (command: GameCommand) => void;

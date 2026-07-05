@@ -1,12 +1,15 @@
 import {
+  type DoorDef,
+  type GameMap,
   KeyColor,
+  type KeyColor as KeyColorType,
   mapDimensions,
   terrainAt,
   terrainBlocksMovement,
   terrainIsBarrier,
+  type UplinkTerminalDef,
   VICTORY_GOTO,
 } from "@/src/map/map.ts";
-import type { DoorDef, GameMap, KeyColor as KeyColorType, UplinkTerminalDef } from "@/src/map/map.ts";
 import { CARDINAL_DELTAS } from "@/src/grid/direction.ts";
 
 type ReachabilityResult = {

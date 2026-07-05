@@ -12,19 +12,25 @@
  * facing relative to the camera, Wolf3D style.
  */
 
-import { DrawableKind, spriteAppearance, spriteAppearances } from "@/src/ecs/drawables.ts";
-import type {
-  DrawableEntity,
-  DrawableEntityVisitor,
-  LightEntityVisitor,
-  SpriteAppearance,
+import {
+  type DrawableEntity,
+  type DrawableEntityVisitor,
+  DrawableKind,
+  type LightEntityVisitor,
+  type SpriteAppearance,
+  spriteAppearance,
+  spriteAppearances,
 } from "@/src/ecs/drawables.ts";
-import { SpriteAnimationKind } from "@/src/ecs/components.ts";
-import type { SpriteAnimationSchema } from "@/src/ecs/components.ts";
+import { SpriteAnimationKind, type SpriteAnimationSchema } from "@/src/ecs/components.ts";
 import { type CardinalDirection, directionDelta, normalizeDirection } from "@/src/grid/direction.ts";
 import type { TargetMarkerTone } from "@/src/game/state.ts";
 import {
   BarrierTexture,
+  type BarrierTexture as BarrierTextureType,
+  type CeilingTexture,
+  type DoorSlide,
+  type FloorTexture,
+  type GameMap,
   KeyColor,
   mapDimensions,
   SKY_CEILING_TEXTURE,
@@ -32,19 +38,11 @@ import {
   terrainBlocksMovement,
   terrainIsBarrier,
   TexturePack,
-} from "@/src/map/map.ts";
-import type {
-  BarrierTexture as BarrierTextureType,
-  CeilingTexture,
-  DoorSlide,
-  FloorTexture,
-  GameMap,
-  TexturePackRef,
-  WallTexture,
+  type TexturePackRef,
+  type WallTexture,
 } from "@/src/map/map.ts";
 import { parseTexturePackRef, TEXTURE_PACK_COLUMNS, TEXTURE_PACK_ROWS } from "@/src/map/terrain_palettes.ts";
-import { createImageAsset, loadedImage, preloadImageAssets } from "@/src/render/assets.ts";
-import type { ImageAsset } from "@/src/render/assets.ts";
+import { createImageAsset, type ImageAsset, loadedImage, preloadImageAssets } from "@/src/render/assets.ts";
 import {
   addSlidingSolidWall,
   addSprite,
@@ -52,22 +50,32 @@ import {
   cameraForAngle,
   clearSceneDynamic,
   createScene,
+  type RaycastAtlas,
+  type RaycastScene,
   THIN_AXIS_X,
   THIN_AXIS_Y,
   THIN_SLIDE_DOWN,
   THIN_SLIDE_NEG,
   THIN_SLIDE_POS,
   THIN_SLIDE_UP,
+  type ThinWallAxis,
+  type ThinWallSlide,
 } from "@/src/render/raycast/scene.ts";
-import type { RaycastAtlas, RaycastScene, ThinWallAxis, ThinWallSlide } from "@/src/render/raycast/scene.ts";
-import { bakeSolidTexture, bakeTexture, TEX_SIZE } from "@/src/render/raycast/textures.ts";
-import type { BakedTexture, TexelSource } from "@/src/render/raycast/textures.ts";
+import {
+  type BakedTexture,
+  bakeSolidTexture,
+  bakeTexture,
+  TEX_SIZE,
+  type TexelSource,
+} from "@/src/render/raycast/textures.ts";
 import {
   createNudgeTween,
   createPoseTween,
   createScalarTween,
   createSpriteTween,
   headBobFraction,
+  type NudgeSample,
+  type PoseSample,
   retargetPoseTween,
   retargetScalarTween,
   retargetSpriteTween,
@@ -75,19 +83,14 @@ import {
   samplePoseTween,
   sampleScalarTween,
   sampleSpriteTween,
+  type ScalarSample,
+  type ScalarTween,
   snapPoseTween,
+  type SpritePoint,
+  type SpriteTween,
   startNudgeTween,
 } from "@/src/render/raycast/tween.ts";
-import type {
-  NudgeSample,
-  PoseSample,
-  ScalarSample,
-  ScalarTween,
-  SpritePoint,
-  SpriteTween,
-} from "@/src/render/raycast/tween.ts";
-import { createRaycastView } from "@/src/render/raycast/view.ts";
-import type { ViewRect } from "@/src/render/raycast/view.ts";
+import { createRaycastView, type ViewRect } from "@/src/render/raycast/view.ts";
 
 type AtlasLayer = "walls" | "planes" | "sprites" | "spriteLightmaps";
 

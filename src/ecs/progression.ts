@@ -2,36 +2,36 @@ import type { Entity, World } from "@phughesmcr/miski";
 import {
   Health,
   healthFor,
+  type HealthSchema,
   PlayerEquipment,
+  type PlayerEquipmentSchema,
   PlayerInventory,
+  type PlayerInventorySchema,
   PlayerProgress,
+  type PlayerProgressSchema,
   PlayerTurnEffects,
-} from "@/src/ecs/components.ts";
-import type {
-  HealthSchema,
-  PlayerEquipmentSchema,
-  PlayerInventorySchema,
-  PlayerProgressSchema,
-  PlayerTurnEffectsSchema,
+  type PlayerTurnEffectsSchema,
 } from "@/src/ecs/components.ts";
 import { weaponLabel } from "@/src/ecs/combat.ts";
 import type { ItemPickup } from "@/src/ecs/interactions.ts";
 import type { GameEvent } from "@/src/game/events.ts";
-import { commandSlotForCode } from "@/src/game/state.ts";
-import type {
-  AmmoKind,
-  CommandSlot,
-  PlayerAmmoState,
-  PlayerHealthState,
-  PlayerProgressState,
-  PlayerStateInput,
+import {
+  type AmmoKind,
+  type CommandSlot,
+  commandSlotForCode,
+  type PlayerAmmoState,
+  type PlayerHealthState,
+  type PlayerProgressState,
+  type PlayerStateInput,
 } from "@/src/game/state.ts";
-import { normalizeStoryFlags } from "@/src/game/story.ts";
-import type { StoryFlag } from "@/src/game/story.ts";
-import { normalizeTurnEffects, TurnEffectKind } from "@/src/game/turn_effects.ts";
-import type { TurnEffectKind as TurnEffectKindType, TurnEffectState } from "@/src/game/turn_effects.ts";
-import { KeyColor, keyColorCode } from "@/src/map/map.ts";
-import type { KeyColor as KeyColorType } from "@/src/map/map.ts";
+import { normalizeStoryFlags, type StoryFlag } from "@/src/game/story.ts";
+import {
+  normalizeTurnEffects,
+  TurnEffectKind,
+  type TurnEffectKind as TurnEffectKindType,
+  type TurnEffectState,
+} from "@/src/game/turn_effects.ts";
+import { KeyColor, type KeyColor as KeyColorType, keyColorCode } from "@/src/map/map.ts";
 
 const ENEMY_DEFEAT_CREDITS = 10;
 const DEFAULT_PLAYER_WEAPON: CommandSlot = 1;

@@ -9,7 +9,7 @@ import {
   mapEnemyArchetypeAuthoringKey,
   MapItemKind,
 } from "@/src/map/entity_content.ts";
-import { KeyColor, SKY_CEILING_TEXTURE, TexturePack, VICTORY_GOTO } from "@/src/map/map.ts";
+import { type EntityPrefab, KeyColor, SKY_CEILING_TEXTURE, TexturePack, VICTORY_GOTO } from "@/src/map/map.ts";
 import {
   BARRIER_TERRAIN_COUNT,
   PALETTE_KEYS,
@@ -18,7 +18,6 @@ import {
   TEXTURE_PACK_ROWS,
   TEXTURE_TERRAIN_COUNT,
 } from "@/src/map/terrain_palettes.ts";
-import type { EntityPrefab } from "@/src/map/map.ts";
 import type { TiledObject, TiledProperty, TiledTilesetReference } from "@/src/map/authoring/tiled_types.ts";
 
 export const MAPS_DIR = "game_assets/maps";

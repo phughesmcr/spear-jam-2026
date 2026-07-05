@@ -1,5 +1,4 @@
-import { directionDelta } from "@/src/grid/direction.ts";
-import type { CardinalDirection, GridPoint } from "@/src/grid/direction.ts";
+import { type CardinalDirection, directionDelta, type GridPoint } from "@/src/grid/direction.ts";
 
 export type BlocksSight = (x: number, y: number) => boolean;
 

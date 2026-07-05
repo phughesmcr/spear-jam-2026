@@ -1,9 +1,14 @@
-import { DrawableKind, spriteAppearance, SpriteId } from "@/src/ecs/drawables.ts";
-import type { ActorDrawableEntity, DrawableEntity, SpriteDrawableEntity } from "@/src/ecs/drawables.ts";
+import {
+  type ActorDrawableEntity,
+  type DrawableEntity,
+  DrawableKind,
+  spriteAppearance,
+  type SpriteDrawableEntity,
+  SpriteId,
+} from "@/src/ecs/drawables.ts";
 import type { GameSession } from "@/src/ecs/session.ts";
 import { directionDelta } from "@/src/grid/direction.ts";
-import { KeyColor } from "@/src/map/map.ts";
-import type { KeyColor as KeyColorType } from "@/src/map/map.ts";
+import { KeyColor, type KeyColor as KeyColorType } from "@/src/map/map.ts";
 import type { MapRenderMetrics } from "@/src/render/map.ts";
 import { monoFont } from "@/src/render/text.ts";
 

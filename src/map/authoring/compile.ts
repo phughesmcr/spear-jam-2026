@@ -1,28 +1,32 @@
 import type { AttackDef } from "@/src/game/attack.ts";
-import { ENTITY_SCHEMA } from "@/src/map/entity_content.ts";
-import { createGameMap } from "@/src/map/map.ts";
-import type { EntityDef, GameMap, LightDef } from "@/src/map/map.ts";
+import {
+  ENTITY_AUTHORING_PROPERTY_NAMES,
+  ENTITY_SCHEMA,
+  mapEntityPrefab,
+  PREFAB_AUTHORING_PROPERTY_NAMES,
+} from "@/src/map/entity_content.ts";
+import { createGameMap, type EntityDef, type GameMap, type LightDef } from "@/src/map/map.ts";
 import { TERRAIN_CATALOG } from "@/src/map/terrain_palettes.ts";
-import { createTilesetRegistry, decodeObjectGid, decodeTerrainGid } from "@/src/map/authoring/gid.ts";
-import type { TilesetRegistry, TilesetSources } from "@/src/map/authoring/gid.ts";
+import {
+  createTilesetRegistry,
+  decodeObjectGid,
+  decodeTerrainGid,
+  type TilesetRegistry,
+  type TilesetSources,
+} from "@/src/map/authoring/gid.ts";
 import {
   mergeProperties,
   optionalBoolean,
   optionalInteger,
   optionalNumber,
   optionalString,
+  type PropertyMap,
   readProperties,
   requiredInteger,
   requiredString,
   validatePropertyNames,
 } from "@/src/map/authoring/properties.ts";
-import type { PropertyMap } from "@/src/map/authoring/properties.ts";
 import type { TiledLayer, TiledMap, TiledObject, TiledTemplate } from "@/src/map/authoring/tiled_types.ts";
-import {
-  ENTITY_AUTHORING_PROPERTY_NAMES,
-  mapEntityPrefab,
-  PREFAB_AUTHORING_PROPERTY_NAMES,
-} from "@/src/map/entity_content.ts";
 import {
   mapAttackFacingRequirement,
   mapAttackPattern,

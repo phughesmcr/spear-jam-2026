@@ -1,6 +1,5 @@
 import { Component, type ComponentPartitions, type DynamicComponent, type Entity, type World } from "@phughesmcr/miski";
-import { enemyArchetypeForCode } from "@/src/ecs/enemy_catalog.ts";
-import type { EnemyArchetype } from "@/src/ecs/enemy_catalog.ts";
+import { type EnemyArchetype, enemyArchetypeForCode } from "@/src/ecs/enemy_catalog.ts";
 import type { CardinalDirection } from "@/src/grid/direction.ts";
 import type { DisplayName } from "@/src/game/names.ts";
 import { type AttackDef, AttackFacingRequirement, AttackPattern, AttackTargetMode } from "@/src/game/attack.ts";
