@@ -1,7 +1,6 @@
 import type { Entity, World } from "@phughesmcr/miski";
 import {
   Health,
-  healthFor,
   type HealthSchema,
   PlayerEquipment,
   type PlayerEquipmentSchema,
@@ -32,19 +31,19 @@ export const DEFAULT_PLAYER_HEALTH: PlayerHealthState = {
   max: 10,
 };
 
-const DEFAULT_PLAYER_INVENTORY: PlayerInventorySchema = {
+export const DEFAULT_PLAYER_INVENTORY: PlayerInventorySchema = {
   keyMask: 0,
   hasUplinkCode: 0,
   pistolAmmo: 0,
   cannonAmmo: 0,
 };
 
-const DEFAULT_PLAYER_EQUIPMENT: PlayerEquipmentSchema = {
+export const DEFAULT_PLAYER_EQUIPMENT: PlayerEquipmentSchema = {
   selectedWeapon: DEFAULT_PLAYER_WEAPON,
   unlockedWeaponMask: weaponBit(DEFAULT_PLAYER_WEAPON),
 };
 
-const DEFAULT_PLAYER_PROGRESS: PlayerProgressSchema = {
+export const DEFAULT_PLAYER_PROGRESS: PlayerProgressSchema = {
   credits: 0,
   score: 0,
   xp: 0,
@@ -79,10 +78,10 @@ export type PlayerProgressionCheckpoint = {
 };
 
 export function resetPlayerProgression(world: World, playerEntity: Entity): void {
-  upsertPlayerHealth(world, playerEntity, DEFAULT_PLAYER_HEALTH);
-  upsertPlayerInventory(world, playerEntity, DEFAULT_PLAYER_INVENTORY);
-  upsertPlayerEquipment(world, playerEntity, DEFAULT_PLAYER_EQUIPMENT);
-  upsertPlayerProgress(world, playerEntity, DEFAULT_PLAYER_PROGRESS);
+  world.components.setEntityData(Health, playerEntity, DEFAULT_PLAYER_HEALTH);
+  world.components.setEntityData(PlayerInventory, playerEntity, DEFAULT_PLAYER_INVENTORY);
+  world.components.setEntityData(PlayerEquipment, playerEntity, DEFAULT_PLAYER_EQUIPMENT);
+  world.components.setEntityData(PlayerProgress, playerEntity, DEFAULT_PLAYER_PROGRESS);
 }
 
 export function capturePlayerProgressionCheckpoint(
@@ -91,7 +90,7 @@ export function capturePlayerProgressionCheckpoint(
   storyFlags: readonly StoryFlag[] = [],
 ): PlayerProgressionCheckpoint {
   return {
-    health: { ...(healthFor(world, playerEntity) ?? DEFAULT_PLAYER_HEALTH) },
+    health: { ...playerHealthFor(world, playerEntity) },
     inventory: { ...playerInventoryFor(world, playerEntity) },
     equipment: { ...playerEquipmentFor(world, playerEntity) },
     progress: { ...playerProgressFor(world, playerEntity) },
@@ -104,10 +103,10 @@ export function restorePlayerProgressionCheckpoint(
   playerEntity: Entity,
   checkpoint: PlayerProgressionCheckpoint,
 ): readonly StoryFlag[] {
-  upsertPlayerHealth(world, playerEntity, checkpoint.health);
-  upsertPlayerInventory(world, playerEntity, checkpoint.inventory);
-  upsertPlayerEquipment(world, playerEntity, checkpoint.equipment);
-  upsertPlayerProgress(world, playerEntity, checkpoint.progress);
+  world.components.setEntityData(Health, playerEntity, checkpoint.health);
+  world.components.setEntityData(PlayerInventory, playerEntity, checkpoint.inventory);
+  world.components.setEntityData(PlayerEquipment, playerEntity, checkpoint.equipment);
+  world.components.setEntityData(PlayerProgress, playerEntity, checkpoint.progress);
   return normalizeStoryFlags(checkpoint.storyFlags);
 }
 
@@ -118,7 +117,7 @@ export function playerStatusSnapshotFor(
   const inventory = playerInventoryFor(world, playerEntity);
   const equipment = playerEquipmentFor(world, playerEntity);
   const progress = playerProgressFor(world, playerEntity);
-  const health = healthFor(world, playerEntity) ?? DEFAULT_PLAYER_HEALTH;
+  const health = playerHealthFor(world, playerEntity);
 
   return {
     heldKeys: keyColorsForMask(inventory.keyMask),
@@ -151,7 +150,7 @@ export function playerHasWeapon(world: World, playerEntity: Entity, slot: Comman
 }
 
 export function selectPlayerWeapon(world: World, playerEntity: Entity, slot: CommandSlot): void {
-  upsertPlayerEquipment(world, playerEntity, { selectedWeapon: slot });
+  world.components.setEntityData(PlayerEquipment, playerEntity, { selectedWeapon: slot });
 }
 
 export function playerAmmoAmount(world: World, playerEntity: Entity, ammo: AmmoKind): number {
@@ -169,11 +168,11 @@ export function spendPlayerAmmo(world: World, playerEntity: Entity, ammo: AmmoKi
   switch (ammo) {
     case "pistol":
       if (inventory.pistolAmmo <= 0) return false;
-      upsertPlayerInventory(world, playerEntity, { pistolAmmo: inventory.pistolAmmo - 1 });
+      world.components.setEntityData(PlayerInventory, playerEntity, { pistolAmmo: inventory.pistolAmmo - 1 });
       return true;
     case "cannon":
       if (inventory.cannonAmmo <= 0) return false;
-      upsertPlayerInventory(world, playerEntity, { cannonAmmo: inventory.cannonAmmo - 1 });
+      world.components.setEntityData(PlayerInventory, playerEntity, { cannonAmmo: inventory.cannonAmmo - 1 });
       return true;
   }
 }
@@ -191,7 +190,7 @@ export function applyItemPickupToPlayer(
         entity: pickup.entity,
       }];
     case "uplinkCode":
-      upsertPlayerInventory(world, playerEntity, { hasUplinkCode: 1 });
+      world.components.setEntityData(PlayerInventory, playerEntity, { hasUplinkCode: 1 });
       return [{
         type: "uplinkCodePickedUp",
         entity: pickup.entity,
@@ -241,7 +240,7 @@ export function awardCreditsForDefeats(
 
   if (rewardEvents.length === 0) return events;
 
-  upsertPlayerProgress(world, playerEntity, progress);
+  world.components.setEntityData(PlayerProgress, playerEntity, progress);
   return [...events, ...rewardEvents];
 }
 
@@ -256,12 +255,12 @@ export function completePlayerLevel(
   const amount = progress.levelCredits;
   progress.xp += amount;
   progress.levelCredits = 0;
-  upsertPlayerProgress(world, playerEntity, progress);
+  world.components.setEntityData(PlayerProgress, playerEntity, progress);
   return [...events, { type: "xpGained", amount, xp: progress.xp }];
 }
 
 export function clearTransientPlayerState(world: World, playerEntity: Entity): void {
-  upsertPlayerInventory(world, playerEntity, {
+  world.components.setEntityData(PlayerInventory, playerEntity, {
     keyMask: 0,
     hasUplinkCode: 0,
   });
@@ -269,14 +268,14 @@ export function clearTransientPlayerState(world: World, playerEntity: Entity): v
 
 function addPlayerKey(world: World, playerEntity: Entity, color: KeyColorType): void {
   const inventory = playerInventoryFor(world, playerEntity);
-  upsertPlayerInventory(world, playerEntity, {
+  world.components.setEntityData(PlayerInventory, playerEntity, {
     keyMask: inventory.keyMask | keyBit(color),
   });
 }
 
 function unlockPlayerWeapon(world: World, playerEntity: Entity, slot: CommandSlot): void {
   const equipment = playerEquipmentFor(world, playerEntity);
-  upsertPlayerEquipment(world, playerEntity, {
+  world.components.setEntityData(PlayerEquipment, playerEntity, {
     unlockedWeaponMask: equipment.unlockedWeaponMask | weaponBit(slot),
   });
 }
@@ -285,10 +284,10 @@ function addPlayerAmmo(world: World, playerEntity: Entity, ammo: AmmoKind, amoun
   const inventory = playerInventoryFor(world, playerEntity);
   switch (ammo) {
     case "pistol":
-      upsertPlayerInventory(world, playerEntity, { pistolAmmo: inventory.pistolAmmo + amount });
+      world.components.setEntityData(PlayerInventory, playerEntity, { pistolAmmo: inventory.pistolAmmo + amount });
       return;
     case "cannon":
-      upsertPlayerInventory(world, playerEntity, { cannonAmmo: inventory.cannonAmmo + amount });
+      world.components.setEntityData(PlayerInventory, playerEntity, { cannonAmmo: inventory.cannonAmmo + amount });
       return;
   }
 }
@@ -299,9 +298,9 @@ function applyHealthPatch(
   item: Entity,
   amount: number,
 ): readonly GameEvent[] {
-  const health = healthFor(world, playerEntity);
-  const healed = health === undefined ? 0 : Math.min(amount, Math.max(0, health.max - health.current));
-  if (health !== undefined && healed > 0) {
+  const health = playerHealthFor(world, playerEntity);
+  const healed = Math.min(amount, Math.max(0, health.max - health.current));
+  if (healed > 0) {
     world.components.setEntityData(Health, playerEntity, { current: health.current + healed });
   }
   return [{
@@ -312,16 +311,20 @@ function applyHealthPatch(
   }];
 }
 
+function playerHealthFor(world: World, playerEntity: Entity): HealthSchema {
+  return world.components.getEntityData(Health, playerEntity);
+}
+
 function playerInventoryFor(world: World, playerEntity: Entity): PlayerInventorySchema {
-  return world.components.readEntityData(PlayerInventory, playerEntity) ?? { ...DEFAULT_PLAYER_INVENTORY };
+  return world.components.getEntityData(PlayerInventory, playerEntity);
 }
 
 function playerEquipmentFor(world: World, playerEntity: Entity): PlayerEquipmentSchema {
-  return world.components.readEntityData(PlayerEquipment, playerEntity) ?? { ...DEFAULT_PLAYER_EQUIPMENT };
+  return world.components.getEntityData(PlayerEquipment, playerEntity);
 }
 
 function playerProgressFor(world: World, playerEntity: Entity): PlayerProgressSchema {
-  return world.components.readEntityData(PlayerProgress, playerEntity) ?? { ...DEFAULT_PLAYER_PROGRESS };
+  return world.components.getEntityData(PlayerProgress, playerEntity);
 }
 
 function keyColorsForMask(mask: number): readonly KeyColorType[] {
@@ -338,64 +341,4 @@ function weaponSlotsForMask(mask: number): readonly CommandSlot[] {
 
 function weaponBit(slot: CommandSlot): number {
   return 1 << slot;
-}
-
-function upsertPlayerHealth(
-  world: World,
-  playerEntity: Entity,
-  data: Partial<HealthSchema>,
-): void {
-  if (world.components.entityHas(Health, playerEntity)) {
-    world.components.setEntityData(Health, playerEntity, data);
-  } else {
-    world.components.addToEntity(Health, playerEntity, {
-      ...DEFAULT_PLAYER_HEALTH,
-      ...data,
-    });
-  }
-}
-
-function upsertPlayerInventory(
-  world: World,
-  playerEntity: Entity,
-  data: Partial<PlayerInventorySchema>,
-): void {
-  if (world.components.entityHas(PlayerInventory, playerEntity)) {
-    world.components.setEntityData(PlayerInventory, playerEntity, data);
-  } else {
-    world.components.addToEntity(PlayerInventory, playerEntity, {
-      ...DEFAULT_PLAYER_INVENTORY,
-      ...data,
-    });
-  }
-}
-
-function upsertPlayerEquipment(
-  world: World,
-  playerEntity: Entity,
-  data: Partial<PlayerEquipmentSchema>,
-): void {
-  if (world.components.entityHas(PlayerEquipment, playerEntity)) {
-    world.components.setEntityData(PlayerEquipment, playerEntity, data);
-  } else {
-    world.components.addToEntity(PlayerEquipment, playerEntity, {
-      ...DEFAULT_PLAYER_EQUIPMENT,
-      ...data,
-    });
-  }
-}
-
-function upsertPlayerProgress(
-  world: World,
-  playerEntity: Entity,
-  data: Partial<PlayerProgressSchema>,
-): void {
-  if (world.components.entityHas(PlayerProgress, playerEntity)) {
-    world.components.setEntityData(PlayerProgress, playerEntity, data);
-  } else {
-    world.components.addToEntity(PlayerProgress, playerEntity, {
-      ...DEFAULT_PLAYER_PROGRESS,
-      ...data,
-    });
-  }
 }

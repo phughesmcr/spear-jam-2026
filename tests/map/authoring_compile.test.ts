@@ -1,8 +1,5 @@
 import { assertEquals, assertThrows } from "@std/assert";
-import { AttackFacingRequirement, AttackPattern, AttackTargetMode } from "@/src/game/attack.ts";
 import { DialogueTreeId } from "@/src/dialogue/dialogue.ts";
-import { DecorationKind, ItemKind } from "@/src/ecs/components.ts";
-import { EnemyArchetype } from "@/src/ecs/enemy_catalog.ts";
 import { ExamineTextId } from "@/src/game/examine_content.ts";
 import { DisplayName } from "@/src/game/names.ts";
 import { StoryEventId, StoryTargetId } from "@/src/game/story.ts";
@@ -25,7 +22,7 @@ Deno.test("compileTiledMap preserves authored terrain IDs", () => {
     compileOptions(),
   );
 
-  assertEquals(compiled.paletteKey, "test");
+  assertEquals("paletteKey" in compiled, false);
   assertEquals(compiled.campaignOrder, 7);
   assertEquals(compiled.gameMap.name, "Fixture");
   assertEquals(compiled.gameMap.terrain.tiles, [[0, DEFAULT_WALL_TERRAIN_ID, 5]]);
@@ -81,7 +78,6 @@ Deno.test("compileTiledMap rejects duplicate and unknown properties", () => {
           properties: [
             property("name", "Fixture"),
             property("name", "Duplicate"),
-            property("palette", "test"),
             property("campaignOrder", 7),
           ],
         }),
@@ -89,6 +85,22 @@ Deno.test("compileTiledMap rejects duplicate and unknown properties", () => {
       ),
     Error,
     'Duplicate property "name"',
+  );
+
+  assertThrows(
+    () =>
+      compileTiledMap(
+        tiledMap({
+          properties: [
+            property("name", "Fixture"),
+            property("palette", "test"),
+            property("campaignOrder", 7),
+          ],
+        }),
+        compileOptions(),
+      ),
+    Error,
+    'Unknown property "palette"',
   );
 
   assertThrows(
@@ -162,7 +174,6 @@ Deno.test("compileTiledMap rejects duplicate and unknown properties", () => {
         tiledMap({
           properties: [
             { ...property("name", "Fixture"), type: "int" },
-            property("palette", "test"),
             property("campaignOrder", 7),
           ],
         }),
@@ -273,7 +284,7 @@ Deno.test("compileTiledMap applies marker defaults before object overrides", () 
   );
 
   assertEquals(compiled.gameMap.entities, [
-    { prefab: "item", x: 0, y: 0, item: ItemKind.CannonAmmo, amount: 9 },
+    { prefab: "item", x: 0, y: 0, item: "cannonAmmo", amount: 9 },
   ]);
 });
 
@@ -293,6 +304,28 @@ Deno.test("compileTiledMap rejects special pickups authored as generic items", (
     () => compileTiledMap(map, compileOptions()),
     Error,
     'Unknown item kind "key"',
+  );
+});
+
+Deno.test("compileTiledMap rejects unknown enemy archetypes", () => {
+  const map = tiledMap({
+    objects: [
+      object({
+        type: "enemy",
+        x: 0,
+        y: TILE_SIZE,
+        properties: [
+          property("facing", "north"),
+          property("archetype", "missingEnemy"),
+        ],
+      }),
+    ],
+  });
+
+  assertThrows(
+    () => compileTiledMap(map, compileOptions()),
+    Error,
+    'Unknown enemy archetype "missingEnemy"',
   );
 });
 
@@ -358,7 +391,7 @@ Deno.test("compileTiledMap decodes template marker GIDs through the template til
   );
 
   assertEquals(compiled.gameMap.entities, [
-    { prefab: "item", x: 1, y: 0, item: ItemKind.CannonAmmo, amount: 9 },
+    { prefab: "item", x: 1, y: 0, item: "cannonAmmo", amount: 9 },
   ]);
 });
 
@@ -496,7 +529,7 @@ Deno.test("compileTiledMap compiles representative prefabs and enemy attack over
       y: 0,
       dir: 3,
       displayName: DisplayName.SystemSentinel,
-      archetype: EnemyArchetype.SystemSentinel,
+      archetype: "systemSentinel",
       health: 11,
       hitDc: 14,
       damage: 4,
@@ -504,12 +537,12 @@ Deno.test("compileTiledMap compiles representative prefabs and enemy attack over
         minDamage: 2,
         maxDamage: 6,
         range: 3,
-        requiresFacing: AttackFacingRequirement.None,
+        requiresFacing: "none",
         attackBonus: 5,
         critThreshold: 19,
         critMultiplier: 3,
-        pattern: AttackPattern.Adjacent,
-        targets: AttackTargetMode.All,
+        pattern: "adjacent",
+        targets: "all",
       },
     },
     {
@@ -532,8 +565,8 @@ Deno.test("compileTiledMap compiles representative prefabs and enemy attack over
       examineTextId: ExamineTextId.BootSectorUplinkTerminal,
     },
     { prefab: "weaponPickup", x: 1, y: 2, slot: 3 },
-    { prefab: "item", x: 2, y: 2, item: ItemKind.HealthPatch, amount: 4 },
-    { prefab: "decoration", x: 0, y: 3, decoration: DecorationKind.CeilingLight },
+    { prefab: "item", x: 2, y: 2, item: "healthPatch", amount: 4 },
+    { prefab: "decoration", x: 0, y: 3, decoration: "ceilingLight" },
   ]);
 });
 
@@ -563,7 +596,7 @@ Deno.test("compileTiledMap lets enemy archetypes supply display names", () => {
       x: 0,
       y: 0,
       dir: 0,
-      archetype: EnemyArchetype.NetworkNeophyte,
+      archetype: "networkNeophyte",
     },
   ]);
 });
@@ -696,7 +729,6 @@ function tiledMap(overrides: TiledMapOverrides = {}): TiledMap {
     tileheight: TILE_SIZE,
     properties: overrides.properties ?? [
       property("name", "Fixture"),
-      property("palette", "test"),
       property("campaignOrder", 7),
     ],
     tilesets: [

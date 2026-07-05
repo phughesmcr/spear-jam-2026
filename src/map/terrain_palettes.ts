@@ -51,16 +51,6 @@ export const TERRAIN_CATALOG: readonly TerrainTile[] = [
   },
 ];
 
-export const PALETTE_KEYS = [
-  "boot_sector",
-  "data_conduit",
-  "firewall",
-  "nexus",
-  "mainframe_core",
-] as const;
-
-export type PaletteKey = (typeof PALETTE_KEYS)[number];
-
 export function isTexturePack(value: string): value is TexturePack {
   return (TEXTURE_PACKS as readonly string[]).includes(value);
 }

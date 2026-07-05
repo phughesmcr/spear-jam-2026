@@ -77,6 +77,7 @@ Deno.test("transition derives command result intermission state", () => {
     type: "playerCommandResult",
     playerEntity: PLAYER,
     result: {
+      type: "mapChange",
       events: [{ type: "examined", text: "The uplink hums." }],
       mapChange: { goto: "Level 2" },
     },
@@ -106,6 +107,7 @@ Deno.test("transition stores command result combat feedback in presentation", ()
     playerEntity: PLAYER,
     nowMs: 100,
     result: {
+      type: "continue",
       events: [{
         type: "damageDealt",
         actor: PLAYER,
@@ -385,6 +387,7 @@ Deno.test("transition retries defeat through a session-owned checkpoint effect",
     type: "playerCommandResult",
     playerEntity: PLAYER,
     result: {
+      type: "outcome",
       events: [{ type: "examined", text: "You fall." }],
       outcome: "defeat",
     },
@@ -409,6 +412,7 @@ Deno.test("transition resets victory through a fresh-run effect", () => {
     type: "playerCommandResult",
     playerEntity: PLAYER,
     result: {
+      type: "outcome",
       events: [{ type: "examined", text: "The system reboots." }],
       outcome: "victory",
     },

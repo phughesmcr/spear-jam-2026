@@ -1,33 +1,4 @@
 import { z } from "zod";
-import { DialogueTreeId, type DialogueTreeId as DialogueTreeIdType } from "@/src/dialogue/dialogue.ts";
-import {
-  type DecorationKind as DecorationKindType,
-  DecorationKind as EcsDecorationKind,
-  ItemKind as EcsItemKind,
-  type ItemKind as ItemKindType,
-} from "@/src/ecs/components.ts";
-import {
-  ENEMY_ARCHETYPE_CODES,
-  EnemyArchetype as EcsEnemyArchetype,
-  type EnemyArchetype as EnemyArchetypeType,
-} from "@/src/ecs/enemy_catalog.ts";
-import {
-  type AttackDef,
-  AttackFacingRequirement,
-  type AttackFacingRequirement as AttackFacingRequirementType,
-  AttackPattern,
-  type AttackPattern as AttackPatternType,
-  AttackTargetMode,
-  type AttackTargetMode as AttackTargetModeType,
-} from "@/src/game/attack.ts";
-import { ExamineTextId, type ExamineTextId as ExamineTextIdType } from "@/src/game/examine_content.ts";
-import { DisplayName, type DisplayName as DisplayNameType } from "@/src/game/names.ts";
-import {
-  StoryEventId,
-  type StoryEventId as StoryEventIdType,
-  StoryTargetId,
-  type StoryTargetId as StoryTargetIdType,
-} from "@/src/game/story.ts";
 
 export const KeyColor = {
   Red: "red",
@@ -39,18 +10,52 @@ export type KeyColor = (typeof KeyColor)[keyof typeof KeyColor];
 export type DoorSlide = "north" | "east" | "south" | "west" | "up" | "down";
 export const DOOR_SLIDES = ["north", "east", "south", "west", "up", "down"] as const satisfies readonly DoorSlide[];
 
-export const DecorationKind = EcsDecorationKind;
-export type DecorationKind = DecorationKindType;
-export const EnemyArchetype = EcsEnemyArchetype;
-export type EnemyArchetype = EnemyArchetypeType;
-export const ItemKind = EcsItemKind;
-export type ItemKind = ItemKindType;
+export const AttackFacingRequirement = {
+  Required: "required",
+  None: "none",
+} as const;
+export type AttackFacingRequirement = (typeof AttackFacingRequirement)[keyof typeof AttackFacingRequirement];
 
-const MAP_ITEM_KIND_CODES = [
-  EcsItemKind.HealthPatch,
-  EcsItemKind.PistolAmmo,
-  EcsItemKind.CannonAmmo,
-] as const satisfies readonly ItemKindType[];
+export const AttackPattern = {
+  Line: "line",
+  Adjacent: "adjacent",
+} as const;
+export type AttackPattern = (typeof AttackPattern)[keyof typeof AttackPattern];
+
+export const AttackTargetMode = {
+  First: "first",
+  All: "all",
+} as const;
+export type AttackTargetMode = (typeof AttackTargetMode)[keyof typeof AttackTargetMode];
+
+export type AttackDef = {
+  readonly minDamage: number;
+  readonly maxDamage: number;
+  readonly range: number;
+  readonly requiresFacing: AttackFacingRequirement;
+  readonly attackBonus: number;
+  readonly critThreshold: number;
+  readonly critMultiplier: number;
+  readonly pattern: AttackPattern;
+  readonly targets: AttackTargetMode;
+};
+
+export type DisplayName = string;
+export type DialogueTreeId = string;
+export type ExamineTextId = string;
+export type StoryEventId = string;
+export type StoryTargetId = string;
+export type EnemyArchetype = string;
+export const ITEM_KINDS = ["healthPatch", "pistolAmmo", "cannonAmmo"] as const;
+export type ItemKind = (typeof ITEM_KINDS)[number];
+export const DECORATION_KINDS = [
+  "serverPile",
+  "cyborg",
+  "ceilingHook",
+  "ceilingLight",
+  "ceilingWires",
+] as const;
+export type DecorationKind = (typeof DECORATION_KINDS)[number];
 
 const INTEGER_SCHEMA = z.number().int();
 const UINT8_SCHEMA = INTEGER_SCHEMA.min(0).max(255);
@@ -61,23 +66,27 @@ const DIRECTION_SCHEMA = INTEGER_SCHEMA.min(0).max(3);
 const KEY_COLOR_SCHEMA = z.enum([KeyColor.Red, KeyColor.Blue, KeyColor.Yellow]) satisfies z.ZodType<KeyColor>;
 const DOOR_SLIDE_SCHEMA = z.enum(DOOR_SLIDES);
 const LIGHT_COLOR_SCHEMA = z.string().regex(/^#[0-9a-fA-F]{6}$/);
-const DISPLAY_NAME_SCHEMA = z.enum(Object.values(DisplayName)) satisfies z.ZodType<DisplayNameType>;
-const STORY_TARGET_ID_SCHEMA = z.enum(Object.values(StoryTargetId)) satisfies z.ZodType<StoryTargetIdType>;
-const STORY_EVENT_ID_SCHEMA = z.enum(Object.values(StoryEventId)) satisfies z.ZodType<StoryEventIdType>;
-const DIALOGUE_TREE_ID_SCHEMA = z.enum(Object.values(DialogueTreeId)) satisfies z.ZodType<DialogueTreeIdType>;
-const ENEMY_ARCHETYPE_SCHEMA = numberEnumSchema<EnemyArchetypeType>(ENEMY_ARCHETYPE_CODES, "archetype");
-const EXAMINE_TEXT_ID_SCHEMA = z.enum(Object.values(ExamineTextId)) satisfies z.ZodType<ExamineTextIdType>;
-const ITEM_KIND_SCHEMA = numberEnumSchema<ItemKindType>(MAP_ITEM_KIND_CODES, "item");
-const DECORATION_KIND_SCHEMA = numberEnumSchema<DecorationKindType>(Object.values(EcsDecorationKind), "decoration");
-const ATTACK_FACING_REQUIREMENT_SCHEMA = numberEnumSchema<AttackFacingRequirementType>(
-  Object.values(AttackFacingRequirement),
-  "attack.requiresFacing",
-);
-const ATTACK_PATTERN_SCHEMA = numberEnumSchema<AttackPatternType>(Object.values(AttackPattern), "attack.pattern");
-const ATTACK_TARGET_MODE_SCHEMA = numberEnumSchema<AttackTargetModeType>(
-  Object.values(AttackTargetMode),
-  "attack.targets",
-);
+const NON_EMPTY_STRING_SCHEMA = z.string().min(1);
+const DISPLAY_NAME_SCHEMA = NON_EMPTY_STRING_SCHEMA satisfies z.ZodType<DisplayName>;
+const STORY_TARGET_ID_SCHEMA = NON_EMPTY_STRING_SCHEMA satisfies z.ZodType<StoryTargetId>;
+const STORY_EVENT_ID_SCHEMA = NON_EMPTY_STRING_SCHEMA satisfies z.ZodType<StoryEventId>;
+const DIALOGUE_TREE_ID_SCHEMA = NON_EMPTY_STRING_SCHEMA satisfies z.ZodType<DialogueTreeId>;
+const ENEMY_ARCHETYPE_SCHEMA = NON_EMPTY_STRING_SCHEMA satisfies z.ZodType<EnemyArchetype>;
+const EXAMINE_TEXT_ID_SCHEMA = NON_EMPTY_STRING_SCHEMA satisfies z.ZodType<ExamineTextId>;
+const ITEM_KIND_SCHEMA = z.enum(ITEM_KINDS) satisfies z.ZodType<ItemKind>;
+const DECORATION_KIND_SCHEMA = z.enum(DECORATION_KINDS) satisfies z.ZodType<DecorationKind>;
+const ATTACK_FACING_REQUIREMENT_SCHEMA = z.enum([
+  AttackFacingRequirement.Required,
+  AttackFacingRequirement.None,
+]) satisfies z.ZodType<AttackFacingRequirement>;
+const ATTACK_PATTERN_SCHEMA = z.enum([
+  AttackPattern.Line,
+  AttackPattern.Adjacent,
+]) satisfies z.ZodType<AttackPattern>;
+const ATTACK_TARGET_MODE_SCHEMA = z.enum([
+  AttackTargetMode.First,
+  AttackTargetMode.All,
+]) satisfies z.ZodType<AttackTargetMode>;
 
 const ATTACK_SCHEMA = z.object({
   minDamage: UINT8_SCHEMA.min(1).optional(),
@@ -251,13 +260,6 @@ function isEntityPrefab(value: string): value is EntityPrefab {
 
 function propertySet(properties: readonly string[]): ReadonlySet<string> {
   return new Set(properties);
-}
-
-function numberEnumSchema<T extends number>(values: readonly T[], name: string): z.ZodType<T> {
-  const allowed = new Set<number>(values);
-  return z.custom<T>((value) => typeof value === "number" && Number.isInteger(value) && allowed.has(value), {
-    message: `${name} must be one of ${values.join(", ")}`,
-  });
 }
 
 function lowerFirst(value: string): string {

@@ -44,13 +44,11 @@ import type { EntityDef, TerrainTile, TexturePackRef } from "@/src/map/map.ts";
 import { validateGameMaps } from "@/src/map/map_validation.ts";
 import {
   isTexturePackRef,
-  PALETTE_KEYS,
   parseTexturePackRef,
   TERRAIN_CATALOG,
   TEXTURE_PACK_COLUMNS,
   TEXTURE_PACK_ROWS,
 } from "@/src/map/terrain_palettes.ts";
-import type { PaletteKey } from "@/src/map/terrain_palettes.ts";
 
 type GeneratedMap = CompiledTiledMap & {
   readonly sourcePath: string;
@@ -63,14 +61,12 @@ type CompiledMapsData = {
 
 type CompiledMapData = {
   readonly name: string;
-  readonly palette: PaletteKey;
   readonly tiles: readonly (readonly number[])[];
   readonly entities: readonly EntityDef[];
 };
 
 type NewMapOptions = {
   readonly name: string;
-  readonly palette: PaletteKey;
   readonly width: number;
   readonly height: number;
   readonly campaignOrder: number;
@@ -279,7 +275,6 @@ export function buildScaffoldMap(options: NewMapOptions): TiledMap {
     properties: [
       property("campaignOrder", options.campaignOrder),
       property("name", options.name),
-      property("palette", options.palette, "TerrainPalette"),
     ],
     renderorder: "right-down",
     tiledversion: "1.12.2",
@@ -940,22 +935,17 @@ function validateRawMap(path: string, map: TiledMap): void {
       issues.push(`${path}: layer "lights" class must be "light_layer" when set.`);
     }
   }
-  try {
-    mapPaletteKey(path, map);
-    const floorTileset = map.tilesets?.find((tileset) => tileset.firstgid === FLOOR_TILESET_FIRST_GID);
-    const wallTileset = map.tilesets?.find((tileset) => tileset.firstgid === WALL_TILESET_FIRST_GID);
-    const barrierTileset = map.tilesets?.find((tileset) => tileset.firstgid === BARRIER_TILESET_FIRST_GID);
-    if (floorTileset?.source !== floorTilesetReference().source) {
-      issues.push(`${path}: floor terrain tileset must be "${floorTilesetReference().source}".`);
-    }
-    if (wallTileset?.source !== wallTilesetReference().source) {
-      issues.push(`${path}: wall terrain tileset must be "${wallTilesetReference().source}".`);
-    }
-    if (barrierTileset?.source !== barrierTilesetReference().source) {
-      issues.push(`${path}: barrier terrain tileset must be "${barrierTilesetReference().source}".`);
-    }
-  } catch (error) {
-    issues.push(error instanceof Error ? error.message : String(error));
+  const floorTileset = map.tilesets?.find((tileset) => tileset.firstgid === FLOOR_TILESET_FIRST_GID);
+  const wallTileset = map.tilesets?.find((tileset) => tileset.firstgid === WALL_TILESET_FIRST_GID);
+  const barrierTileset = map.tilesets?.find((tileset) => tileset.firstgid === BARRIER_TILESET_FIRST_GID);
+  if (floorTileset?.source !== floorTilesetReference().source) {
+    issues.push(`${path}: floor terrain tileset must be "${floorTilesetReference().source}".`);
+  }
+  if (wallTileset?.source !== wallTilesetReference().source) {
+    issues.push(`${path}: wall terrain tileset must be "${wallTilesetReference().source}".`);
+  }
+  if (barrierTileset?.source !== barrierTilesetReference().source) {
+    issues.push(`${path}: barrier terrain tileset must be "${barrierTilesetReference().source}".`);
   }
   if (issues.length > 0) throw new Error(issues.join("\n"));
 }
@@ -988,15 +978,9 @@ function compiledMapsData(maps: readonly GeneratedMap[]): CompiledMapsData {
 function compiledMapData(map: GeneratedMap): CompiledMapData {
   return {
     name: map.gameMap.name,
-    palette: paletteKey(map.paletteKey),
     tiles: map.gameMap.terrain.tiles,
     entities: map.gameMap.entities,
   };
-}
-
-function paletteKey(value: string): PaletteKey {
-  if ((PALETTE_KEYS as readonly string[]).includes(value)) return value as PaletteKey;
-  throw new Error(`Compiled map used unknown terrain palette "${value}".`);
 }
 
 function projectCommandData(command: TiledProjectCommand): TiledProjectCommand {
@@ -1029,7 +1013,6 @@ function parseNewMapArgs(args: readonly string[]): ParsedNewMapArgs {
   }
 
   const name = requiredArg(values, "--name");
-  const palette = parsePalette(requiredArg(values, "--palette"));
   const width = parseIntegerArg(requiredArg(values, "--width"), "--width");
   const height = parseIntegerArg(requiredArg(values, "--height"), "--height");
   const campaignOrderValue = values.get("--campaign-order");
@@ -1037,7 +1020,6 @@ function parseNewMapArgs(args: readonly string[]): ParsedNewMapArgs {
 
   return {
     name,
-    palette,
     width,
     height,
     ...(campaignOrderValue === undefined ?
@@ -1051,11 +1033,6 @@ function requiredArg(values: ReadonlyMap<string, string>, name: string): string 
   const value = values.get(name);
   if (value === undefined || value.length === 0) throw new Error(`Missing required argument "${name}".`);
   return value;
-}
-
-function parsePalette(value: string): PaletteKey {
-  if ((PALETTE_KEYS as readonly string[]).includes(value)) return value as PaletteKey;
-  throw new Error(`Unknown palette "${value}".`);
 }
 
 function parseIntegerArg(value: string, name: string): number {
@@ -1079,12 +1056,6 @@ function mapCampaignOrder(path: string, map: TiledMap): number {
   const raw = map.properties?.find((candidate) => candidate.name === "campaignOrder")?.value;
   if (typeof raw !== "number" || !Number.isInteger(raw)) throw new Error(`${path}: missing integer campaignOrder.`);
   return raw;
-}
-
-function mapPaletteKey(path: string, map: TiledMap): PaletteKey {
-  const raw = map.properties?.find((candidate) => candidate.name === "palette")?.value;
-  if (typeof raw !== "string") throw new Error(`${path}: missing string palette.`);
-  return parsePalette(raw);
 }
 
 function scaffoldTerrain(width: number, height: number): readonly number[] {

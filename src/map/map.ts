@@ -99,6 +99,30 @@ export function keyColorForCode(code: number): KeyColorType {
 
 /** Sentinel `goto` for exits that end the game in victory instead of loading a map. */
 export const VICTORY_GOTO = "victory";
+const VICTORY_DESTINATION_CODE = 0;
+let nextTerminalDestinationCode = 1;
+const TERMINAL_DESTINATION_CODES = new Map<string, number>();
+const TERMINAL_DESTINATIONS_BY_CODE = new Map<number, string>();
+
+export function terminalDestinationCode(goto: string): number {
+  if (goto === VICTORY_GOTO) return VICTORY_DESTINATION_CODE;
+
+  const existing = TERMINAL_DESTINATION_CODES.get(goto);
+  if (existing !== undefined) return existing;
+
+  const code = nextTerminalDestinationCode++;
+  TERMINAL_DESTINATION_CODES.set(goto, code);
+  TERMINAL_DESTINATIONS_BY_CODE.set(code, goto);
+  return code;
+}
+
+export function terminalDestinationForCode(code: number): string {
+  if (code === VICTORY_DESTINATION_CODE) return VICTORY_GOTO;
+
+  const goto = TERMINAL_DESTINATIONS_BY_CODE.get(code);
+  if (goto === undefined) throw new Error(`Unknown terminal destination code: ${code}`);
+  return goto;
+}
 
 /**
  * Which way a door slides open. Horizontal directions must lie along the

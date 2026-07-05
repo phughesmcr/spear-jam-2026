@@ -234,6 +234,64 @@ export const Secret: Component<null> = new Component<null>({ name: "secret" });
 
 export const UplinkTerminal: Component<null> = new Component<null>({ name: "uplinkTerminal" });
 
+export type DisplayNameSchema = { displayName: number };
+const DISPLAY_NAME_STORAGE = { displayName: Uint8Array };
+export const DisplayNameComponent: Component<DisplayNameSchema, typeof DISPLAY_NAME_STORAGE> = new Component<
+  DisplayNameSchema,
+  typeof DISPLAY_NAME_STORAGE
+>({
+  name: "displayName",
+  schema: DISPLAY_NAME_STORAGE,
+});
+
+export type DialogueTreeRefSchema = { dialogueTreeId: number };
+const DIALOGUE_TREE_REF_STORAGE = { dialogueTreeId: Uint8Array };
+export const DialogueTreeRef: Component<DialogueTreeRefSchema, typeof DIALOGUE_TREE_REF_STORAGE> = new Component<
+  DialogueTreeRefSchema,
+  typeof DIALOGUE_TREE_REF_STORAGE
+>({
+  name: "dialogueTreeId",
+  schema: DIALOGUE_TREE_REF_STORAGE,
+});
+
+export type ExamineTextRefSchema = { examineTextId: number };
+const EXAMINE_TEXT_REF_STORAGE = { examineTextId: Uint8Array };
+export const ExamineTextRef: Component<ExamineTextRefSchema, typeof EXAMINE_TEXT_REF_STORAGE> = new Component<
+  ExamineTextRefSchema,
+  typeof EXAMINE_TEXT_REF_STORAGE
+>({
+  name: "examineTextId",
+  schema: EXAMINE_TEXT_REF_STORAGE,
+});
+
+export type StoryTargetSchema = { storyId: number };
+const STORY_TARGET_STORAGE = { storyId: Uint8Array };
+export const StoryTarget: Component<StoryTargetSchema, typeof STORY_TARGET_STORAGE> = new Component<
+  StoryTargetSchema,
+  typeof STORY_TARGET_STORAGE
+>({
+  name: "storyId",
+  schema: STORY_TARGET_STORAGE,
+});
+
+export type OnTalkEventSchema = { onTalkEvent: number };
+const ON_TALK_EVENT_STORAGE = { onTalkEvent: Uint8Array };
+export const OnTalkEvent: Component<OnTalkEventSchema, typeof ON_TALK_EVENT_STORAGE> = new Component<
+  OnTalkEventSchema,
+  typeof ON_TALK_EVENT_STORAGE
+>({
+  name: "onTalkEvent",
+  schema: ON_TALK_EVENT_STORAGE,
+});
+
+export type TerminalDestinationSchema = { destination: number };
+const TERMINAL_DESTINATION_STORAGE = { destination: Uint16Array };
+export const TerminalDestination: Component<TerminalDestinationSchema, typeof TERMINAL_DESTINATION_STORAGE> =
+  new Component<TerminalDestinationSchema, typeof TERMINAL_DESTINATION_STORAGE>({
+    name: "terminalDestination",
+    schema: TERMINAL_DESTINATION_STORAGE,
+  });
+
 export const ItemKind = {
   HealthPatch: 1,
   PistolAmmo: 2,
@@ -398,6 +456,12 @@ export const ALL_COMPONENTS: DynamicComponent[] = [
   Locked,
   Secret,
   UplinkTerminal,
+  DisplayNameComponent,
+  DialogueTreeRef,
+  ExamineTextRef,
+  StoryTarget,
+  OnTalkEvent,
+  TerminalDestination,
   Item,
   LightEmitter,
   TurnTaker,

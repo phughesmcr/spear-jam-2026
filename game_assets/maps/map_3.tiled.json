@@ -1011,12 +1011,6 @@
       "value": "Firewall"
     },
     {
-      "name": "palette",
-      "propertytype": "TerrainPalette",
-      "type": "string",
-      "value": "firewall"
-    },
-    {
       "name": "campaignOrder",
       "type": "int",
       "value": 3

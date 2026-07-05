@@ -429,6 +429,58 @@ Deno.test("first-person rendering updates flickering lights and requests another
   });
 });
 
+Deno.test("first-person rendering resets cached scene lighting when active lights disappear", () => {
+  withFakeOffscreenCanvas((): void => {
+    const map = createGameMap(
+      "Lights Out",
+      [
+        [1, 1, 1],
+        [1, 1, 1],
+        [1, 1, 1],
+      ],
+      [],
+      {
+        palette: [
+          { kind: "floor", id: 1, color: "#000000", floor_texture: "floor", ceiling_texture: "ceiling" },
+        ],
+      },
+    );
+    const drawables: DrawableEntity[] = [
+      playerDrawable(1, 1, Direction.East),
+    ];
+    const renderer = createFirstPersonRenderer();
+    const ctx = new FakeCanvasContext() as unknown as CanvasRenderingContext2D;
+
+    renderer.render(
+      ctx,
+      { x: 0, y: 0, width: 64, height: 64 },
+      sessionFor(map, drawables, [
+        {
+          entity: 2,
+          x: 1,
+          y: 1,
+          red: 255,
+          green: 0,
+          blue: 0,
+          radius: 1,
+          flickerAmount: 0,
+          flickerSpeed: 0,
+        },
+      ]),
+      0,
+    );
+
+    const scene = renderer.sceneForMap(map);
+    assertEquals(scene.lightGreen[1 * 3 + 1], 96);
+
+    renderer.render(ctx, { x: 0, y: 0, width: 64, height: 64 }, sessionFor(map, drawables), 16);
+
+    assertEquals([...scene.lightRed], Array(9).fill(255));
+    assertEquals([...scene.lightGreen], Array(9).fill(255));
+    assertEquals([...scene.lightBlue], Array(9).fill(255));
+  });
+});
+
 Deno.test("first-person rendering keeps open doors in the raycast scene for jambs", () => {
   withFakeOffscreenCanvas((): void => {
     const map = createGameMap(

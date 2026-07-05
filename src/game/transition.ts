@@ -356,29 +356,28 @@ function playerCommandResult(
   nowMs: number,
 ): GameTransition {
   const modelWithPresentation = applyPresentation(model, playerEntity, result, nowMs);
-  if (result.outcome) {
-    return done({ ...modelWithPresentation, mode: { type: result.outcome } }, [{ type: "render" }]);
+  switch (result.type) {
+    case "continue":
+      return done(modelWithPresentation, [{ type: "render" }]);
+    case "outcome":
+      return done({ ...modelWithPresentation, mode: { type: result.outcome } }, [{ type: "render" }]);
+    case "mapChange":
+      return done(
+        enterIntermission(modelWithPresentation, {
+          pages: [`Entering ${result.mapChange.goto}.`],
+          prompt: CONTINUE_PROMPT,
+          goto: result.mapChange.goto,
+          nowMs,
+        }),
+        [{ type: "render" }],
+      );
+    case "dialogue":
+      return done({
+        ...modelWithPresentation,
+        dialoguePointerDownSlot: undefined,
+        mode: { type: "dialogue", ...result.dialogue },
+      }, [{ type: "render" }]);
   }
-  if (result.mapChange) {
-    return done(
-      enterIntermission(modelWithPresentation, {
-        pages: [`Entering ${result.mapChange.goto}.`],
-        prompt: CONTINUE_PROMPT,
-        goto: result.mapChange.goto,
-        nowMs,
-      }),
-      [{ type: "render" }],
-    );
-  }
-  if (result.dialogue) {
-    return done({
-      ...modelWithPresentation,
-      dialoguePointerDownSlot: undefined,
-      mode: { type: "dialogue", ...result.dialogue },
-    }, [{ type: "render" }]);
-  }
-
-  return done(modelWithPresentation, [{ type: "render" }]);
 }
 
 function toggleMenu(model: GameModel): GameTransition {

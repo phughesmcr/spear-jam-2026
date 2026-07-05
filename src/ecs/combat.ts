@@ -6,6 +6,7 @@ import {
   type AttackSchema,
   AttackTargetMode,
   Defense,
+  DisplayNameComponent,
   Enemy,
   Facing,
   GridPos,
@@ -14,14 +15,13 @@ import {
   Sprite,
   type SpriteId,
 } from "@/src/ecs/components.ts";
-import { entityContent, type EntityContentStore, removeEntityContent } from "@/src/ecs/entity_content.ts";
 import { createDeathEffect } from "@/src/ecs/prefabs.ts";
 import type { SpatialAccess, SpatialLookup, SpatialMutations } from "@/src/ecs/spatial.ts";
 import { CARDINAL_DELTAS, directionDelta } from "@/src/grid/direction.ts";
 import { DEFAULT_ATTACK } from "@/src/game/attack.ts";
 import type { GameEvent } from "@/src/game/events.ts";
 import type { RandomSource } from "@/src/game/rng.ts";
-import { displayNameText } from "@/src/game/names.ts";
+import { displayNameForCode, displayNameText } from "@/src/game/names.ts";
 import type { AmmoKind, CommandSlot } from "@/src/game/state.ts";
 
 export type PlayerWeaponSpec = AttackSchema & {
@@ -79,7 +79,6 @@ export function playerWeaponSpec(slot: CommandSlot): PlayerWeaponSpec {
 
 export function attackWithSelectedWeapon(
   world: World,
-  contentStore: EntityContentStore,
   player: Entity,
   selectedWeapon: CommandSlot,
   spatial: SpatialAccess,
@@ -92,13 +91,13 @@ export function attackWithSelectedWeapon(
     return [{
       type: "attackMissed",
       actor: player,
-      actorName: entityName(world, contentStore, player),
+      actorName: entityName(world, player),
     }];
   }
 
   const events: GameEvent[] = [];
   for (const target of targets) {
-    events.push(...attackEntity(world, contentStore, player, target, weapon, random, spatial));
+    events.push(...attackEntity(world, player, target, weapon, random, spatial));
   }
   return events;
 }
@@ -120,7 +119,6 @@ export function attackTargetsForSelectedWeapon(
 
 export function attackEntity(
   world: World,
-  contentStore: EntityContentStore,
   attacker: Entity,
   defender: Entity,
   attack: AttackSchema,
@@ -134,8 +132,8 @@ export function attackEntity(
   const defense = world.components.readEntityData(Defense, defender);
   if (defense === undefined) return [];
 
-  const attackerName = entityName(world, contentStore, attacker);
-  const defenderName = entityName(world, contentStore, defender);
+  const attackerName = entityName(world, attacker);
+  const defenderName = entityName(world, defender);
   const outcome = resolveAttack(attack, defense.hitDc, random);
   if (outcome.type === "miss") {
     return [{
@@ -177,7 +175,6 @@ export function attackEntity(
     const position = world.components.readEntityData(GridPos, defender);
     const sprite = world.components.readEntityData(Sprite, defender);
     if (position !== undefined && sprite !== undefined) createDeathEffect(world, position, sprite.id as SpriteId);
-    removeEntityContent(contentStore, defender);
     spatial.removeEntity(defender);
   }
   return events;
@@ -334,9 +331,9 @@ function toAttackTargetMode(value: number): AttackTargetMode {
   }
 }
 
-function entityName(world: World, contentStore: EntityContentStore, entity: Entity): string {
+function entityName(world: World, entity: Entity): string {
   if (world.components.entityHas(PlayerTag, entity)) return "You";
-  const displayName = entityContent(contentStore, entity)?.displayName;
-  if (displayName !== undefined) return displayNameText(displayName);
+  const displayNameCode = world.components.readEntityData(DisplayNameComponent, entity)?.displayName;
+  if (displayNameCode !== undefined) return displayNameText(displayNameForCode(displayNameCode));
   return "Something";
 }

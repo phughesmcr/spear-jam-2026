@@ -1,11 +1,12 @@
 import { assertEquals } from "@std/assert";
-import type { Entity } from "@phughesmcr/miski";
+import type { Entity, World } from "@phughesmcr/miski";
 import {
   AttackFacingRequirement,
   AttackPattern,
   AttackTargetMode,
   Blocking,
   Defense,
+  DisplayNameComponent,
   Facing,
   GridPos,
   Health,
@@ -13,8 +14,7 @@ import {
 } from "@/src/ecs/components.ts";
 import type { AttackSchema } from "@/src/ecs/components.ts";
 import { attackEntity, attackTargets, playerWeaponSpec, resolveAttack } from "@/src/ecs/combat.ts";
-import { createEntityContentStore, entityContent, setEntityContent } from "@/src/ecs/entity_content.ts";
-import { DisplayName } from "@/src/game/names.ts";
+import { DisplayName, displayNameCode } from "@/src/game/names.ts";
 import { SpatialIndex } from "@/src/ecs/spatial.ts";
 import type { SpatialLookup } from "@/src/ecs/spatial.ts";
 import { createWorld } from "@/src/ecs/world.ts";
@@ -179,21 +179,19 @@ Deno.test("attackTargets can hit all cardinal adjacent targets without facing", 
 
 Deno.test("attackEntity emits damage events and updates health", async () => {
   const world = await createWorld();
-  const contentStore = createEntityContentStore();
   const player = createEntity(world);
   const defender = createEntity(world);
 
   world.components.addToEntity(GridPos, player, { x: 1, y: 1 });
   world.components.addToEntity(PlayerTag, player);
   world.components.addToEntity(GridPos, defender, { x: 2, y: 1 });
-  setEntityContent(contentStore, defender, { displayName: DisplayName.DigitalDog });
+  setDisplayName(world, defender, DisplayName.DigitalDog);
   world.components.addToEntity(Health, defender, { current: 3, max: 3 });
   world.components.addToEntity(Defense, defender, { hitDc: 10 });
   world.refresh();
 
   const events = attackEntity(
     world,
-    contentStore,
     player,
     defender,
     { ...BASE_ATTACK, minDamage: 1, maxDamage: 1, attackBonus: 20 },
@@ -219,20 +217,18 @@ Deno.test("attackEntity emits damage events and updates health", async () => {
 
 Deno.test("attackEntity resolves attacks against the defender hit DC", async () => {
   const world = await createWorld();
-  const contentStore = createEntityContentStore();
   const attacker = createEntity(world);
   const defender = createEntity(world);
 
   world.components.addToEntity(GridPos, attacker, { x: 1, y: 1 });
   world.components.addToEntity(GridPos, defender, { x: 2, y: 1 });
-  setEntityContent(contentStore, defender, { displayName: DisplayName.DigitalDog });
+  setDisplayName(world, defender, DisplayName.DigitalDog);
   world.components.addToEntity(Health, defender, { current: 3, max: 3 });
   world.components.addToEntity(Defense, defender, { hitDc: 15 });
   world.refresh();
 
   const events = attackEntity(
     world,
-    contentStore,
     attacker,
     defender,
     { ...BASE_ATTACK, attackBonus: 4 },
@@ -256,7 +252,6 @@ Deno.test("attackEntity resolves attacks against the defender hit DC", async () 
 
 Deno.test("attackEntity emits defeat events and removes defeated non-player entities from spatial lookup", async () => {
   const world = await createWorld();
-  const contentStore = createEntityContentStore();
   const player = createEntity(world);
   const defender = createEntity(world);
 
@@ -264,7 +259,7 @@ Deno.test("attackEntity emits defeat events and removes defeated non-player enti
   world.components.addToEntity(PlayerTag, player);
   world.components.addToEntity(GridPos, defender, { x: 2, y: 1 });
   world.components.addToEntity(Blocking, defender);
-  setEntityContent(contentStore, defender, { displayName: DisplayName.DigitalDog });
+  setDisplayName(world, defender, DisplayName.DigitalDog);
   world.components.addToEntity(Health, defender, { current: 1, max: 1 });
   world.components.addToEntity(Defense, defender, { hitDc: 10 });
   world.refresh();
@@ -272,7 +267,6 @@ Deno.test("attackEntity emits defeat events and removes defeated non-player enti
   const spatial = new SpatialIndex(world, TEST_MAP);
   const events = attackEntity(
     world,
-    contentStore,
     player,
     defender,
     { ...BASE_ATTACK, minDamage: 1, maxDamage: 1, attackBonus: 20 },
@@ -301,12 +295,10 @@ Deno.test("attackEntity emits defeat events and removes defeated non-player enti
   ]);
   assertEquals(world.entities.isActive(defender), false);
   assertEquals(spatial.blockingEntityAt(2, 1), undefined);
-  assertEquals(entityContent(contentStore, defender), undefined);
 });
 
 Deno.test("attackEntity emits player defeat without removing the player entity", async () => {
   const world = await createWorld();
-  const contentStore = createEntityContentStore();
   const player = createEntity(world);
   const attacker = createEntity(world);
 
@@ -315,12 +307,11 @@ Deno.test("attackEntity emits player defeat without removing the player entity",
   world.components.addToEntity(Health, player, { current: 1, max: 1 });
   world.components.addToEntity(Defense, player, { hitDc: 10 });
   world.components.addToEntity(GridPos, attacker, { x: 2, y: 1 });
-  setEntityContent(contentStore, attacker, { displayName: DisplayName.DigitalDog });
+  setDisplayName(world, attacker, DisplayName.DigitalDog);
   world.refresh();
 
   const events = attackEntity(
     world,
-    contentStore,
     attacker,
     player,
     { ...BASE_ATTACK, minDamage: 1, maxDamage: 1, attackBonus: 20 },
@@ -352,7 +343,6 @@ Deno.test("attackEntity emits player defeat without removing the player entity",
 
 Deno.test("attackEntity no-ops against already defeated defenders", async () => {
   const world = await createWorld();
-  const contentStore = createEntityContentStore();
   const player = createEntity(world);
   const attacker = createEntity(world);
   let randomCalls = 0;
@@ -361,12 +351,11 @@ Deno.test("attackEntity no-ops against already defeated defenders", async () => 
   world.components.addToEntity(PlayerTag, player);
   world.components.addToEntity(Health, player, { current: 0, max: 1 });
   world.components.addToEntity(GridPos, attacker, { x: 2, y: 1 });
-  setEntityContent(contentStore, attacker, { displayName: DisplayName.DigitalDog });
+  setDisplayName(world, attacker, DisplayName.DigitalDog);
   world.refresh();
 
   const events = attackEntity(
     world,
-    contentStore,
     attacker,
     player,
     { ...BASE_ATTACK, minDamage: 1, maxDamage: 1, attackBonus: 20 },
@@ -386,6 +375,10 @@ Deno.test("attackEntity no-ops against already defeated defenders", async () => 
 function sequenceRandom(values: readonly number[]): () => number {
   let index = 0;
   return () => values[index++] ?? values[values.length - 1] ?? 0;
+}
+
+function setDisplayName(world: World, entity: Entity, displayName: DisplayName): void {
+  world.components.addToEntity(DisplayNameComponent, entity, { displayName: displayNameCode(displayName) });
 }
 
 function entityAt(positions: readonly { readonly x: number; readonly y: number; readonly entity: Entity }[]) {

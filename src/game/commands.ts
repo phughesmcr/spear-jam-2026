@@ -29,12 +29,11 @@ export type MapChange = {
 
 export type GameOutcome = "victory" | "defeat";
 
-export interface PlayerCommandResult {
-  readonly events: readonly GameEvent[];
-  readonly mapChange?: MapChange;
-  readonly dialogue?: DialogueState;
-  readonly outcome?: GameOutcome;
-}
+export type PlayerCommandResult =
+  | { readonly type: "continue"; readonly events: readonly GameEvent[] }
+  | { readonly type: "mapChange"; readonly events: readonly GameEvent[]; readonly mapChange: MapChange }
+  | { readonly type: "dialogue"; readonly events: readonly GameEvent[]; readonly dialogue: DialogueState }
+  | { readonly type: "outcome"; readonly events: readonly GameEvent[]; readonly outcome: GameOutcome };
 
 const MOVE_DIRECTION_OFFSETS: Readonly<Record<RelativeMoveDirection, number>> = {
   forward: 0,

@@ -1514,12 +1514,6 @@
       "value": "Mainframe Core"
     },
     {
-      "name": "palette",
-      "propertytype": "TerrainPalette",
-      "type": "string",
-      "value": "mainframe_core"
-    },
-    {
       "name": "campaignOrder",
       "type": "int",
       "value": 5

@@ -1183,12 +1183,6 @@
          "name":"name",
          "type":"string",
          "value":"Boot Sector"
-        }, 
-        {
-         "name":"palette",
-         "propertytype":"TerrainPalette",
-         "type":"string",
-         "value":"boot_sector"
         }],
  "renderorder":"right-down",
  "tiledversion":"1.12.2",

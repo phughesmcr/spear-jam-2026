@@ -43,9 +43,6 @@ export class SpatialIndex implements SpatialLookup, SpatialMutations {
   private readonly height: number;
   private readonly blockingOccupancy: Int32Array;
   private readonly itemOccupancy: Int32Array;
-  private readonly entityTiles = new Map<Entity, number>();
-  private readonly blockingTiles = new Map<Entity, number>();
-  private readonly itemTiles = new Map<Entity, number>();
   private readonly pathQueue: Int32Array;
 
   constructor(world: World, map: GameMap) {
@@ -61,7 +58,7 @@ export class SpatialIndex implements SpatialLookup, SpatialMutations {
     this.itemOccupancy = filledEntityArray(tileCount);
     this.pathQueue = new Int32Array(tileCount);
 
-    this.indexPositionedEntities();
+    this.refreshOccupancy();
   }
 
   tileBlocks(x: number, y: number): boolean {
@@ -77,26 +74,26 @@ export class SpatialIndex implements SpatialLookup, SpatialMutations {
   }
 
   blockingEntityAt(x: number, y: number): Entity | undefined {
-    const tile = this.tileIndex(x, y);
-    if (tile === undefined) return undefined;
-    return entityFromOccupancy(this.blockingOccupancy[tile]!);
+    this.refreshOccupancy();
+    return this.blockingEntityAtNoRefresh(x, y);
   }
 
   positionBlocks(x: number, y: number): boolean {
-    return this.tileBlocks(x, y) || this.blockingEntityAt(x, y) !== undefined;
+    this.refreshOccupancy();
+    return this.positionBlocksNoRefresh(x, y);
   }
 
   itemAt(x: number, y: number): Entity | undefined {
-    const tile = this.tileIndex(x, y);
-    if (tile === undefined) return undefined;
-    return entityFromOccupancy(this.itemOccupancy[tile]!);
+    this.refreshOccupancy();
+    return this.itemAtNoRefresh(x, y);
   }
 
   facedEntity(current: GridPoint, dir: number): Entity | undefined {
+    this.refreshOccupancy();
     const delta = directionDelta(dir);
     const x = current.x + delta.dx;
     const y = current.y + delta.dy;
-    return this.blockingEntityAt(x, y) ?? this.itemAt(x, y);
+    return this.blockingEntityAtNoRefresh(x, y) ?? this.itemAtNoRefresh(x, y);
   }
 
   nextStepToward(start: GridPoint, target: GridPoint): GridPoint | undefined {
@@ -104,12 +101,13 @@ export class SpatialIndex implements SpatialLookup, SpatialMutations {
   }
 
   distanceFieldTo(target: GridPoint): SpatialDistanceField {
+    this.refreshOccupancy();
     const targetTile = this.tileIndex(target.x, target.y);
     const distances = new Int32Array(this.width * this.height);
     distances.fill(UNREACHABLE);
     if (targetTile === undefined) return { nextStepFrom: () => undefined };
 
-    const targetBlocks = this.positionBlocks(target.x, target.y);
+    const targetBlocks = this.positionBlocksNoRefresh(target.x, target.y);
     let head = 0;
     let tail = 0;
 
@@ -118,7 +116,7 @@ export class SpatialIndex implements SpatialLookup, SpatialMutations {
         const x = target.x + delta.dx;
         const y = target.y + delta.dy;
         const tile = this.tileIndex(x, y);
-        if (tile === undefined || this.positionBlocks(x, y)) continue;
+        if (tile === undefined || this.positionBlocksNoRefresh(x, y)) continue;
         distances[tile] = 0;
         this.pathQueue[tail++] = tile;
       }
@@ -138,7 +136,7 @@ export class SpatialIndex implements SpatialLookup, SpatialMutations {
         const nextY = y + delta.dy;
         const nextTile = this.tileIndex(nextX, nextY);
         if (nextTile === undefined || distances[nextTile] !== UNREACHABLE) continue;
-        if (this.positionBlocks(nextX, nextY)) continue;
+        if (this.positionBlocksNoRefresh(nextX, nextY)) continue;
 
         distances[nextTile] = distance + 1;
         this.pathQueue[tail++] = nextTile;
@@ -149,7 +147,8 @@ export class SpatialIndex implements SpatialLookup, SpatialMutations {
   }
 
   moveEntity(entity: Entity, to: { readonly x: number; readonly y: number }): void {
-    if (this.tileIndex(to.x, to.y) === undefined) {
+    const toTile = this.tileIndex(to.x, to.y);
+    if (toTile === undefined) {
       throw new Error(
         `Cannot move entity ${entity} to (${to.x}, ${to.y}): outside the ${this.width}x${this.height} map.`,
       );
@@ -158,43 +157,54 @@ export class SpatialIndex implements SpatialLookup, SpatialMutations {
       throw new Error(`Cannot move entity ${entity}: it is not indexed. Did it skip GridPos?`);
     }
 
-    const fromTile = this.indexedTileFor(entity);
-    const toTile = this.tileIndex(to.x, to.y)!;
-    if (fromTile !== toTile) this.moveOccupancy(entity, toTile);
-    this.entityTiles.set(entity, toTile);
+    this.refreshOccupancy();
+    if (this.world.components.entityHas(Blocking, entity)) {
+      this.assertCanOccupy(this.blockingOccupancy, toTile, entity, "blocking");
+    }
+    if (this.world.components.entityHas(Item, entity)) {
+      this.assertCanOccupy(this.itemOccupancy, toTile, entity, "item");
+    }
     this.world.components.setEntityData(GridPos, entity, to);
+    this.refreshOccupancy();
   }
 
   removeEntity(entity: Entity): void {
-    this.clearEntityOccupancy(entity);
     this.world.entities.destroy(entity);
+    this.refreshOccupancy();
   }
 
   setBlocking(entity: Entity, blocking: boolean): void {
     const has = this.world.components.entityHas(Blocking, entity);
     if (blocking && !has) {
-      const tile = this.indexedTileFor(entity);
-      this.occupy(this.blockingOccupancy, this.blockingTiles, tile, entity, "blocking");
+      const tile = this.positionedTileFor(entity);
+      this.refreshOccupancy();
+      this.assertCanOccupy(this.blockingOccupancy, tile, entity, "blocking");
       this.world.components.addToEntity(Blocking, entity);
+      this.refreshOccupancy();
     } else if (!blocking && has) {
-      this.clearOccupancy(this.blockingOccupancy, this.blockingTiles, entity);
       this.world.components.removeFromEntity(Blocking, entity);
+      this.refreshOccupancy();
     }
   }
 
-  private indexPositionedEntities(): void {
+  private refreshOccupancy(): void {
+    this.blockingOccupancy.fill(EMPTY_ENTITY);
+    this.itemOccupancy.fill(EMPTY_ENTITY);
+
     for (const entity of this.world.entities.query(positionedQuery)) {
-      const { x, y } = this.world.components.getEntityData(GridPos, entity);
+      if (!this.world.entities.isActive(entity)) continue;
+      const position = this.world.components.readEntityData(GridPos, entity);
+      if (position === undefined) continue;
+      const { x, y } = position;
       const tile = this.tileIndex(x, y);
       if (tile === undefined) {
         throw new Error(`Entity ${entity} at (${x}, ${y}) is outside the ${this.width}x${this.height} map.`);
       }
-      this.entityTiles.set(entity, tile);
       if (this.world.components.entityHas(Blocking, entity)) {
-        this.occupy(this.blockingOccupancy, this.blockingTiles, tile, entity, "blocking");
+        this.occupy(this.blockingOccupancy, tile, entity, "blocking");
       }
       if (this.world.components.entityHas(Item, entity)) {
-        this.occupy(this.itemOccupancy, this.itemTiles, tile, entity, "item");
+        this.occupy(this.itemOccupancy, tile, entity, "item");
       }
     }
   }
@@ -205,44 +215,44 @@ export class SpatialIndex implements SpatialLookup, SpatialMutations {
     return y * this.width + x;
   }
 
-  private indexedTileFor(entity: Entity): number {
-    const tile = this.entityTiles.get(entity);
-    if (tile === undefined) throw new Error(`Cannot move entity ${entity}: it is not indexed. Did it skip GridPos?`);
+  private blockingEntityAtNoRefresh(x: number, y: number): Entity | undefined {
+    const tile = this.tileIndex(x, y);
+    if (tile === undefined) return undefined;
+    return entityFromOccupancy(this.blockingOccupancy[tile]!);
+  }
+
+  private itemAtNoRefresh(x: number, y: number): Entity | undefined {
+    const tile = this.tileIndex(x, y);
+    if (tile === undefined) return undefined;
+    return entityFromOccupancy(this.itemOccupancy[tile]!);
+  }
+
+  private positionBlocksNoRefresh(x: number, y: number): boolean {
+    return this.tileBlocks(x, y) || this.blockingEntityAtNoRefresh(x, y) !== undefined;
+  }
+
+  private positionedTileFor(entity: Entity): number {
+    const position = this.world.components.readEntityData(GridPos, entity);
+    if (position === undefined) {
+      throw new Error(`Cannot move entity ${entity}: it is not indexed. Did it skip GridPos?`);
+    }
+    const tile = this.tileIndex(position.x, position.y);
+    if (tile === undefined) {
+      throw new Error(
+        `Entity ${entity} at (${position.x}, ${position.y}) is outside the ${this.width}x${this.height} map.`,
+      );
+    }
     return tile;
-  }
-
-  private moveOccupancy(entity: Entity, toTile: number): void {
-    const movesBlocking = this.blockingTiles.has(entity);
-    const movesItem = this.itemTiles.has(entity);
-    if (movesBlocking) this.assertCanOccupy(this.blockingOccupancy, toTile, entity, "blocking");
-    if (movesItem) this.assertCanOccupy(this.itemOccupancy, toTile, entity, "item");
-
-    if (movesBlocking) {
-      this.clearOccupancy(this.blockingOccupancy, this.blockingTiles, entity);
-      this.occupy(this.blockingOccupancy, this.blockingTiles, toTile, entity, "blocking");
-    }
-    if (movesItem) {
-      this.clearOccupancy(this.itemOccupancy, this.itemTiles, entity);
-      this.occupy(this.itemOccupancy, this.itemTiles, toTile, entity, "item");
-    }
-  }
-
-  private clearEntityOccupancy(entity: Entity): void {
-    this.entityTiles.delete(entity);
-    this.clearOccupancy(this.blockingOccupancy, this.blockingTiles, entity);
-    this.clearOccupancy(this.itemOccupancy, this.itemTiles, entity);
   }
 
   private occupy(
     occupancy: Int32Array,
-    entityTiles: Map<Entity, number>,
     tile: number,
     entity: Entity,
     kind: string,
   ): void {
     this.assertCanOccupy(occupancy, tile, entity, kind);
     occupancy[tile] = entity;
-    entityTiles.set(entity, tile);
   }
 
   private assertCanOccupy(occupancy: Int32Array, tile: number, entity: Entity, kind: string): void {
@@ -250,12 +260,6 @@ export class SpatialIndex implements SpatialLookup, SpatialMutations {
     if (occupant !== EMPTY_ENTITY && occupant !== entity) {
       throw new Error(`Duplicate ${kind} occupancy at (${tile % this.width}, ${Math.floor(tile / this.width)}).`);
     }
-  }
-
-  private clearOccupancy(occupancy: Int32Array, entityTiles: Map<Entity, number>, entity: Entity): void {
-    const tile = entityTiles.get(entity);
-    if (tile !== undefined && occupancy[tile] === entity) occupancy[tile] = EMPTY_ENTITY;
-    entityTiles.delete(entity);
   }
 
   private nextStepFromDistances(start: GridPoint, distances: Int32Array): GridPoint | undefined {
@@ -270,7 +274,7 @@ export class SpatialIndex implements SpatialLookup, SpatialMutations {
       const x = start.x + delta.dx;
       const y = start.y + delta.dy;
       const tile = this.tileIndex(x, y);
-      if (tile === undefined || this.positionBlocks(x, y)) continue;
+      if (tile === undefined || this.positionBlocksNoRefresh(x, y)) continue;
 
       const distance = distances[tile]!;
       if (distance === UNREACHABLE || distance >= bestDistance) continue;

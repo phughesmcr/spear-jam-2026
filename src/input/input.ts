@@ -1,5 +1,5 @@
 import type { GameCommand } from "@/src/game/commands.ts";
-import Pointer, { CanvasPointerInput } from "@/src/input/pointer.ts";
+import { type CanvasPointerInput, setupPointer } from "@/src/input/pointer.ts";
 import TouchGestures, { type TouchGestureEnabled, windowTouchGestureScheduler } from "@/src/input/touch_gestures.ts";
 import type { GameCanvasSize } from "@/src/render/canvas.ts";
 
@@ -26,7 +26,6 @@ const COMMANDS_BY_KEY = {
 type CommandKey = keyof typeof COMMANDS_BY_KEY;
 
 const KEY_EVENTS = ["keydown", "keyup"] as const;
-const POINTER_PHASES = ["move", "down", "up", "cancel"] as const;
 
 export function setupKeyboard(window: Window, receiver: GameCommandReceiver): Disposable {
   const keyStates = new Map<string, boolean>();
@@ -65,20 +64,7 @@ export function setupKeyboard(window: Window, receiver: GameCommandReceiver): Di
 function isCommandKey(code: string): code is CommandKey {
   return code in COMMANDS_BY_KEY;
 }
-
-export function setupPointer(
-  canvas: HTMLCanvasElement,
-  canvasSize: () => GameCanvasSize,
-  receiver: PointerInputReceiver,
-): Disposable {
-  const input = new Pointer(canvas, canvasSize);
-
-  for (const phase of POINTER_PHASES) {
-    input.addMapping(phase, receiver);
-  }
-
-  return input;
-}
+export { setupPointer };
 
 export function setupInput(
   window: Window,

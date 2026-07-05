@@ -1,7 +1,21 @@
-import type { AttackDef } from "@/src/game/attack.ts";
+import { DialogueTreeId } from "@/src/dialogue/dialogue.ts";
+import { ENEMY_ARCHETYPE_CODES, enemyCatalogEntry } from "@/src/ecs/enemy_catalog.ts";
+import { ExamineTextId } from "@/src/game/examine_content.ts";
+import { DisplayName } from "@/src/game/names.ts";
+import { storyEventIdFor, storyTargetIdFor } from "@/src/game/story.ts";
 import {
+  type AttackDef,
+  AttackFacingRequirement,
+  AttackPattern,
+  AttackTargetMode,
+  DECORATION_KINDS,
+  type DecorationKind,
+  DOOR_SLIDES,
   ENTITY_AUTHORING_PROPERTY_NAMES,
   ENTITY_SCHEMA,
+  ITEM_KINDS,
+  type ItemKind,
+  KeyColor,
   mapEntityPrefab,
   PREFAB_AUTHORING_PROPERTY_NAMES,
 } from "@/src/map/entity_content.ts";
@@ -27,22 +41,6 @@ import {
   validatePropertyNames,
 } from "@/src/map/authoring/properties.ts";
 import type { TiledLayer, TiledMap, TiledObject, TiledTemplate } from "@/src/map/authoring/tiled_types.ts";
-import {
-  mapAttackFacingRequirement,
-  mapAttackPattern,
-  mapAttackTargets,
-  mapDecorationKind,
-  mapDialogueTreeId,
-  mapDirection,
-  mapDisplayName,
-  mapDoorSlide,
-  mapEnemyArchetype,
-  mapExamineTextId,
-  mapItemKind,
-  mapKeyColor,
-  mapStoryEventId,
-  mapStoryTargetId,
-} from "@/src/map/authoring/mappings.ts";
 
 export type CompileTiledMapOptions = {
   readonly sourcePath?: string;
@@ -52,7 +50,6 @@ export type CompileTiledMapOptions = {
 
 export type CompiledTiledMap = {
   readonly gameMap: GameMap;
-  readonly paletteKey: string;
   readonly campaignOrder: number;
 };
 
@@ -76,9 +73,20 @@ type ResolvedTemplate = {
   readonly registry: TilesetRegistry;
 };
 
+type Mutable<T> = {
+  -readonly [K in keyof T]: T[K];
+};
+
 const NO_PROPERTY_NAMES: ReadonlySet<string> = new Set();
-const MAP_PROPERTY_NAMES: ReadonlySet<string> = new Set(["name", "palette", "campaignOrder"]);
+const MAP_PROPERTY_NAMES: ReadonlySet<string> = new Set(["name", "campaignOrder"]);
 const LIGHT_PROPERTY_NAMES: ReadonlySet<string> = new Set(["color", "radius", "flickerAmount", "flickerSpeed"]);
+const DIRECTIONS: Readonly<Record<string, number>> = {
+  north: 0,
+  east: 1,
+  south: 2,
+  west: 3,
+};
+const ENEMY_ARCHETYPE_KEYS = ENEMY_ARCHETYPE_CODES.map((archetype) => enemyCatalogEntry(archetype).authoringKey);
 const TERRAIN_PROPERTY_NAMES: ReadonlySet<string> = new Set([
   "terrainId",
   "terrainKind",
@@ -97,7 +105,6 @@ export function compileTiledMap(source: TiledMap, options: CompileTiledMapOption
 
   const mapProperties = readProperties(source.properties, MAP_PROPERTY_NAMES, "map");
   const name = requiredString(mapProperties, "name", "map");
-  const paletteKey = requiredString(mapProperties, "palette", "map");
   const campaignOrder = requiredInteger(mapProperties, "campaignOrder", "map");
 
   const layers = requiredLayers(source);
@@ -110,7 +117,6 @@ export function compileTiledMap(source: TiledMap, options: CompileTiledMapOption
 
   return {
     gameMap: createGameMap(name, terrain, entities, { palette: TERRAIN_CATALOG }),
-    paletteKey,
     campaignOrder,
   };
 }
@@ -541,36 +547,60 @@ function compileDoor(resolved: ResolvedObject, context: string): EntityDef {
 function requiredDirection(properties: PropertyMap, context: string): number {
   const value = optionalString(properties, "dir", context) ?? optionalString(properties, "facing", context);
   if (value === undefined) throw new Error(`${context}: Missing required property "dir" or "facing".`);
-  return mapDirection(value, `${context} property "dir"`);
+  return lookup(DIRECTIONS, value, "direction", `${context} property "dir"`);
 }
 
-function requiredDisplayName(properties: PropertyMap, context: string): ReturnType<typeof mapDisplayName> {
-  return mapDisplayName(requiredString(properties, "displayName", context), `${context} property "displayName"`);
+function requiredDisplayName(properties: PropertyMap, context: string): string {
+  return knownString(
+    Object.values(DisplayName),
+    requiredString(properties, "displayName", context),
+    "display name",
+    `${context} property "displayName"`,
+  );
 }
 
 function optionalDisplayName(
   properties: PropertyMap,
   context: string,
-): { readonly displayName?: ReturnType<typeof mapDisplayName> } {
+): { readonly displayName?: string } {
   const value = optionalString(properties, "displayName", context);
-  return value === undefined ? {} : { displayName: mapDisplayName(value, `${context} property "displayName"`) };
+  return value === undefined ? {} : {
+    displayName: knownString(Object.values(DisplayName), value, "display name", `${context} property "displayName"`),
+  };
 }
 
-function requiredKeyColor(properties: PropertyMap, context: string): ReturnType<typeof mapKeyColor> {
-  return mapKeyColor(requiredString(properties, "color", context), `${context} property "color"`);
+function requiredKeyColor(properties: PropertyMap, context: string): KeyColor {
+  return knownString(
+    Object.values(KeyColor),
+    requiredString(properties, "color", context),
+    "key color",
+    `${context} property "color"`,
+  );
 }
 
-function optionalKeyColor(properties: PropertyMap, context: string): ReturnType<typeof mapKeyColor> | undefined {
+function optionalKeyColor(properties: PropertyMap, context: string): KeyColor | undefined {
   const value = optionalString(properties, "color", context);
-  return value === undefined ? undefined : mapKeyColor(value, `${context} property "color"`);
+  return value === undefined ?
+    undefined :
+    knownString(Object.values(KeyColor), value, "key color", `${context} property "color"`);
 }
 
-function requiredItemKind(properties: PropertyMap, context: string): ReturnType<typeof mapItemKind> {
-  return mapItemKind(requiredString(properties, "item", context), `${context} property "item"`);
+function requiredItemKind(properties: PropertyMap, context: string): ItemKind {
+  return knownString(
+    ITEM_KINDS,
+    requiredString(properties, "item", context),
+    "item kind",
+    `${context} property "item"`,
+  );
 }
 
-function requiredDecorationKind(properties: PropertyMap, context: string): ReturnType<typeof mapDecorationKind> {
-  return mapDecorationKind(requiredString(properties, "decoration", context), `${context} property "decoration"`);
+function requiredDecorationKind(properties: PropertyMap, context: string): DecorationKind {
+  return knownString(
+    DECORATION_KINDS,
+    requiredString(properties, "decoration", context),
+    "decoration kind",
+    `${context} property "decoration"`,
+  );
 }
 
 function requiredWeaponSlot(properties: PropertyMap, context: string): 2 | 3 {
@@ -582,52 +612,68 @@ function requiredWeaponSlot(properties: PropertyMap, context: string): 2 | 3 {
 function optionalDialogueTreeId(
   properties: PropertyMap,
   context: string,
-): { readonly dialogueTreeId?: ReturnType<typeof mapDialogueTreeId> } {
+): { readonly dialogueTreeId?: string } {
   const value = optionalString(properties, "dialogueTreeId", context);
   if (value === undefined) return {};
 
-  const dialogueTreeId = mapDialogueTreeId(value, `${context} property "dialogueTreeId"`);
+  const dialogueTreeId = optionalKnownString(
+    [...Object.values(DialogueTreeId), "none"],
+    value,
+    "dialogue tree",
+    `${context} property "dialogueTreeId"`,
+  );
   return dialogueTreeId === undefined ? {} : { dialogueTreeId };
 }
 
 function optionalStoryTargetId(
   properties: PropertyMap,
   context: string,
-): { readonly storyId?: ReturnType<typeof mapStoryTargetId> } {
+): { readonly storyId?: string } {
   const value = optionalString(properties, "storyId", context);
-  return value === undefined ? {} : { storyId: mapStoryTargetId(value, `${context} property "storyId"`) };
+  return value === undefined ? {} : { storyId: storyTargetIdFor(value, `${context} property "storyId"`) };
 }
 
 function optionalOnTalkEvent(
   properties: PropertyMap,
   context: string,
-): { readonly onTalkEvent?: ReturnType<typeof mapStoryEventId> } {
+): { readonly onTalkEvent?: string } {
   const value = optionalString(properties, "onTalkEvent", context);
-  return value === undefined ? {} : { onTalkEvent: mapStoryEventId(value, `${context} property "onTalkEvent"`) };
+  return value === undefined ? {} : { onTalkEvent: storyEventIdFor(value, `${context} property "onTalkEvent"`) };
 }
 
 function optionalExamineTextId(
   properties: PropertyMap,
   context: string,
-): { readonly examineTextId?: ReturnType<typeof mapExamineTextId> } {
+): { readonly examineTextId?: string } {
   const value = optionalString(properties, "examineTextId", context);
-  return value === undefined ? {} : { examineTextId: mapExamineTextId(value, `${context} property "examineTextId"`) };
+  return value === undefined ? {} : {
+    examineTextId: knownString(
+      Object.values(ExamineTextId),
+      value,
+      "examine text",
+      `${context} property "examineTextId"`,
+    ),
+  };
 }
 
 function optionalEnemyArchetype(
   properties: PropertyMap,
   context: string,
-): { readonly archetype?: ReturnType<typeof mapEnemyArchetype> } {
+): { readonly archetype?: string } {
   const value = optionalString(properties, "archetype", context);
-  return value === undefined ? {} : { archetype: mapEnemyArchetype(value, `${context} property "archetype"`) };
+  return value === undefined ? {} : {
+    archetype: knownString(ENEMY_ARCHETYPE_KEYS, value, "enemy archetype", `${context} property "archetype"`),
+  };
 }
 
 function optionalDoorSlide(
   properties: PropertyMap,
   context: string,
-): { readonly slide?: ReturnType<typeof mapDoorSlide> } {
+): { readonly slide?: (typeof DOOR_SLIDES)[number] } {
   const value = optionalString(properties, "slide", context);
-  return value === undefined ? {} : { slide: mapDoorSlide(value, `${context} property "slide"`) };
+  return value === undefined ?
+    {} :
+    { slide: knownString(DOOR_SLIDES, value, "door slide", `${context} property "slide"`) };
 }
 
 function optionalNumberField(properties: PropertyMap, name: string, context: string): Record<string, number> {
@@ -664,7 +710,7 @@ function optionalAttack(
   properties: PropertyMap,
   context: string,
 ): { readonly attack?: Partial<AttackDef> } {
-  const attack: Partial<AttackDef> = {};
+  const attack: Partial<Mutable<AttackDef>> = {};
   addAttackInteger(attack, properties, "attackMinDamage", "minDamage", context);
   addAttackInteger(attack, properties, "attackMaxDamage", "maxDamage", context);
   addAttackInteger(attack, properties, "attackRange", "range", context);
@@ -674,23 +720,39 @@ function optionalAttack(
 
   const requiresFacing = optionalString(properties, "attackRequiresFacing", context);
   if (requiresFacing !== undefined) {
-    attack.requiresFacing = mapAttackFacingRequirement(
+    attack.requiresFacing = knownString(
+      Object.values(AttackFacingRequirement),
       requiresFacing,
+      "attack facing requirement",
       `${context} property "attackRequiresFacing"`,
     );
   }
 
   const pattern = optionalString(properties, "attackPattern", context);
-  if (pattern !== undefined) attack.pattern = mapAttackPattern(pattern, `${context} property "attackPattern"`);
+  if (pattern !== undefined) {
+    attack.pattern = knownString(
+      Object.values(AttackPattern),
+      pattern,
+      "attack pattern",
+      `${context} property "attackPattern"`,
+    );
+  }
 
   const targets = optionalString(properties, "attackTargets", context);
-  if (targets !== undefined) attack.targets = mapAttackTargets(targets, `${context} property "attackTargets"`);
+  if (targets !== undefined) {
+    attack.targets = knownString(
+      Object.values(AttackTargetMode),
+      targets,
+      "attack target mode",
+      `${context} property "attackTargets"`,
+    );
+  }
 
   return Object.keys(attack).length === 0 ? {} : { attack };
 }
 
 function addAttackInteger<K extends keyof AttackDef>(
-  attack: Partial<AttackDef>,
+  attack: Partial<Mutable<AttackDef>>,
   properties: PropertyMap,
   propertyName: string,
   attackName: K,
@@ -719,6 +781,37 @@ function aligned(value: number, cellSize: number): boolean {
 
 function positiveInteger(value: number): boolean {
   return Number.isInteger(value) && value > 0;
+}
+
+function knownString<T extends string>(
+  values: readonly T[],
+  value: string,
+  kind: string,
+  context: string,
+): T {
+  const mapped = values.find((candidate) => candidate === value || candidate === lowerFirst(value));
+  if (mapped === undefined) throw new Error(`${context}: Unknown ${kind} "${value}".`);
+  return mapped;
+}
+
+function optionalKnownString<T extends string>(
+  values: readonly T[],
+  value: string,
+  kind: string,
+  context: string,
+): Exclude<T, "none"> | undefined {
+  const mapped = knownString(values, value, kind, context);
+  return mapped === "none" ? undefined : mapped as Exclude<T, "none">;
+}
+
+function lookup<T>(table: Readonly<Record<string, T>>, value: string, kind: string, context: string): T {
+  const mapped = table[value] ?? table[lowerFirst(value)];
+  if (mapped === undefined) throw new Error(`${context}: Unknown ${kind} "${value}".`);
+  return mapped;
+}
+
+function lowerFirst(value: string): string {
+  return value.length === 0 ? value : `${value[0]!.toLowerCase()}${value.slice(1)}`;
 }
 
 function resolveTemplatePath(sourcePath: string | undefined, templatePath: string): string {

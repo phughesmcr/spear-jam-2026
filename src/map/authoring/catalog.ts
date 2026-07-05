@@ -8,7 +8,6 @@ import { StoryEventId, StoryTargetId } from "@/src/game/story.ts";
 import { type EntityPrefab, KeyColor, SKY_CEILING_TEXTURE, TexturePack, VICTORY_GOTO } from "@/src/map/map.ts";
 import {
   BARRIER_TERRAIN_COUNT,
-  PALETTE_KEYS,
   TERRAIN_CATALOG_TILE_COLUMNS,
   TEXTURE_PACK_COLUMNS,
   TEXTURE_PACK_ROWS,
@@ -143,7 +142,6 @@ export type TemplateFile = {
 const TEMPLATE_MARKER_FIRST_GID = 1;
 
 export const PROPERTY_TYPES: readonly TiledPropertyType[] = [
-  enumPropertyType(1, "TerrainPalette", PALETTE_KEYS),
   enumPropertyType(2, "Prefab", PREFAB_AUTHORING_VALUES),
   enumPropertyType(3, "Facing", ["north", "east", "south", "west"]),
   enumPropertyType(4, "KeyColor", Object.values(KeyColor)),
@@ -166,7 +164,6 @@ export const PROPERTY_TYPES: readonly TiledPropertyType[] = [
   enumPropertyType(17, "StoryEventId", Object.values(StoryEventId)),
   classPropertyType(20, "map_metadata", "#ff0ea5e9", true, ["map"], [
     classMember("name", "string", "Boot Sector"),
-    classMember("palette", "string", "boot_sector", "TerrainPalette"),
     classMember("campaignOrder", "int", 1),
   ]),
   classPropertyType(21, "terrain_layer", "#ff334155", true, ["layer"], []),

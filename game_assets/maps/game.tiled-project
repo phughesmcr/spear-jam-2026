@@ -63,20 +63,6 @@
   "properties": [],
   "propertyTypes": [
     {
-      "id": 1,
-      "name": "TerrainPalette",
-      "storageType": "string",
-      "type": "enum",
-      "values": [
-        "boot_sector",
-        "data_conduit",
-        "firewall",
-        "nexus",
-        "mainframe_core"
-      ],
-      "valuesAsFlags": false
-    },
-    {
       "id": 2,
       "name": "Prefab",
       "storageType": "string",
@@ -344,12 +330,6 @@
           "name": "name",
           "type": "string",
           "value": "Boot Sector"
-        },
-        {
-          "name": "palette",
-          "propertyType": "TerrainPalette",
-          "type": "string",
-          "value": "boot_sector"
         },
         {
           "name": "campaignOrder",

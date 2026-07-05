@@ -20,15 +20,24 @@ export const ENEMY_ARCHETYPE_CODES = [
 
 export const DEFAULT_ENEMY_ARCHETYPE = EnemyArchetype.MeleeDog;
 
-export const EnemyBehavior = {
-  Pursuer: "pursuer",
-  Pouncer: "pouncer",
-  Skirmisher: "skirmisher",
-  Sentinel: "sentinel",
-} as const;
-export type EnemyBehavior = (typeof EnemyBehavior)[keyof typeof EnemyBehavior];
+export type EnemyBehaviorPolicy = {
+  readonly alert: EnemyAlertPolicy;
+  readonly investigate: EnemyInvestigatePolicy;
+};
 
-export const DEFAULT_ENEMY_BEHAVIOR = EnemyBehavior.Pursuer;
+export type EnemyAlertPolicy =
+  | { readonly type: "advance"; readonly steps: number; readonly attackAfterMove?: boolean }
+  | { readonly type: "skirmish"; readonly retreatRange: number; readonly advanceSteps: number }
+  | { readonly type: "hold" };
+
+export type EnemyInvestigatePolicy =
+  | { readonly type: "move"; readonly steps: number }
+  | { readonly type: "watch" };
+
+export const DEFAULT_ENEMY_BEHAVIOR_POLICY: EnemyBehaviorPolicy = {
+  alert: { type: "advance", steps: 1 },
+  investigate: { type: "move", steps: 1 },
+};
 
 export type EnemyCatalogEntry = {
   readonly authoringKey: string;
@@ -37,7 +46,7 @@ export type EnemyCatalogEntry = {
   readonly hitDc: number;
   readonly damage: number;
   readonly attack: Readonly<Partial<AttackDef>>;
-  readonly behavior: EnemyBehavior;
+  readonly behavior: EnemyBehaviorPolicy;
 };
 
 export const ENEMY_CATALOG = {
@@ -51,7 +60,10 @@ export const ENEMY_CATALOG = {
       attackBonus: 4,
       range: 1,
     },
-    behavior: EnemyBehavior.Pouncer,
+    behavior: {
+      alert: { type: "advance", steps: 2, attackAfterMove: true },
+      investigate: { type: "move", steps: 2 },
+    },
   },
   [EnemyArchetype.Gunslinger]: {
     authoringKey: "gunslinger",
@@ -63,7 +75,10 @@ export const ENEMY_CATALOG = {
       attackBonus: 3,
       range: 4,
     },
-    behavior: EnemyBehavior.Skirmisher,
+    behavior: {
+      alert: { type: "skirmish", retreatRange: 1, advanceSteps: 1 },
+      investigate: { type: "move", steps: 1 },
+    },
   },
   [EnemyArchetype.NetworkNeophyte]: {
     authoringKey: "networkNeophyte",
@@ -75,7 +90,7 @@ export const ENEMY_CATALOG = {
       attackBonus: 2,
       range: 1,
     },
-    behavior: EnemyBehavior.Pursuer,
+    behavior: DEFAULT_ENEMY_BEHAVIOR_POLICY,
   },
   [EnemyArchetype.SystemSentinel]: {
     authoringKey: "systemSentinel",
@@ -87,7 +102,10 @@ export const ENEMY_CATALOG = {
       attackBonus: 4,
       range: 1,
     },
-    behavior: EnemyBehavior.Sentinel,
+    behavior: {
+      alert: { type: "hold" },
+      investigate: { type: "watch" },
+    },
   },
   [EnemyArchetype.AgenticAcolyte]: {
     authoringKey: "agenticAcolyte",
@@ -102,7 +120,7 @@ export const ENEMY_CATALOG = {
       pattern: AttackPattern.Adjacent,
       targets: AttackTargetMode.All,
     },
-    behavior: EnemyBehavior.Pursuer,
+    behavior: DEFAULT_ENEMY_BEHAVIOR_POLICY,
   },
 } as const satisfies Readonly<Record<EnemyArchetype, EnemyCatalogEntry>>;
 

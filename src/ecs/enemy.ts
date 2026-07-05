@@ -12,8 +12,7 @@ import {
   IDLE_AWARENESS,
 } from "@/src/ecs/components.ts";
 import { attackEntity, attackTargets, entityAttack } from "@/src/ecs/combat.ts";
-import type { EntityContentStore } from "@/src/ecs/entity_content.ts";
-import { DEFAULT_ENEMY_BEHAVIOR, EnemyBehavior, enemyCatalogEntry } from "@/src/ecs/enemy_catalog.ts";
+import { DEFAULT_ENEMY_BEHAVIOR_POLICY, type EnemyBehaviorPolicy, enemyCatalogEntry } from "@/src/ecs/enemy_catalog.ts";
 import { enemyTurnQuery } from "@/src/ecs/queries.ts";
 import type { SpatialAccess, SpatialDistanceField, SpatialLookup, SpatialMutations } from "@/src/ecs/spatial.ts";
 import type { GameEvent } from "@/src/game/events.ts";
@@ -33,7 +32,6 @@ const MAX_INVESTIGATION_TURNS = 6;
 
 export type EnemyTurnContext = {
   readonly world: World;
-  readonly contentStore: EntityContentStore;
   readonly player: Entity;
   readonly spatial: EnemySpatialAccess;
   readonly random: RandomSource;
@@ -128,7 +126,7 @@ function advanceEnemyTurn(
 }
 
 function selectEnemyAction(actor: EnemyActorContext, awareness: AwarenessResult): readonly GameEvent[] {
-  const behavior = enemyBehaviorFor(actor.context.world, actor.entity);
+  const behavior = enemyBehaviorPolicyFor(actor.context.world, actor.entity);
   switch (awareness.state) {
     case AwarenessState.Idle:
       return [];
@@ -139,29 +137,27 @@ function selectEnemyAction(actor: EnemyActorContext, awareness: AwarenessResult)
   }
 }
 
-function alertActionFor(actor: EnemyActorContext, behavior: EnemyBehavior): readonly GameEvent[] {
-  switch (behavior) {
-    case EnemyBehavior.Pursuer:
-      return attackThenMoveTowardPlayer(actor, 1);
-    case EnemyBehavior.Pouncer:
-      return attackThenMoveTowardPlayer(actor, 2, true);
-    case EnemyBehavior.Skirmisher:
-      return skirmishAtRange(actor);
-    case EnemyBehavior.Sentinel:
+function alertActionFor(actor: EnemyActorContext, behavior: EnemyBehaviorPolicy): readonly GameEvent[] {
+  switch (behavior.alert.type) {
+    case "advance":
+      return attackThenMoveTowardPlayer(actor, behavior.alert.steps, behavior.alert.attackAfterMove ?? false);
+    case "skirmish":
+      return skirmishAtRange(actor, behavior.alert.retreatRange, behavior.alert.advanceSteps);
+    case "hold":
       return holdAndWatchPlayer(actor);
   }
 }
 
-function skirmishAtRange(actor: EnemyActorContext): readonly GameEvent[] {
+function skirmishAtRange(actor: EnemyActorContext, retreatRange: number, advanceSteps: number): readonly GameEvent[] {
   const { context, entity, gridPos, facing, markers } = actor;
   if (
-    distanceToPlayer(context, entity, gridPos) <= 1 &&
+    distanceToPlayer(context, entity, gridPos) <= retreatRange &&
     tryMoveEnemyAwayFromPlayer(context, entity, gridPos, facing, markers, context.spatial)
   ) {
     return [];
   }
 
-  return attackThenMoveTowardPlayer(actor, 1);
+  return attackThenMoveTowardPlayer(actor, advanceSteps);
 }
 
 function holdAndWatchPlayer(actor: EnemyActorContext): readonly GameEvent[] {
@@ -195,16 +191,13 @@ function attackThenMoveTowardPlayer(
 
 function investigateActionFor(
   actor: EnemyActorContext,
-  behavior: EnemyBehavior,
+  behavior: EnemyBehaviorPolicy,
   target: GridPoint,
 ): readonly GameEvent[] {
-  switch (behavior) {
-    case EnemyBehavior.Pursuer:
-    case EnemyBehavior.Skirmisher:
-      return investigateTarget(actor, target, 1);
-    case EnemyBehavior.Pouncer:
-      return investigateTarget(actor, target, 2);
-    case EnemyBehavior.Sentinel:
+  switch (behavior.investigate.type) {
+    case "move":
+      return investigateTarget(actor, target, behavior.investigate.steps);
+    case "watch":
       return watchInvestigationTarget(actor, target);
   }
 }
@@ -235,9 +228,9 @@ function investigateTarget(actor: EnemyActorContext, target: GridPoint, steps: n
   return [];
 }
 
-function enemyBehaviorFor(world: World, entity: Entity): EnemyBehavior {
+function enemyBehaviorPolicyFor(world: World, entity: Entity): EnemyBehaviorPolicy {
   const archetype = enemyArchetypeFor(world, entity);
-  return archetype === undefined ? DEFAULT_ENEMY_BEHAVIOR : enemyCatalogEntry(archetype).behavior;
+  return archetype === undefined ? DEFAULT_ENEMY_BEHAVIOR_POLICY : enemyCatalogEntry(archetype).behavior;
 }
 
 function attackPlayerIfPossible(
@@ -264,7 +257,7 @@ function attackPlayerIfPossible(
     if (targets.length > 0) {
       const events: GameEvent[] = [];
       for (const target of targets) {
-        events.push(...attackEntity(world, context.contentStore, entity, target, attack, random, spatial));
+        events.push(...attackEntity(world, entity, target, attack, random, spatial));
       }
       return events;
     }

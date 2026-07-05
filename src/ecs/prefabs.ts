@@ -3,13 +3,17 @@ import {
   Attack,
   type AttackSchema,
   Blocking,
+  DecorationKind,
   Defense,
+  DialogueTreeRef,
+  DisplayNameComponent,
   Door,
   Drawable,
   DrawableLayer,
   Enemy,
   EnemyArchetypeComponent,
   EnemyAwareness,
+  ExamineTextRef,
   Facing,
   GridPos,
   Health,
@@ -21,13 +25,19 @@ import {
   Locked,
   MapScoped,
   Npc,
+  OnTalkEvent,
   PENDING_SPRITE_ANIMATION_START_MS,
   Player,
+  PlayerEquipment,
+  PlayerInventory,
+  PlayerProgress,
   Secret,
   Sprite,
   SPRITE_DEATH_MS,
   SpriteAnimation,
   SpriteAnimationKind,
+  StoryTarget,
+  TerminalDestination,
   TurnTaker,
   UplinkTerminal,
 } from "@/src/ecs/components.ts";
@@ -41,13 +51,35 @@ import {
 } from "@/src/ecs/drawables.ts";
 import {
   DEFAULT_ENEMY_ARCHETYPE,
+  ENEMY_ARCHETYPE_CODES,
   type EnemyArchetype as EnemyArchetypeType,
   type EnemyCatalogEntry,
   enemyCatalogEntry,
 } from "@/src/ecs/enemy_catalog.ts";
-import { type EntityContentStore, setEntityContent } from "@/src/ecs/entity_content.ts";
-import { DEFAULT_PLAYER_HEALTH } from "@/src/ecs/progression.ts";
-import { DEFAULT_ATTACK } from "@/src/game/attack.ts";
+import {
+  DEFAULT_PLAYER_EQUIPMENT,
+  DEFAULT_PLAYER_HEALTH,
+  DEFAULT_PLAYER_INVENTORY,
+  DEFAULT_PLAYER_PROGRESS,
+} from "@/src/ecs/progression.ts";
+import {
+  dialogueTreeCode,
+  DialogueTreeId,
+  type DialogueTreeId as DialogueTreeIdType,
+} from "@/src/dialogue/dialogue.ts";
+import {
+  type AttackDef as GameAttackDef,
+  AttackFacingRequirement,
+  type AttackFacingRequirement as AttackFacingRequirementType,
+  AttackPattern,
+  type AttackPattern as AttackPatternType,
+  AttackTargetMode,
+  type AttackTargetMode as AttackTargetModeType,
+  DEFAULT_ATTACK,
+} from "@/src/game/attack.ts";
+import { examineTextCode, ExamineTextId, type ExamineTextId as ExamineTextIdType } from "@/src/game/examine_content.ts";
+import { DisplayName, type DisplayName as DisplayNameType, displayNameCode } from "@/src/game/names.ts";
+import { storyEventCode, storyEventIdFor, storyTargetCode, storyTargetIdFor } from "@/src/game/story.ts";
 import { normalizeDirection } from "@/src/grid/direction.ts";
 import {
   type DecorationDef,
@@ -61,12 +93,40 @@ import {
   type LightDef,
   type NpcDef,
   type PlayerDef,
+  terminalDestinationCode,
   type UplinkCodeDef,
   type UplinkTerminalDef,
   type WeaponPickupDef,
 } from "@/src/map/map.ts";
 
 const DEFAULT_PLAYER_HIT_DC = 10;
+const ITEM_KINDS = {
+  healthPatch: ItemKind.HealthPatch,
+  pistolAmmo: ItemKind.PistolAmmo,
+  cannonAmmo: ItemKind.CannonAmmo,
+} as const satisfies Readonly<Record<string, ItemKind>>;
+const DECORATION_KINDS = {
+  serverPile: DecorationKind.ServerPile,
+  cyborg: DecorationKind.Cyborg,
+  ceilingHook: DecorationKind.CeilingHook,
+  ceilingLight: DecorationKind.CeilingLight,
+  ceilingWires: DecorationKind.CeilingWires,
+} as const satisfies Readonly<Record<string, DecorationKind>>;
+const ATTACK_FACING_REQUIREMENTS = {
+  required: AttackFacingRequirement.Required,
+  none: AttackFacingRequirement.None,
+} as const satisfies Readonly<Record<string, AttackFacingRequirementType>>;
+const ATTACK_PATTERNS = {
+  line: AttackPattern.Line,
+  adjacent: AttackPattern.Adjacent,
+} as const satisfies Readonly<Record<string, AttackPatternType>>;
+const ATTACK_TARGETS = {
+  first: AttackTargetMode.First,
+  all: AttackTargetMode.All,
+} as const satisfies Readonly<Record<string, AttackTargetModeType>>;
+const ENEMY_ARCHETYPES: Readonly<Record<string, EnemyArchetypeType>> = Object.fromEntries(
+  ENEMY_ARCHETYPE_CODES.map((archetype) => [enemyCatalogEntry(archetype).authoringKey, archetype]),
+);
 
 type PositionedPrefab = {
   readonly x: number;
@@ -88,6 +148,9 @@ export function createPlayer(world: World, prefab: PlayerPrefab): Entity {
     [
       [Player],
       [Health, { current: DEFAULT_PLAYER_HEALTH.max, max: DEFAULT_PLAYER_HEALTH.max }],
+      [PlayerInventory, DEFAULT_PLAYER_INVENTORY],
+      [PlayerEquipment, DEFAULT_PLAYER_EQUIPMENT],
+      [PlayerProgress, DEFAULT_PLAYER_PROGRESS],
       [Defense, { hitDc: DEFAULT_PLAYER_HIT_DC }],
     ] as const,
   );
@@ -96,13 +159,14 @@ export function createPlayer(world: World, prefab: PlayerPrefab): Entity {
 
 export type NpcPrefab = Omit<NpcDef, "prefab">;
 
-export function createNpc(world: World, contentStore: EntityContentStore, prefab: NpcPrefab): Entity {
+export function createNpc(world: World, prefab: NpcPrefab): Entity {
+  const displayName = displayNameForPrefab(prefab.displayName);
   const entity = createGridActor(
     world,
     prefab,
     DrawableKind.Actor,
     DrawableLayer.Npc,
-    spriteIdForDisplayName(prefab.displayName),
+    spriteIdForDisplayName(displayName),
   );
   world.components.addBundle(
     entity,
@@ -111,24 +175,38 @@ export function createNpc(world: World, contentStore: EntityContentStore, prefab
       [Interactable],
     ] as const,
   );
-  setEntityContent(contentStore, entity, {
-    displayName: prefab.displayName,
-    dialogueTreeId: prefab.dialogueTreeId,
-    examineTextId: prefab.examineTextId,
-    storyId: prefab.storyId,
-    onTalkEvent: prefab.onTalkEvent,
-  });
+  world.components.addToEntity(DisplayNameComponent, entity, { displayName: displayNameCode(displayName) });
+  if (prefab.dialogueTreeId !== undefined) {
+    world.components.addToEntity(DialogueTreeRef, entity, {
+      dialogueTreeId: dialogueTreeCode(dialogueTreeIdForPrefab(prefab.dialogueTreeId)),
+    });
+  }
+  if (prefab.examineTextId !== undefined) {
+    world.components.addToEntity(ExamineTextRef, entity, {
+      examineTextId: examineTextCode(examineTextIdForPrefab(prefab.examineTextId)),
+    });
+  }
+  if (prefab.storyId !== undefined) {
+    world.components.addToEntity(StoryTarget, entity, {
+      storyId: storyTargetCode(storyTargetIdFor(prefab.storyId, "npc storyId")),
+    });
+  }
+  if (prefab.onTalkEvent !== undefined) {
+    world.components.addToEntity(OnTalkEvent, entity, {
+      onTalkEvent: storyEventCode(storyEventIdFor(prefab.onTalkEvent, "npc onTalkEvent")),
+    });
+  }
   return entity;
 }
 
 export type EnemyPrefab = Omit<EnemyDef, "prefab">;
 
-export function createEnemy(world: World, contentStore: EntityContentStore, prefab: EnemyPrefab): Entity {
+export function createEnemy(world: World, prefab: EnemyPrefab): Entity {
   const archetype = enemyArchetypeForPrefab(prefab.archetype);
   const catalog = enemyCatalogEntry(archetype);
   const health = prefab.health ?? catalog.health;
   const hitDc = prefab.hitDc ?? catalog.hitDc;
-  const displayName = prefab.displayName ?? catalog.displayName;
+  const displayName = prefab.displayName === undefined ? catalog.displayName : displayNameForPrefab(prefab.displayName);
   const entity = createGridActor(
     world,
     prefab,
@@ -147,10 +225,12 @@ export function createEnemy(world: World, contentStore: EntityContentStore, pref
       [Attack, createAttackSpec(prefab, catalog)],
     ] as const,
   );
-  setEntityContent(contentStore, entity, {
-    displayName,
-    examineTextId: prefab.examineTextId,
-  });
+  world.components.addToEntity(DisplayNameComponent, entity, { displayName: displayNameCode(displayName) });
+  if (prefab.examineTextId !== undefined) {
+    world.components.addToEntity(ExamineTextRef, entity, {
+      examineTextId: examineTextCode(examineTextIdForPrefab(prefab.examineTextId)),
+    });
+  }
   return entity;
 }
 
@@ -161,13 +241,13 @@ function createAttackSpec(prefab: EnemyPrefab, catalog: EnemyCatalogEntry): Atta
     ...catalog.attack,
     minDamage: fixedDamage,
     maxDamage: fixedDamage,
-    ...prefab.attack,
+    ...attackForPrefab(prefab.attack),
   };
 }
 
 export type DoorPrefab = Omit<DoorDef, "prefab">;
 
-export function createDoor(world: World, contentStore: EntityContentStore, prefab: DoorPrefab): Entity {
+export function createDoor(world: World, prefab: DoorPrefab): Entity {
   if (prefab.locked === true && prefab.color === undefined) {
     throw new Error("Locked door prefab is missing a key color");
   }
@@ -181,7 +261,11 @@ export function createDoor(world: World, contentStore: EntityContentStore, prefa
       [Blocking],
     ] as const,
   );
-  setEntityContent(contentStore, entity, { examineTextId: prefab.examineTextId });
+  if (prefab.examineTextId !== undefined) {
+    world.components.addToEntity(ExamineTextRef, entity, {
+      examineTextId: examineTextCode(examineTextIdForPrefab(prefab.examineTextId)),
+    });
+  }
   if (prefab.locked === true && prefab.color !== undefined) {
     world.components.addToEntity(Locked, entity, { color: keyColorCode(prefab.color) });
   }
@@ -205,11 +289,7 @@ export function createUplinkCode(world: World, prefab: UplinkCodePrefab): Entity
 
 export type UplinkTerminalPrefab = Omit<UplinkTerminalDef, "prefab">;
 
-export function createUplinkTerminal(
-  world: World,
-  contentStore: EntityContentStore,
-  prefab: UplinkTerminalPrefab,
-): Entity {
+export function createUplinkTerminal(world: World, prefab: UplinkTerminalPrefab): Entity {
   const entity = world.entities.createWithOrThrow(
     [
       [GridPos, { x: prefab.x, y: prefab.y }],
@@ -220,10 +300,12 @@ export function createUplinkTerminal(
       [Blocking],
     ] as const,
   );
-  setEntityContent(contentStore, entity, {
-    examineTextId: prefab.examineTextId,
-    terminalDestination: prefab.goto,
-  });
+  world.components.addToEntity(TerminalDestination, entity, { destination: terminalDestinationCode(prefab.goto) });
+  if (prefab.examineTextId !== undefined) {
+    world.components.addToEntity(ExamineTextRef, entity, {
+      examineTextId: examineTextCode(examineTextIdForPrefab(prefab.examineTextId)),
+    });
+  }
   return entity;
 }
 
@@ -236,17 +318,18 @@ export function createWeaponPickup(world: World, prefab: WeaponPickupPrefab): En
 export type ItemPrefab = Omit<ItemDef, "prefab">;
 
 export function createItem(world: World, prefab: ItemPrefab): Entity {
-  return createPickup(world, prefab, prefab.item, prefab.amount);
+  return createPickup(world, prefab, itemKindForPrefab(prefab.item), prefab.amount);
 }
 
 export type DecorationPrefab = Omit<DecorationDef, "prefab">;
 
 export function createDecoration(world: World, prefab: DecorationPrefab): Entity {
+  const decoration = decorationKindForPrefab(prefab.decoration);
   return world.entities.createWithOrThrow(
     [
       [GridPos, { x: prefab.x, y: prefab.y }],
       [Drawable, { kind: DrawableKind.Sprite, layer: DrawableLayer.Structure }],
-      [Sprite, { id: spriteIdForDecoration(prefab.decoration) }],
+      [Sprite, { id: spriteIdForDecoration(decoration) }],
     ] as const,
   );
 }
@@ -270,8 +353,8 @@ export function createLight(world: World, prefab: LightPrefab): Entity {
   );
 }
 
-function enemyArchetypeForPrefab(archetype: EnemyArchetypeType | undefined): EnemyArchetypeType {
-  return archetype ?? DEFAULT_ENEMY_ARCHETYPE;
+function enemyArchetypeForPrefab(archetype: string | undefined): EnemyArchetypeType {
+  return archetype === undefined ? DEFAULT_ENEMY_ARCHETYPE : lookup(ENEMY_ARCHETYPES, archetype, "enemy archetype");
 }
 
 function createPickup(world: World, prefab: PositionedPrefab, item: ItemKind, value: number): Entity {
@@ -304,28 +387,28 @@ function createGridActor(
   );
 }
 
-export function createMapEntity(world: World, contentStore: EntityContentStore, prefab: EntityDef): Entity {
-  const entity = createMapEntityByPrefab(world, contentStore, prefab);
+export function createMapEntity(world: World, prefab: EntityDef): Entity {
+  const entity = createMapEntityByPrefab(world, prefab);
   if (prefab.prefab !== "player") world.components.addToEntity(MapScoped, entity);
   return entity;
 }
 
-function createMapEntityByPrefab(world: World, contentStore: EntityContentStore, prefab: EntityDef): Entity {
+function createMapEntityByPrefab(world: World, prefab: EntityDef): Entity {
   switch (prefab.prefab) {
     case "player":
       return createPlayer(world, prefab);
     case "npc":
-      return createNpc(world, contentStore, prefab);
+      return createNpc(world, prefab);
     case "enemy":
-      return createEnemy(world, contentStore, prefab);
+      return createEnemy(world, prefab);
     case "door":
-      return createDoor(world, contentStore, prefab);
+      return createDoor(world, prefab);
     case "key":
       return createKey(world, prefab);
     case "uplinkCode":
       return createUplinkCode(world, prefab);
     case "uplinkTerminal":
-      return createUplinkTerminal(world, contentStore, prefab);
+      return createUplinkTerminal(world, prefab);
     case "weaponPickup":
       return createWeaponPickup(world, prefab);
     case "item":
@@ -370,4 +453,66 @@ function colorChannels(color: string): readonly [number, number, number] {
     Number.parseInt(color.slice(3, 5), 16),
     Number.parseInt(color.slice(5, 7), 16),
   ] as const;
+}
+
+function attackForPrefab(attack: EnemyPrefab["attack"] | undefined): Partial<GameAttackDef> {
+  if (attack === undefined) return {};
+  const spec: Partial<GameAttackDef> = {};
+  addAttackNumber(spec, attack, "minDamage");
+  addAttackNumber(spec, attack, "maxDamage");
+  addAttackNumber(spec, attack, "range");
+  addAttackNumber(spec, attack, "attackBonus");
+  addAttackNumber(spec, attack, "critThreshold");
+  addAttackNumber(spec, attack, "critMultiplier");
+  if (attack.requiresFacing !== undefined) {
+    spec.requiresFacing = lookup(ATTACK_FACING_REQUIREMENTS, attack.requiresFacing, "attack facing requirement");
+  }
+  if (attack.pattern !== undefined) spec.pattern = lookup(ATTACK_PATTERNS, attack.pattern, "attack pattern");
+  if (attack.targets !== undefined) spec.targets = lookup(ATTACK_TARGETS, attack.targets, "attack target mode");
+  return spec;
+}
+
+function addAttackNumber<K extends keyof GameAttackDef>(
+  spec: Partial<GameAttackDef>,
+  attack: EnemyPrefab["attack"],
+  key: K,
+): void {
+  const value = attack?.[key];
+  if (typeof value === "number") spec[key] = value as GameAttackDef[K];
+}
+
+function displayNameForPrefab(displayName: string): DisplayNameType {
+  return knownString(Object.values(DisplayName), displayName, "display name");
+}
+
+function dialogueTreeIdForPrefab(dialogueTreeId: string): DialogueTreeIdType {
+  return knownString(Object.values(DialogueTreeId), dialogueTreeId, "dialogue tree");
+}
+
+function examineTextIdForPrefab(examineTextId: string): ExamineTextIdType {
+  return knownString(Object.values(ExamineTextId), examineTextId, "examine text");
+}
+
+function itemKindForPrefab(item: string): ItemKind {
+  return lookup(ITEM_KINDS, item, "item kind");
+}
+
+function decorationKindForPrefab(decoration: string): DecorationKind {
+  return lookup(DECORATION_KINDS, decoration, "decoration kind");
+}
+
+function knownString<T extends string>(values: readonly T[], value: string, kind: string): T {
+  const mapped = values.find((candidate) => candidate === value || candidate === lowerFirst(value));
+  if (mapped === undefined) throw new Error(`Unknown ${kind} "${value}".`);
+  return mapped;
+}
+
+function lookup<T>(table: Readonly<Record<string, T>>, value: string, kind: string): T {
+  const mapped = table[value] ?? table[lowerFirst(value)];
+  if (mapped === undefined) throw new Error(`Unknown ${kind} "${value}".`);
+  return mapped;
+}
+
+function lowerFirst(value: string): string {
+  return value.length === 0 ? value : `${value[0]!.toLowerCase()}${value.slice(1)}`;
 }

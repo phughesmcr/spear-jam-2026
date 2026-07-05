@@ -38,35 +38,20 @@ export function canvasPointerPosition(
   };
 }
 
-export default class PointerState implements Disposable {
-  private readonly target: HTMLElement;
-  private readonly canvasSize: () => CanvasSize;
-  private readonly pointerMap = new Map<PointerPhase, CanvasPointerCallback>();
-  private readonly handlePointerEvent = (event: PointerEvent): void => {
-    this.handleEvent(event);
-  };
-
-  constructor(target: HTMLElement, canvasSize: () => CanvasSize) {
-    this.target = target;
-    this.canvasSize = canvasSize;
-    this.listenTo();
-  }
-
-  addMapping(phase: PointerPhase, callback: CanvasPointerCallback): void {
-    this.pointerMap.set(phase, callback);
-  }
-
-  handleEvent(event: PointerEvent): void {
+export function setupPointer(
+  target: HTMLElement,
+  canvasSize: () => CanvasSize,
+  receiver: CanvasPointerCallback,
+): Disposable {
+  function handlePointerEvent(event: PointerEvent): void {
     if (!event.isPrimary) return;
     const phase = phaseForEventType(event.type);
     if (phase === undefined) return;
-    const callback = this.pointerMap.get(phase);
-    if (callback === undefined) return;
 
     event.preventDefault();
-    this.updatePointerCapture(event, phase);
-    const position = canvasPointerPosition(event, this.target.getBoundingClientRect(), this.canvasSize());
-    callback({
+    updatePointerCapture(target, event, phase);
+    const position = canvasPointerPosition(event, target.getBoundingClientRect(), canvasSize());
+    receiver({
       phase,
       x: position.x,
       y: position.y,
@@ -76,28 +61,27 @@ export default class PointerState implements Disposable {
     });
   }
 
-  [Symbol.dispose](): void {
-    for (const eventName of POINTER_EVENTS) {
-      this.target.removeEventListener(eventName, this.handlePointerEvent);
-    }
-    this.pointerMap.clear();
+  for (const eventName of POINTER_EVENTS) {
+    target.addEventListener(eventName, handlePointerEvent);
   }
 
-  private listenTo(): void {
-    for (const eventName of POINTER_EVENTS) {
-      this.target.addEventListener(eventName, this.handlePointerEvent);
-    }
+  return {
+    [Symbol.dispose](): void {
+      for (const eventName of POINTER_EVENTS) {
+        target.removeEventListener(eventName, handlePointerEvent);
+      }
+    },
+  };
+}
+
+function updatePointerCapture(target: HTMLElement, event: PointerEvent, phase: PointerPhase): void {
+  if (phase === "down" && !target.hasPointerCapture(event.pointerId)) {
+    target.setPointerCapture(event.pointerId);
+    return;
   }
 
-  private updatePointerCapture(event: PointerEvent, phase: PointerPhase): void {
-    if (phase === "down" && !this.target.hasPointerCapture(event.pointerId)) {
-      this.target.setPointerCapture(event.pointerId);
-      return;
-    }
-
-    if ((phase === "up" || phase === "cancel") && this.target.hasPointerCapture(event.pointerId)) {
-      this.target.releasePointerCapture(event.pointerId);
-    }
+  if ((phase === "up" || phase === "cancel") && target.hasPointerCapture(event.pointerId)) {
+    target.releasePointerCapture(event.pointerId);
   }
 }
 

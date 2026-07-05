@@ -1,6 +1,8 @@
 import type { Entity, World } from "@phughesmcr/miski";
-import { dialogueTreeStart } from "@/src/dialogue/dialogue.ts";
+import { dialogueTreeForCode, dialogueTreeStart } from "@/src/dialogue/dialogue.ts";
 import {
+  DialogueTreeRef,
+  DisplayNameComponent,
   Door,
   Interactable,
   Item,
@@ -10,8 +12,7 @@ import {
   Npc,
   UplinkTerminal,
 } from "@/src/ecs/components.ts";
-import { entityContent, type EntityContentStore } from "@/src/ecs/entity_content.ts";
-import { displayNameText } from "@/src/game/names.ts";
+import { displayNameForCode, displayNameText } from "@/src/game/names.ts";
 import type { SpatialIndex } from "@/src/ecs/spatial.ts";
 import type { InteractVerb } from "@/src/game/commands.ts";
 import type { GameEvent } from "@/src/game/events.ts";
@@ -94,7 +95,6 @@ function itemPickupFor(entity: Entity, kind: ItemKind, value: number): ItemPicku
 
 export function interactWithEntity(
   world: World,
-  contentStore: EntityContentStore,
   spatial: SpatialIndex,
   target: Entity | undefined,
   heldKeys: ReadonlySet<KeyColor>,
@@ -111,7 +111,6 @@ export function interactWithEntity(
 
   return performInteraction(
     world,
-    contentStore,
     spatial,
     target,
     heldKeys,
@@ -134,7 +133,6 @@ function verbAllowedForKind(verb: InteractVerb, kind: InteractionKind): boolean 
 
 function performInteraction(
   world: World,
-  contentStore: EntityContentStore,
   spatial: SpatialIndex,
   target: Entity,
   heldKeys: ReadonlySet<KeyColor>,
@@ -146,7 +144,7 @@ function performInteraction(
     case "open":
       return interactWithDoor(world, spatial, target, heldKeys, explicitVerb);
     case "talk":
-      return interactWithNpc(contentStore, target);
+      return interactWithNpc(world, target);
     case "use":
       return interactWithUplinkTerminal(target, hasUplinkCode);
   }
@@ -201,16 +199,17 @@ function interactWithDoor(
   };
 }
 
-function interactWithNpc(contentStore: EntityContentStore, npc: Entity): PlayerInteractionResult {
-  const displayName = entityContent(contentStore, npc)?.displayName;
-  if (displayName === undefined) throw new Error(`NPC ${npc} is missing a display name.`);
+function interactWithNpc(world: World, npc: Entity): PlayerInteractionResult {
+  const displayNameCode = world.components.readEntityData(DisplayNameComponent, npc)?.displayName;
+  if (displayNameCode === undefined) throw new Error(`NPC ${npc} is missing a display name.`);
 
+  const displayName = displayNameForCode(displayNameCode);
   const displayNameLabel = displayNameText(displayName);
   return {
     type: "dialogue",
     target: npc,
     events: [],
-    dialogue: npcDialogueState(contentStore, npc, displayNameLabel, displayName),
+    dialogue: npcDialogueState(world, npc, displayNameLabel, displayName),
   };
 }
 
@@ -246,12 +245,13 @@ function failedVerb(verb: InteractVerb): PlayerInteractionResult {
 }
 
 function npcDialogueState(
-  contentStore: EntityContentStore,
+  world: World,
   npc: Entity,
   title: string,
   speaker: NonNullable<DialogueState["speaker"]>,
 ): DialogueState {
-  const dialogueTreeId = entityContent(contentStore, npc)?.dialogueTreeId;
+  const dialogueTreeCode = world.components.readEntityData(DialogueTreeRef, npc)?.dialogueTreeId;
+  const dialogueTreeId = dialogueTreeCode === undefined ? undefined : dialogueTreeForCode(dialogueTreeCode);
   const start = dialogueTreeId === undefined ? undefined : dialogueTreeStart(dialogueTreeId);
   if (start === undefined) {
     return {

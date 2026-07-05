@@ -1,7 +1,10 @@
 import { assert, assertEquals, assertRejects } from "@std/assert";
 import {
+  DialogueTreeRef,
+  DisplayNameComponent,
+  ExamineTextRef,
   Health,
-  ItemKind,
+  OnTalkEvent,
   PlayerEquipment,
   PlayerInventory,
   PlayerProgress,
@@ -9,17 +12,19 @@ import {
   SPRITE_DEATH_MS,
   SPRITE_WALK_MS,
   SpriteAnimationKind,
+  StoryTarget,
+  TerminalDestination,
 } from "@/src/ecs/components.ts";
 import { DrawableKind, SpriteId } from "@/src/ecs/drawables.ts";
 import type { ActorDrawableEntity, DrawableEntity } from "@/src/ecs/drawables.ts";
-import { EnemyArchetype } from "@/src/ecs/enemy_catalog.ts";
+import { mapScopedQuery } from "@/src/ecs/queries.ts";
 import { createGameSession, type GameSession } from "@/src/ecs/session.ts";
-import { DialogueTreeId } from "@/src/dialogue/dialogue.ts";
+import { dialogueTreeCode, DialogueTreeId } from "@/src/dialogue/dialogue.ts";
 import type { PlayerCommandResult } from "@/src/game/commands.ts";
-import { DisplayName } from "@/src/game/names.ts";
-import { StoryEventId, StoryFlag, StoryTargetId } from "@/src/game/story.ts";
+import { DisplayName, displayNameCode } from "@/src/game/names.ts";
+import { storyEventCode, StoryEventId, StoryFlag, storyTargetCode, StoryTargetId } from "@/src/game/story.ts";
 import { Direction } from "@/src/grid/direction.ts";
-import { createGameMap, KeyColor, VICTORY_GOTO } from "@/src/map/map.ts";
+import { createGameMap, KeyColor, terminalDestinationCode, VICTORY_GOTO } from "@/src/map/map.ts";
 import type { EntityDef, GameMap } from "@/src/map/map.ts";
 import { DEFAULT_BARS_TERRAIN_ID, DEFAULT_WALL_TERRAIN_ID } from "@/src/map/terrain_palettes.ts";
 import { flatTestMap } from "@/tests/ecs/helpers.ts";
@@ -46,7 +51,7 @@ Deno.test("player movement collects map-authored pickups into player state", asy
       { prefab: "key", x: 2, y: 1, color: KeyColor.Red },
       { prefab: "uplinkCode", x: 3, y: 1 },
       { prefab: "weaponPickup", x: 4, y: 1, slot: 2 },
-      { prefab: "item", x: 5, y: 1, item: ItemKind.PistolAmmo, amount: 5 },
+      { prefab: "item", x: 5, y: 1, item: "pistolAmmo", amount: 5 },
     ], 7),
     () => 0,
   );
@@ -71,7 +76,7 @@ Deno.test("opening a door consumes a turn and refreshes visibility through it", 
   const session = await createGameSession(
     testMap([
       { prefab: "door", x: 2, y: 1 },
-      { prefab: "item", x: 3, y: 1, item: ItemKind.HealthPatch, amount: 1 },
+      { prefab: "item", x: 3, y: 1, item: "healthPatch", amount: 1 },
     ], 5),
     () => 0,
   );
@@ -93,7 +98,8 @@ Deno.test("talking to John once opens dialogue and moves him off the entrance", 
     try {
       const result = session.handlePlayerCommand({ type: "interact" });
 
-      assertEquals(result.dialogue?.title, "John");
+      if (result.type !== "dialogue") throw new Error(`Expected dialogue result, got ${result.type}.`);
+      assertEquals(result.dialogue.title, "John");
       assertEquals(session.getStoryFlags(), []);
       assertEquals(actorAt(sessionDrawables(session), 2, 1)?.x, 2);
 
@@ -133,7 +139,8 @@ Deno.test("John's talk story event is one-shot", async () => {
 
     const secondTalk = session.handlePlayerCommand({ type: "interact" });
 
-    assertEquals(secondTalk.dialogue?.title, "John");
+    if (secondTalk.type !== "dialogue") throw new Error(`Expected dialogue result, got ${secondTalk.type}.`);
+    assertEquals(secondTalk.dialogue.title, "John");
     session.closeDialogue();
     assertEquals(session.getStoryFlags(), [StoryFlag.JohnSpoken]);
     assertEquals(actorAt(sessionDrawables(session), 1, 3)?.x, 1);
@@ -166,7 +173,8 @@ Deno.test("blocked story destination leaves John in place and does not set the f
   try {
     const result = session.handlePlayerCommand({ type: "interact" });
 
-    assertEquals(result.dialogue?.title, "John");
+    if (result.type !== "dialogue") throw new Error(`Expected dialogue result, got ${result.type}.`);
+    assertEquals(result.dialogue.title, "John");
     assertEquals(session.getStoryFlags(), []);
     assertEquals(actorAt(sessionDrawables(session), 2, 1)?.x, 2);
 
@@ -190,7 +198,7 @@ Deno.test("terrain barriers block movement but not visibility", async () => {
       [0, 0, DEFAULT_WALL_TERRAIN_ID, 0, 0],
     ], [
       { prefab: "player", x: 1, y: 1, dir: Direction.East },
-      { prefab: "item", x: 3, y: 1, item: ItemKind.HealthPatch, amount: 1 },
+      { prefab: "item", x: 3, y: 1, item: "healthPatch", amount: 1 },
     ]),
     () => 0,
   );
@@ -210,7 +218,7 @@ Deno.test("a secret door stays hidden from smart actions but reveals and opens w
   const session = await createGameSession(
     testMap([
       { prefab: "door", x: 2, y: 1, secret: true },
-      { prefab: "item", x: 3, y: 1, item: ItemKind.HealthPatch, amount: 1 },
+      { prefab: "item", x: 3, y: 1, item: "healthPatch", amount: 1 },
     ], 5),
     () => 0,
   );
@@ -291,7 +299,7 @@ Deno.test("consumed player actions run enemy phase and visibility refresh", asyn
         y: 1,
         dir: Direction.West,
         displayName: DisplayName.NetworkNeophyte,
-        archetype: EnemyArchetype.NetworkNeophyte,
+        archetype: "networkNeophyte",
       },
     ], 6),
     () => 0,
@@ -328,6 +336,7 @@ Deno.test("activating an uplink terminal completes the level and clears transien
     const result = session.handlePlayerCommand({ type: "interact" });
 
     assertEquals(eventTypes(result), ["uplinkTerminalActivated", "xpGained"]);
+    if (result.type !== "mapChange") throw new Error(`Expected map change result, got ${result.type}.`);
     assertEquals(result.mapChange, { goto: "Next Map" });
     assertEquals(session.getPlayerStatus().hasUplinkCode, false);
     assertEquals(session.getPlayerStatus().heldKeys, []);
@@ -353,6 +362,7 @@ Deno.test("activating a victory uplink terminal reports the victory outcome", as
     const result = session.handlePlayerCommand({ type: "interact" });
 
     assertEquals(eventTypes(result), ["uplinkTerminalActivated"]);
+    if (result.type !== "outcome") throw new Error(`Expected outcome result, got ${result.type}.`);
     assertEquals(result.outcome, "victory");
   } finally {
     session[Symbol.dispose]();
@@ -365,7 +375,7 @@ Deno.test("normal map loads keep the same player entity and durable progression"
       { prefab: "key", x: 2, y: 1, color: KeyColor.Red },
       { prefab: "uplinkCode", x: 3, y: 1 },
       { prefab: "weaponPickup", x: 4, y: 1, slot: 2 },
-      { prefab: "item", x: 5, y: 1, item: ItemKind.PistolAmmo, amount: 5 },
+      { prefab: "item", x: 5, y: 1, item: "pistolAmmo", amount: 5 },
     ], 7),
     () => 0,
   );
@@ -417,20 +427,20 @@ Deno.test("normal map loads preserve durable story flags", async () => {
   }
 });
 
-Deno.test("normal map loads clear old entity content and write new map content", async () => {
+Deno.test("normal map loads clear old metadata components and write new map metadata", async () => {
   const session = await createGameSession(storyTestMap(), () => 0);
   try {
-    assertEquals([...session.contentStore.values()], [{
-      displayName: DisplayName.John,
-      dialogueTreeId: DialogueTreeId.JohnIntro,
-      storyId: StoryTargetId.John,
-      onTalkEvent: StoryEventId.JohnSpoken,
+    assertEquals(mapScopedMetadata(session), [{
+      displayName: displayNameCode(DisplayName.John),
+      dialogueTreeId: dialogueTreeCode(DialogueTreeId.JohnIntro),
+      storyId: storyTargetCode(StoryTargetId.John),
+      onTalkEvent: storyEventCode(StoryEventId.JohnSpoken),
     }]);
 
     session.loadMap(testMap([{ prefab: "uplinkTerminal", x: 2, y: 1, goto: "Next Map" }]));
 
-    assertEquals([...session.contentStore.values()], [{
-      terminalDestination: "Next Map",
+    assertEquals(mapScopedMetadata(session), [{
+      terminalDestination: terminalDestinationCode("Next Map"),
     }]);
   } finally {
     session[Symbol.dispose]();
@@ -448,7 +458,7 @@ Deno.test("map-scoped entities, death effects, and corpses do not survive map lo
           y: 1,
           dir: Direction.West,
           displayName: DisplayName.DigitalDog,
-          archetype: EnemyArchetype.MeleeDog,
+          archetype: "meleeDog",
           health: 1,
         },
       ], 5),
@@ -474,7 +484,7 @@ Deno.test("map-scoped entities, death effects, and corpses do not survive map lo
 Deno.test("retryMap restores the current level-entry checkpoint and map content", async () => {
   const level = testMap([
     { prefab: "key", x: 2, y: 1, color: KeyColor.Red },
-    { prefab: "item", x: 3, y: 1, item: ItemKind.PistolAmmo, amount: 4 },
+    { prefab: "item", x: 3, y: 1, item: "pistolAmmo", amount: 4 },
   ], 5);
   const session = await createGameSession(level, () => 0);
   try {
@@ -500,7 +510,7 @@ Deno.test("resetRun clears durable state and returns to the start map spawn", as
       { prefab: "key", x: 2, y: 1, color: KeyColor.Red },
       { prefab: "uplinkCode", x: 3, y: 1 },
       { prefab: "weaponPickup", x: 4, y: 1, slot: 2 },
-      { prefab: "item", x: 5, y: 1, item: ItemKind.PistolAmmo, amount: 5 },
+      { prefab: "item", x: 5, y: 1, item: "pistolAmmo", amount: 5 },
     ], 7),
     () => 0,
   );
@@ -544,7 +554,7 @@ Deno.test("ranged attacks spend ammo before resolving combat and level credit", 
       y: 1,
       dir: Direction.West,
       displayName: DisplayName.DigitalDog,
-      archetype: EnemyArchetype.NetworkNeophyte,
+      archetype: "networkNeophyte",
     }]),
     sequenceRandom([0.999, 0]),
   );
@@ -579,7 +589,7 @@ Deno.test("enemy attacks expose short-lived ECS sprite animation state", async (
         y: 1,
         dir: Direction.West,
         displayName: DisplayName.DigitalDog,
-        archetype: EnemyArchetype.MeleeDog,
+        archetype: "meleeDog",
       }]),
       sequenceRandom([0.999, 0]),
     );
@@ -610,7 +620,7 @@ Deno.test("moving enemies expose short-lived ECS walk animation state", async ()
         y: 1,
         dir: Direction.West,
         displayName: DisplayName.NetworkNeophyte,
-        archetype: EnemyArchetype.NetworkNeophyte,
+        archetype: "networkNeophyte",
       }], 6),
       sequenceRandom([]),
     );
@@ -641,7 +651,7 @@ Deno.test("defeated enemies render as ECS death effects before becoming corpses"
         y: 1,
         dir: Direction.West,
         displayName: DisplayName.DigitalDog,
-        archetype: EnemyArchetype.MeleeDog,
+        archetype: "meleeDog",
         health: 1,
       }]),
       sequenceRandom([0.999, 0]),
@@ -736,6 +746,37 @@ function spriteAt(drawables: readonly DrawableEntity[], x: number, y: number) {
     spriteId: sprite.spriteId,
     animation: sprite.animation,
   };
+}
+
+type MapScopedMetadata = Partial<{
+  readonly displayName: number;
+  readonly dialogueTreeId: number;
+  readonly examineTextId: number;
+  readonly storyId: number;
+  readonly onTalkEvent: number;
+  readonly terminalDestination: number;
+}>;
+
+function mapScopedMetadata(session: GameSession): readonly MapScopedMetadata[] {
+  const metadata: MapScopedMetadata[] = [];
+  for (const entity of session.world.entities.query(mapScopedQuery)) {
+    const displayName = session.world.components.readEntityData(DisplayNameComponent, entity)?.displayName;
+    const dialogueTreeId = session.world.components.readEntityData(DialogueTreeRef, entity)?.dialogueTreeId;
+    const examineTextId = session.world.components.readEntityData(ExamineTextRef, entity)?.examineTextId;
+    const storyId = session.world.components.readEntityData(StoryTarget, entity)?.storyId;
+    const onTalkEvent = session.world.components.readEntityData(OnTalkEvent, entity)?.onTalkEvent;
+    const terminalDestination = session.world.components.readEntityData(TerminalDestination, entity)?.destination;
+    const entry: MapScopedMetadata = {
+      ...(displayName === undefined ? {} : { displayName }),
+      ...(dialogueTreeId === undefined ? {} : { dialogueTreeId }),
+      ...(examineTextId === undefined ? {} : { examineTextId }),
+      ...(storyId === undefined ? {} : { storyId }),
+      ...(onTalkEvent === undefined ? {} : { onTalkEvent }),
+      ...(terminalDestination === undefined ? {} : { terminalDestination }),
+    };
+    if (Object.keys(entry).length > 0) metadata.push(entry);
+  }
+  return metadata;
 }
 
 function worldPlayerInventory(

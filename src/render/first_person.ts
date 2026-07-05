@@ -169,6 +169,7 @@ const TARGET_COLORS: Readonly<Record<TargetMarkerTone, string>> = {
   use: "rgba(52, 211, 153, 0.9)",
 };
 
+const LIGHT_FULL_BRIGHT = 255;
 const LIGHT_AMBIENT = 96;
 const DEFAULT_FLICKER_SPEED = 8;
 
@@ -493,43 +494,29 @@ function createFirstPersonRendererState() {
 
 type FirstPersonRendererState = ReturnType<typeof createFirstPersonRendererState>;
 
-class OwnedFirstPersonRenderer implements FirstPersonRenderer {
-  private readonly state = createFirstPersonRendererState();
-
-  preloadAssets(document: Document, onAssetLoad?: () => void): Promise<void> {
-    return preloadImageAssets(
-      document,
-      this.state.assetCatalog.managedAssets.map((entry) => entry.asset),
-      onAssetLoad,
-    );
-  }
-
-  sceneForMap(map: GameMap): RaycastScene {
-    return sceneForMapForState(this.state, map);
-  }
-
-  reset(): void {
-    resetFirstPersonRendererState(this.state);
-  }
-
-  bump(dirX: number, dirY: number, nowMs: number): void {
-    bumpFirstPersonRenderer(this.state, dirX, dirY, nowMs);
-  }
-
-  render(
-    ctx: CanvasRenderingContext2D,
-    rect: ViewRect,
-    session: FirstPersonRenderSession,
-    nowMs: number,
-    targetTone?: TargetMarkerTone,
-    onAssetLoad?: () => void,
-  ): FirstPersonRenderResult {
-    return renderFirstPersonView(this.state, ctx, rect, session, nowMs, targetTone, onAssetLoad);
-  }
-}
-
 export function createFirstPersonRenderer(): FirstPersonRenderer {
-  return new OwnedFirstPersonRenderer();
+  const state = createFirstPersonRendererState();
+  return {
+    preloadAssets(document, onAssetLoad) {
+      return preloadImageAssets(
+        document,
+        state.assetCatalog.managedAssets.map((entry) => entry.asset),
+        onAssetLoad,
+      );
+    },
+    sceneForMap(map) {
+      return sceneForMapForState(state, map);
+    },
+    reset() {
+      resetFirstPersonRendererState(state);
+    },
+    bump(dirX, dirY, nowMs) {
+      bumpFirstPersonRenderer(state, dirX, dirY, nowMs);
+    },
+    render(ctx, rect, session, nowMs, targetTone, onAssetLoad) {
+      return renderFirstPersonView(state, ctx, rect, session, nowMs, targetTone, onAssetLoad);
+    },
+  };
 }
 
 function resetFirstPersonRendererState(state: FirstPersonRendererState): void {
@@ -829,6 +816,12 @@ function updateSceneLights(
       }
     }
   });
+
+  if (!foundLight) {
+    scene.lightRed.fill(LIGHT_FULL_BRIGHT);
+    scene.lightGreen.fill(LIGHT_FULL_BRIGHT);
+    scene.lightBlue.fill(LIGHT_FULL_BRIGHT);
+  }
 
   return animating;
 }

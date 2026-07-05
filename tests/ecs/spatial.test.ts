@@ -73,7 +73,7 @@ Deno.test("SpatialIndex leaves occupancy unchanged when a move is rejected", asy
   assertEquals(spatial.blockingEntityAt(2, 1), blocker);
 });
 
-Deno.test("SpatialIndex owns occupancy after construction", async () => {
+Deno.test("SpatialIndex reflects direct ECS position changes after construction", async () => {
   const world = await createWorld();
   const actor = createEntity(world);
 
@@ -85,11 +85,11 @@ Deno.test("SpatialIndex owns occupancy after construction", async () => {
 
   world.components.setEntityData(GridPos, actor, { x: 2, y: 1 });
 
-  assertEquals(spatial.blockingEntityAt(1, 1), actor);
-  assertEquals(spatial.blockingEntityAt(2, 1), undefined);
+  assertEquals(spatial.blockingEntityAt(1, 1), undefined);
+  assertEquals(spatial.blockingEntityAt(2, 1), actor);
 });
 
-Deno.test("SpatialIndex owns removals after construction", async () => {
+Deno.test("SpatialIndex reflects direct entity destruction after construction", async () => {
   const world = await createWorld();
   const player = createEntity(world);
   const key = createEntity(world);
@@ -104,7 +104,7 @@ Deno.test("SpatialIndex owns removals after construction", async () => {
 
   world.entities.destroy(key);
 
-  assertEquals(spatial.facedEntity({ x: 1, y: 1 }, 1), key);
+  assertEquals(spatial.facedEntity({ x: 1, y: 1 }, 1), undefined);
 });
 
 Deno.test("SpatialIndex rejects co-located blocking entities", async () => {

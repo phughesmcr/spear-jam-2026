@@ -14,15 +14,18 @@ import {
   selectPlayerWeapon,
   spendPlayerAmmo,
 } from "@/src/ecs/progression.ts";
+import { createPlayer } from "@/src/ecs/prefabs.ts";
 import { createWorld } from "@/src/ecs/world.ts";
 import { StoryFlag } from "@/src/game/story.ts";
 import { KeyColor } from "@/src/map/map.ts";
-import { createEntity } from "@/tests/ecs/helpers.ts";
 
-Deno.test("player progression reset writes default ECS components", async () => {
+Deno.test("player progression reset restores default ECS components", async () => {
   const world = await createWorld();
-  const player = createEntity(world);
+  const player = createProgressionPlayer(world);
 
+  world.components.setEntityData(Health, player, { current: 2, max: 10 });
+  applyItemPickupToPlayer(world, player, { type: "key", entity: 2 as Entity, color: KeyColor.Red });
+  world.components.setEntityData(PlayerProgress, player, { credits: 7, score: 8, xp: 9, levelCredits: 10 });
   resetPlayerProgression(world, player);
 
   assertEquals(playerStatusSnapshotFor(world, player), {
@@ -52,18 +55,15 @@ Deno.test("player progression reset writes default ECS components", async () => 
 
 Deno.test("player status snapshot excludes story flags", async () => {
   const world = await createWorld();
-  const player = createEntity(world);
-
-  resetPlayerProgression(world, player);
+  const player = createProgressionPlayer(world);
 
   assertEquals(Object.hasOwn(playerStatusSnapshotFor(world, player), "storyFlags"), false);
 });
 
 Deno.test("player progression tracks weapons and ammo in ECS components", async () => {
   const world = await createWorld();
-  const player = createEntity(world);
+  const player = createProgressionPlayer(world);
 
-  resetPlayerProgression(world, player);
   applyItemPickupToPlayer(world, player, { type: "weapon", entity: 2 as Entity, slot: 2 });
   applyItemPickupToPlayer(world, player, { type: "weapon", entity: 3 as Entity, slot: 3 });
   applyItemPickupToPlayer(world, player, { type: "ammo", entity: 4 as Entity, ammo: "pistol", amount: 1 });
@@ -83,10 +83,9 @@ Deno.test("player progression tracks weapons and ammo in ECS components", async 
 
 Deno.test("player progression returns credit and XP events from ECS progress", async () => {
   const world = await createWorld();
-  const player = createEntity(world);
+  const player = createProgressionPlayer(world);
   const enemy = 2 as Entity;
 
-  resetPlayerProgression(world, player);
   world.components.setEntityData(PlayerProgress, player, {
     credits: 5,
     score: 7,
@@ -133,9 +132,8 @@ Deno.test("player progression returns credit and XP events from ECS progress", a
 
 Deno.test("player progression clears transient key and uplink ECS state", async () => {
   const world = await createWorld();
-  const player = createEntity(world);
+  const player = createProgressionPlayer(world);
 
-  resetPlayerProgression(world, player);
   applyItemPickupToPlayer(world, player, { type: "key", entity: 2 as Entity, color: KeyColor.Red });
   applyItemPickupToPlayer(world, player, { type: "uplinkCode", entity: 3 as Entity });
 
@@ -153,9 +151,8 @@ Deno.test("player progression clears transient key and uplink ECS state", async 
 
 Deno.test("player progression checkpoint round-trips raw durable ECS state and story flags", async () => {
   const world = await createWorld();
-  const player = createEntity(world);
+  const player = createProgressionPlayer(world);
 
-  resetPlayerProgression(world, player);
   world.components.setEntityData(Health, player, { current: 4, max: 9 });
   applyItemPickupToPlayer(world, player, { type: "key", entity: 2 as Entity, color: KeyColor.Blue });
   applyItemPickupToPlayer(world, player, { type: "uplinkCode", entity: 3 as Entity });
@@ -185,3 +182,7 @@ Deno.test("player progression checkpoint round-trips raw durable ECS state and s
     progress: { credits: 20, score: 30, xp: 40, levelCredits: 50 },
   });
 });
+
+function createProgressionPlayer(world: Parameters<typeof createPlayer>[0]): Entity {
+  return createPlayer(world, { x: 1, y: 1, dir: 1 });
+}

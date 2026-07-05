@@ -36,6 +36,15 @@ const DIALOGUE_TREE_KEYS = {
   [DialogueTreeId.JohnThanks]: "john_thanks",
 } as const satisfies Readonly<Record<DialogueTreeId, string>>;
 
+const DIALOGUE_TREE_CODES: Readonly<Record<DialogueTreeId, number>> = {
+  [DialogueTreeId.JohnIntro]: 1,
+  [DialogueTreeId.JohnThanks]: 2,
+};
+
+const DIALOGUE_TREES_BY_CODE = new Map<number, DialogueTreeId>(
+  Object.entries(DIALOGUE_TREE_CODES).map(([dialogueTreeId, code]) => [code, dialogueTreeId as DialogueTreeId]),
+);
+
 const DIALOGUE_TREES = validateDialogueTrees(dialogueTrees);
 
 export function validateDialogueTrees(
@@ -65,6 +74,16 @@ export function dialogueTreeStart(dialogueTreeId: string): DialogueTreeStart {
 
   const tree = DIALOGUE_TREES[treeKey];
   return { treeKey, node: dialogueTreeNode(treeKey, tree.start) };
+}
+
+export function dialogueTreeCode(dialogueTreeId: DialogueTreeId): number {
+  return DIALOGUE_TREE_CODES[dialogueTreeId];
+}
+
+export function dialogueTreeForCode(code: number): DialogueTreeId {
+  const dialogueTreeId = DIALOGUE_TREES_BY_CODE.get(code);
+  if (dialogueTreeId === undefined) throw new Error(`Unknown dialogue tree code: ${code}`);
+  return dialogueTreeId;
 }
 
 export function dialogueTreeNode(treeKey: string, nodeId: string): DialogueNode {

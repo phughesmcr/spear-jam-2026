@@ -3,7 +3,6 @@ import { ENTITY_SCHEMA } from "@/src/map/entity_content.ts";
 import { createGameMap, type GameMap } from "@/src/map/map.ts";
 import compiledMapsData from "@/src/map/compiled_maps.json" with { type: "json" };
 import { validateGameMaps } from "@/src/map/map_validation.ts";
-import { PALETTE_KEYS } from "@/src/map/terrain_palettes.ts";
 
 export type LoadedGameMaps = {
   readonly startMapName: string;
@@ -12,11 +11,9 @@ export type LoadedGameMaps = {
 
 const INTEGER_SCHEMA = z.number().int();
 const NON_NEGATIVE_INTEGER_SCHEMA = INTEGER_SCHEMA.nonnegative();
-const PALETTE_SCHEMA = z.enum(PALETTE_KEYS);
 
 const COMPILED_MAP_SCHEMA = z.object({
   name: z.string().min(1),
-  palette: PALETTE_SCHEMA,
   tiles: z.array(z.array(NON_NEGATIVE_INTEGER_SCHEMA).nonempty()).nonempty(),
   entities: z.array(ENTITY_SCHEMA),
 }).strict();

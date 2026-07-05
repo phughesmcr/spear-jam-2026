@@ -1154,12 +1154,6 @@
       "value": "The Nexus"
     },
     {
-      "name": "palette",
-      "propertytype": "TerrainPalette",
-      "type": "string",
-      "value": "nexus"
-    },
-    {
       "name": "campaignOrder",
       "type": "int",
       "value": 4

@@ -13,7 +13,6 @@ import {
 Deno.test("buildScaffoldMap creates a bordered Tiled map ready for authoring", () => {
   const map = buildScaffoldMap({
     name: "Cache Node",
-    palette: "data_conduit",
     width: 5,
     height: 4,
     campaignOrder: 6,
@@ -61,7 +60,6 @@ Deno.test("buildScaffoldMap creates a bordered Tiled map ready for authoring", (
   assertEquals(map.properties?.map((property) => [property.name, property.value]), [
     ["campaignOrder", 6],
     ["name", "Cache Node"],
-    ["palette", "data_conduit"],
   ]);
 });
 
@@ -207,7 +205,6 @@ Deno.test("generatedTerrainSources creates shared texture-backed terrain tileset
 Deno.test("mapNameForTiledMap and startMapUrlPath support current-map smoke testing", () => {
   const map = buildScaffoldMap({
     name: "Cache Node",
-    palette: "data_conduit",
     width: 5,
     height: 4,
     campaignOrder: 6,

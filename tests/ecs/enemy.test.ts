@@ -15,8 +15,7 @@ import {
 } from "@/src/ecs/components.ts";
 import type { AttackSchema, HealthSchema } from "@/src/ecs/components.ts";
 import { enemyTurnSystem } from "@/src/ecs/enemy.ts";
-import { createEntityContentStore, type EntityContentStore } from "@/src/ecs/entity_content.ts";
-import { EnemyArchetype } from "@/src/ecs/enemy_catalog.ts";
+import { EnemyArchetype, enemyCatalogEntry } from "@/src/ecs/enemy_catalog.ts";
 import { createEnemy, createPlayer } from "@/src/ecs/prefabs.ts";
 import { SpatialIndex } from "@/src/ecs/spatial.ts";
 import { createWorld } from "@/src/ecs/world.ts";
@@ -27,8 +26,6 @@ import { Direction } from "@/src/grid/direction.ts";
 import { createGameMap } from "@/src/map/map.ts";
 import { DEFAULT_BARS_TERRAIN_ID } from "@/src/map/terrain_palettes.ts";
 import { createEntity, flatTestMap } from "@/tests/ecs/helpers.ts";
-
-const CONTENT_STORES = new WeakMap<World, EntityContentStore>();
 
 Deno.test("enemyTurnSystem moves enemies without an attack component", async () => {
   const world = await createWorld();
@@ -50,7 +47,6 @@ Deno.test("enemyTurnSystem moves enemies without an attack component", async () 
   const spatial = new SpatialIndex(world, TEST_MAP);
   runEnemyTurn({
     world,
-    contentStore: contentStoreFor(world),
     player: playerEntity,
     spatial,
     random: () => 0,
@@ -241,7 +237,6 @@ Deno.test("enemyTurnSystem keeps investigating the last known position after noi
 
   runTurn({
     world,
-    contentStore: contentStoreFor(world),
     player: playerEntity,
     spatial,
     random: () => 0,
@@ -251,7 +246,6 @@ Deno.test("enemyTurnSystem keeps investigating the last known position after noi
 
   runTurn({
     world,
-    contentStore: contentStoreFor(world),
     player: playerEntity,
     spatial,
     random: () => 0,
@@ -280,7 +274,6 @@ Deno.test("melee dogs close two tiles and bite when they reach the player", asyn
 
   const events = world.systems.create(enemyTurnSystem)({
     world,
-    contentStore: contentStoreFor(world),
     player: playerEntity,
     spatial: new SpatialIndex(world, flatTestMap(6, 3)),
     random: () => 0,
@@ -312,7 +305,6 @@ Deno.test("gunslingers shoot from range instead of closing", async () => {
 
   const events = world.systems.create(enemyTurnSystem)({
     world,
-    contentStore: contentStoreFor(world),
     player: playerEntity,
     spatial: new SpatialIndex(world, flatTestMap(6, 3)),
     random: () => 0,
@@ -352,7 +344,6 @@ Deno.test("enemyTurnSystem stops the enemy phase after player defeat", async () 
 
   const events = world.systems.create(enemyTurnSystem)({
     world,
-    contentStore: contentStoreFor(world),
     player: playerEntity,
     spatial: new SpatialIndex(world, flatTestMap(6, 3)),
     random: () => 0,
@@ -402,7 +393,6 @@ Deno.test("gunslingers back away when adjacent", async () => {
 
   const events = world.systems.create(enemyTurnSystem)({
     world,
-    contentStore: contentStoreFor(world),
     player: playerEntity,
     spatial: new SpatialIndex(world, flatTestMap(6, 3)),
     random: () => 0,
@@ -434,7 +424,6 @@ Deno.test("network neophytes use standard one-step pursuit", async () => {
 
   const events = world.systems.create(enemyTurnSystem)({
     world,
-    contentStore: contentStoreFor(world),
     player: playerEntity,
     spatial: new SpatialIndex(world, flatTestMap(6, 3)),
     random: () => 0,
@@ -466,7 +455,6 @@ Deno.test("system sentinels hold position and face the player when out of range"
 
   const events = world.systems.create(enemyTurnSystem)({
     world,
-    contentStore: contentStoreFor(world),
     player: playerEntity,
     spatial: new SpatialIndex(world, flatTestMap(6, 3)),
     random: () => 0,
@@ -504,7 +492,6 @@ Deno.test("agentic acolytes attack nearby cardinal targets without facing first"
 
   const events = world.systems.create(enemyTurnSystem)({
     world,
-    contentStore: contentStoreFor(world),
     player: playerEntity,
     spatial: new SpatialIndex(world, flatTestMap(6, 3)),
     random: () => 0,
@@ -524,7 +511,6 @@ function runEnemyTurn(
 ): readonly GameEvent[] {
   return world.systems.create(enemyTurnSystem)({
     world,
-    contentStore: contentStoreFor(world),
     player: playerEntity,
     spatial: new SpatialIndex(world, map),
     random: () => 0,
@@ -561,23 +547,37 @@ type SpawnEnemyOptions = {
 };
 
 function spawnEnemy(world: World, opts: SpawnEnemyOptions): Entity {
-  return createEnemy(world, contentStoreFor(world), {
+  return createEnemy(world, {
     x: opts.x,
     y: opts.y,
     dir: opts.dir ?? Direction.East,
     displayName: opts.displayName,
-    attack: opts.attack,
-    archetype: opts.archetype,
+    attack: attackPrefabFor(opts.attack),
+    archetype: opts.archetype === undefined ? undefined : enemyCatalogEntry(opts.archetype).authoringKey,
   });
 }
 
-function contentStoreFor(world: World): EntityContentStore {
-  const existing = CONTENT_STORES.get(world);
-  if (existing !== undefined) return existing;
+function attackPrefabFor(attack: Partial<AttackSchema>): NonNullable<Parameters<typeof createEnemy>[1]["attack"]> {
+  return {
+    ...attack,
+    requiresFacing: attack.requiresFacing === undefined ?
+      undefined :
+      attackFacingRequirementForPrefab(attack.requiresFacing),
+    pattern: attack.pattern === undefined ? undefined : attackPatternForPrefab(attack.pattern),
+    targets: attack.targets === undefined ? undefined : attackTargetForPrefab(attack.targets),
+  };
+}
 
-  const store = createEntityContentStore();
-  CONTENT_STORES.set(world, store);
-  return store;
+function attackFacingRequirementForPrefab(requirement: AttackFacingRequirement): "required" | "none" {
+  return requirement === AttackFacingRequirement.Required ? "required" : "none";
+}
+
+function attackPatternForPrefab(pattern: AttackPattern): "line" | "adjacent" {
+  return pattern === AttackPattern.Line ? "line" : "adjacent";
+}
+
+function attackTargetForPrefab(target: AttackTargetMode): "first" | "all" {
+  return target === AttackTargetMode.First ? "first" : "all";
 }
 
 const TEST_MAP = flatTestMap(5, 2);

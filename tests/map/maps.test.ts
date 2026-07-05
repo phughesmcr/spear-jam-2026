@@ -8,7 +8,6 @@ Deno.test("loadGameMapsData validates compact compiled map data", () => {
     maps: [
       {
         name: "Fixture",
-        palette: "boot_sector",
         tiles: [[0, 0, 0]],
         entities: [
           { prefab: "player", x: 0, y: 0, dir: 1 },
@@ -38,14 +37,14 @@ Deno.test("loadGameMapsData rejects malformed compiled map data", () => {
         maps: [
           {
             name: "Fixture",
-            palette: "missing_palette",
+            palette: "boot_sector",
             tiles: [[0]],
             entities: [],
           },
         ],
       }),
     Error,
-    "Invalid compiled map data",
+    'Unrecognized key: "palette"',
   );
 
   assertThrows(
@@ -55,7 +54,6 @@ Deno.test("loadGameMapsData rejects malformed compiled map data", () => {
         maps: [
           {
             name: "Fixture",
-            palette: "boot_sector",
             tiles: [[0]],
             entities: [
               { prefab: "player", x: 0, y: 0, dir: 1, goto: "victory" },
