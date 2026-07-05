@@ -449,6 +449,7 @@ export interface FirstPersonRenderSession {
 
 export type FirstPersonRenderResult = {
   readonly needsFrame: boolean;
+  readonly cameraAngle?: number;
 };
 
 export interface FirstPersonRenderer {
@@ -1206,5 +1207,5 @@ function renderFirstPersonView(
   );
 
   if (targetTone !== undefined) drawTargetHighlight(ctx, rect, targetTone);
-  return { needsFrame };
+  return { needsFrame, cameraAngle: state.poseSample.angle };
 }

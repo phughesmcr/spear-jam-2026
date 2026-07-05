@@ -1,10 +1,11 @@
 import type { GameSession } from "@/src/ecs/session.ts";
 import type { PlayerStatusSnapshot } from "@/src/ecs/progression.ts";
 import type { AmmoKind, PlayerHealthState } from "@/src/game/state.ts";
-import { type CardinalDirection, Direction, normalizeDirection } from "@/src/grid/direction.ts";
+import { type CardinalDirection, Direction, directionDelta, normalizeDirection } from "@/src/grid/direction.ts";
 import { KeyColor } from "@/src/map/map.ts";
 import { createImageAsset, loadedImage, preloadImageAssets } from "@/src/render/assets.ts";
 import type { GameCanvasSize } from "@/src/render/canvas.ts";
+import { shortestAngleDelta } from "@/src/render/raycast/tween.ts";
 import { fitText, monoFont } from "@/src/render/text.ts";
 
 const HUD_MARGIN = 12;
@@ -46,6 +47,15 @@ const FIRST_PERSON_COMPASS_TEXT = "#dffcff";
 const FIRST_PERSON_COMPASS_MUTED = "rgba(195, 213, 205, 0.62)";
 const FIRST_PERSON_COMPASS_SHADOW = "rgba(0, 0, 0, 0.74)";
 const FIRST_PERSON_COMPASS_NEEDLE = "rgba(240, 200, 75, 0.78)";
+const COMPASS_QUARTER_TURN_RADIANS = Math.PI / 2;
+const COMPASS_VISIBLE_OFFSET_LIMIT = FIRST_PERSON_COMPASS_LINE_EXTENT + 0.01;
+const COMPASS_ACTIVE_OFFSET_EPSILON = 0.000_001;
+const COMPASS_DIRECTIONS = [
+  Direction.North,
+  Direction.East,
+  Direction.South,
+  Direction.West,
+] as const satisfies readonly CardinalDirection[];
 
 const HEALTH_BAR_IMAGE_SIZE = { width: 1230, height: 454 };
 const AMMO_BAR_IMAGE_SIZE = { width: 1221, height: 472 };
@@ -91,13 +101,12 @@ type HudImageSize = {
   readonly height: number;
 };
 
-type CompassMarkerOffset = -1 | 0 | 1;
 type CompassDirectionLabel = "N" | "E" | "S" | "W";
 
 export type FirstPersonCompassMarker = {
   readonly direction: CardinalDirection;
   readonly label: CompassDirectionLabel;
-  readonly offset: CompassMarkerOffset;
+  readonly offset: number;
   readonly active: boolean;
 };
 
@@ -113,6 +122,7 @@ function keySlotRect(x: number, y: number, width: number, height: number): UnitR
 export type FirstPersonHudOptions = {
   readonly showKeys?: boolean;
   readonly facing?: CardinalDirection;
+  readonly compassAngle?: number;
 };
 
 export type FirstPersonHudPanel =
@@ -172,7 +182,9 @@ export function renderFirstPersonHud(
   options: FirstPersonHudOptions = {},
   onAssetLoad?: () => void,
 ): void {
-  if (options.facing !== undefined) {
+  if (options.compassAngle !== undefined) {
+    renderFirstPersonCompassAtAngle(ctx, canvasSize, options.compassAngle);
+  } else if (options.facing !== undefined) {
     renderFirstPersonCompass(ctx, canvasSize, options.facing);
   }
 
@@ -251,18 +263,33 @@ export function firstPersonCompassRect(canvasSize: GameCanvasSize): HudRect {
 }
 
 export function firstPersonCompassMarkers(facing: CardinalDirection): readonly FirstPersonCompassMarker[] {
-  const direction = normalizeDirection(facing);
-  return [
-    compassMarker(normalizeDirection(direction - 1), -1, false),
-    compassMarker(direction, 0, true),
-    compassMarker(normalizeDirection(direction + 1), 1, false),
-  ];
+  return firstPersonCompassMarkersAtAngle(directionAngle(normalizeDirection(facing)));
+}
+
+export function firstPersonCompassMarkersAtAngle(angle: number): readonly FirstPersonCompassMarker[] {
+  const markers: FirstPersonCompassMarker[] = [];
+  for (const direction of COMPASS_DIRECTIONS) {
+    const offset = compassMarkerOffset(angle, direction);
+    if (Math.abs(offset) <= COMPASS_VISIBLE_OFFSET_LIMIT) {
+      markers.push(compassMarker(direction, offset, Math.abs(offset) <= COMPASS_ACTIVE_OFFSET_EPSILON));
+    }
+  }
+  markers.sort((a, b) => a.offset - b.offset);
+  return markers;
 }
 
 export function renderFirstPersonCompass(
   ctx: CanvasRenderingContext2D,
   canvasSize: GameCanvasSize,
   facing: CardinalDirection,
+): void {
+  renderFirstPersonCompassAtAngle(ctx, canvasSize, directionAngle(normalizeDirection(facing)));
+}
+
+export function renderFirstPersonCompassAtAngle(
+  ctx: CanvasRenderingContext2D,
+  canvasSize: GameCanvasSize,
+  angle: number,
 ): void {
   const rect = firstPersonCompassRect(canvasSize);
   if (rect.width <= 0 || rect.height <= 0) return;
@@ -278,13 +305,13 @@ export function renderFirstPersonCompass(
   drawCompassLine(ctx, lineStart, lineEnd, lineY);
   drawCompassTicks(ctx, centerX, lineY, spacing);
   drawCompassNeedle(ctx, centerX, lineY);
-  drawCompassLabels(ctx, firstPersonCompassMarkers(facing), centerX, spacing, rect.y + 14);
+  drawCompassLabelsAtAngle(ctx, angle, centerX, spacing, rect.y + 14);
   ctx.restore();
 }
 
 function compassMarker(
   direction: CardinalDirection,
-  offset: CompassMarkerOffset,
+  offset: number,
   active: boolean,
 ): FirstPersonCompassMarker {
   return {
@@ -293,6 +320,15 @@ function compassMarker(
     offset,
     active,
   };
+}
+
+function directionAngle(direction: CardinalDirection): number {
+  const delta = directionDelta(direction);
+  return Math.atan2(delta.dy, delta.dx);
+}
+
+function compassMarkerOffset(angle: number, direction: CardinalDirection): number {
+  return shortestAngleDelta(angle, directionAngle(direction)) / COMPASS_QUARTER_TURN_RADIANS;
 }
 
 function directionLabel(direction: CardinalDirection): CompassDirectionLabel {
@@ -366,9 +402,9 @@ function drawCompassNeedle(ctx: CanvasRenderingContext2D, centerX: number, lineY
   ctx.fill();
 }
 
-function drawCompassLabels(
+function drawCompassLabelsAtAngle(
   ctx: CanvasRenderingContext2D,
-  markers: readonly FirstPersonCompassMarker[],
+  angle: number,
   centerX: number,
   spacing: number,
   y: number,
@@ -376,13 +412,18 @@ function drawCompassLabels(
   ctx.textAlign = "center";
   ctx.textBaseline = "middle";
 
-  for (const marker of markers) {
-    const x = centerX + marker.offset * spacing;
-    ctx.font = monoFont(marker.active ? 800 : 700, marker.active ? 19 : 17);
+  for (const direction of COMPASS_DIRECTIONS) {
+    const offset = compassMarkerOffset(angle, direction);
+    if (Math.abs(offset) > COMPASS_VISIBLE_OFFSET_LIMIT) continue;
+
+    const active = Math.abs(offset) <= COMPASS_ACTIVE_OFFSET_EPSILON;
+    const label = directionLabel(direction);
+    const x = centerX + offset * spacing;
+    ctx.font = monoFont(active ? 800 : 700, active ? 19 : 17);
     ctx.fillStyle = FIRST_PERSON_COMPASS_SHADOW;
-    ctx.fillText(marker.label, x + 1, y + 1);
-    ctx.fillStyle = marker.active ? FIRST_PERSON_COMPASS_TEXT : FIRST_PERSON_COMPASS_MUTED;
-    ctx.fillText(marker.label, x, y);
+    ctx.fillText(label, x + 1, y + 1);
+    ctx.fillStyle = active ? FIRST_PERSON_COMPASS_TEXT : FIRST_PERSON_COMPASS_MUTED;
+    ctx.fillText(label, x, y);
   }
 }
 

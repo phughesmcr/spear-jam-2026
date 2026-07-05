@@ -12,6 +12,7 @@ import { DEFAULT_BARS_TERRAIN_ID, DEFAULT_WALL_TERRAIN_ID } from "@/src/map/terr
 import { createFirstPersonRenderer } from "@/src/render/first_person.ts";
 import type { FirstPersonRenderSession } from "@/src/render/first_person.ts";
 import type { RaycastScene } from "@/src/render/raycast/scene.ts";
+import { TURN_TWEEN_MS } from "@/src/render/raycast/tween.ts";
 
 type FakeImageEvent = "load" | "error";
 type FakeImageListener = () => void;
@@ -250,6 +251,43 @@ Deno.test("first-person rendering maps barrier terrain to a transparent thin wal
   });
 });
 
+Deno.test("first-person renderer reports the tweened camera angle", () => {
+  withFakeOffscreenCanvas((): void => {
+    const map = createGameMap(
+      "Turn Tween",
+      [
+        [2, 2, 2],
+        [2, 1, 2],
+        [2, 2, 2],
+      ],
+      [],
+      {
+        palette: [
+          { kind: "floor", id: 1, color: "#000000", floor_texture: "floor", ceiling_texture: "ceiling" },
+          { kind: "wall", id: 2, color: "#ffffff", wall_texture: "wall" },
+        ],
+      },
+    );
+    const renderer = createFirstPersonRenderer();
+    const ctx = new FakeCanvasContext() as unknown as CanvasRenderingContext2D;
+    const rect = { x: 0, y: 0, width: 64, height: 64 };
+
+    const initial = renderer.render(ctx, rect, sessionFor(map, [playerDrawable(1, 1, Direction.East)]), 0);
+    assertAlmostEquals(initial.cameraAngle!, 0);
+
+    renderer.render(ctx, rect, sessionFor(map, [playerDrawable(1, 1, Direction.South)]), 0);
+    const midTurn = renderer.render(
+      ctx,
+      rect,
+      sessionFor(map, [playerDrawable(1, 1, Direction.South)]),
+      TURN_TWEEN_MS / 2,
+    );
+
+    assertAlmostEquals(midTurn.cameraAngle!, Math.PI / 4);
+    assert(midTurn.needsFrame);
+  });
+});
+
 Deno.test("sceneForMap rejects texture refs outside the 5x4 pack grid", () => {
   const map = createGameMap(
     "Invalid Texture",
@@ -379,7 +417,7 @@ Deno.test("first-person rendering requests another frame for scrolling sky ceili
       () => {},
     );
 
-    assertEquals(result, { needsFrame: true });
+    assertEquals(result.needsFrame, true);
   });
 });
 
@@ -425,7 +463,7 @@ Deno.test("first-person rendering updates flickering lights and requests another
     renderer.render(ctx, { x: 0, y: 0, width: 64, height: 64 }, session, 250);
 
     assertNotEquals(scene.lightRed[1 * 3 + 2], firstAdjacentLight);
-    assertEquals(result, { needsFrame: true });
+    assertEquals(result.needsFrame, true);
   });
 });
 
@@ -972,6 +1010,6 @@ Deno.test("first-person rendering bobs pickup item sprites vertically", () => {
 
     assertEquals(scene.spriteCount, 1);
     assertAlmostEquals(scene.spriteElevation[0]!, 0.055, 1e-6);
-    assertEquals(result, { needsFrame: true });
+    assertEquals(result.needsFrame, true);
   });
 });

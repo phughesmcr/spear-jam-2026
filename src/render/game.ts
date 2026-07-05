@@ -108,11 +108,12 @@ export function renderGameFrame({
       needsFrame ||= firstPersonResult.needsFrame;
       renderFirstPersonVignette(ctx, playRect);
       renderWeaponHud(ctx, canvasSize, playerStatus.selectedWeapon, presentation.weaponHudPhase, onAssetLoad);
+      const playerFacing = session.getPlayerFacing().dir;
       renderFirstPersonHud(
         ctx,
         canvasSize,
         playerStatus,
-        { showKeys: presentation.showKeys, facing: session.getPlayerFacing().dir },
+        { showKeys: presentation.showKeys, facing: playerFacing, compassAngle: firstPersonResult.cameraAngle },
         onAssetLoad,
       );
       renderFirstPersonCombatFeedback(ctx, canvasSize, presentation.combatFeedback, onAssetLoad);

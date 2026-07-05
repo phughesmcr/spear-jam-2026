@@ -1,13 +1,15 @@
-import { assertEquals } from "@std/assert";
+import { assertAlmostEquals, assertEquals } from "@std/assert";
 import type { PlayerStatusSnapshot } from "@/src/ecs/progression.ts";
 import { Direction } from "@/src/grid/direction.ts";
 import { KeyColor } from "@/src/map/map.ts";
 import {
   firstPersonCompassMarkers,
+  firstPersonCompassMarkersAtAngle,
   firstPersonCompassRect,
   firstPersonHudPanels,
   preloadHudAssets,
   renderFirstPersonCompass,
+  renderFirstPersonCompassAtAngle,
   renderFirstPersonHud,
 } from "@/src/render/hud.ts";
 import type { FirstPersonHudPanel } from "@/src/render/hud.ts";
@@ -37,6 +39,16 @@ Deno.test("firstPersonCompassMarkers centers the player's facing direction", () 
   ]);
 });
 
+Deno.test("firstPersonCompassMarkersAtAngle slides labels between cardinal facings", () => {
+  const markers = firstPersonCompassMarkersAtAngle(Math.PI / 4);
+
+  assertEquals(markers.map(({ label }) => label), ["N", "E", "S", "W"]);
+  for (const [index, offset] of [-1.5, -0.5, 0.5, 1.5].entries()) {
+    assertAlmostEquals(markers[index]!.offset, offset);
+    assertEquals(markers[index]!.active, false);
+  }
+});
+
 Deno.test("renderFirstPersonCompass draws the current facing label at top center", () => {
   const ctx = new FakeHudContext(new FakeHudDocument());
   renderFirstPersonCompass(ctx as unknown as CanvasRenderingContext2D, CANVAS, Direction.South);
@@ -48,6 +60,21 @@ Deno.test("renderFirstPersonCompass draws the current facing label at top center
     { text: "E", x: 247, y: 46 },
     { text: "S", x: 360, y: 46 },
     { text: "W", x: 473, y: 46 },
+  ]);
+});
+
+Deno.test("renderFirstPersonCompassAtAngle draws tweened labels between facings", () => {
+  const ctx = new FakeHudContext(new FakeHudDocument());
+  renderFirstPersonCompassAtAngle(ctx as unknown as CanvasRenderingContext2D, CANVAS, Math.PI / 4);
+
+  const foregroundLabels = ctx.fillTexts
+    .filter((_, index) => index % 2 === 1)
+    .map(({ text, x, y }) => ({ text, x, y }));
+  assertEquals(foregroundLabels, [
+    { text: "N", x: 190.5, y: 46 },
+    { text: "E", x: 303.5, y: 46 },
+    { text: "S", x: 416.5, y: 46 },
+    { text: "W", x: 529.5, y: 46 },
   ]);
 });
 
