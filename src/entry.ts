@@ -181,6 +181,13 @@ class Game implements Disposable {
       return;
     }
 
+    if (mode.type === "help") {
+      if (input.phase === "up") {
+        this.handleGameCommand({ type: "wait" });
+      }
+      return;
+    }
+
     if (mode.type === "playing" && this.model.viewMode === "topDown") {
       if (input.phase === "up") {
         this.handleGameCommand({ type: "toggleView" });

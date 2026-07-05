@@ -59,6 +59,7 @@ const LABEL_HIT_TEXT_WIDTH_RATIO = 0.72;
 const BOTTOM_CONTROL_BUTTONS = [
   { label: "WAIT", target: { kind: "control", control: "wait" } },
   { label: "MAP", target: { kind: "control", control: "toggleView" } },
+  { label: "HELP", target: { kind: "control", control: "help" } },
 ] as const satisfies readonly {
   readonly label: string;
   readonly target: { readonly kind: "control"; readonly control: VerbMenuControl };

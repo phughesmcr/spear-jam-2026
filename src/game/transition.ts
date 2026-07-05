@@ -19,6 +19,7 @@ import type {
 import { VERBS, verbToCommand } from "@/src/game/verbs.ts";
 
 type DialogueMode = Extract<GameMode, { readonly type: "dialogue" }>;
+type HelpMode = Extract<GameMode, { readonly type: "help" }>;
 type VerbMenuMode = Extract<GameMode, { readonly type: "verbMenu" }>;
 
 const INTRO_TITLE = "SIGNAL ACQUIRED";
@@ -139,6 +140,7 @@ function gameCommand(model: GameModel, command: GameCommand, nowMs: number): Gam
   const mode = model.mode;
   if (mode.type === "intermission") return intermissionCommand(model, mode, command, nowMs);
   if (mode.type === "dialogue") return dialogueCommand(model, mode, command);
+  if (mode.type === "help") return helpCommand(model, mode, command);
   if (mode.type === "verbMenu") return verbMenuCommand(model, mode, command);
   if (mode.type === "victory" || mode.type === "defeat") return outcomeCommand(model, mode.type, command);
 
@@ -192,6 +194,28 @@ function dialogueCommand(model: GameModel, mode: DialogueMode, command: GameComm
   if (command.type === "wait") return selectDialogueChoice(model, mode, 1);
   if (command.type === "selectWeapon") return selectDialogueChoice(model, mode, command.slot);
   return done(model);
+}
+
+function helpCommand(model: GameModel, mode: HelpMode, command: GameCommand): GameTransition {
+  switch (command.type) {
+    case "wait":
+    case "action":
+    case "menu":
+      return done({
+        ...model,
+        mode: { type: "verbMenu", selectedIndex: mode.selectedIndex },
+      }, [{ type: "render" }]);
+    case "move":
+    case "turn":
+    case "interact":
+    case "examine":
+    case "attack":
+    case "smartAction":
+    case "selectWeapon":
+    case "pause":
+    case "toggleView":
+      return done(model);
+  }
 }
 
 function selectDialogueChoice(model: GameModel, mode: DialogueMode, slot: number): GameTransition {
@@ -468,6 +492,13 @@ function confirmControlSelection(model: GameModel, control: VerbMenuControl): Ga
         viewMode,
       }, [{ type: "render" }]);
     }
+    case "help":
+      return done({
+        ...model,
+        dialoguePointerDownSlot: undefined,
+        verbPointerDownTarget: undefined,
+        mode: { type: "help", selectedIndex: helpReturnSelectedIndex(model) },
+      }, [{ type: "render" }]);
     case "close":
       return done({
         ...model,
@@ -476,6 +507,10 @@ function confirmControlSelection(model: GameModel, control: VerbMenuControl): Ga
         mode: { type: "playing" },
       }, [{ type: "render" }]);
   }
+}
+
+function helpReturnSelectedIndex(model: GameModel): number {
+  return model.mode.type === "verbMenu" ? model.mode.selectedIndex : model.lastVerbIndex;
 }
 
 function sameVerbMenuTarget(a: VerbMenuTarget | undefined, b: VerbMenuTarget): boolean {

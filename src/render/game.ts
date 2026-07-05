@@ -11,6 +11,7 @@ import { renderDrawableEntities } from "@/src/render/drawables.ts";
 import { preloadDialogueAssets, renderDialogue } from "@/src/render/dialogue.ts";
 import type { FirstPersonRenderer } from "@/src/render/first_person.ts";
 import { type FirstPersonHudOptions, preloadHudAssets, renderFirstPersonHud, renderHud } from "@/src/render/hud.ts";
+import { preloadHelpAssets, renderHelp } from "@/src/render/help.ts";
 import { renderIntermission } from "@/src/render/intermission.ts";
 import { renderMap } from "@/src/render/map.ts";
 import { renderMessageLog } from "@/src/render/messages.ts";
@@ -41,6 +42,7 @@ export async function preloadGameAssets(
     firstPersonRenderer.preloadAssets(document, onAssetLoad),
     preloadWeaponHudAssets(document, onAssetLoad),
     preloadHudAssets(document, onAssetLoad),
+    preloadHelpAssets(document, onAssetLoad),
     preloadCombatFeedbackAssets(document, onAssetLoad),
     preloadDialogueAssets(document, onAssetLoad),
   ]);
@@ -110,6 +112,9 @@ export function renderGameFrame(
       return;
     case "menu":
       renderOverlay(ctx, canvasSize, "MENU", "Esc to resume");
+      return;
+    case "help":
+      renderHelp(ctx, canvasSize, onAssetLoad);
       return;
     case "dialogue":
       renderDialogue(ctx, canvasSize, mode, onAssetLoad);

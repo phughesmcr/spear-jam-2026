@@ -262,6 +262,27 @@ Deno.test("transition confirms pointer control buttons only when down and up hit
   assertEquals(result.effects, [{ type: "render" }]);
 });
 
+Deno.test("transition opens help from the verb menu and closes it back to the verb menu", () => {
+  let model = transition(createGameModel("Level 1"), {
+    type: "mapLoaded",
+    mapName: "Level 1",
+  }).model;
+
+  ({ model } = transition(model, { type: "gameCommand", command: { type: "action" } }));
+  ({ model } = transition(model, {
+    type: "verbPointer",
+    phase: "down",
+    target: { kind: "control", control: "help" },
+  }));
+  let result = transition(model, { type: "verbPointer", phase: "up", target: { kind: "control", control: "help" } });
+  assertEquals(result.model.mode, { type: "help", selectedIndex: 0 });
+  assertEquals(result.effects, [{ type: "render" }]);
+
+  result = transition(result.model, { type: "gameCommand", command: { type: "wait" } });
+  assertEquals(result.model.mode, { type: "verbMenu", selectedIndex: 0 });
+  assertEquals(result.effects, [{ type: "render" }]);
+});
+
 Deno.test("transition passes smart action through as a player command", () => {
   const model = transition(createGameModel("Level 1"), {
     type: "mapLoaded",

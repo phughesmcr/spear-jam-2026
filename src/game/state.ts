@@ -4,7 +4,7 @@ import type { TurnEffectState } from "@/src/game/turn_effects.ts";
 import type { StoryFlag } from "@/src/game/story.ts";
 
 export type CommandSlot = 1 | 2 | 3;
-export type VerbMenuControl = "wait" | "toggleView" | "close";
+export type VerbMenuControl = "wait" | "toggleView" | "help" | "close";
 export type VerbMenuTarget =
   | { readonly kind: "verb"; readonly verbIndex: number }
   | { readonly kind: "weapon"; readonly slot: CommandSlot }
@@ -70,6 +70,7 @@ export type GameMode =
   | { readonly type: "paused" }
   | { readonly type: "menu" }
   | { readonly type: "verbMenu"; readonly selectedIndex: number; readonly hoverTarget?: VerbMenuTarget }
+  | { readonly type: "help"; readonly selectedIndex: number }
   | ({ readonly type: "dialogue" } & DialogueState)
   | {
     readonly type: "intermission";

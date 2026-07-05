@@ -86,6 +86,20 @@ Deno.test("renderGameFrame schedules top-down repaint while ECS sprite animation
   }
 });
 
+Deno.test("renderGameFrame requests the help image in help mode", () => {
+  const document = new FakeGameDocument();
+  const ctx = new FakeGameContext(document);
+
+  renderGameFrame(
+    ctx as unknown as CanvasRenderingContext2D,
+    FULL_CANVAS,
+    undefined,
+    { type: "help", selectedIndex: 0 },
+  );
+
+  assert(document.images.some((image) => image.src.endsWith("/assets/game/help.png")));
+});
+
 function fakeFirstPersonRenderer(): FirstPersonRenderer {
   return {
     preloadAssets: () => Promise.resolve(),
@@ -165,14 +179,18 @@ class FakeGameImage {
 }
 
 class FakeGameDocument {
+  readonly images: FakeGameImage[] = [];
+
   createElement(tagName: string): FakeGameImage {
     if (tagName !== "img") throw new Error(`Unexpected tag ${tagName}.`);
-    return new FakeGameImage();
+    const image = new FakeGameImage();
+    this.images.push(image);
+    return image;
   }
 }
 
 class FakeGameContext {
-  readonly canvas = { ownerDocument: new FakeGameDocument() };
+  readonly canvas: { readonly ownerDocument: FakeGameDocument };
   fillStyle: FakeFillStyle = "";
   font = "";
   globalAlpha = 1;
@@ -191,6 +209,10 @@ class FakeGameContext {
     readonly globalCompositeOperation: GlobalCompositeOperation;
     readonly imageSmoothingEnabled: boolean;
   }[] = [];
+
+  constructor(document = new FakeGameDocument()) {
+    this.canvas = { ownerDocument: document };
+  }
 
   save(): void {
     this.stack.push({
