@@ -1,4 +1,9 @@
 import { z } from "zod";
+import { DialogueTreeId as KnownDialogueTreeId } from "@/src/dialogue/dialogue.ts";
+import { ENEMY_ARCHETYPE_CODES, enemyCatalogEntry } from "@/src/ecs/enemy_catalog.ts";
+import { ExamineTextId as KnownExamineTextId } from "@/src/game/examine_content.ts";
+import { DisplayName as KnownDisplayName } from "@/src/game/names.ts";
+import { StoryEventId as KnownStoryEventId, StoryTargetId as KnownStoryTargetId } from "@/src/game/story.ts";
 
 export const KeyColor = {
   Red: "red",
@@ -66,13 +71,15 @@ const DIRECTION_SCHEMA = INTEGER_SCHEMA.min(0).max(3);
 const KEY_COLOR_SCHEMA = z.enum([KeyColor.Red, KeyColor.Blue, KeyColor.Yellow]) satisfies z.ZodType<KeyColor>;
 const DOOR_SLIDE_SCHEMA = z.enum(DOOR_SLIDES);
 const LIGHT_COLOR_SCHEMA = z.string().regex(/^#[0-9a-fA-F]{6}$/);
-const NON_EMPTY_STRING_SCHEMA = z.string().min(1);
-const DISPLAY_NAME_SCHEMA = NON_EMPTY_STRING_SCHEMA satisfies z.ZodType<DisplayName>;
-const STORY_TARGET_ID_SCHEMA = NON_EMPTY_STRING_SCHEMA satisfies z.ZodType<StoryTargetId>;
-const STORY_EVENT_ID_SCHEMA = NON_EMPTY_STRING_SCHEMA satisfies z.ZodType<StoryEventId>;
-const DIALOGUE_TREE_ID_SCHEMA = NON_EMPTY_STRING_SCHEMA satisfies z.ZodType<DialogueTreeId>;
-const ENEMY_ARCHETYPE_SCHEMA = NON_EMPTY_STRING_SCHEMA satisfies z.ZodType<EnemyArchetype>;
-const EXAMINE_TEXT_ID_SCHEMA = NON_EMPTY_STRING_SCHEMA satisfies z.ZodType<ExamineTextId>;
+const DISPLAY_NAME_SCHEMA = stringEnumSchema<DisplayName>(Object.values(KnownDisplayName), "displayName");
+const STORY_TARGET_ID_SCHEMA = stringEnumSchema<StoryTargetId>(Object.values(KnownStoryTargetId), "storyId");
+const STORY_EVENT_ID_SCHEMA = stringEnumSchema<StoryEventId>(Object.values(KnownStoryEventId), "onTalkEvent");
+const DIALOGUE_TREE_ID_SCHEMA = stringEnumSchema<DialogueTreeId>(Object.values(KnownDialogueTreeId), "dialogueTreeId");
+const ENEMY_ARCHETYPE_SCHEMA = stringEnumSchema<EnemyArchetype>(
+  ENEMY_ARCHETYPE_CODES.map((archetype) => enemyCatalogEntry(archetype).authoringKey),
+  "archetype",
+);
+const EXAMINE_TEXT_ID_SCHEMA = stringEnumSchema<ExamineTextId>(Object.values(KnownExamineTextId), "examineTextId");
 const ITEM_KIND_SCHEMA = z.enum(ITEM_KINDS) satisfies z.ZodType<ItemKind>;
 const DECORATION_KIND_SCHEMA = z.enum(DECORATION_KINDS) satisfies z.ZodType<DecorationKind>;
 const ATTACK_FACING_REQUIREMENT_SCHEMA = z.enum([
@@ -260,6 +267,13 @@ function isEntityPrefab(value: string): value is EntityPrefab {
 
 function propertySet(properties: readonly string[]): ReadonlySet<string> {
   return new Set(properties);
+}
+
+function stringEnumSchema<T extends string>(values: readonly T[], name: string): z.ZodType<T> {
+  const allowed = new Set<string>(values);
+  return z.custom<T>((value) => typeof value === "string" && allowed.has(value), {
+    message: `${name} must be one of ${values.join(", ")}`,
+  });
 }
 
 function lowerFirst(value: string): string {
