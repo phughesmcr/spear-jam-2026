@@ -50,6 +50,26 @@ export const DisplayNameComponent: Component<DisplayNameSchema, typeof DISPLAY_N
 
 export const Npc: Component<null> = new Component<null>({ name: "npc" });
 
+export type StoryTargetSchema = { id: number };
+const STORY_TARGET_STORAGE = { id: Uint8Array };
+export const StoryTarget: Component<StoryTargetSchema, typeof STORY_TARGET_STORAGE> = new Component<
+  StoryTargetSchema,
+  typeof STORY_TARGET_STORAGE
+>({
+  name: "storyTarget",
+  schema: STORY_TARGET_STORAGE,
+});
+
+export type TalkStoryEventSchema = { event: number };
+const TALK_STORY_EVENT_STORAGE = { event: Uint8Array };
+export const TalkStoryEvent: Component<TalkStoryEventSchema, typeof TALK_STORY_EVENT_STORAGE> = new Component<
+  TalkStoryEventSchema,
+  typeof TALK_STORY_EVENT_STORAGE
+>({
+  name: "talkStoryEvent",
+  schema: TALK_STORY_EVENT_STORAGE,
+});
+
 export type DialogueSchema = { dialogueTreeId: number };
 export const Dialogue: Component<DialogueSchema> = new Component<DialogueSchema>({
   name: "dialogue",
@@ -274,7 +294,15 @@ export const Locked: Component<LockedSchema, typeof LOCKED_STORAGE> = new Compon
 /** Marks a door disguised as a wall until the player bumps into it. */
 export const Secret: Component<null> = new Component<null>({ name: "secret" });
 
-export const UplinkTerminal: Component<null> = new Component<null>({ name: "uplinkTerminal" });
+export type UplinkTerminalSchema = { destination: number };
+const UPLINK_TERMINAL_STORAGE = { destination: Uint16Array };
+export const UplinkTerminal: Component<UplinkTerminalSchema, typeof UPLINK_TERMINAL_STORAGE> = new Component<
+  UplinkTerminalSchema,
+  typeof UPLINK_TERMINAL_STORAGE
+>({
+  name: "uplinkTerminal",
+  schema: UPLINK_TERMINAL_STORAGE,
+});
 
 export const ItemKind = {
   HealthPatch: 1,
@@ -427,6 +455,8 @@ export const ALL_COMPONENTS: DynamicComponent[] = [
   Facing,
   DisplayNameComponent,
   Npc,
+  StoryTarget,
+  TalkStoryEvent,
   Dialogue,
   Examine,
   Player,

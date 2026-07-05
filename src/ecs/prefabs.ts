@@ -31,6 +31,8 @@ import {
   SPRITE_DEATH_MS,
   SpriteAnimation,
   SpriteAnimationKind,
+  StoryTarget,
+  TalkStoryEvent,
   TurnTaker,
   UplinkTerminal,
 } from "@/src/ecs/components.ts";
@@ -52,9 +54,10 @@ import {
 } from "@/src/ecs/enemy_catalog.ts";
 import { DEFAULT_PLAYER_HEALTH } from "@/src/ecs/progression.ts";
 import { DEFAULT_ATTACK } from "@/src/game/attack.ts";
+import { storyEventCode, storyTargetCode } from "@/src/game/story.ts";
 import { normalizeDirection } from "@/src/grid/direction.ts";
 import { MapDecorationKind, MapEnemyArchetype, MapItemKind } from "@/src/map/entity_content.ts";
-import { doorSlideCode, keyColorCode } from "@/src/map/map.ts";
+import { doorSlideCode, keyColorCode, terminalDestinationCode } from "@/src/map/map.ts";
 import type {
   DecorationDef,
   DoorDef,
@@ -147,6 +150,12 @@ export function createNpc(world: World, prefab: NpcPrefab): Entity {
   if (prefab.dialogueTreeId !== undefined && prefab.dialogueTreeId !== DialogueTreeId.None) {
     world.components.addToEntity(Dialogue, entity, { dialogueTreeId: prefab.dialogueTreeId });
   }
+  if (prefab.storyId !== undefined) {
+    world.components.addToEntity(StoryTarget, entity, { id: storyTargetCode(prefab.storyId) });
+  }
+  if (prefab.onTalkEvent !== undefined) {
+    world.components.addToEntity(TalkStoryEvent, entity, { event: storyEventCode(prefab.onTalkEvent) });
+  }
   return entity;
 }
 
@@ -237,7 +246,7 @@ export function createUplinkTerminal(world: World, prefab: UplinkTerminalPrefab)
       [GridPos, { x: prefab.x, y: prefab.y }],
       [Drawable, { kind: DrawableKind.Sprite, layer: DrawableLayer.Structure }],
       [Sprite, { id: SpriteId.UplinkTerminal }],
-      [UplinkTerminal],
+      [UplinkTerminal, { destination: terminalDestinationCode(prefab.goto) }],
       [Interactable],
       [Blocking],
     ] as const,

@@ -142,6 +142,25 @@ Deno.test("John's talk story event is one-shot", async () => {
   }
 });
 
+Deno.test("createGameSession rejects duplicate component-backed story targets", async () => {
+  await assertRejects(
+    () =>
+      createGameSession(
+        storyTestMap([{
+          prefab: "npc",
+          x: 3,
+          y: 1,
+          dir: Direction.South,
+          displayName: DisplayName.John,
+          storyId: StoryTargetId.John,
+        }]),
+        () => 0,
+      ),
+    Error,
+    'Duplicate story target "john".',
+  );
+});
+
 Deno.test("blocked story path destination leaves John in place and does not set the flag", async () => {
   const session = await createGameSession(storyTestMap([{ prefab: "door", x: 1, y: 3 }]), () => 0);
   try {

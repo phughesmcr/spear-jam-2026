@@ -20,12 +20,17 @@ import {
   Npc,
   Sprite,
   SpriteId,
+  StoryTarget,
+  TalkStoryEvent,
+  UplinkTerminal,
 } from "@/src/ecs/components.ts";
 import { EnemyArchetype } from "@/src/ecs/enemy_catalog.ts";
 import { ExamineTextId } from "@/src/game/examine.ts";
 import { DisplayName } from "@/src/game/names.ts";
+import { storyEventCode, StoryEventId, storyTargetCode, StoryTargetId } from "@/src/game/story.ts";
 import { createDecoration, createDoor, createEnemy, createNpc, createUplinkTerminal } from "@/src/ecs/prefabs.ts";
 import { createWorld } from "@/src/ecs/world.ts";
+import { terminalDestinationForCode } from "@/src/map/map.ts";
 
 Deno.test("neutral NPCs and enemies share display names without sharing NPC identity", async () => {
   const world = await createWorld();
@@ -85,6 +90,26 @@ Deno.test("prefabs attach authored examine text when provided", async () => {
       examineTextId: ExamineTextId.BootSectorUplinkTerminal,
     });
   }
+});
+
+Deno.test("prefabs attach component-backed story and terminal metadata", async () => {
+  const world = await createWorld();
+  const npc = createNpc(world, {
+    x: 1,
+    y: 1,
+    dir: 1,
+    displayName: DisplayName.John,
+    storyId: StoryTargetId.John,
+    onTalkEvent: StoryEventId.JohnSpoken,
+  });
+  const terminal = createUplinkTerminal(world, { x: 2, y: 1, goto: "Next Map" });
+
+  assertEquals(world.components.getEntityData(StoryTarget, npc), { id: storyTargetCode(StoryTargetId.John) });
+  assertEquals(world.components.getEntityData(TalkStoryEvent, npc), { event: storyEventCode(StoryEventId.JohnSpoken) });
+  assertEquals(
+    terminalDestinationForCode(world.components.getEntityData(UplinkTerminal, terminal).destination),
+    "Next Map",
+  );
 });
 
 Deno.test("decorations spawn as non-blocking structure sprites", async () => {

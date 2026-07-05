@@ -10,6 +10,9 @@ import {
   SPRITE_WALK_MS,
   SpriteAnimation,
   SpriteAnimationKind,
+  StoryTarget,
+  TalkStoryEvent,
+  UplinkTerminal,
 } from "@/src/ecs/components.ts";
 import type { FacingSchema, GridPosSchema, SpriteAnimationSchema } from "@/src/ecs/components.ts";
 import { normalizeDirection } from "@/src/grid/direction.ts";
@@ -32,7 +35,7 @@ import type { EnemyTurnSystem } from "@/src/ecs/enemy.ts";
 import { createCorpse, createMapEntity } from "@/src/ecs/prefabs.ts";
 import { playerTurnSystem, targetMarkerTone } from "@/src/ecs/player_turn.ts";
 import type { PlayerActionResolution, PlayerTurnContext, PlayerTurnSystem } from "@/src/ecs/player_turn.ts";
-import { drawableRenderQuery, spriteAnimationQuery } from "@/src/ecs/queries.ts";
+import { drawableRenderQuery, spriteAnimationQuery, storyTargetQuery } from "@/src/ecs/queries.ts";
 import { SpatialIndex } from "@/src/ecs/spatial.ts";
 import { createWorld } from "@/src/ecs/world.ts";
 import type { PlayerCommand, PlayerCommandResult } from "@/src/game/commands.ts";
@@ -49,11 +52,18 @@ import {
 import type { PlayerStateSnapshot } from "@/src/ecs/progression.ts";
 import type { RandomSource } from "@/src/game/rng.ts";
 import type { PlayerStateInput, TargetMarkerTone } from "@/src/game/state.ts";
-import { normalizeStoryFlags, storyEventDefinition, storyPathDestination } from "@/src/game/story.ts";
-import type { StoryAction, StoryEventId, StoryFlag, StoryTargetId } from "@/src/game/story.ts";
+import {
+  normalizeStoryFlags,
+  storyEventDefinition,
+  storyEventForCode,
+  storyPathDestination,
+  storyTargetCode,
+  storyTargetForCode,
+} from "@/src/game/story.ts";
+import type { StoryAction, StoryEventId, StoryFlag } from "@/src/game/story.ts";
 import { VisibilityMap } from "@/src/game/visibility.ts";
 import type { TileVisibility } from "@/src/game/visibility.ts";
-import { mapDimensions, VICTORY_GOTO } from "@/src/map/map.ts";
+import { mapDimensions, terminalDestinationForCode, VICTORY_GOTO } from "@/src/map/map.ts";
 import type { GameMap } from "@/src/map/map.ts";
 
 const UNCHANGED_PLAYER_COMMAND: PlayerCommandResult = Object.freeze({
@@ -74,41 +84,20 @@ export async function createGameSession(
 
   try {
     let playerEntity: Entity | undefined;
-    const terminalDestinations = new Map<Entity, string>();
-    const storyTargets = new Map<StoryTargetId, Entity>();
-    const talkStoryEvents = new Map<Entity, StoryEventId>();
 
     for (const entityDef of map.entities) {
       const entity = createMapEntity(world, entityDef);
       if (entityDef.prefab === "player") {
         playerEntity = entity;
-      } else if (entityDef.prefab === "uplinkTerminal") {
-        terminalDestinations.set(entity, entityDef.goto);
-      } else if (entityDef.prefab === "npc") {
-        if (entityDef.storyId !== undefined) {
-          if (storyTargets.has(entityDef.storyId)) throw new Error(`Duplicate story target "${entityDef.storyId}".`);
-          storyTargets.set(entityDef.storyId, entity);
-        }
-        if (entityDef.onTalkEvent !== undefined) {
-          talkStoryEvents.set(entity, entityDef.onTalkEvent);
-        }
       }
     }
 
     if (playerEntity === undefined) throw new Error("Map is missing a player spawn.");
 
     world.refresh();
+    assertUniqueStoryTargets(world);
 
-    return new GameSession(
-      world,
-      playerEntity,
-      map,
-      random,
-      terminalDestinations,
-      storyTargets,
-      talkStoryEvents,
-      playerState,
-    );
+    return new GameSession(world, playerEntity, map, random, playerState);
   } catch (error) {
     await world.destroy();
     throw error;
@@ -129,9 +118,6 @@ export class GameSession implements Disposable {
   private readonly spatial: SpatialIndex;
   private readonly playerTurnContext: PlayerTurnContext;
   private readonly visibility: VisibilityMap;
-  private readonly terminalDestinations: ReadonlyMap<Entity, string>;
-  private readonly storyTargets: ReadonlyMap<StoryTargetId, Entity>;
-  private readonly talkStoryEvents: ReadonlyMap<Entity, StoryEventId>;
   private readonly storyFlags: Set<StoryFlag>;
   private pendingDialogueStoryEvent?: StoryEventId;
   private disposed = false;
@@ -141,9 +127,6 @@ export class GameSession implements Disposable {
     playerEntity: Entity,
     map: GameMap,
     random: RandomSource,
-    terminalDestinations: ReadonlyMap<Entity, string>,
-    storyTargets: ReadonlyMap<StoryTargetId, Entity>,
-    talkStoryEvents: ReadonlyMap<Entity, StoryEventId>,
     playerState: PlayerStateInput,
   ) {
     this.world = world;
@@ -165,9 +148,6 @@ export class GameSession implements Disposable {
       random,
     };
     this.visibility = new VisibilityMap(dimensions);
-    this.terminalDestinations = new Map(terminalDestinations);
-    this.storyTargets = new Map(storyTargets);
-    this.talkStoryEvents = new Map(talkStoryEvents);
     this.storyFlags = new Set(normalizeStoryFlags(playerState.storyFlags));
     this.refreshVisibility();
   }
@@ -255,9 +235,10 @@ export class GameSession implements Disposable {
   private queueTalkStoryEvent(target: Entity | undefined): void {
     if (target === undefined) return;
 
-    const event = this.talkStoryEvents.get(target);
-    if (event === undefined) return;
+    const eventData = this.world.components.readEntityData(TalkStoryEvent, target);
+    if (eventData === undefined) return;
 
+    const event = storyEventForCode(eventData.event);
     const definition = storyEventDefinition(event);
     if (this.storyFlags.has(definition.flag)) return;
     this.pendingDialogueStoryEvent = event;
@@ -272,7 +253,7 @@ export class GameSession implements Disposable {
     for (const action of definition.actions) {
       switch (action.type) {
         case "moveEntity": {
-          const target = this.storyTargets.get(action.target);
+          const target = this.storyTargetEntity(action.target);
           if (target === undefined) return;
           this.spatial.moveEntity(target, storyPathDestination(action.path));
           this.setSpriteAnimation(target, {
@@ -294,7 +275,7 @@ export class GameSession implements Disposable {
     for (const action of actions) {
       switch (action.type) {
         case "moveEntity": {
-          const target = this.storyTargets.get(action.target);
+          const target = this.storyTargetEntity(action.target);
           if (target === undefined) return false;
 
           const destination = storyPathDestination(action.path);
@@ -309,12 +290,22 @@ export class GameSession implements Disposable {
     return true;
   }
 
+  private storyTargetEntity(targetId: StoryAction["target"]): Entity | undefined {
+    const targetCode = storyTargetCode(targetId);
+    for (const entity of this.world.entities.query(storyTargetQuery)) {
+      const target = this.world.components.getEntityData(StoryTarget, entity);
+      if (target.id === targetCode) return entity;
+    }
+    return undefined;
+  }
+
   private commitUplinkTerminalActivation(terminal: Entity, events: readonly GameEvent[]): PlayerCommandResult {
-    const goto = this.terminalDestinations.get(terminal);
-    if (goto === undefined) {
+    const destination = this.world.components.readEntityData(UplinkTerminal, terminal);
+    if (destination === undefined) {
       throw new Error(`Uplink terminal ${terminal} is missing a map destination.`);
     }
 
+    const goto = terminalDestinationForCode(destination.destination);
     const levelCompleteEvents = completePlayerLevel(this.world, this.playerEntity, events);
     clearTransientPlayerState(this.world, this.playerEntity);
     this.world.refresh();
@@ -474,5 +465,14 @@ export class GameSession implements Disposable {
     if (this.disposed) return;
     this.disposed = true;
     void this.world.destroy();
+  }
+}
+
+function assertUniqueStoryTargets(world: World): void {
+  const seen = new Set<number>();
+  for (const entity of world.entities.query(storyTargetQuery)) {
+    const { id } = world.components.getEntityData(StoryTarget, entity);
+    if (seen.has(id)) throw new Error(`Duplicate story target "${storyTargetForCode(id)}".`);
+    seen.add(id);
   }
 }

@@ -13,6 +13,7 @@ import {
   Secret,
   Sprite,
   SpriteAnimation,
+  StoryTarget,
   TurnTaker,
 } from "./components.ts";
 
@@ -39,6 +40,11 @@ export const drawableRenderQuery = new Query({
 export const spriteAnimationQuery = new Query({
   all: { spriteAnimation: SpriteAnimation },
   include: { gridPos: GridPos },
+});
+
+/** Map-authored entities that story actions can target by id */
+export const storyTargetQuery = new Query({
+  all: { storyTarget: StoryTarget },
 });
 
 /** All map-authored light emitters */
