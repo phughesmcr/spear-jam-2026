@@ -26,6 +26,13 @@ const KEY_BITS: Readonly<Record<KeyColorType, number>> = {
   [KeyColor.Blue]: 1 << 1,
   [KeyColor.Yellow]: 1 << 2,
 };
+const BLOCKING_ENTITY_PREFABS = new Set<GameMap["entities"][number]["prefab"]>([
+  "door",
+  "enemy",
+  "npc",
+  "player",
+  "uplinkTerminal",
+]);
 
 export function validateGameMaps(maps: readonly GameMap[]): readonly string[] {
   const issues: string[] = [];
@@ -42,6 +49,7 @@ function validateGameMap(map: GameMap, mapNames: ReadonlySet<string>): readonly 
   const issues: string[] = [];
   const { width, height } = mapDimensions(map);
   const playerSpawns = map.entities.filter((entity) => entity.prefab === "player");
+  const blockersByTile = new Map<string, string>();
 
   if (playerSpawns.length !== 1) {
     issues.push(`${map.name}: expected exactly one player spawn, found ${playerSpawns.length}.`);
@@ -56,6 +64,16 @@ function validateGameMap(map: GameMap, mapNames: ReadonlySet<string>): readonly 
     const terrain = terrainAt(map, entity.x, entity.y);
     if (entity.prefab !== "light" && terrainBlocksMovement(terrain)) {
       issues.push(`${map.name}: ${entity.prefab} at (${entity.x},${entity.y}) is placed on blocking terrain.`);
+    }
+
+    if (BLOCKING_ENTITY_PREFABS.has(entity.prefab)) {
+      const tile = tileKey(entity.x, entity.y);
+      const existing = blockersByTile.get(tile);
+      if (existing === undefined) {
+        blockersByTile.set(tile, entity.prefab);
+      } else {
+        issues.push(`${map.name}: ${entity.prefab} at (${entity.x},${entity.y}) overlaps blocking ${existing}.`);
+      }
     }
   }
 
@@ -195,9 +213,9 @@ function reachabilityIndexes(map: GameMap): ReachabilityIndexes {
         break;
       }
       case "enemy":
+      case "npc":
       case "item":
       case "light":
-      case "npc":
       case "player":
       case "weaponPickup":
         break;

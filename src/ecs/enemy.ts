@@ -3,6 +3,7 @@ import {
   AttackFacingRequirement,
   AwarenessState,
   enemyArchetypeFor,
+  GridPos,
   Health,
   IDLE_AWARENESS,
 } from "@/src/ecs/components.ts";
@@ -14,7 +15,6 @@ import type {
 } from "@/src/ecs/components.ts";
 import { attackEntity, attackTargets, entityAttack } from "@/src/ecs/combat.ts";
 import { DEFAULT_ENEMY_BEHAVIOR, EnemyBehavior, enemyCatalogEntry } from "@/src/ecs/enemy_catalog.ts";
-import type { Player } from "@/src/ecs/player.ts";
 import { enemyTurnQuery } from "@/src/ecs/queries.ts";
 import type { SpatialAccess, SpatialLookup, SpatialMutations } from "@/src/ecs/spatial.ts";
 import type { GameEvent } from "@/src/game/events.ts";
@@ -29,11 +29,15 @@ const MAX_INVESTIGATION_TURNS = 6;
 
 export type EnemyTurnContext = {
   readonly world: World;
-  readonly player: Player;
-  readonly spatial: SpatialAccess;
+  readonly player: Entity;
+  readonly spatial: EnemySpatialAccess;
   readonly random: RandomSource;
   readonly noises?: readonly NoiseStimulus[];
   readonly blocksSight?: BlocksSight;
+};
+
+type EnemySpatialAccess = SpatialAccess & {
+  nextStepToward(start: GridPoint, target: GridPoint): GridPoint | undefined;
 };
 
 export type EnemyTurnSystem = (context: EnemyTurnContext) => readonly GameEvent[];
@@ -48,33 +52,6 @@ type EnemyActorContext = {
 };
 type EnemyTurnComponents = typeof enemyTurnQuery["$inferComponents"];
 type EnemyMutationMarkers = Pick<EnemyTurnComponents, "facing" | "enemyAwareness">;
-
-type EnemyAlertStrategy = (actor: EnemyActorContext) => readonly GameEvent[];
-type EnemyInvestigationStrategy = (actor: EnemyActorContext, target: GridPoint) => readonly GameEvent[];
-
-type EnemyBehaviorPlan = {
-  readonly alert: EnemyAlertStrategy;
-  readonly investigate: EnemyInvestigationStrategy;
-};
-
-const BEHAVIOR_PLANS: Readonly<Record<EnemyBehavior, EnemyBehaviorPlan>> = {
-  [EnemyBehavior.Pursuer]: {
-    alert: attackThenPursueOneStep,
-    investigate: investigateOneStep,
-  },
-  [EnemyBehavior.Pouncer]: {
-    alert: pounceThenBite,
-    investigate: investigateTwoSteps,
-  },
-  [EnemyBehavior.Skirmisher]: {
-    alert: skirmishAtRange,
-    investigate: investigateOneStep,
-  },
-  [EnemyBehavior.Sentinel]: {
-    alert: holdAndWatchPlayer,
-    investigate: watchInvestigationTarget,
-  },
-};
 
 export const enemyTurnSystem = new System({
   name: "enemyTurnSystem",
@@ -97,7 +74,7 @@ export const enemyTurnSystem = new System({
 });
 
 function isPlayerDefeated(context: EnemyTurnContext): boolean {
-  const health = context.world.components.readEntityData(Health, context.player.getEntity());
+  const health = context.world.components.readEntityData(Health, context.player);
   return health !== undefined && health.current <= 0;
 }
 
@@ -118,40 +95,35 @@ function advanceEnemyTurn(
 }
 
 function selectEnemyAction(actor: EnemyActorContext, awareness: AwarenessResult): readonly GameEvent[] {
+  const behavior = enemyBehaviorFor(actor.context.world, actor.entity);
   switch (awareness.state) {
     case AwarenessState.Idle:
       return [];
     case AwarenessState.Alert:
-      return behaviorPlanFor(actor.context.world, actor.entity).alert(actor);
+      return alertActionFor(actor, behavior);
     case AwarenessState.Investigating:
-      return behaviorPlanFor(actor.context.world, actor.entity).investigate(actor, awareness.position);
+      return investigateActionFor(actor, behavior, awareness.position);
   }
 }
 
-function attackThenPursueOneStep(actor: EnemyActorContext): readonly GameEvent[] {
-  return attackThenMoveTowardPlayer(actor, 1);
-}
-
-function pounceThenBite(actor: EnemyActorContext): readonly GameEvent[] {
-  const { context, entity, gridPos, facing, markers } = actor;
-  const attackEvents = attackPlayerIfPossible(context, entity, gridPos, facing, markers);
-  if (attackEvents !== undefined) return attackEvents;
-
-  for (let step = 0; step < 2; step++) {
-    if (!tryMoveEnemyTowardPlayer(context.player, entity, gridPos, facing, markers, context.spatial)) break;
-
-    const stepAttackEvents = attackPlayerIfPossible(context, entity, gridPos, facing, markers);
-    if (stepAttackEvents !== undefined) return stepAttackEvents;
+function alertActionFor(actor: EnemyActorContext, behavior: EnemyBehavior): readonly GameEvent[] {
+  switch (behavior) {
+    case EnemyBehavior.Pursuer:
+      return attackThenMoveTowardPlayer(actor, 1);
+    case EnemyBehavior.Pouncer:
+      return attackThenMoveTowardPlayer(actor, 2, true);
+    case EnemyBehavior.Skirmisher:
+      return skirmishAtRange(actor);
+    case EnemyBehavior.Sentinel:
+      return holdAndWatchPlayer(actor);
   }
-
-  return [];
 }
 
 function skirmishAtRange(actor: EnemyActorContext): readonly GameEvent[] {
   const { context, entity, gridPos, facing, markers } = actor;
   if (
-    distanceToPlayer(context.player, entity, gridPos) <= 1 &&
-    tryMoveEnemyAwayFromPlayer(context.player, entity, gridPos, facing, markers, context.spatial)
+    distanceToPlayer(context, entity, gridPos) <= 1 &&
+    tryMoveEnemyAwayFromPlayer(context, entity, gridPos, facing, markers, context.spatial)
   ) {
     return [];
   }
@@ -164,28 +136,44 @@ function holdAndWatchPlayer(actor: EnemyActorContext): readonly GameEvent[] {
   const attackEvents = attackPlayerIfPossible(context, entity, gridPos, facing, markers);
   if (attackEvents !== undefined) return attackEvents;
 
-  faceEntityToward(entity, context.player.getPosition(), gridPos, facing, markers);
+  faceEntityToward(entity, playerPosition(context), gridPos, facing, markers);
   return [];
 }
 
-function attackThenMoveTowardPlayer(actor: EnemyActorContext, steps: number): readonly GameEvent[] {
+function attackThenMoveTowardPlayer(
+  actor: EnemyActorContext,
+  steps: number,
+  attackAfterMove = false,
+): readonly GameEvent[] {
   const { context, entity, gridPos, facing, markers } = actor;
   const attackEvents = attackPlayerIfPossible(context, entity, gridPos, facing, markers);
   if (attackEvents !== undefined) return attackEvents;
 
   for (let step = 0; step < steps; step++) {
-    if (!tryMoveEnemyTowardPlayer(context.player, entity, gridPos, facing, markers, context.spatial)) break;
+    if (!tryMoveEnemyTowardPlayer(context, entity, gridPos, facing, markers)) break;
+    if (!attackAfterMove) continue;
+
+    const stepAttackEvents = attackPlayerIfPossible(context, entity, gridPos, facing, markers);
+    if (stepAttackEvents !== undefined) return stepAttackEvents;
   }
 
   return [];
 }
 
-function investigateOneStep(actor: EnemyActorContext, target: GridPoint): readonly GameEvent[] {
-  return investigateTarget(actor, target, 1);
-}
-
-function investigateTwoSteps(actor: EnemyActorContext, target: GridPoint): readonly GameEvent[] {
-  return investigateTarget(actor, target, 2);
+function investigateActionFor(
+  actor: EnemyActorContext,
+  behavior: EnemyBehavior,
+  target: GridPoint,
+): readonly GameEvent[] {
+  switch (behavior) {
+    case EnemyBehavior.Pursuer:
+    case EnemyBehavior.Skirmisher:
+      return investigateTarget(actor, target, 1);
+    case EnemyBehavior.Pouncer:
+      return investigateTarget(actor, target, 2);
+    case EnemyBehavior.Sentinel:
+      return watchInvestigationTarget(actor, target);
+  }
 }
 
 function watchInvestigationTarget(actor: EnemyActorContext, target: GridPoint): readonly GameEvent[] {
@@ -207,17 +195,16 @@ function investigateTarget(actor: EnemyActorContext, target: GridPoint, steps: n
   }
 
   for (let step = 0; step < steps; step++) {
-    if (!tryMoveEnemyTowardPosition(target, entity, gridPos, facing, markers, context.spatial)) break;
+    if (!tryMoveEnemyTowardPosition(context, target, entity, gridPos, facing, markers)) break;
     if (samePosition(entityPosition(entity, gridPos), target)) break;
   }
 
   return [];
 }
 
-function behaviorPlanFor(world: World, entity: Entity): EnemyBehaviorPlan {
+function enemyBehaviorFor(world: World, entity: Entity): EnemyBehavior {
   const archetype = enemyArchetypeFor(world, entity);
-  const behavior = archetype === undefined ? DEFAULT_ENEMY_BEHAVIOR : enemyCatalogEntry(archetype).behavior;
-  return BEHAVIOR_PLANS[behavior];
+  return archetype === undefined ? DEFAULT_ENEMY_BEHAVIOR : enemyCatalogEntry(archetype).behavior;
 }
 
 function attackPlayerIfPossible(
@@ -231,7 +218,7 @@ function attackPlayerIfPossible(
   const attack = entityAttack(world, entity);
   if (attack !== undefined) {
     if (attack.requiresFacing === AttackFacingRequirement.Required) {
-      faceEntityToward(entity, player.getPosition(), gridPos, facing, markers);
+      faceEntityToward(entity, playerPosition(context), gridPos, facing, markers);
     }
 
     const targets = attackTargets(
@@ -239,7 +226,7 @@ function attackPlayerIfPossible(
       entity,
       attack,
       spatial,
-      (candidate) => candidate === player.getEntity(),
+      (candidate) => candidate === player,
     );
     if (targets.length > 0) {
       const events: GameEvent[] = [];
@@ -254,41 +241,36 @@ function attackPlayerIfPossible(
 }
 
 function tryMoveEnemyTowardPlayer(
-  player: Player,
+  context: EnemyTurnContext,
   entity: Entity,
   gridPos: GridPosPartitions,
   facing: FacingPartitions,
   markers: EnemyMutationMarkers,
-  spatial: SpatialLookup & Pick<SpatialMutations, "moveEntity">,
 ): boolean {
-  return tryMoveEnemyTowardPosition(player.getPosition(), entity, gridPos, facing, markers, spatial);
+  return tryMoveEnemyTowardPosition(context, playerPosition(context), entity, gridPos, facing, markers);
 }
 
 function tryMoveEnemyTowardPosition(
+  context: EnemyTurnContext,
   target: GridPoint,
   entity: Entity,
   gridPos: GridPosPartitions,
   facing: FacingPartitions,
   markers: EnemyMutationMarkers,
-  spatial: SpatialLookup & Pick<SpatialMutations, "moveEntity">,
 ): boolean {
   const current = entityPosition(entity, gridPos);
-  const stepX = Math.sign(target.x - current.x);
-  const stepY = Math.sign(target.y - current.y);
-  const candidates = enemyMoveCandidates(
-    { dx: stepX, dy: 0 },
-    { dx: 0, dy: stepY },
-    Math.abs(target.x - current.x),
-    Math.abs(target.y - current.y),
-  );
-
-  for (const delta of candidates) {
-    const nextX = current.x + delta.dx;
-    const nextY = current.y + delta.dy;
-    if (spatial.positionBlocks(nextX, nextY)) continue;
-
-    spatial.moveEntity(entity, { x: nextX, y: nextY });
-    setFacingDirection(entity, facing, markers, directionForStep(delta));
+  const next = context.spatial.nextStepToward(current, target);
+  if (next !== undefined) {
+    context.spatial.moveEntity(entity, next);
+    setFacingDirection(
+      entity,
+      facing,
+      markers,
+      directionForStep({
+        dx: next.x - current.x,
+        dy: next.y - current.y,
+      }),
+    );
     return true;
   }
 
@@ -297,24 +279,20 @@ function tryMoveEnemyTowardPosition(
 }
 
 function tryMoveEnemyAwayFromPlayer(
-  player: Player,
+  context: EnemyTurnContext,
   entity: Entity,
   gridPos: GridPosPartitions,
   facing: FacingPartitions,
   markers: EnemyMutationMarkers,
   spatial: SpatialLookup & Pick<SpatialMutations, "moveEntity">,
 ): boolean {
-  const playerPosition = player.getPosition();
+  const playerPosition = playerPositionFor(context);
   const current = entityPosition(entity, gridPos);
   const currentDistance = manhattanDistance(current, playerPosition);
   const awayX = Math.sign(current.x - playerPosition.x);
   const awayY = Math.sign(current.y - playerPosition.y);
-  const preferred = enemyMoveCandidates(
-    { dx: awayX, dy: 0 },
-    { dx: 0, dy: awayY },
-    Math.abs(current.x - playerPosition.x),
-    Math.abs(current.y - playerPosition.y),
-  );
+  const horizontalDistance = Math.abs(current.x - playerPosition.x);
+  const verticalDistance = Math.abs(current.y - playerPosition.y);
   let best:
     | {
       readonly delta: GridDelta;
@@ -333,7 +311,7 @@ function tryMoveEnemyAwayFromPlayer(
 
     const distance = manhattanDistance({ x, y }, playerPosition);
     if (distance <= currentDistance) continue;
-    const priority = movePriority(delta, preferred, index);
+    const priority = movePriority(delta, awayX, awayY, horizontalDistance, verticalDistance, index);
     if (
       best === undefined ||
       distance > best.distance ||
@@ -349,30 +327,24 @@ function tryMoveEnemyAwayFromPlayer(
   return true;
 }
 
-function enemyMoveCandidates(
-  horizontal: GridDelta,
-  vertical: GridDelta,
+function movePriority(
+  delta: GridDelta,
+  preferredDx: number,
+  preferredDy: number,
   horizontalDistance: number,
   verticalDistance: number,
-): readonly GridDelta[] {
-  const candidates: GridDelta[] = [];
+  cardinalIndex: number,
+): number {
+  const horizontalPreferred = preferredDx !== 0 && delta.dx === preferredDx && delta.dy === 0;
+  const verticalPreferred = preferredDy !== 0 && delta.dy === preferredDy && delta.dx === 0;
   if (horizontalDistance >= verticalDistance) {
-    if (horizontal.dx !== 0) candidates.push(horizontal);
-    if (vertical.dy !== 0) candidates.push(vertical);
-  } else {
-    if (vertical.dy !== 0) candidates.push(vertical);
-    if (horizontal.dx !== 0) candidates.push(horizontal);
+    if (horizontalPreferred) return 0;
+    if (verticalPreferred) return preferredDx === 0 ? 0 : 1;
+    return (preferredDx === 0 || preferredDy === 0 ? 1 : 2) + cardinalIndex;
   }
-  return candidates;
-}
-
-function movePriority(delta: GridDelta, preferred: readonly GridDelta[], cardinalIndex: number): number {
-  const preferredIndex = preferred.findIndex((candidate) => sameDelta(candidate, delta));
-  return preferredIndex === -1 ? preferred.length + cardinalIndex : preferredIndex;
-}
-
-function sameDelta(a: GridDelta, b: GridDelta): boolean {
-  return a.dx === b.dx && a.dy === b.dy;
+  if (verticalPreferred) return 0;
+  if (horizontalPreferred) return preferredDy === 0 ? 0 : 1;
+  return (preferredDx === 0 || preferredDy === 0 ? 1 : 2) + cardinalIndex;
 }
 
 function faceEntityToward(
@@ -412,8 +384,8 @@ function directionForStep(delta: GridDelta): CardinalDirection {
   return Direction.North;
 }
 
-function distanceToPlayer(player: Player, entity: Entity, gridPos: GridPosPartitions): number {
-  return manhattanDistance(entityPosition(entity, gridPos), player.getPosition());
+function distanceToPlayer(context: EnemyTurnContext, entity: Entity, gridPos: GridPosPartitions): number {
+  return manhattanDistance(entityPosition(entity, gridPos), playerPosition(context));
 }
 
 function entityPosition(entity: Entity, gridPos: GridPosPartitions): { readonly x: number; readonly y: number } {
@@ -431,7 +403,7 @@ type AwarenessResult =
 function updateEnemyAwareness(actor: EnemyActorContext): AwarenessResult {
   const { context, entity, gridPos, facing, enemyAwareness } = actor;
   const position = entityPosition(entity, gridPos);
-  const playerPosition = context.player.getPosition();
+  const playerPosition = playerPositionFor(context);
   const blocksSight = context.blocksSight ?? ((x, y) => context.spatial.tileBlocksSight(x, y));
 
   if (
@@ -477,6 +449,14 @@ function updateEnemyAwareness(actor: EnemyActorContext): AwarenessResult {
 
   setEnemyAwareness(entity, enemyAwareness, actor.markers, IDLE_AWARENESS);
   return { state: AwarenessState.Idle };
+}
+
+function playerPosition(context: EnemyTurnContext): GridPoint {
+  return playerPositionFor(context);
+}
+
+function playerPositionFor(context: EnemyTurnContext): GridPoint {
+  return context.world.components.getEntityData(GridPos, context.player);
 }
 
 function nearestHeardNoise(position: GridPoint, noises: readonly NoiseStimulus[]): NoiseStimulus | undefined {

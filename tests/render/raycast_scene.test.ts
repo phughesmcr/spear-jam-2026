@@ -377,7 +377,7 @@ Deno.test("renderFrame stops rays at opaque thin walls (doors)", () => {
 
   // Door plane sits at x = 2.5, one tile ahead of the camera.
   assertAlmostEquals(frame.zbuffer[CENTER]!, 1, 1e-9);
-  assertEquals(pixel(frame, CENTER, CENTER), texel(atlas, "walls", DOOR, 0));
+  assertEquals(pixel(frame, CENTER, CENTER), texel(atlas, "walls", DOOR, 1));
 });
 
 Deno.test("addSolidWall stops rays at the near cell face like a full wall", () => {
@@ -531,7 +531,7 @@ Deno.test("renderFrame draws see-through thin walls without stopping rays", () =
   // The centre column crosses the grate's transparent half: wall shows through.
   assertEquals(pixel(frame, CENTER, CENTER), texel(atlas, "walls", WALL, 2));
   // A column just left of centre crosses the opaque half of the grate texture.
-  const grateTexel = atlas.walls[GRATE]!.mips[0]!.bands[0]![0]!;
+  const grateTexel = atlas.walls[GRATE]!.mips[0]!.bands[1]![0]!;
   assertEquals(pixel(frame, CENTER - (CENTER >> 2), CENTER), grateTexel);
 });
 
@@ -542,14 +542,14 @@ Deno.test("renderFrame draws sprites in front of walls and occludes behind doors
   const frame = createFrame(VIEW, VIEW);
 
   renderFrame(frame, scene, atlas, CAMERA);
-  assertEquals(pixel(frame, CENTER, CENTER), texel(atlas, "sprites", SPRITE, 0));
+  assertEquals(pixel(frame, CENTER, CENTER), texel(atlas, "sprites", SPRITE, 1));
 
   // A closed door in front of the sprite occludes it via the depth buffer.
   clearSceneDynamic(scene);
   addThinWall(scene, 2, 1, DOOR, THIN_AXIS_X);
   addSprite(scene, 3.5, 1.5, SPRITE, 1);
   renderFrame(frame, scene, atlas, CAMERA);
-  assertEquals(pixel(frame, CENTER, CENTER), texel(atlas, "walls", DOOR, 0));
+  assertEquals(pixel(frame, CENTER, CENTER), texel(atlas, "walls", DOOR, 1));
 });
 
 Deno.test("renderFrame boosts sprite lightmap pixels under tile lighting", () => {
@@ -578,8 +578,8 @@ Deno.test("renderFrame preserves non-square sprite billboard dimensions", () => 
 
   renderFrame(frame, scene, atlas, CAMERA);
 
-  assertEquals(pixel(frame, CENTER, CENTER), texel(atlas, "sprites", SPRITE, 0));
-  assertNotEquals(pixel(frame, CENTER - 13, CENTER), texel(atlas, "sprites", SPRITE, 0));
+  assertEquals(pixel(frame, CENTER, CENTER), texel(atlas, "sprites", SPRITE, 1));
+  assertNotEquals(pixel(frame, CENTER - 13, CENTER), texel(atlas, "sprites", SPRITE, 1));
 });
 
 Deno.test("a horizontally sliding door passes rays through the gap", () => {
@@ -606,7 +606,7 @@ Deno.test("a horizontally sliding door still stops rays that hit the slab", () =
   renderFrame(frame, scene, atlas, CAMERA);
 
   assertAlmostEquals(frame.zbuffer[CENTER]!, 1, 1e-9);
-  assertEquals(pixel(frame, CENTER, CENTER), texel(atlas, "walls", DOOR, 0));
+  assertEquals(pixel(frame, CENTER, CENTER), texel(atlas, "walls", DOOR, 1));
 });
 
 Deno.test("a rising door draws the slab on top and the wall behind below", () => {
@@ -620,7 +620,7 @@ Deno.test("a rising door draws the slab on top and the wall behind below", () =>
   // The ray passes under the half-risen slab and registers the end wall.
   assertAlmostEquals(frame.zbuffer[CENTER]!, 2.5, 1e-9);
   // Upper half of the doorway: the slab. Below it: the wall behind.
-  assertEquals(pixel(frame, CENTER, CENTER - (CENTER >> 2)), texel(atlas, "walls", DOOR, 0));
+  assertEquals(pixel(frame, CENTER, CENTER - (CENTER >> 2)), texel(atlas, "walls", DOOR, 1));
   assertEquals(pixel(frame, CENTER, CENTER + (CENTER >> 3)), texel(atlas, "walls", WALL, 2));
 });
 

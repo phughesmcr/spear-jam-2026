@@ -63,6 +63,14 @@ Deno.test("map validation requires exactly one player spawn", () => {
   );
 });
 
+Deno.test("map validation rejects overlapping blocking entities", () => {
+  const issues = validateGameMaps([createGameMap("Overlapping Blockers", [[0]], [
+    { prefab: "player", x: 0, y: 0, dir: 1 },
+    { prefab: "enemy", x: 0, y: 0, dir: 3 },
+  ])]);
+  assert(issues.includes("Overlapping Blockers: enemy at (0,0) overlaps blocking player."));
+});
+
 function terrainTextures(tile: TerrainTile): readonly string[] {
   if (tile.kind === "wall") return tile.wall_texture === undefined ? [] : [tile.wall_texture];
   return [tile.floor_texture, tile.ceiling_texture];

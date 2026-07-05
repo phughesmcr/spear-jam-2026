@@ -31,7 +31,12 @@ export type ItemPickup =
 export type PlayerInteractionResult =
   | { readonly type: "unchanged"; readonly events: readonly GameEvent[] }
   | { readonly type: "consumeTurn"; readonly events: readonly GameEvent[] }
-  | { readonly type: "dialogue"; readonly dialogue: DialogueState; readonly events: readonly GameEvent[] }
+  | {
+    readonly type: "dialogue";
+    readonly target: Entity;
+    readonly dialogue: DialogueState;
+    readonly events: readonly GameEvent[];
+  }
   | { readonly type: "uplinkTerminal"; readonly terminal: Entity; readonly events: readonly GameEvent[] };
 
 const UNCHANGED_INTERACTION: PlayerInteractionResult = Object.freeze({ type: "unchanged", events: [] });
@@ -193,6 +198,7 @@ function interactWithNpc(world: World, npc: Entity): PlayerInteractionResult {
   const displayNameLabel = displayNameText(displayName);
   return {
     type: "dialogue",
+    target: npc,
     events: [],
     dialogue: npcDialogueState(world, npc, displayNameLabel, displayName),
   };

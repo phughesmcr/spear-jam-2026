@@ -40,7 +40,7 @@ export type PlayerStateInput = {
   readonly selectedWeapon?: CommandSlot;
   readonly unlockedWeapons?: readonly CommandSlot[];
   readonly ammo?: Partial<PlayerAmmoState>;
-  readonly health?: Partial<PlayerHealthState>;
+  readonly health?: PlayerHealthState;
   readonly hasUplinkCode?: boolean;
   readonly progress?: Partial<PlayerProgressState>;
   readonly turnEffects?: readonly TurnEffectState[];
@@ -56,6 +56,8 @@ export type DialogueState = {
   /** Tree that resolves choice "next" links; absent for one-off dialogues that always close. */
   readonly treeKey?: string;
 };
+
+export type TargetMarkerTone = "danger" | "locked" | "loot" | "use";
 
 export type GameMode =
   | { readonly type: "loading" }

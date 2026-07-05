@@ -28,7 +28,3 @@ export function directionDelta(dir: number): GridDelta {
 export function manhattanDistance(a: GridPoint, b: GridPoint): number {
   return Math.abs(a.x - b.x) + Math.abs(a.y - b.y);
 }
-
-export function distanceSquared(a: GridPoint, b: GridPoint): number {
-  return (a.x - b.x) ** 2 + (a.y - b.y) ** 2;
-}

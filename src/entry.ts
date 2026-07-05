@@ -175,15 +175,15 @@ class Game implements Disposable {
   private handlePlayerCommand(command: PlayerCommand): void {
     if (!this.session) return;
 
-    const playerEntity = this.session.player.getEntity();
-    const moveFrom = command.type === "move" ? this.session.player.getPosition() : undefined;
+    const playerEntity = this.session.playerEntity;
+    const moveFrom = command.type === "move" ? this.session.getPlayerPosition() : undefined;
     const result = this.session.handlePlayerCommand(command);
     if (command.type === "move" && moveFrom !== undefined) {
-      const position = this.session.player.getPosition();
+      const position = this.session.getPlayerPosition();
       if (position.x === moveFrom.x && position.y === moveFrom.y) {
         // The move was blocked: play a recoil lunge toward the obstacle.
         const worldDir = normalizeDirection(
-          this.session.player.getFacing().dir + relativeMoveDirectionOffset(command.direction),
+          this.session.getPlayerFacing().dir + relativeMoveDirectionOffset(command.direction),
         );
         const delta = directionDelta(worldDir);
         this.firstPersonRenderer.bump(delta.dx, delta.dy);

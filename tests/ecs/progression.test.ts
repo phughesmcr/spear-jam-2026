@@ -74,6 +74,13 @@ Deno.test("player progression starts from a normalized selected weapon", async (
   assertEquals(playerStateSnapshotFor(world, player).unlockedWeapons, [1, 2]);
 });
 
+Deno.test("player progression clamps imported health to a valid ECS state", async () => {
+  const world = await createWorld();
+  const player = createEntity(world);
+  initializePlayerProgression(world, player, { health: { current: 12, max: 5 } });
+  assertEquals(world.components.getEntityData(Health, player), { current: 5, max: 5 });
+});
+
 Deno.test("player progression tracks weapons and ammo in ECS components", async () => {
   const world = await createWorld();
   const player = createEntity(world);

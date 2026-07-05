@@ -32,6 +32,7 @@ Deno.test("interactWithEntity applies default verbs for doors, NPCs, and termina
   });
   assertEquals(interactWithEntity(world, spatial, npc, new Set(), false), {
     type: "dialogue",
+    target: npc,
     events: [],
     dialogue: {
       title: "John",

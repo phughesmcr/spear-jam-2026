@@ -1,11 +1,5 @@
-import { compileTiledMap } from "@/src/map/authoring/mod.ts";
-import type {
-  CompiledTiledMap,
-  TiledMap,
-  TiledProperty,
-  TiledTemplate,
-  TiledTileset,
-} from "@/src/map/authoring/mod.ts";
+import { compileTiledMap } from "@/src/map/authoring/compile.ts";
+import type { CompiledTiledMap } from "@/src/map/authoring/compile.ts";
 import {
   AUTHORING_TILE_SIZE,
   AUTOMAP_DIR,
@@ -47,6 +41,7 @@ import {
   wallTilesetReference,
 } from "@/src/map/authoring/catalog.ts";
 import type { TiledProjectCommand } from "@/src/map/authoring/catalog.ts";
+import type { TiledMap, TiledProperty, TiledTemplate, TiledTileset } from "@/src/map/authoring/tiled_types.ts";
 import { BarrierTexture } from "@/src/map/map.ts";
 import type { EntityDef, TerrainTile, TexturePackRef } from "@/src/map/map.ts";
 import { PALETTE_KEYS, TERRAIN_CATALOG } from "@/src/map/terrain_palettes.ts";

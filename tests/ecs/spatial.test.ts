@@ -1,6 +1,5 @@
 import { assertEquals, assertThrows } from "@std/assert";
 import { Blocking, Door, Facing, GridPos, Interactable, Item, ItemKind } from "@/src/ecs/components.ts";
-import { Player } from "@/src/ecs/player.ts";
 import { SpatialIndex } from "@/src/ecs/spatial.ts";
 import { createWorld } from "@/src/ecs/world.ts";
 import { KeyColor, keyColorCode } from "@/src/map/map.ts";
@@ -29,7 +28,7 @@ Deno.test("SpatialIndex indexes blocking entities, items, and faced entities", a
   assertEquals(spatial.blockingEntityAt(2, 1), door);
   assertEquals(spatial.positionBlocks(2, 1), true);
   assertEquals(spatial.itemAt(3, 1), key);
-  assertEquals(spatial.facedEntity(new Player(world, player)), door);
+  assertEquals(spatial.facedEntity({ x: 1, y: 1 }, 1), door);
 });
 
 Deno.test("SpatialIndex keeps its index current when entities move or are removed", async () => {
@@ -55,7 +54,7 @@ Deno.test("SpatialIndex keeps its index current when entities move or are remove
   assertEquals(spatial.itemAt(2, 1), undefined);
 });
 
-Deno.test("SpatialIndex reads current ECS positions instead of cached entity occupancy", async () => {
+Deno.test("SpatialIndex owns occupancy after construction", async () => {
   const world = await createWorld();
   const actor = createEntity(world);
 
@@ -67,11 +66,11 @@ Deno.test("SpatialIndex reads current ECS positions instead of cached entity occ
 
   world.components.setEntityData(GridPos, actor, { x: 2, y: 1 });
 
-  assertEquals(spatial.blockingEntityAt(1, 1), undefined);
-  assertEquals(spatial.blockingEntityAt(2, 1), actor);
+  assertEquals(spatial.blockingEntityAt(1, 1), actor);
+  assertEquals(spatial.blockingEntityAt(2, 1), undefined);
 });
 
-Deno.test("SpatialIndex reads current ECS removals instead of cached entity occupancy", async () => {
+Deno.test("SpatialIndex owns removals after construction", async () => {
   const world = await createWorld();
   const player = createEntity(world);
   const key = createEntity(world);
@@ -86,10 +85,10 @@ Deno.test("SpatialIndex reads current ECS removals instead of cached entity occu
 
   world.entities.destroy(key);
 
-  assertEquals(spatial.facedEntity(new Player(world, player)), undefined);
+  assertEquals(spatial.facedEntity({ x: 1, y: 1 }, 1), key);
 });
 
-Deno.test("SpatialIndex tracks co-located blocking entities individually", async () => {
+Deno.test("SpatialIndex rejects co-located blocking entities", async () => {
   const world = await createWorld();
   const first = createEntity(world);
   const second = createEntity(world);
@@ -100,19 +99,7 @@ Deno.test("SpatialIndex tracks co-located blocking entities individually", async
   world.components.addToEntity(Blocking, second);
   world.refresh();
 
-  const spatial = new SpatialIndex(world, TEST_MAP);
-
-  const found = spatial.blockingEntityAt(1, 1);
-  assertEquals(found === first || found === second, true);
-
-  spatial.removeEntity(found!);
-  const remaining = found === first ? second : first;
-  assertEquals(spatial.blockingEntityAt(1, 1), remaining);
-  assertEquals(spatial.positionBlocks(1, 1), true);
-
-  spatial.removeEntity(remaining);
-  assertEquals(spatial.blockingEntityAt(1, 1), undefined);
-  assertEquals(spatial.positionBlocks(1, 1), false);
+  assertThrows(() => new SpatialIndex(world, TEST_MAP), Error, "Duplicate blocking occupancy");
 });
 
 Deno.test("SpatialIndex rejects moves to tiles outside the map", async () => {

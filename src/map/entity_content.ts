@@ -29,8 +29,10 @@ import { type DoorSlide, KeyColor, type KeyColor as KeyColorType } from "@/src/m
 const DOOR_SLIDES = ["north", "east", "south", "west", "up", "down"] as const satisfies readonly DoorSlide[];
 
 const INTEGER_SCHEMA = z.number().int();
+const UINT8_SCHEMA = INTEGER_SCHEMA.min(0).max(255);
+const INT8_SCHEMA = INTEGER_SCHEMA.min(-128).max(127);
+const UINT16_SCHEMA = INTEGER_SCHEMA.min(0).max(65535);
 const NON_NEGATIVE_INTEGER_SCHEMA = INTEGER_SCHEMA.nonnegative();
-const POSITIVE_INTEGER_SCHEMA = INTEGER_SCHEMA.positive();
 const DIRECTION_SCHEMA = INTEGER_SCHEMA.min(0).max(3);
 const KEY_COLOR_SCHEMA = z.enum([KeyColor.Red, KeyColor.Blue, KeyColor.Yellow]) satisfies z.ZodType<KeyColorType>;
 const DOOR_SLIDE_SCHEMA = z.enum(DOOR_SLIDES);
@@ -44,7 +46,8 @@ const DIALOGUE_TREE_ID_SCHEMA = numberEnumSchema<DialogueTreeIdType>(
 );
 const ENEMY_ARCHETYPE_SCHEMA = numberEnumSchema<EnemyArchetypeType>(Object.values(EnemyArchetype), "archetype");
 const EXAMINE_TEXT_ID_SCHEMA = numberEnumSchema<ExamineTextIdType>(Object.values(ExamineTextId), "examineTextId");
-const ITEM_KIND_SCHEMA = numberEnumSchema<ItemKindType>(Object.values(ItemKind), "item");
+const GENERIC_ITEM_KINDS = [ItemKind.HealthPatch, ItemKind.PistolAmmo, ItemKind.CannonAmmo] as const;
+const ITEM_KIND_SCHEMA = numberEnumSchema<ItemKindType>(GENERIC_ITEM_KINDS, "item");
 const DECORATION_KIND_SCHEMA = numberEnumSchema<DecorationKindType>(Object.values(DecorationKind), "decoration");
 const ATTACK_FACING_REQUIREMENT_SCHEMA = numberEnumSchema<AttackFacingRequirementType>(
   Object.values(AttackFacingRequirement),
@@ -57,13 +60,13 @@ const ATTACK_TARGET_MODE_SCHEMA = numberEnumSchema<AttackTargetModeType>(
 );
 
 const ATTACK_SCHEMA = z.object({
-  minDamage: POSITIVE_INTEGER_SCHEMA.optional(),
-  maxDamage: POSITIVE_INTEGER_SCHEMA.optional(),
-  range: POSITIVE_INTEGER_SCHEMA.optional(),
+  minDamage: UINT8_SCHEMA.min(1).optional(),
+  maxDamage: UINT8_SCHEMA.min(1).optional(),
+  range: UINT8_SCHEMA.min(1).optional(),
   requiresFacing: ATTACK_FACING_REQUIREMENT_SCHEMA.optional(),
-  attackBonus: INTEGER_SCHEMA.optional(),
-  critThreshold: POSITIVE_INTEGER_SCHEMA.optional(),
-  critMultiplier: POSITIVE_INTEGER_SCHEMA.optional(),
+  attackBonus: INT8_SCHEMA.optional(),
+  critThreshold: UINT8_SCHEMA.min(1).optional(),
+  critMultiplier: UINT8_SCHEMA.min(1).optional(),
   pattern: ATTACK_PATTERN_SCHEMA.optional(),
   targets: ATTACK_TARGET_MODE_SCHEMA.optional(),
 }).strict() satisfies z.ZodType<Partial<AttackDef>>;
@@ -115,9 +118,9 @@ const ENTITY_DEFINITIONS = [
       dir: DIRECTION_SCHEMA,
       displayName: DISPLAY_NAME_SCHEMA.optional(),
       archetype: ENEMY_ARCHETYPE_SCHEMA.optional(),
-      health: POSITIVE_INTEGER_SCHEMA.optional(),
-      hitDc: POSITIVE_INTEGER_SCHEMA.optional(),
-      damage: POSITIVE_INTEGER_SCHEMA.optional(),
+      health: UINT8_SCHEMA.min(1).optional(),
+      hitDc: UINT8_SCHEMA.min(1).optional(),
+      damage: UINT8_SCHEMA.min(1).optional(),
       attack: ATTACK_SCHEMA.optional(),
       examineTextId: EXAMINE_TEXT_ID_SCHEMA.optional(),
     },
@@ -126,7 +129,7 @@ const ENTITY_DEFINITIONS = [
     locked: z.boolean().optional(),
     color: KEY_COLOR_SCHEMA.optional(),
     slide: DOOR_SLIDE_SCHEMA.optional(),
-    openMs: POSITIVE_INTEGER_SCHEMA.optional(),
+    openMs: UINT16_SCHEMA.min(1).optional(),
     secret: z.boolean().optional(),
     examineTextId: EXAMINE_TEXT_ID_SCHEMA.optional(),
   }),
@@ -143,14 +146,14 @@ const ENTITY_DEFINITIONS = [
   }),
   entityDefinition("item", ["prefab", "item", "amount"], {
     item: ITEM_KIND_SCHEMA,
-    amount: POSITIVE_INTEGER_SCHEMA,
+    amount: UINT8_SCHEMA.min(1),
   }),
   entityDefinition("decoration", ["prefab", "decoration"], {
     decoration: DECORATION_KIND_SCHEMA,
   }),
   entityDefinition("light", ["prefab", "color", "radius", "flickerAmount", "flickerSpeed"], {
     color: LIGHT_COLOR_SCHEMA,
-    radius: POSITIVE_INTEGER_SCHEMA,
+    radius: UINT8_SCHEMA.min(1),
     flickerAmount: z.number().min(0).max(1).optional(),
     flickerSpeed: z.number().positive().optional(),
   }),

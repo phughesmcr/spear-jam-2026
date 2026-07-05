@@ -35,6 +35,7 @@ import type { KeyColor as KeyColorType } from "@/src/map/map.ts";
 
 const ENEMY_DEFEAT_CREDITS = 10;
 const DEFAULT_PLAYER_WEAPON: CommandSlot = 1;
+const MAX_PLAYER_HEALTH = 255;
 
 export const DEFAULT_PLAYER_HEALTH: PlayerHealthState = {
   current: 10,
@@ -313,7 +314,7 @@ function applyHealthPatch(
   amount: number,
 ): readonly GameEvent[] {
   const health = healthFor(world, playerEntity);
-  const healed = health === undefined ? 0 : Math.min(amount, health.max - health.current);
+  const healed = health === undefined ? 0 : Math.min(amount, Math.max(0, health.max - health.current));
   if (health !== undefined && healed > 0) {
     world.components.setEntityData(Health, playerEntity, { current: health.current + healed });
   }
@@ -342,10 +343,17 @@ function playerTurnEffectsFor(world: World, playerEntity: Entity): PlayerTurnEff
 }
 
 function healthForInput(input: PlayerStateInput): HealthSchema {
+  if (input.health === undefined) return DEFAULT_PLAYER_HEALTH;
+
+  const max = normalizeHealthValue(input.health.max, DEFAULT_PLAYER_HEALTH.max);
   return {
-    current: input.health?.current ?? DEFAULT_PLAYER_HEALTH.current,
-    max: input.health?.max ?? DEFAULT_PLAYER_HEALTH.max,
+    current: Math.min(normalizeHealthValue(input.health.current, max), max),
+    max,
   };
+}
+
+function normalizeHealthValue(value: number, fallback: number): number {
+  return Number.isFinite(value) ? Math.min(MAX_PLAYER_HEALTH, Math.max(0, Math.trunc(value))) : fallback;
 }
 
 function inventoryForInput(input: PlayerStateInput): PlayerInventorySchema {

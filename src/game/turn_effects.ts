@@ -18,56 +18,20 @@ const TURN_EFFECT_ORDER: readonly TurnEffectKind[] = [
   TurnEffectKind.HealthRegen,
 ];
 
-export class TurnEffects {
-  private readonly remainingTurnsByKind = new Map<TurnEffectKind, number>();
-
-  constructor(effects: readonly TurnEffectState[] = []) {
-    for (const effect of effects) {
-      this.refresh(effect.kind, effect.remainingTurns);
-    }
-  }
-
-  getState(): readonly TurnEffectState[] {
-    const effects: TurnEffectState[] = [];
-    for (const kind of TURN_EFFECT_ORDER) {
-      const remainingTurns = this.remainingTurnsByKind.get(kind);
-      if (remainingTurns !== undefined) effects.push({ kind, remainingTurns });
-    }
-    return effects;
-  }
-
-  has(kind: TurnEffectKind): boolean {
-    return this.remainingTurnsByKind.has(kind);
-  }
-
-  remainingTurns(kind: TurnEffectKind): number {
-    return this.remainingTurnsByKind.get(kind) ?? 0;
-  }
-
-  refresh(kind: TurnEffectKind, remainingTurns: number): void {
-    const normalizedTurns = normalizeRemainingTurns(remainingTurns);
-    if (normalizedTurns <= 0) return;
-
-    this.remainingTurnsByKind.set(kind, Math.max(this.remainingTurns(kind), normalizedTurns));
-  }
-
-  tick(): void {
-    for (const kind of TURN_EFFECT_ORDER) {
-      const remainingTurns = this.remainingTurnsByKind.get(kind);
-      if (remainingTurns === undefined) continue;
-
-      const nextTurns = remainingTurns - 1;
-      if (nextTurns <= 0) {
-        this.remainingTurnsByKind.delete(kind);
-      } else {
-        this.remainingTurnsByKind.set(kind, nextTurns);
-      }
-    }
-  }
-}
-
 export function normalizeTurnEffects(effects: readonly TurnEffectState[] = []): readonly TurnEffectState[] {
-  return new TurnEffects(effects).getState();
+  const remainingTurnsByKind = new Map<TurnEffectKind, number>();
+  for (const effect of effects) {
+    const remainingTurns = normalizeRemainingTurns(effect.remainingTurns);
+    if (remainingTurns <= 0) continue;
+    remainingTurnsByKind.set(effect.kind, Math.max(remainingTurnsByKind.get(effect.kind) ?? 0, remainingTurns));
+  }
+
+  const normalized: TurnEffectState[] = [];
+  for (const kind of TURN_EFFECT_ORDER) {
+    const remainingTurns = remainingTurnsByKind.get(kind);
+    if (remainingTurns !== undefined) normalized.push({ kind, remainingTurns });
+  }
+  return normalized;
 }
 
 function normalizeRemainingTurns(remainingTurns: number): number {

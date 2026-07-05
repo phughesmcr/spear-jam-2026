@@ -1,5 +1,4 @@
 import type { GameCommand } from "@/src/game/commands.ts";
-import Keyboard from "@/src/input/keyboard.ts";
 import Pointer from "@/src/input/pointer.ts";
 import type { CanvasPointerInput } from "@/src/input/pointer.ts";
 import TouchGestures, { windowTouchGestureScheduler } from "@/src/input/touch_gestures.ts";
@@ -26,21 +25,47 @@ const COMMANDS_BY_KEY = {
   Digit2: { type: "selectWeapon", slot: 2 },
   Digit3: { type: "selectWeapon", slot: 3 },
 } satisfies Readonly<Record<string, GameCommand>>;
+type CommandKey = keyof typeof COMMANDS_BY_KEY;
 
+const KEY_EVENTS = ["keydown", "keyup"] as const;
 const POINTER_PHASES = ["move", "down", "up", "cancel"] as const;
 
 export function setupKeyboard(window: Window, receiver: GameCommandReceiver): Disposable {
-  const input = new Keyboard(window);
+  const keyStates = new Map<string, boolean>();
 
-  for (const [keyCode, command] of Object.entries(COMMANDS_BY_KEY)) {
-    input.addMapping(keyCode, (keyState) => {
-      if (keyState) {
-        receiver(command);
-      }
-    });
+  function clearKeyStates(): void {
+    keyStates.clear();
   }
 
-  return input;
+  function handleKeyboardEvent(event: KeyboardEvent): void {
+    if (!isCommandKey(event.code)) return;
+
+    const command = COMMANDS_BY_KEY[event.code];
+
+    event.preventDefault();
+    const keyState = event.type === "keydown";
+    if (keyStates.get(event.code) === keyState) return;
+
+    keyStates.set(event.code, keyState);
+    if (keyState) receiver(command);
+  }
+
+  for (const eventName of KEY_EVENTS) window.addEventListener(eventName, handleKeyboardEvent);
+  window.addEventListener("blur", clearKeyStates);
+  window.document.addEventListener("visibilitychange", clearKeyStates);
+
+  return {
+    [Symbol.dispose]() {
+      for (const eventName of KEY_EVENTS) window.removeEventListener(eventName, handleKeyboardEvent);
+      window.removeEventListener("blur", clearKeyStates);
+      window.document.removeEventListener("visibilitychange", clearKeyStates);
+      keyStates.clear();
+    },
+  };
+}
+
+function isCommandKey(code: string): code is CommandKey {
+  return code in COMMANDS_BY_KEY;
 }
 
 export function setupPointer(

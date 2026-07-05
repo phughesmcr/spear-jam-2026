@@ -77,9 +77,6 @@ const ITEM_KINDS: Readonly<Record<string, ItemKindType>> = {
   healthPatch: ItemKind.HealthPatch,
   pistolAmmo: ItemKind.PistolAmmo,
   cannonAmmo: ItemKind.CannonAmmo,
-  key: ItemKind.Key,
-  uplinkCode: ItemKind.UplinkCode,
-  weapon: ItemKind.Weapon,
 };
 
 const DECORATION_KINDS: Readonly<Record<string, DecorationKindType>> = {

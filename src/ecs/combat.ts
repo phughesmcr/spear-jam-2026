@@ -15,7 +15,6 @@ import {
 } from "@/src/ecs/components.ts";
 import type { AttackSchema } from "@/src/ecs/components.ts";
 import type { SpriteId } from "@/src/ecs/components.ts";
-import type { Player } from "@/src/ecs/player.ts";
 import { createDeathEffect } from "@/src/ecs/prefabs.ts";
 import type { SpatialAccess, SpatialLookup, SpatialMutations } from "@/src/ecs/spatial.ts";
 import { CARDINAL_DELTAS, directionDelta } from "@/src/grid/direction.ts";
@@ -88,7 +87,7 @@ export function weaponNoiseRadius(slot: CommandSlot): number {
 
 export function attackWithSelectedWeapon(
   world: World,
-  player: Player,
+  player: Entity,
   selectedWeapon: CommandSlot,
   spatial: SpatialAccess,
   random: RandomSource,
@@ -99,27 +98,27 @@ export function attackWithSelectedWeapon(
   if (targets.length === 0) {
     return [{
       type: "attackMissed",
-      actor: player.getEntity(),
-      actorName: entityName(world, player.getEntity()),
+      actor: player,
+      actorName: entityName(world, player),
     }];
   }
 
   const events: GameEvent[] = [];
   for (const target of targets) {
-    events.push(...attackEntity(world, player.getEntity(), target, weapon, random, spatial));
+    events.push(...attackEntity(world, player, target, weapon, random, spatial));
   }
   return events;
 }
 
 export function attackTargetsForSelectedWeapon(
   world: World,
-  player: Player,
+  player: Entity,
   selectedWeapon: CommandSlot,
   spatial: SpatialLookup,
 ): readonly Entity[] {
   return attackTargets(
     world,
-    player.getEntity(),
+    player,
     PLAYER_WEAPONS[selectedWeapon],
     spatial,
     (entity) => world.components.entityHas(Enemy, entity),

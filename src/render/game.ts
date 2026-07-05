@@ -14,20 +14,23 @@ import { preloadHudAssets, renderFirstPersonHud, renderHud } from "@/src/render/
 import type { FirstPersonHudOptions } from "@/src/render/hud.ts";
 import { renderMap } from "@/src/render/map.ts";
 import { renderMessageLog } from "@/src/render/messages.ts";
-import { renderOverlay } from "@/src/render/overlay.ts";
+import { monoFont } from "@/src/render/text.ts";
 import { preloadVerbMenuAssets, renderVerbMenu } from "@/src/render/verb_menu.ts";
 import { preloadWeaponHudAssets, renderWeaponHud } from "@/src/render/weapon_hud.ts";
 import type { WeaponHudPhase } from "@/src/render/weapon_hud.ts";
 
 const BACKGROUND_COLOR = "#101217";
-export const GAME_RENDER_TOP_OFFSET = 0;
+const OVERLAY_COLOR = "rgba(0, 0, 0, 0.6)";
+const OVERLAY_TITLE_COLOR = "#f3f4f6";
+const OVERLAY_SUBTITLE_COLOR = "#c9d1d9";
 
 type GameRenderRect = {
-  readonly x: number;
-  readonly y: number;
-  readonly width: number;
-  readonly height: number;
+  x: number;
+  y: number;
+  width: number;
+  height: number;
 };
+const FIRST_PERSON_PLAY_RECT: GameRenderRect = { x: 0, y: 0, width: 0, height: 0 };
 
 export async function preloadGameAssets(
   document: Document,
@@ -42,26 +45,6 @@ export async function preloadGameAssets(
     preloadCombatFeedbackAssets(document, onAssetLoad),
     preloadDialogueAssets(document, onAssetLoad),
   ]);
-}
-
-export function playCanvasSize(canvasSize: GameCanvasSize, viewMode: ViewMode): GameCanvasSize {
-  void viewMode;
-  return canvasSize;
-}
-
-export function gameRenderRect(canvasSize: GameCanvasSize, viewMode: ViewMode): GameRenderRect {
-  if (viewMode === "topDown") {
-    return { x: 0, y: 0, width: canvasSize.width, height: canvasSize.height };
-  }
-
-  const playSize = playCanvasSize(canvasSize, viewMode);
-  const y = Math.min(GAME_RENDER_TOP_OFFSET, Math.max(0, playSize.height - 1));
-  return {
-    x: 0,
-    y,
-    width: playSize.width,
-    height: Math.max(1, playSize.height - y),
-  };
 }
 
 export function renderGameFrame(
@@ -79,7 +62,6 @@ export function renderGameFrame(
 ): void {
   ctx.fillStyle = BACKGROUND_COLOR;
   ctx.fillRect(0, 0, canvasSize.width, canvasSize.height);
-  const playSize = playCanvasSize(canvasSize, viewMode);
   if (session) {
     const spritesAnimating = session.advanceSpriteAnimations(performance.now());
     const { map } = session;
@@ -87,7 +69,11 @@ export function renderGameFrame(
       if (firstPersonRenderer === undefined) {
         throw new Error("renderGameFrame requires a first-person renderer for first-person sessions.");
       }
-      const playRect = gameRenderRect(canvasSize, viewMode);
+      const playRect = FIRST_PERSON_PLAY_RECT;
+      playRect.x = 0;
+      playRect.y = 0;
+      playRect.width = canvasSize.width;
+      playRect.height = canvasSize.height;
       const playerState = session.getPlayerState();
       firstPersonRenderer.render(
         ctx,
@@ -97,15 +83,15 @@ export function renderGameFrame(
         onAssetLoad,
       );
       renderFirstPersonVignette(ctx, playRect);
-      renderWeaponHud(ctx, playSize, playerState.selectedWeapon, weaponHudPhase, onAssetLoad);
+      renderWeaponHud(ctx, canvasSize, playerState.selectedWeapon, weaponHudPhase, onAssetLoad);
       renderFirstPersonHud(
         ctx,
-        playSize,
+        canvasSize,
         playerState,
-        { ...firstPersonHud, facing: session.player.getFacing().dir },
+        { ...firstPersonHud, facing: session.getPlayerFacing().dir },
         onAssetLoad,
       );
-      renderFirstPersonCombatFeedback(ctx, playSize, combatFeedback, onAssetLoad);
+      renderFirstPersonCombatFeedback(ctx, canvasSize, combatFeedback, onAssetLoad);
     } else {
       const metrics = renderMap(ctx, canvasSize, map, session.getVisibility());
       renderDrawableEntities(ctx, session, metrics);
@@ -151,6 +137,34 @@ export function renderGameFrame(
 function scheduleRepaint(repaint: (() => void) | undefined): void {
   if (repaint === undefined || typeof requestAnimationFrame !== "function") return;
   requestAnimationFrame((): void => repaint());
+}
+
+function renderOverlay(
+  ctx: CanvasRenderingContext2D,
+  canvasSize: GameCanvasSize,
+  title: string,
+  subtitle?: string,
+): void {
+  const centerX = canvasSize.width / 2;
+  const centerY = canvasSize.height / 2;
+  const titleSize = Math.min(42, Math.max(24, Math.floor(canvasSize.width * 0.08)));
+  const subtitleSize = Math.min(24, Math.max(14, Math.floor(canvasSize.width * 0.04)));
+
+  ctx.save();
+  ctx.fillStyle = OVERLAY_COLOR;
+  ctx.fillRect(0, 0, canvasSize.width, canvasSize.height);
+  ctx.textAlign = "center";
+  ctx.textBaseline = "middle";
+  ctx.font = monoFont(700, titleSize);
+  ctx.fillStyle = OVERLAY_TITLE_COLOR;
+  ctx.fillText(title, centerX, centerY - subtitleSize);
+
+  if (subtitle) {
+    ctx.font = monoFont(400, subtitleSize);
+    ctx.fillStyle = OVERLAY_SUBTITLE_COLOR;
+    ctx.fillText(subtitle, centerX, centerY + titleSize * 0.75);
+  }
+  ctx.restore();
 }
 
 function renderFirstPersonVignette(ctx: CanvasRenderingContext2D, rect: GameRenderRect): void {

@@ -22,7 +22,7 @@ import type {
 import { SpriteAnimationKind } from "@/src/ecs/components.ts";
 import type { SpriteAnimationSchema, SpriteId as SpriteIdType } from "@/src/ecs/components.ts";
 import { type CardinalDirection, directionDelta, normalizeDirection } from "@/src/grid/direction.ts";
-import type { TargetMarkerTone } from "@/src/game/target_marker.ts";
+import type { TargetMarkerTone } from "@/src/game/state.ts";
 import {
   BarrierTexture,
   KeyColor,

@@ -6,10 +6,10 @@ import { EnemyArchetype } from "@/src/ecs/enemy_catalog.ts";
 import { ExamineTextId } from "@/src/game/examine.ts";
 import { DisplayName } from "@/src/game/names.ts";
 import { StoryEventId, StoryTargetId } from "@/src/game/story.ts";
-import { compileTiledMap } from "@/src/map/authoring/mod.ts";
+import { compileTiledMap } from "@/src/map/authoring/compile.ts";
+import type { TiledMap, TiledObject, TiledProperty, TiledTemplate } from "@/src/map/authoring/tiled_types.ts";
 import { KeyColor, VICTORY_GOTO } from "@/src/map/map.ts";
 import { DEFAULT_BARS_TERRAIN_ID, DEFAULT_WALL_TERRAIN_ID, TERRAIN_CATALOG } from "@/src/map/terrain_palettes.ts";
-import type { TiledMap, TiledObject, TiledProperty, TiledTemplate } from "@/src/map/authoring/mod.ts";
 
 const TILE_SIZE = 16;
 const TERRAIN_FIRST_GID = 17;
@@ -275,6 +275,25 @@ Deno.test("compileTiledMap applies marker defaults before object overrides", () 
   assertEquals(compiled.gameMap.entities, [
     { prefab: "item", x: 0, y: 0, item: ItemKind.CannonAmmo, amount: 9 },
   ]);
+});
+
+Deno.test("compileTiledMap rejects special pickups authored as generic items", () => {
+  const map = tiledMap({
+    objects: [
+      object({
+        type: "item",
+        x: 0,
+        y: TILE_SIZE,
+        properties: [property("item", "key"), property("amount", 1)],
+      }),
+    ],
+  });
+
+  assertThrows(
+    () => compileTiledMap(map, compileOptions()),
+    Error,
+    'Unknown item kind "key"',
+  );
 });
 
 Deno.test("compileTiledMap resolves linked object templates with instance overrides", () => {

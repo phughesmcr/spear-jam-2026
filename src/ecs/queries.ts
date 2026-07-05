@@ -9,6 +9,7 @@ import {
   Health,
   LightEmitter,
   Locked,
+  Player,
   Secret,
   Sprite,
   SpriteAnimation,
@@ -43,6 +44,11 @@ export const spriteAnimationQuery = new Query({
 /** All map-authored light emitters */
 export const lightRenderQuery = new Query({
   all: { gridPos: GridPos, lightEmitter: LightEmitter },
+});
+
+/** The singleton player command actor */
+export const playerTurnQuery = new Query({
+  all: { player: Player, gridPos: GridPos, facing: Facing },
 });
 
 /** All enemies that participate in the turn loop */

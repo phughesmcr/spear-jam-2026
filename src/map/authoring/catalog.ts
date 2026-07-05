@@ -10,7 +10,6 @@ import {
   BARRIER_TERRAIN_COUNT,
   PALETTE_KEYS,
   TERRAIN_CATALOG_TILE_COLUMNS,
-  TERRAIN_CATALOG_TILE_COUNT,
   TEXTURE_TERRAIN_COUNT,
 } from "@/src/map/terrain_palettes.ts";
 import type { EntityPrefab } from "@/src/map/map.ts";
@@ -28,7 +27,6 @@ export const ENTITY_MARKERS_TILESET = "entity_markers.tsj";
 export const ENTITY_MARKERS_IMAGE = "entity_markers.png";
 export const AUTHORING_TILE_SIZE = 16;
 export const TERRAIN_ATLAS_TILE_COLUMNS = TERRAIN_CATALOG_TILE_COLUMNS;
-export const TERRAIN_ATLAS_TILE_COUNT = TERRAIN_CATALOG_TILE_COUNT;
 export const FLOOR_TILESET = "floors.tsj";
 export const FLOOR_TILESET_IMAGE = "floors.png";
 export const WALL_TILESET = "walls.tsj";

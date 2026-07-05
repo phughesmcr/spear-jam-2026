@@ -408,7 +408,7 @@ const ATTACK_STORAGE = {
   maxDamage: Uint8Array,
   range: Uint8Array,
   requiresFacing: Uint8Array,
-  attackBonus: Uint8Array,
+  attackBonus: Int8Array,
   critThreshold: Uint8Array,
   critMultiplier: Uint8Array,
   pattern: Uint8Array,
