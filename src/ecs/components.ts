@@ -1,7 +1,6 @@
 import { Component, type ComponentPartitions, type DynamicComponent, type Entity, type World } from "@phughesmcr/miski";
 import { type EnemyArchetype, enemyArchetypeForCode } from "@/src/ecs/enemy_catalog.ts";
 import type { CardinalDirection } from "@/src/grid/direction.ts";
-import type { DisplayName } from "@/src/game/names.ts";
 import { type AttackDef, AttackFacingRequirement, AttackPattern, AttackTargetMode } from "@/src/game/attack.ts";
 
 export { AttackFacingRequirement, AttackPattern, AttackTargetMode };
@@ -37,49 +36,7 @@ export const Facing: Component<FacingSchema, typeof FACING_STORAGE> = new Compon
   schema: FACING_STORAGE,
 });
 
-export type DisplayNameSchema = { displayName: DisplayName };
-const DISPLAY_NAME_STORAGE = { displayName: Uint8Array };
-export const DisplayNameComponent: Component<DisplayNameSchema, typeof DISPLAY_NAME_STORAGE> = new Component<
-  DisplayNameSchema,
-  typeof DISPLAY_NAME_STORAGE
->({
-  name: "displayName",
-  schema: DISPLAY_NAME_STORAGE,
-});
-
 export const Npc: Component<null> = new Component<null>({ name: "npc" });
-
-export type StoryTargetSchema = { id: number };
-const STORY_TARGET_STORAGE = { id: Uint8Array };
-export const StoryTarget: Component<StoryTargetSchema, typeof STORY_TARGET_STORAGE> = new Component<
-  StoryTargetSchema,
-  typeof STORY_TARGET_STORAGE
->({
-  name: "storyTarget",
-  schema: STORY_TARGET_STORAGE,
-});
-
-export type TalkStoryEventSchema = { event: number };
-const TALK_STORY_EVENT_STORAGE = { event: Uint8Array };
-export const TalkStoryEvent: Component<TalkStoryEventSchema, typeof TALK_STORY_EVENT_STORAGE> = new Component<
-  TalkStoryEventSchema,
-  typeof TALK_STORY_EVENT_STORAGE
->({
-  name: "talkStoryEvent",
-  schema: TALK_STORY_EVENT_STORAGE,
-});
-
-export type DialogueSchema = { dialogueTreeId: number };
-export const Dialogue: Component<DialogueSchema> = new Component<DialogueSchema>({
-  name: "dialogue",
-  schema: { dialogueTreeId: Uint8Array },
-});
-
-export type ExamineSchema = { examineTextId: number };
-export const Examine: Component<ExamineSchema> = new Component<ExamineSchema>({
-  name: "examine",
-  schema: { examineTextId: Uint8Array },
-});
 
 export const Player: Component<null> = new Component<null>({ name: "player", maxEntities: 1 });
 
@@ -275,15 +232,7 @@ export const Locked: Component<LockedSchema, typeof LOCKED_STORAGE> = new Compon
 /** Marks a door disguised as a wall until the player bumps into it. */
 export const Secret: Component<null> = new Component<null>({ name: "secret" });
 
-export type UplinkTerminalSchema = { destination: number };
-const UPLINK_TERMINAL_STORAGE = { destination: Uint16Array };
-export const UplinkTerminal: Component<UplinkTerminalSchema, typeof UPLINK_TERMINAL_STORAGE> = new Component<
-  UplinkTerminalSchema,
-  typeof UPLINK_TERMINAL_STORAGE
->({
-  name: "uplinkTerminal",
-  schema: UPLINK_TERMINAL_STORAGE,
-});
+export const UplinkTerminal: Component<null> = new Component<null>({ name: "uplinkTerminal" });
 
 export const ItemKind = {
   HealthPatch: 1,
@@ -434,12 +383,7 @@ export const Attack: Component<AttackSchema, typeof ATTACK_STORAGE> = new Compon
 export const ALL_COMPONENTS: DynamicComponent[] = [
   GridPos,
   Facing,
-  DisplayNameComponent,
   Npc,
-  StoryTarget,
-  TalkStoryEvent,
-  Dialogue,
-  Examine,
   Player,
   MapScoped,
   PlayerInventory,

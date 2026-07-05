@@ -1,19 +1,15 @@
 import type { Entity, World } from "@phughesmcr/miski";
-import { DialogueTreeId } from "@/src/dialogue/dialogue.ts";
 import {
   Attack,
   type AttackSchema,
   Blocking,
   Defense,
-  Dialogue,
-  DisplayNameComponent,
   Door,
   Drawable,
   DrawableLayer,
   Enemy,
   EnemyArchetypeComponent,
   EnemyAwareness,
-  Examine,
   Facing,
   GridPos,
   Health,
@@ -32,8 +28,6 @@ import {
   SPRITE_DEATH_MS,
   SpriteAnimation,
   SpriteAnimationKind,
-  StoryTarget,
-  TalkStoryEvent,
   TurnTaker,
   UplinkTerminal,
 } from "@/src/ecs/components.ts";
@@ -51,9 +45,9 @@ import {
   type EnemyCatalogEntry,
   enemyCatalogEntry,
 } from "@/src/ecs/enemy_catalog.ts";
+import { type EntityContentStore, setEntityContent } from "@/src/ecs/entity_content.ts";
 import { DEFAULT_PLAYER_HEALTH } from "@/src/ecs/progression.ts";
 import { DEFAULT_ATTACK } from "@/src/game/attack.ts";
-import { storyEventCode, storyTargetCode } from "@/src/game/story.ts";
 import { normalizeDirection } from "@/src/grid/direction.ts";
 import {
   type DecorationDef,
@@ -61,15 +55,12 @@ import {
   doorSlideCode,
   type EnemyDef,
   type EntityDef,
-  type EntityDefFor,
-  type EntityPrefab,
   type ItemDef,
   keyColorCode,
   type KeyDef,
   type LightDef,
   type NpcDef,
   type PlayerDef,
-  terminalDestinationCode,
   type UplinkCodeDef,
   type UplinkTerminalDef,
   type WeaponPickupDef,
@@ -87,9 +78,6 @@ type FacingPrefab = {
 };
 
 type GridActorPrefab = PositionedPrefab & FacingPrefab;
-type ExaminePrefab = {
-  readonly examineTextId?: number;
-};
 
 export type PlayerPrefab = Omit<PlayerDef, "prefab">;
 
@@ -108,7 +96,7 @@ export function createPlayer(world: World, prefab: PlayerPrefab): Entity {
 
 export type NpcPrefab = Omit<NpcDef, "prefab">;
 
-export function createNpc(world: World, prefab: NpcPrefab): Entity {
+export function createNpc(world: World, contentStore: EntityContentStore, prefab: NpcPrefab): Entity {
   const entity = createGridActor(
     world,
     prefab,
@@ -119,31 +107,28 @@ export function createNpc(world: World, prefab: NpcPrefab): Entity {
   world.components.addBundle(
     entity,
     [
-      [DisplayNameComponent, { displayName: prefab.displayName }],
       [Npc],
       [Interactable],
     ] as const,
   );
-  addExamine(world, entity, prefab);
-  if (prefab.dialogueTreeId !== undefined && prefab.dialogueTreeId !== DialogueTreeId.None) {
-    world.components.addToEntity(Dialogue, entity, { dialogueTreeId: prefab.dialogueTreeId });
-  }
-  if (prefab.storyId !== undefined) {
-    world.components.addToEntity(StoryTarget, entity, { id: storyTargetCode(prefab.storyId) });
-  }
-  if (prefab.onTalkEvent !== undefined) {
-    world.components.addToEntity(TalkStoryEvent, entity, { event: storyEventCode(prefab.onTalkEvent) });
-  }
+  setEntityContent(contentStore, entity, {
+    displayName: prefab.displayName,
+    dialogueTreeId: prefab.dialogueTreeId,
+    examineTextId: prefab.examineTextId,
+    storyId: prefab.storyId,
+    onTalkEvent: prefab.onTalkEvent,
+  });
   return entity;
 }
 
 export type EnemyPrefab = Omit<EnemyDef, "prefab">;
 
-export function createEnemy(world: World, prefab: EnemyPrefab): Entity {
+export function createEnemy(world: World, contentStore: EntityContentStore, prefab: EnemyPrefab): Entity {
   const archetype = enemyArchetypeForPrefab(prefab.archetype);
   const catalog = enemyCatalogEntry(archetype);
   const health = prefab.health ?? catalog.health;
   const hitDc = prefab.hitDc ?? catalog.hitDc;
+  const displayName = prefab.displayName ?? catalog.displayName;
   const entity = createGridActor(
     world,
     prefab,
@@ -154,7 +139,6 @@ export function createEnemy(world: World, prefab: EnemyPrefab): Entity {
   world.components.addBundle(
     entity,
     [
-      [DisplayNameComponent, { displayName: prefab.displayName ?? catalog.displayName }],
       [Enemy],
       [EnemyAwareness, IDLE_AWARENESS],
       [EnemyArchetypeComponent, { archetype }],
@@ -163,7 +147,10 @@ export function createEnemy(world: World, prefab: EnemyPrefab): Entity {
       [Attack, createAttackSpec(prefab, catalog)],
     ] as const,
   );
-  addExamine(world, entity, prefab);
+  setEntityContent(contentStore, entity, {
+    displayName,
+    examineTextId: prefab.examineTextId,
+  });
   return entity;
 }
 
@@ -180,7 +167,7 @@ function createAttackSpec(prefab: EnemyPrefab, catalog: EnemyCatalogEntry): Atta
 
 export type DoorPrefab = Omit<DoorDef, "prefab">;
 
-export function createDoor(world: World, prefab: DoorPrefab): Entity {
+export function createDoor(world: World, contentStore: EntityContentStore, prefab: DoorPrefab): Entity {
   if (prefab.locked === true && prefab.color === undefined) {
     throw new Error("Locked door prefab is missing a key color");
   }
@@ -194,7 +181,7 @@ export function createDoor(world: World, prefab: DoorPrefab): Entity {
       [Blocking],
     ] as const,
   );
-  addExamine(world, entity, prefab);
+  setEntityContent(contentStore, entity, { examineTextId: prefab.examineTextId });
   if (prefab.locked === true && prefab.color !== undefined) {
     world.components.addToEntity(Locked, entity, { color: keyColorCode(prefab.color) });
   }
@@ -218,18 +205,25 @@ export function createUplinkCode(world: World, prefab: UplinkCodePrefab): Entity
 
 export type UplinkTerminalPrefab = Omit<UplinkTerminalDef, "prefab">;
 
-export function createUplinkTerminal(world: World, prefab: UplinkTerminalPrefab): Entity {
+export function createUplinkTerminal(
+  world: World,
+  contentStore: EntityContentStore,
+  prefab: UplinkTerminalPrefab,
+): Entity {
   const entity = world.entities.createWithOrThrow(
     [
       [GridPos, { x: prefab.x, y: prefab.y }],
       [Drawable, { kind: DrawableKind.Sprite, layer: DrawableLayer.Structure }],
       [Sprite, { id: SpriteId.UplinkTerminal }],
-      [UplinkTerminal, { destination: terminalDestinationCode(prefab.goto) }],
+      [UplinkTerminal],
       [Interactable],
       [Blocking],
     ] as const,
   );
-  addExamine(world, entity, prefab);
+  setEntityContent(contentStore, entity, {
+    examineTextId: prefab.examineTextId,
+    terminalDestination: prefab.goto,
+  });
   return entity;
 }
 
@@ -276,26 +270,6 @@ export function createLight(world: World, prefab: LightPrefab): Entity {
   );
 }
 
-type MapEntityCreator<Prefab extends EntityPrefab> = (world: World, prefab: EntityDefFor<Prefab>) => Entity;
-
-type MapEntityCreators = {
-  readonly [Prefab in EntityPrefab]: MapEntityCreator<Prefab>;
-};
-
-const MAP_ENTITY_CREATORS = {
-  player: createPlayer,
-  npc: createNpc,
-  enemy: createEnemy,
-  door: createDoor,
-  key: createKey,
-  uplinkCode: createUplinkCode,
-  uplinkTerminal: createUplinkTerminal,
-  weaponPickup: createWeaponPickup,
-  item: createItem,
-  decoration: createDecoration,
-  light: createLight,
-} satisfies MapEntityCreators;
-
 function enemyArchetypeForPrefab(archetype: EnemyArchetypeType | undefined): EnemyArchetypeType {
   return archetype ?? DEFAULT_ENEMY_ARCHETYPE;
 }
@@ -330,17 +304,37 @@ function createGridActor(
   );
 }
 
-function addExamine(world: World, entity: Entity, prefab: ExaminePrefab): void {
-  if (prefab.examineTextId !== undefined) {
-    world.components.addToEntity(Examine, entity, { examineTextId: prefab.examineTextId });
-  }
-}
-
-export function createMapEntity(world: World, prefab: EntityDef): Entity {
-  const create = MAP_ENTITY_CREATORS[prefab.prefab] as MapEntityCreator<typeof prefab.prefab>;
-  const entity = create(world, prefab);
+export function createMapEntity(world: World, contentStore: EntityContentStore, prefab: EntityDef): Entity {
+  const entity = createMapEntityByPrefab(world, contentStore, prefab);
   if (prefab.prefab !== "player") world.components.addToEntity(MapScoped, entity);
   return entity;
+}
+
+function createMapEntityByPrefab(world: World, contentStore: EntityContentStore, prefab: EntityDef): Entity {
+  switch (prefab.prefab) {
+    case "player":
+      return createPlayer(world, prefab);
+    case "npc":
+      return createNpc(world, contentStore, prefab);
+    case "enemy":
+      return createEnemy(world, contentStore, prefab);
+    case "door":
+      return createDoor(world, contentStore, prefab);
+    case "key":
+      return createKey(world, prefab);
+    case "uplinkCode":
+      return createUplinkCode(world, prefab);
+    case "uplinkTerminal":
+      return createUplinkTerminal(world, contentStore, prefab);
+    case "weaponPickup":
+      return createWeaponPickup(world, prefab);
+    case "item":
+      return createItem(world, prefab);
+    case "decoration":
+      return createDecoration(world, prefab);
+    case "light":
+      return createLight(world, prefab);
+  }
 }
 
 export function createCorpse(world: World, position: PositionedPrefab): Entity {

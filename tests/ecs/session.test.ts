@@ -142,7 +142,7 @@ Deno.test("John's talk story event is one-shot", async () => {
   }
 });
 
-Deno.test("createGameSession rejects duplicate component-backed story targets", async () => {
+Deno.test("createGameSession rejects duplicate content-backed story targets", async () => {
   await assertRejects(
     () =>
       createGameSession(
@@ -412,6 +412,26 @@ Deno.test("normal map loads preserve durable story flags", async () => {
     session.loadMap(testMap([]));
 
     assertEquals(session.getStoryFlags(), [StoryFlag.JohnSpoken]);
+  } finally {
+    session[Symbol.dispose]();
+  }
+});
+
+Deno.test("normal map loads clear old entity content and write new map content", async () => {
+  const session = await createGameSession(storyTestMap(), () => 0);
+  try {
+    assertEquals([...session.contentStore.values()], [{
+      displayName: DisplayName.John,
+      dialogueTreeId: DialogueTreeId.JohnIntro,
+      storyId: StoryTargetId.John,
+      onTalkEvent: StoryEventId.JohnSpoken,
+    }]);
+
+    session.loadMap(testMap([{ prefab: "uplinkTerminal", x: 2, y: 1, goto: "Next Map" }]));
+
+    assertEquals([...session.contentStore.values()], [{
+      terminalDestination: "Next Map",
+    }]);
   } finally {
     session[Symbol.dispose]();
   }

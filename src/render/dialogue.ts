@@ -64,7 +64,7 @@ const CHOICE_HEIGHT = 44;
 const CHOICE_GAP = 6;
 const DIALOGUE_OPTION_SLOTS = [1, 2, 3] as const satisfies readonly DialogueOptionSlot[];
 
-const DIALOGUE_PORTRAIT_ASSETS: Readonly<Record<number, ImageAsset>> = {
+const DIALOGUE_PORTRAIT_ASSETS: Partial<Record<DisplayName, ImageAsset>> = {
   [DisplayName.John]: createImageAsset(new URL("../../assets/game/ui/dialogue_john.png", import.meta.url).href),
 };
 const DIALOGUE_IMAGE_ASSETS = Object.freeze(Object.values(DIALOGUE_PORTRAIT_ASSETS));
@@ -269,7 +269,7 @@ function drawPortrait(
   ctx: CanvasRenderingContext2D,
   rect: DialogueRect,
   title: string,
-  speaker?: number,
+  speaker?: DisplayName,
   onAssetLoad?: () => void,
 ): void {
   ctx.save();

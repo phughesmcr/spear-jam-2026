@@ -584,9 +584,10 @@ function optionalDialogueTreeId(
   context: string,
 ): { readonly dialogueTreeId?: ReturnType<typeof mapDialogueTreeId> } {
   const value = optionalString(properties, "dialogueTreeId", context);
-  return value === undefined ?
-    {} :
-    { dialogueTreeId: mapDialogueTreeId(value, `${context} property "dialogueTreeId"`) };
+  if (value === undefined) return {};
+
+  const dialogueTreeId = mapDialogueTreeId(value, `${context} property "dialogueTreeId"`);
+  return dialogueTreeId === undefined ? {} : { dialogueTreeId };
 }
 
 function optionalStoryTargetId(

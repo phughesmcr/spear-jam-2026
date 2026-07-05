@@ -182,7 +182,7 @@ export function spriteAppearances(): readonly SpriteAppearance[] {
   return SPRITE_APPEARANCE_LIST;
 }
 
-export function spriteIdForDisplayName(displayName: number): SpriteIdType {
+export function spriteIdForDisplayName(displayName: DisplayName): SpriteIdType {
   return displayName === DisplayName.John ? SpriteId.John : SpriteId.Npc;
 }
 

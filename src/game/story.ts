@@ -45,9 +45,6 @@ const STORY_FLAG_ORDER: readonly StoryFlag[] = [
 const STORY_EVENT_IDS: readonly StoryEventId[] = Object.values(StoryEventId);
 const STORY_TARGET_IDS: readonly StoryTargetId[] = Object.values(StoryTargetId);
 
-const JOHN_SPOKEN_EVENT_CODE = 1;
-const JOHN_TARGET_CODE = 1;
-
 export function storyEventDefinition(event: StoryEventId): StoryEventDefinition {
   return STORY_EVENT_DEFINITIONS[event];
 }
@@ -55,24 +52,6 @@ export function storyEventDefinition(event: StoryEventId): StoryEventDefinition 
 export function normalizeStoryFlags(flags: readonly StoryFlag[] = []): readonly StoryFlag[] {
   const input = new Set(flags);
   return STORY_FLAG_ORDER.filter((flag) => input.has(flag));
-}
-
-export function storyEventCode(_event: StoryEventId): number {
-  return JOHN_SPOKEN_EVENT_CODE;
-}
-
-export function storyEventForCode(code: number): StoryEventId {
-  if (code === JOHN_SPOKEN_EVENT_CODE) return StoryEventId.JohnSpoken;
-  throw new Error(`Unknown story event code: ${code}`);
-}
-
-export function storyTargetCode(_target: StoryTargetId): number {
-  return JOHN_TARGET_CODE;
-}
-
-export function storyTargetForCode(code: number): StoryTargetId {
-  if (code === JOHN_TARGET_CODE) return StoryTargetId.John;
-  throw new Error(`Unknown story target code: ${code}`);
 }
 
 export function storyEventIdFor(value: string, context: string): StoryEventId {

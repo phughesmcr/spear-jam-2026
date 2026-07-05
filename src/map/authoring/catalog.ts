@@ -149,7 +149,7 @@ export const PROPERTY_TYPES: readonly TiledPropertyType[] = [
   enumPropertyType(4, "KeyColor", Object.values(KeyColor)),
   enumPropertyType(5, "DoorSlide", ["north", "east", "south", "west", "up", "down"]),
   enumPropertyType(6, "DisplayName", authoringKeys(DisplayName)),
-  enumPropertyType(7, "DialogueTreeId", authoringKeys(DialogueTreeId)),
+  enumPropertyType(7, "DialogueTreeId", ["none", ...authoringKeys(DialogueTreeId)]),
   enumPropertyType(8, "ExamineTextId", authoringKeys(ExamineTextId)),
   enumPropertyType(9, "ItemKind", ["healthPatch", "pistolAmmo", "cannonAmmo"]),
   enumPropertyType(
@@ -478,7 +478,7 @@ function propertyTypeForValue(value: TiledProperty["value"]): "bool" | "int" | "
   return "string";
 }
 
-function authoringKeys(source: Readonly<Record<string, number>>): readonly string[] {
+function authoringKeys(source: Readonly<Record<string, unknown>>): readonly string[] {
   return Object.keys(source).map(lowerFirst);
 }
 

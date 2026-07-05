@@ -61,15 +61,12 @@ const DIRECTION_SCHEMA = INTEGER_SCHEMA.min(0).max(3);
 const KEY_COLOR_SCHEMA = z.enum([KeyColor.Red, KeyColor.Blue, KeyColor.Yellow]) satisfies z.ZodType<KeyColor>;
 const DOOR_SLIDE_SCHEMA = z.enum(DOOR_SLIDES);
 const LIGHT_COLOR_SCHEMA = z.string().regex(/^#[0-9a-fA-F]{6}$/);
-const DISPLAY_NAME_SCHEMA = numberEnumSchema<DisplayNameType>(Object.values(DisplayName), "displayName");
+const DISPLAY_NAME_SCHEMA = z.enum(Object.values(DisplayName)) satisfies z.ZodType<DisplayNameType>;
 const STORY_TARGET_ID_SCHEMA = z.enum(Object.values(StoryTargetId)) satisfies z.ZodType<StoryTargetIdType>;
 const STORY_EVENT_ID_SCHEMA = z.enum(Object.values(StoryEventId)) satisfies z.ZodType<StoryEventIdType>;
-const DIALOGUE_TREE_ID_SCHEMA = numberEnumSchema<DialogueTreeIdType>(
-  Object.values(DialogueTreeId),
-  "dialogueTreeId",
-);
+const DIALOGUE_TREE_ID_SCHEMA = z.enum(Object.values(DialogueTreeId)) satisfies z.ZodType<DialogueTreeIdType>;
 const ENEMY_ARCHETYPE_SCHEMA = numberEnumSchema<EnemyArchetypeType>(ENEMY_ARCHETYPE_CODES, "archetype");
-const EXAMINE_TEXT_ID_SCHEMA = numberEnumSchema<ExamineTextIdType>(Object.values(ExamineTextId), "examineTextId");
+const EXAMINE_TEXT_ID_SCHEMA = z.enum(Object.values(ExamineTextId)) satisfies z.ZodType<ExamineTextIdType>;
 const ITEM_KIND_SCHEMA = numberEnumSchema<ItemKindType>(MAP_ITEM_KIND_CODES, "item");
 const DECORATION_KIND_SCHEMA = numberEnumSchema<DecorationKindType>(Object.values(EcsDecorationKind), "decoration");
 const ATTACK_FACING_REQUIREMENT_SCHEMA = numberEnumSchema<AttackFacingRequirementType>(

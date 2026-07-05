@@ -1,9 +1,8 @@
 import dialogueTrees from "@/src/dialogue/dialogues.json" with { type: "json" };
 
 export const DialogueTreeId = {
-  None: 0,
-  JohnIntro: 1,
-  JohnThanks: 2,
+  JohnIntro: "johnIntro",
+  JohnThanks: "johnThanks",
 } as const;
 export type DialogueTreeId = (typeof DialogueTreeId)[keyof typeof DialogueTreeId];
 
@@ -33,20 +32,19 @@ export const MAX_DIALOGUE_CHOICES = 3;
 const DEFAULT_CHOICES: readonly DialogueChoice[] = Object.freeze([{ label: "CONTINUE." }]);
 
 const DIALOGUE_TREE_KEYS = {
-  [DialogueTreeId.None]: undefined,
   [DialogueTreeId.JohnIntro]: "john_intro",
   [DialogueTreeId.JohnThanks]: "john_thanks",
-} as const satisfies Readonly<Record<DialogueTreeId, string | undefined>>;
+} as const satisfies Readonly<Record<DialogueTreeId, string>>;
 
 const DIALOGUE_TREES = validateDialogueTrees(dialogueTrees);
 
 export function validateDialogueTrees(
   rawTrees: unknown,
-  treeKeys: Readonly<Record<number, string | undefined>> = DIALOGUE_TREE_KEYS,
+  treeKeys: Readonly<Record<string, string>> = DIALOGUE_TREE_KEYS,
 ): Readonly<Record<string, DialogueTree>> {
   if (!recordLike(rawTrees)) throw new Error("Dialogue content must be a JSON object.");
 
-  const requiredKeys = new Set(Object.values(treeKeys).filter((key): key is string => key !== undefined));
+  const requiredKeys = new Set(Object.values(treeKeys));
   const trees: Record<string, DialogueTree> = {};
   for (const key of requiredKeys) {
     const rawTree = rawTrees[key];
@@ -61,9 +59,7 @@ export function validateDialogueTrees(
   return trees;
 }
 
-export function dialogueTreeStart(dialogueTreeId: number): DialogueTreeStart | undefined {
-  if (dialogueTreeId === DialogueTreeId.None) return undefined;
-
+export function dialogueTreeStart(dialogueTreeId: string): DialogueTreeStart {
   const treeKey = DIALOGUE_TREE_KEYS[dialogueTreeId as DialogueTreeId];
   if (treeKey === undefined) throw new Error(`Unknown dialogue tree id: ${dialogueTreeId}.`);
 

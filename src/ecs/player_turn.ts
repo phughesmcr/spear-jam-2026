@@ -1,6 +1,7 @@
 import { type Entity, System, type World } from "@phughesmcr/miski";
 import { Door, Facing, GridPos, Interactable, Locked, Npc, Secret, UplinkTerminal } from "@/src/ecs/components.ts";
 import { attackTargetsForSelectedWeapon, attackWithSelectedWeapon, playerWeaponSpec } from "@/src/ecs/combat.ts";
+import type { EntityContentStore } from "@/src/ecs/entity_content.ts";
 import { collectItemAt, interactWithEntity, type PlayerInteractionResult } from "@/src/ecs/interactions.ts";
 import {
   applyItemPickupToPlayer,
@@ -37,6 +38,7 @@ export type PlayerActionResolution =
 
 export type PlayerTurnContext = {
   readonly world: World;
+  readonly contentStore: EntityContentStore;
   readonly player: Entity;
   readonly spatial: SpatialIndex;
   readonly random: RandomSource;
@@ -71,7 +73,7 @@ function resolvePlayerAction(context: PlayerTurnContext, command: PlayerCommand)
     case "interact":
       return resolvePlayerInteraction(context, facedEntity(context), command.verb);
     case "examine":
-      return { type: "immediate", events: [examineEntity(context.world, facedEntity(context))] };
+      return { type: "immediate", events: [examineEntity(context.contentStore, facedEntity(context))] };
     case "attack":
       return resolvePlayerAttackAction(context);
     case "smartAction":
@@ -142,6 +144,7 @@ function resolvePlayerInteraction(
 ): PlayerActionResolution {
   const interaction = interactWithEntity(
     context.world,
+    context.contentStore,
     context.spatial,
     target,
     heldKeysForPlayer(context.world, context.player),
@@ -174,6 +177,7 @@ function resolvePlayerAttackAction(context: PlayerTurnContext): PlayerActionReso
 
   const attackEvents = attackWithSelectedWeapon(
     context.world,
+    context.contentStore,
     context.player,
     selectedWeapon,
     context.spatial,

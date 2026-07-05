@@ -12,6 +12,7 @@ import {
   IDLE_AWARENESS,
 } from "@/src/ecs/components.ts";
 import { attackEntity, attackTargets, entityAttack } from "@/src/ecs/combat.ts";
+import type { EntityContentStore } from "@/src/ecs/entity_content.ts";
 import { DEFAULT_ENEMY_BEHAVIOR, EnemyBehavior, enemyCatalogEntry } from "@/src/ecs/enemy_catalog.ts";
 import { enemyTurnQuery } from "@/src/ecs/queries.ts";
 import type { SpatialAccess, SpatialDistanceField, SpatialLookup, SpatialMutations } from "@/src/ecs/spatial.ts";
@@ -32,6 +33,7 @@ const MAX_INVESTIGATION_TURNS = 6;
 
 export type EnemyTurnContext = {
   readonly world: World;
+  readonly contentStore: EntityContentStore;
   readonly player: Entity;
   readonly spatial: EnemySpatialAccess;
   readonly random: RandomSource;
@@ -262,7 +264,7 @@ function attackPlayerIfPossible(
     if (targets.length > 0) {
       const events: GameEvent[] = [];
       for (const target of targets) {
-        events.push(...attackEntity(world, entity, target, attack, random, spatial));
+        events.push(...attackEntity(world, context.contentStore, entity, target, attack, random, spatial));
       }
       return events;
     }

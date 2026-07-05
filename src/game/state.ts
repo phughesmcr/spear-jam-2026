@@ -1,4 +1,5 @@
 import type { DialogueChoice } from "@/src/dialogue/dialogue.ts";
+import type { DisplayName } from "@/src/game/names.ts";
 
 export type CommandSlot = 1 | 2 | 3;
 export type VerbMenuControl = "wait" | "toggleView" | "help" | "close";
@@ -42,7 +43,7 @@ export type DialogueState = {
   readonly message: string;
   readonly choices: readonly DialogueChoice[];
   /** Speaker's DisplayName, used to pick a portrait sprite; absent falls back to a drawn bust. */
-  readonly speaker?: number;
+  readonly speaker?: DisplayName;
   /** Tree that resolves choice "next" links; absent for one-off dialogues that always close. */
   readonly treeKey?: string;
 };

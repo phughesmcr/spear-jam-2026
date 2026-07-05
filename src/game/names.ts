@@ -1,10 +1,10 @@
 export const DisplayName = {
-  John: 0,
-  DigitalDog: 1,
-  GigabitGunslinger: 2,
-  NetworkNeophyte: 3,
-  SystemSentinel: 4,
-  AgenticAcolyte: 5,
+  John: "john",
+  DigitalDog: "digitalDog",
+  GigabitGunslinger: "gigabitGunslinger",
+  NetworkNeophyte: "networkNeophyte",
+  SystemSentinel: "systemSentinel",
+  AgenticAcolyte: "agenticAcolyte",
 } as const;
 
 export type DisplayName = (typeof DisplayName)[keyof typeof DisplayName];
@@ -18,6 +18,6 @@ const DISPLAY_NAMES: Readonly<Record<DisplayName, string>> = {
   [DisplayName.AgenticAcolyte]: "Agentic Acolyte",
 };
 
-export function displayNameText(displayName: number): string {
-  return (DISPLAY_NAMES as Readonly<Record<number, string | undefined>>)[displayName] ?? "Unknown";
+export function displayNameText(displayName: DisplayName): string {
+  return DISPLAY_NAMES[displayName];
 }

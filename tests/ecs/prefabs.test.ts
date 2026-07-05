@@ -7,78 +7,75 @@ import {
   Blocking,
   DecorationKind,
   Defense,
-  Dialogue,
-  DisplayNameComponent,
   Drawable,
   DrawableKind,
   DrawableLayer,
   Enemy,
   EnemyArchetypeComponent,
-  Examine,
   Health,
   Item,
   Npc,
   Sprite,
   SpriteId,
-  StoryTarget,
-  TalkStoryEvent,
-  UplinkTerminal,
 } from "@/src/ecs/components.ts";
+import { createEntityContentStore, entityContent } from "@/src/ecs/entity_content.ts";
 import { EnemyArchetype } from "@/src/ecs/enemy_catalog.ts";
 import { ExamineTextId } from "@/src/game/examine.ts";
 import { DisplayName } from "@/src/game/names.ts";
-import { storyEventCode, StoryEventId, storyTargetCode, StoryTargetId } from "@/src/game/story.ts";
+import { StoryEventId, StoryTargetId } from "@/src/game/story.ts";
 import { createDecoration, createDoor, createEnemy, createNpc, createUplinkTerminal } from "@/src/ecs/prefabs.ts";
 import { createWorld } from "@/src/ecs/world.ts";
-import { terminalDestinationForCode } from "@/src/map/map.ts";
 
 Deno.test("neutral NPCs and enemies share display names without sharing NPC identity", async () => {
   const world = await createWorld();
-  const npc = createNpc(world, {
+  const contentStore = createEntityContentStore();
+  const npc = createNpc(world, contentStore, {
     x: 1,
     y: 1,
     dir: 1,
     displayName: DisplayName.John,
     dialogueTreeId: DialogueTreeId.JohnIntro,
   });
-  const enemy = createEnemy(world, { x: 2, y: 1, dir: 3, displayName: DisplayName.DigitalDog });
+  const enemy = createEnemy(world, contentStore, { x: 2, y: 1, dir: 3, displayName: DisplayName.DigitalDog });
 
   assertEquals(world.components.entityHas(Npc, npc), true);
-  assertEquals(world.components.entityHas(Dialogue, npc), true);
   assertEquals(world.components.entityHas(Enemy, npc), false);
-  assertEquals(world.components.getEntityData(DisplayNameComponent, npc), { displayName: DisplayName.John });
-  assertEquals(world.components.getEntityData(Dialogue, npc), { dialogueTreeId: DialogueTreeId.JohnIntro });
+  assertEquals(entityContent(contentStore, npc), {
+    displayName: DisplayName.John,
+    dialogueTreeId: DialogueTreeId.JohnIntro,
+  });
 
   assertEquals(world.components.entityHas(Npc, enemy), false);
-  assertEquals(world.components.entityHas(Dialogue, enemy), false);
   assertEquals(world.components.entityHas(Enemy, enemy), true);
-  assertEquals(world.components.getEntityData(DisplayNameComponent, enemy), { displayName: DisplayName.DigitalDog });
+  assertEquals(entityContent(contentStore, enemy), { displayName: DisplayName.DigitalDog });
 });
 
 Deno.test("a locked door without a key color is rejected", async () => {
   const world = await createWorld();
+  const contentStore = createEntityContentStore();
 
-  assertThrows(() => createDoor(world, { x: 1, y: 1, locked: true }), Error, "key color");
+  assertThrows(() => createDoor(world, contentStore, { x: 1, y: 1, locked: true }), Error, "key color");
 });
 
 Deno.test("prefabs attach authored examine text when provided", async () => {
   const world = await createWorld();
-  const npc = createNpc(world, {
+  const contentStore = createEntityContentStore();
+  const npc = createNpc(world, contentStore, {
     x: 1,
     y: 1,
     dir: 1,
     displayName: DisplayName.John,
     examineTextId: ExamineTextId.BootSectorUplinkTerminal,
   });
-  const enemy = createEnemy(world, {
+  const enemy = createEnemy(world, contentStore, {
     x: 2,
     y: 1,
     dir: 3,
     displayName: DisplayName.DigitalDog,
     examineTextId: ExamineTextId.BootSectorUplinkTerminal,
   });
-  const door = createDoor(world, { x: 3, y: 1, examineTextId: ExamineTextId.BootSectorUplinkTerminal });
-  const terminal = createUplinkTerminal(world, {
+  const door = createDoor(world, contentStore, { x: 3, y: 1, examineTextId: ExamineTextId.BootSectorUplinkTerminal });
+  const terminal = createUplinkTerminal(world, contentStore, {
     x: 4,
     y: 1,
     goto: "Next Map",
@@ -86,15 +83,14 @@ Deno.test("prefabs attach authored examine text when provided", async () => {
   });
 
   for (const entity of [npc, enemy, door, terminal]) {
-    assertEquals(world.components.getEntityData(Examine, entity), {
-      examineTextId: ExamineTextId.BootSectorUplinkTerminal,
-    });
+    assertEquals(entityContent(contentStore, entity)?.examineTextId, ExamineTextId.BootSectorUplinkTerminal);
   }
 });
 
-Deno.test("prefabs attach component-backed story and terminal metadata", async () => {
+Deno.test("prefabs attach content-backed story and terminal metadata", async () => {
   const world = await createWorld();
-  const npc = createNpc(world, {
+  const contentStore = createEntityContentStore();
+  const npc = createNpc(world, contentStore, {
     x: 1,
     y: 1,
     dir: 1,
@@ -102,14 +98,24 @@ Deno.test("prefabs attach component-backed story and terminal metadata", async (
     storyId: StoryTargetId.John,
     onTalkEvent: StoryEventId.JohnSpoken,
   });
-  const terminal = createUplinkTerminal(world, { x: 2, y: 1, goto: "Next Map" });
+  const terminal = createUplinkTerminal(world, contentStore, { x: 2, y: 1, goto: "Next Map" });
 
-  assertEquals(world.components.getEntityData(StoryTarget, npc), { id: storyTargetCode(StoryTargetId.John) });
-  assertEquals(world.components.getEntityData(TalkStoryEvent, npc), { event: storyEventCode(StoryEventId.JohnSpoken) });
-  assertEquals(
-    terminalDestinationForCode(world.components.getEntityData(UplinkTerminal, terminal).destination),
-    "Next Map",
-  );
+  assertEquals(entityContent(contentStore, npc), {
+    displayName: DisplayName.John,
+    storyId: StoryTargetId.John,
+    onTalkEvent: StoryEventId.JohnSpoken,
+  });
+  assertEquals(entityContent(contentStore, terminal), {
+    terminalDestination: "Next Map",
+  });
+});
+
+Deno.test("content store removes empty prefab content", async () => {
+  const world = await createWorld();
+  const contentStore = createEntityContentStore();
+  const door = createDoor(world, contentStore, { x: 1, y: 1 });
+
+  assertEquals(entityContent(contentStore, door), undefined);
 });
 
 Deno.test("decorations spawn as non-blocking structure sprites", async () => {
@@ -191,7 +197,8 @@ Deno.test("enemy archetypes apply top-down tuning defaults", async () => {
   ] as const;
 
   for (const expected of cases) {
-    const entity = createEnemy(world, {
+    const contentStore = createEntityContentStore();
+    const entity = createEnemy(world, contentStore, {
       x: 1,
       y: 1,
       dir: 1,
@@ -199,9 +206,7 @@ Deno.test("enemy archetypes apply top-down tuning defaults", async () => {
     });
     const attack = world.components.getEntityData(Attack, entity);
 
-    assertEquals(world.components.getEntityData(DisplayNameComponent, entity), {
-      displayName: expected.displayName,
-    });
+    assertEquals(entityContent(contentStore, entity)?.displayName, expected.displayName);
     assertEquals(world.components.getEntityData(EnemyArchetypeComponent, entity), {
       archetype: expected.code,
     });

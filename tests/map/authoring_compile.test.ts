@@ -568,6 +568,38 @@ Deno.test("compileTiledMap lets enemy archetypes supply display names", () => {
   ]);
 });
 
+Deno.test("compileTiledMap omits authoring-only none dialogue ids", () => {
+  const compiled = compileTiledMap(
+    tiledMap({
+      width: 1,
+      height: 1,
+      objects: [
+        object({
+          x: 0,
+          y: 0,
+          type: "npc",
+          properties: [
+            property("dir", "south"),
+            property("displayName", "john"),
+            property("dialogueTreeId", "none"),
+          ],
+        }),
+      ],
+    }),
+    compileOptions(),
+  );
+
+  assertEquals(compiled.gameMap.entities, [
+    {
+      prefab: "npc",
+      x: 0,
+      y: 0,
+      dir: 2,
+      displayName: DisplayName.John,
+    },
+  ]);
+});
+
 Deno.test("compileTiledMap compiles optional colored lights", () => {
   const compiled = compileTiledMap(
     tiledMap({

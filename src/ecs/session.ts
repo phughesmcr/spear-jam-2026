@@ -13,10 +13,13 @@ import {
   SpriteAnimation,
   SpriteAnimationKind,
   type SpriteAnimationSchema,
-  StoryTarget,
-  TalkStoryEvent,
-  UplinkTerminal,
 } from "@/src/ecs/components.ts";
+import {
+  createEntityContentStore,
+  entityContent,
+  type EntityContentStore,
+  removeEntityContent,
+} from "@/src/ecs/entity_content.ts";
 import { normalizeDirection } from "@/src/grid/direction.ts";
 import {
   createDrawableRenderScratch,
@@ -38,7 +41,7 @@ import {
   playerTurnSystem,
   targetMarkerTone,
 } from "@/src/ecs/player_turn.ts";
-import { drawableRenderQuery, mapScopedQuery, spriteAnimationQuery, storyTargetQuery } from "@/src/ecs/queries.ts";
+import { drawableRenderQuery, mapScopedQuery, spriteAnimationQuery } from "@/src/ecs/queries.ts";
 import { SpatialIndex } from "@/src/ecs/spatial.ts";
 import { createWorld } from "@/src/ecs/world.ts";
 import type { PlayerCommand, PlayerCommandResult } from "@/src/game/commands.ts";
@@ -61,20 +64,11 @@ import {
   normalizeStoryFlags,
   type StoryAction,
   storyEventDefinition,
-  storyEventForCode,
   type StoryEventId,
   type StoryFlag,
-  storyTargetCode,
-  storyTargetForCode,
 } from "@/src/game/story.ts";
 import { type TileVisibility, VisibilityMap } from "@/src/game/visibility.ts";
-import {
-  type EntityDef,
-  type GameMap,
-  mapDimensions,
-  terminalDestinationForCode,
-  VICTORY_GOTO,
-} from "@/src/map/map.ts";
+import { type EntityDef, type GameMap, mapDimensions, VICTORY_GOTO } from "@/src/map/map.ts";
 
 const UNCHANGED_PLAYER_COMMAND: PlayerCommandResult = Object.freeze({
   events: [],
@@ -93,16 +87,17 @@ export async function createGameSession(
   random: RandomSource,
 ): Promise<GameSession> {
   const world = await createWorld();
+  const contentStore = createEntityContentStore();
 
   try {
     const playerEntity = createPlayer(world, playerSpawnFor(map));
     resetPlayerProgression(world, playerEntity);
-    spawnMapScopedEntities(world, map);
+    spawnMapScopedEntities(world, contentStore, map);
 
     world.refresh();
-    assertUniqueStoryTargets(world);
+    assertUniqueStoryTargets(contentStore);
 
-    return new GameSession(world, playerEntity, map, random);
+    return new GameSession(world, contentStore, playerEntity, map, random);
   } catch (error) {
     await world.destroy();
     throw error;
@@ -111,6 +106,7 @@ export async function createGameSession(
 
 export class GameSession implements Disposable {
   readonly world: World;
+  readonly contentStore: EntityContentStore;
   readonly playerEntity: Entity;
   map: GameMap;
   private readonly random: RandomSource;
@@ -129,11 +125,13 @@ export class GameSession implements Disposable {
 
   constructor(
     world: World,
+    contentStore: EntityContentStore,
     playerEntity: Entity,
     map: GameMap,
     random: RandomSource,
   ) {
     this.world = world;
+    this.contentStore = contentStore;
     this.playerEntity = playerEntity;
     this.map = map;
     this.random = random;
@@ -226,15 +224,18 @@ export class GameSession implements Disposable {
     this.map = map;
     this.world.components.setEntityData(GridPos, this.playerEntity, { x: spawn.x, y: spawn.y });
     this.world.components.setEntityData(Facing, this.playerEntity, { dir: normalizeDirection(spawn.dir) });
-    spawnMapScopedEntities(this.world, map);
+    spawnMapScopedEntities(this.world, this.contentStore, map);
     this.world.refresh();
-    assertUniqueStoryTargets(this.world);
+    assertUniqueStoryTargets(this.contentStore);
     this.rebuildMapRuntimeState(map);
   }
 
   private clearMapScopedEntities(): void {
     const entities = Array.from(this.world.entities.query(mapScopedQuery));
-    for (const entity of entities) this.world.entities.destroy(entity);
+    for (const entity of entities) {
+      removeEntityContent(this.contentStore, entity);
+      this.world.entities.destroy(entity);
+    }
   }
 
   private rebuildMapRuntimeState(map: GameMap): void {
@@ -256,6 +257,7 @@ export class GameSession implements Disposable {
   private playerTurnContext(): PlayerTurnContext {
     return {
       world: this.world,
+      contentStore: this.contentStore,
       player: this.playerEntity,
       spatial: this.spatial,
       random: this.random,
@@ -265,10 +267,9 @@ export class GameSession implements Disposable {
   private queueTalkStoryEvent(target: Entity | undefined): void {
     if (target === undefined) return;
 
-    const eventData = this.world.components.readEntityData(TalkStoryEvent, target);
-    if (eventData === undefined) return;
+    const event = entityContent(this.contentStore, target)?.onTalkEvent;
+    if (event === undefined) return;
 
-    const event = storyEventForCode(eventData.event);
     const definition = storyEventDefinition(event);
     if (this.storyFlags.has(definition.flag)) return;
     this.pendingDialogueStoryEvent = event;
@@ -321,21 +322,19 @@ export class GameSession implements Disposable {
   }
 
   private storyTargetEntity(targetId: StoryAction["target"]): Entity | undefined {
-    const targetCode = storyTargetCode(targetId);
-    for (const entity of this.world.entities.query(storyTargetQuery)) {
-      const target = this.world.components.getEntityData(StoryTarget, entity);
-      if (target.id === targetCode) return entity;
+    for (const [entity, content] of this.contentStore) {
+      if (!this.world.entities.isActive(entity)) continue;
+      if (content.storyId === targetId) return entity;
     }
     return undefined;
   }
 
   private commitUplinkTerminalActivation(terminal: Entity, events: readonly GameEvent[]): PlayerCommandResult {
-    const destination = this.world.components.readEntityData(UplinkTerminal, terminal);
-    if (destination === undefined) {
+    const goto = entityContent(this.contentStore, terminal)?.terminalDestination;
+    if (goto === undefined) {
       throw new Error(`Uplink terminal ${terminal} is missing a map destination.`);
     }
 
-    const goto = terminalDestinationForCode(destination.destination);
     const levelCompleteEvents = completePlayerLevel(this.world, this.playerEntity, events);
     clearTransientPlayerState(this.world, this.playerEntity);
     this.world.refresh();
@@ -378,6 +377,7 @@ export class GameSession implements Disposable {
       player: this.playerEntity,
       spatial: this.spatial,
       random: this.random,
+      contentStore: this.contentStore,
       blocksSight: (x, y) => this.tileBlocksSight(x, y),
       noises: this.noisesForPlayerAction(actionEvents, action.noise),
     });
@@ -413,6 +413,7 @@ export class GameSession implements Disposable {
 
       if (animation.kind === SpriteAnimationKind.Death) {
         const position = this.world.components.readEntityData(GridPos, entity);
+        removeEntityContent(this.contentStore, entity);
         this.world.entities.destroy(entity);
         if (position !== undefined) createCorpse(this.world, position);
       } else {
@@ -526,12 +527,13 @@ export class GameSession implements Disposable {
   }
 }
 
-function assertUniqueStoryTargets(world: World): void {
-  const seen = new Set<number>();
-  for (const entity of world.entities.query(storyTargetQuery)) {
-    const { id } = world.components.getEntityData(StoryTarget, entity);
-    if (seen.has(id)) throw new Error(`Duplicate story target "${storyTargetForCode(id)}".`);
-    seen.add(id);
+function assertUniqueStoryTargets(contentStore: EntityContentStore): void {
+  const seen = new Set<string>();
+  for (const content of contentStore.values()) {
+    const storyId = content.storyId;
+    if (storyId === undefined) continue;
+    if (seen.has(storyId)) throw new Error(`Duplicate story target "${storyId}".`);
+    seen.add(storyId);
   }
 }
 
@@ -543,8 +545,8 @@ function playerSpawnFor(map: GameMap): PlayerPrefab {
   return player;
 }
 
-function spawnMapScopedEntities(world: World, map: GameMap): void {
+function spawnMapScopedEntities(world: World, contentStore: EntityContentStore, map: GameMap): void {
   for (const entityDef of map.entities) {
-    if (entityDef.prefab !== "player") createMapEntity(world, entityDef);
+    if (entityDef.prefab !== "player") createMapEntity(world, contentStore, entityDef);
   }
 }

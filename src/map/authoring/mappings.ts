@@ -44,8 +44,8 @@ const DISPLAY_NAMES: Readonly<Record<string, DisplayNameType>> = {
   agenticAcolyte: DisplayName.AgenticAcolyte,
 };
 
-const DIALOGUE_TREE_IDS: Readonly<Record<string, DialogueTreeIdType>> = {
-  none: DialogueTreeId.None,
+const DIALOGUE_TREE_IDS: Readonly<Record<string, DialogueTreeIdType | undefined>> = {
+  none: undefined,
   johnIntro: DialogueTreeId.JohnIntro,
   johnThanks: DialogueTreeId.JohnThanks,
 };
@@ -110,8 +110,8 @@ export function mapDisplayName(value: string, context: string): DisplayNameType 
   return lookup(DISPLAY_NAMES, value, "display name", context);
 }
 
-export function mapDialogueTreeId(value: string, context: string): DialogueTreeIdType {
-  return lookup(DIALOGUE_TREE_IDS, value, "dialogue tree", context);
+export function mapDialogueTreeId(value: string, context: string): DialogueTreeIdType | undefined {
+  return lookupOptional(DIALOGUE_TREE_IDS, value, "dialogue tree", context);
 }
 
 export function mapExamineTextId(value: string, context: string): ExamineTextIdType {
@@ -162,6 +162,20 @@ function lookup<T>(table: Readonly<Record<string, T>>, value: string, kind: stri
   const mapped = table[value] ?? table[lowerFirst(value)];
   if (mapped === undefined) throw new Error(`${context}: Unknown ${kind} "${value}".`);
   return mapped;
+}
+
+function lookupOptional<T>(
+  table: Readonly<Record<string, T | undefined>>,
+  value: string,
+  kind: string,
+  context: string,
+): T | undefined {
+  if (Object.hasOwn(table, value)) return table[value];
+
+  const lowered = lowerFirst(value);
+  if (Object.hasOwn(table, lowered)) return table[lowered];
+
+  throw new Error(`${context}: Unknown ${kind} "${value}".`);
 }
 
 function lowerFirst(value: string): string {

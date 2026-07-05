@@ -9,12 +9,8 @@ Deno.test("dialogueTreeStart returns the authored start node", () => {
   assertEquals(start?.node.choices.map((choice) => choice.label), ["WHAT'S GOING ON?", "BYE!"]);
 });
 
-Deno.test("dialogueTreeStart returns nothing for the none id", () => {
-  assertEquals(dialogueTreeStart(DialogueTreeId.None), undefined);
-});
-
 Deno.test("dialogueTreeStart rejects unknown dialogue ids", () => {
-  assertThrows(() => dialogueTreeStart(255), Error, "Unknown dialogue tree id: 255");
+  assertThrows(() => dialogueTreeStart("missing"), Error, "Unknown dialogue tree id: missing");
 });
 
 Deno.test("dialogueTreeNode follows choice links within a tree", () => {
