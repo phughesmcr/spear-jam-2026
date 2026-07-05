@@ -11,19 +11,13 @@ const FULL_CANVAS = { width: 720, height: 1280 };
 Deno.test("renderGameFrame draws a visible first-person vignette over the play area", () => {
   const ctx = new FakeGameContext();
 
-  const result = renderGameFrame(
-    ctx as unknown as CanvasRenderingContext2D,
-    FULL_CANVAS,
-    fakeSession(),
-    { type: "playing" },
-    [],
-    [],
-    "firstPerson",
-    "idle",
-    fakeFirstPersonRenderer(),
-    {},
-    0,
-  );
+  const result = renderGameFrame({
+    ctx: ctx as unknown as CanvasRenderingContext2D,
+    canvasSize: FULL_CANVAS,
+    session: fakeSession(),
+    mode: { type: "playing" },
+    firstPersonRenderer: fakeFirstPersonRenderer(),
+  });
   assertEquals(result, { needsFrame: false });
 
   const gradient = ctx.gradients[0];
@@ -61,22 +55,17 @@ Deno.test("renderGameFrame does not schedule RAF or tick the session in top-down
   });
 
   try {
-    const result = renderGameFrame(
-      new FakeGameContext() as unknown as CanvasRenderingContext2D,
-      FULL_CANVAS,
-      fakeSession(() => {
+    const result = renderGameFrame({
+      ctx: new FakeGameContext() as unknown as CanvasRenderingContext2D,
+      canvasSize: FULL_CANVAS,
+      session: fakeSession(() => {
         sessionTicks++;
       }),
-      { type: "playing" },
-      [],
-      [],
-      "topDown",
-      "idle",
-      undefined,
-      {},
-      120,
-      () => {},
-    );
+      mode: { type: "playing" },
+      viewMode: "topDown",
+      nowMs: 120,
+      onAssetLoad: () => {},
+    });
 
     assertEquals(result, { needsFrame: false });
     assertEquals(scheduledFrames, 0);
@@ -94,38 +83,25 @@ Deno.test("renderGameFrame requests the help image in help mode", () => {
   const document = new FakeGameDocument();
   const ctx = new FakeGameContext(document);
 
-  const result = renderGameFrame(
-    ctx as unknown as CanvasRenderingContext2D,
-    FULL_CANVAS,
-    undefined,
-    { type: "help", selectedIndex: 0 },
-    [],
-    [],
-    "firstPerson",
-    "idle",
-    undefined,
-    {},
-    0,
-  );
+  const result = renderGameFrame({
+    ctx: ctx as unknown as CanvasRenderingContext2D,
+    canvasSize: FULL_CANVAS,
+    mode: { type: "help", selectedIndex: 0 },
+  });
 
   assertEquals(result, { needsFrame: false });
   assert(document.images.some((image) => image.src.endsWith("/assets/game/help.png")));
 });
 
 Deno.test("renderGameFrame returns first-person renderer frame demand", () => {
-  const result = renderGameFrame(
-    new FakeGameContext() as unknown as CanvasRenderingContext2D,
-    FULL_CANVAS,
-    fakeSession(),
-    { type: "playing" },
-    [],
-    [],
-    "firstPerson",
-    "idle",
-    fakeFirstPersonRenderer(true),
-    {},
-    240,
-  );
+  const result = renderGameFrame({
+    ctx: new FakeGameContext() as unknown as CanvasRenderingContext2D,
+    canvasSize: FULL_CANVAS,
+    session: fakeSession(),
+    mode: { type: "playing" },
+    firstPersonRenderer: fakeFirstPersonRenderer(true),
+    nowMs: 240,
+  });
 
   assertEquals(result, { needsFrame: true });
 });

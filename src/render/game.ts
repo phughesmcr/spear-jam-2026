@@ -34,6 +34,21 @@ export type GameFrameResult = {
   readonly needsFrame: boolean;
 };
 
+export type FrameProps = {
+  readonly ctx: CanvasRenderingContext2D;
+  readonly canvasSize: GameCanvasSize;
+  readonly session?: GameSession;
+  readonly mode?: GameMode;
+  readonly messages?: readonly string[];
+  readonly combatFeedback?: readonly CombatFeedback[];
+  readonly viewMode?: ViewMode;
+  readonly weaponHudPhase?: WeaponHudPhase;
+  readonly firstPersonRenderer?: FirstPersonRenderer;
+  readonly firstPersonHud?: FirstPersonHudOptions;
+  readonly nowMs?: number;
+  readonly onAssetLoad?: () => void;
+};
+
 const FIRST_PERSON_PLAY_RECT: GameRenderRect = { x: 0, y: 0, width: 0, height: 0 };
 
 export async function preloadGameAssets(
@@ -52,20 +67,20 @@ export async function preloadGameAssets(
   ]);
 }
 
-export function renderGameFrame(
-  ctx: CanvasRenderingContext2D,
-  canvasSize: GameCanvasSize,
-  session?: GameSession,
-  mode: GameMode = { type: "loading" },
-  messages: readonly string[] = [],
-  combatFeedback: readonly CombatFeedback[] = [],
-  viewMode: ViewMode = "firstPerson",
-  weaponHudPhase: WeaponHudPhase = "idle",
-  firstPersonRenderer?: FirstPersonRenderer,
-  firstPersonHud: FirstPersonHudOptions = {},
-  nowMs: number = 0,
-  onAssetLoad?: () => void,
-): GameFrameResult {
+export function renderGameFrame({
+  ctx,
+  canvasSize,
+  session,
+  mode = { type: "loading" },
+  messages = [],
+  combatFeedback = [],
+  viewMode = "firstPerson",
+  weaponHudPhase = "idle",
+  firstPersonRenderer,
+  firstPersonHud = {},
+  nowMs = 0,
+  onAssetLoad,
+}: FrameProps): GameFrameResult {
   let needsFrame = false;
   ctx.fillStyle = BACKGROUND_COLOR;
   ctx.fillRect(0, 0, canvasSize.width, canvasSize.height);

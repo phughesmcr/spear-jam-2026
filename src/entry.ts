@@ -109,20 +109,20 @@ class Game implements Disposable {
   private updateAndRender(nowMs: number): void {
     if (!this.started || this.controller.signal.aborted) return;
     const tickResult = this.tickSession(nowMs);
-    const renderResult = renderGameFrame(
-      this.spec.ctx,
-      this.canvasSize,
-      this.session,
-      this.model.mode,
-      this.messageHudEntries.map((entry) => entry.text),
-      this.model.combatFeedback,
-      this.model.viewMode,
-      this.weaponHudPhase,
-      this.firstPersonRenderer,
-      { showKeys: this.keyHudVisible },
+    const renderResult = renderGameFrame({
+      ctx: this.spec.ctx,
+      canvasSize: this.canvasSize,
+      session: this.session,
+      mode: this.model.mode,
+      messages: this.messageHudEntries.map((entry) => entry.text),
+      combatFeedback: this.model.combatFeedback,
+      viewMode: this.model.viewMode,
+      weaponHudPhase: this.weaponHudPhase,
+      firstPersonRenderer: this.firstPersonRenderer,
+      firstPersonHud: { showKeys: this.keyHudVisible },
       nowMs,
-      this.renderLoadedAssets,
-    );
+      onAssetLoad: this.renderLoadedAssets,
+    });
     this.setFrameNeeded(tickResult.needsFrame || renderResult.needsFrame);
   }
 
