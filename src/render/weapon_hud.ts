@@ -1,8 +1,7 @@
 import type { CommandSlot } from "@/src/game/state.ts";
+import type { WeaponHudPhase } from "@/src/game/presentation.ts";
 import { createImageAsset, type ImageAsset, loadedImage, preloadImageAssets } from "@/src/render/assets.ts";
 import type { GameCanvasSize } from "@/src/render/canvas.ts";
-
-export type WeaponHudPhase = "idle" | "active";
 
 export type WeaponHudImageSize = {
   readonly width: number;

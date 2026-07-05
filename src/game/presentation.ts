@@ -1,0 +1,110 @@
+import type { Entity } from "@phughesmcr/miski";
+import { type CombatFeedback, combatFeedbackForEvents } from "@/src/game/combat_feedback.ts";
+import type { GameEvent } from "@/src/game/events.ts";
+import { messageForEvent } from "@/src/game/messages.ts";
+
+const WEAPON_HUD_ACTIVE_MS = 140;
+const KEY_HUD_VISIBLE_MS = 1400;
+const MESSAGE_HUD_VISIBLE_MS = 2200;
+const MESSAGE_HUD_MAX_LINES = 2;
+
+export type WeaponHudPhase = "idle" | "active";
+
+export type PresentationMessage = {
+  readonly text: string;
+  readonly expiresAtMs: number;
+};
+
+export type PresentationState = {
+  readonly messages: readonly PresentationMessage[];
+  readonly combatFeedback: readonly CombatFeedback[];
+  readonly weaponHudActiveUntilMs?: number;
+  readonly keyHudVisibleUntilMs?: number;
+};
+
+export type PresentationView = {
+  readonly messages: readonly string[];
+  readonly combatFeedback: readonly CombatFeedback[];
+  readonly weaponHudPhase: WeaponHudPhase;
+  readonly showKeys: boolean;
+  readonly needsFrame: boolean;
+};
+
+export type ConsumeGameEventsInput = {
+  readonly playerEntity: Entity;
+  readonly events: readonly GameEvent[];
+  readonly nowMs: number;
+};
+
+export function createPresentationState(): PresentationState {
+  return {
+    messages: [],
+    combatFeedback: [],
+  };
+}
+
+export function consumeGameEvents(
+  state: PresentationState,
+  { playerEntity, events, nowMs }: ConsumeGameEventsInput,
+): PresentationState {
+  const messages = activeMessages(state, nowMs);
+  const activeTexts = new Set(messages.map((message) => message.text));
+  const nextMessages = [...messages];
+
+  for (const event of events) {
+    const text = messageForEvent(playerEntity, event);
+    if (activeTexts.has(text)) continue;
+    activeTexts.add(text);
+    nextMessages.push({ text, expiresAtMs: nowMs + MESSAGE_HUD_VISIBLE_MS });
+  }
+
+  return {
+    messages: nextMessages.slice(-MESSAGE_HUD_MAX_LINES),
+    combatFeedback: combatFeedbackForEvents(playerEntity, events),
+    ...(playerAttackOccurred(events, playerEntity) ? { weaponHudActiveUntilMs: nowMs + WEAPON_HUD_ACTIVE_MS } : {
+      weaponHudActiveUntilMs: state.weaponHudActiveUntilMs,
+    }),
+    ...(keyHudShouldFlash(events) ? { keyHudVisibleUntilMs: nowMs + KEY_HUD_VISIBLE_MS } : {
+      keyHudVisibleUntilMs: state.keyHudVisibleUntilMs,
+    }),
+  };
+}
+
+export function presentationView(state: PresentationState, nowMs: number): PresentationView {
+  const messages = activeMessages(state, nowMs).map((message) => message.text);
+  const weaponHudPhase: WeaponHudPhase = isVisible(state.weaponHudActiveUntilMs, nowMs) ? "active" : "idle";
+  const showKeys = isVisible(state.keyHudVisibleUntilMs, nowMs);
+
+  return {
+    messages,
+    combatFeedback: state.combatFeedback,
+    weaponHudPhase,
+    showKeys,
+    needsFrame: messages.length > 0 || weaponHudPhase === "active" || showKeys,
+  };
+}
+
+function activeMessages(state: PresentationState, nowMs: number): readonly PresentationMessage[] {
+  return state.messages.filter((message) => message.expiresAtMs > nowMs);
+}
+
+function isVisible(expiresAtMs: number | undefined, nowMs: number): boolean {
+  return expiresAtMs !== undefined && expiresAtMs > nowMs;
+}
+
+function playerAttackOccurred(events: readonly GameEvent[], playerEntity: Entity): boolean {
+  return events.some((event) => {
+    switch (event.type) {
+      case "attackMissed":
+      case "damageDealt":
+      case "entityDefeated":
+        return event.actor === playerEntity;
+      default:
+        return false;
+    }
+  });
+}
+
+function keyHudShouldFlash(events: readonly GameEvent[]): boolean {
+  return events.some((event) => event.type === "keyPickedUp" || event.type === "doorLocked");
+}

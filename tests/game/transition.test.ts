@@ -91,7 +91,43 @@ Deno.test("transition derives command result intermission state", () => {
     revealStartedAtMs: 0,
     revealed: false,
   });
+  assertEquals(result.model.presentation.messages, [{ text: "The uplink hums.", expiresAtMs: 2200 }]);
   assertEquals(result.effects, [{ type: "render" }]);
+});
+
+Deno.test("transition stores command result combat feedback in presentation", () => {
+  const playing = transition(createGameModel("Level 1"), {
+    type: "mapLoaded",
+    mapName: "Level 1",
+  }).model;
+
+  const result = transition(playing, {
+    type: "playerCommandResult",
+    playerEntity: PLAYER,
+    nowMs: 100,
+    result: {
+      events: [{
+        type: "damageDealt",
+        actor: PLAYER,
+        actorName: "You",
+        target: 2 as Entity,
+        targetName: "Drone",
+        roll: 14,
+        total: 18,
+        amount: 3,
+        critical: false,
+      }],
+    },
+  });
+
+  assertEquals(result.model.presentation.combatFeedback, [{
+    text: "HIT 3",
+    tone: "hit",
+    side: "player",
+    roll: 14,
+    total: 18,
+  }]);
+  assertEquals(result.model.presentation.messages, [{ text: "You hit Drone for 3.", expiresAtMs: 2300 }]);
 });
 
 Deno.test("transition confirms pointer verbs only when down and up hit the same hotspot", () => {
@@ -355,7 +391,7 @@ Deno.test("transition retries defeat through a session-owned checkpoint effect",
   }));
 
   const result = transition(model, { type: "gameCommand", command: { type: "wait" } });
-  assertEquals(result.model.combatFeedback, []);
+  assertEquals(result.model.presentation, { messages: [], combatFeedback: [] });
   assertEquals(result.model.mode, { type: "loading" });
   assertEquals(result.effects, [
     { type: "render" },
@@ -379,7 +415,7 @@ Deno.test("transition resets victory through a fresh-run effect", () => {
   }));
 
   const result = transition(model, { type: "gameCommand", command: { type: "wait" } });
-  assertEquals(result.model.combatFeedback, []);
+  assertEquals(result.model.presentation, { messages: [], combatFeedback: [] });
   assertEquals(result.model.mode, { type: "loading" });
   assertEquals(result.effects, [
     { type: "render" },

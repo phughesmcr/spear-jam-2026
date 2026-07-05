@@ -1,9 +1,7 @@
-import type { Entity } from "@phughesmcr/miski";
 import { createGameSession, type GameSession } from "@/src/ecs/session.ts";
 import { type GameCommand, type PlayerCommand, relativeMoveDirectionOffset } from "@/src/game/commands.ts";
 import { directionDelta, normalizeDirection } from "@/src/grid/direction.ts";
-import type { GameEvent } from "@/src/game/events.ts";
-import { messageForEvent } from "@/src/game/messages.ts";
+import { presentationView } from "@/src/game/presentation.ts";
 import { SplitMix32 } from "@/src/game/rng.ts";
 import {
   createGameModel,
@@ -20,18 +18,6 @@ import { dialogueOptionSlotAt } from "@/src/render/dialogue.ts";
 import { createFirstPersonRenderer, type FirstPersonRenderer } from "@/src/render/first_person.ts";
 import { preloadGameAssets, renderGameFrame } from "@/src/render/game.ts";
 import { verbMenuTargetAt } from "@/src/render/verb_menu.ts";
-import type { WeaponHudPhase } from "@/src/render/weapon_hud.ts";
-
-const WEAPON_HUD_ACTIVE_MS = 140;
-const KEY_HUD_VISIBLE_MS = 1400;
-const MESSAGE_HUD_VISIBLE_MS = 2200;
-const MESSAGE_HUD_MAX_LINES = 2;
-
-type MessageHudEntry = {
-  readonly id: number;
-  readonly text: string;
-  readonly timeoutId: number;
-};
 
 export interface GameSpec {
   ctx: CanvasRenderingContext2D;
@@ -56,12 +42,6 @@ class Game implements Disposable {
   private model: GameModel;
   private canvasController: Disposable;
   private canvasSize: GameCanvasSize = DEFAULT_GAME_CANVAS_SIZE;
-  private weaponHudPhase: WeaponHudPhase = "idle";
-  private weaponHudTimeoutId?: number;
-  private keyHudVisible = false;
-  private keyHudTimeoutId?: number;
-  private messageHudEntries: MessageHudEntry[] = [];
-  private nextMessageHudId = 1;
   private inputController?: Disposable;
   private session?: GameSession;
   private started = false;
@@ -109,21 +89,19 @@ class Game implements Disposable {
   private updateAndRender(nowMs: number): void {
     if (!this.started || this.controller.signal.aborted) return;
     const tickResult = this.tickSession(nowMs);
+    const presentation = presentationView(this.model.presentation, nowMs);
     const renderResult = renderGameFrame({
       ctx: this.spec.ctx,
       canvasSize: this.canvasSize,
       session: this.session,
       mode: this.model.mode,
-      messages: this.messageHudEntries.map((entry) => entry.text),
-      combatFeedback: this.model.combatFeedback,
+      presentation,
       viewMode: this.model.viewMode,
-      weaponHudPhase: this.weaponHudPhase,
       firstPersonRenderer: this.firstPersonRenderer,
-      firstPersonHud: { showKeys: this.keyHudVisible },
       nowMs,
       onAssetLoad: this.renderLoadedAssets,
     });
-    this.setFrameNeeded(tickResult.needsFrame || renderResult.needsFrame);
+    this.setFrameNeeded(tickResult.needsFrame || presentation.needsFrame || renderResult.needsFrame);
   }
 
   private tickSession(nowMs: number): { readonly needsFrame: boolean } {
@@ -212,11 +190,6 @@ class Game implements Disposable {
 
   private finishMapLoad(mapName: string): void {
     this.firstPersonRenderer.reset();
-    this.clearWeaponHudTimeout();
-    this.clearKeyHudTimeout();
-    this.clearMessageHudEntries();
-    this.weaponHudPhase = "idle";
-    this.keyHudVisible = false;
     this.apply({ type: "mapLoaded", mapName });
   }
 
@@ -309,15 +282,6 @@ class Game implements Disposable {
         this.firstPersonRenderer.bump(delta.dx, delta.dy, nowMs);
       }
     }
-    if (playerAttackOccurred(result.events, playerEntity)) {
-      this.flashWeaponHud();
-    }
-    if (keyHudShouldFlash(result.events)) {
-      this.flashKeyHud();
-    }
-    if (result.events.length > 0) {
-      this.addMessageHudMessages(result.events.map((event) => messageForEvent(playerEntity, event)));
-    }
     this.apply({
       type: "playerCommandResult",
       result,
@@ -375,97 +339,11 @@ class Game implements Disposable {
     );
   }
 
-  private flashWeaponHud(): void {
-    this.clearWeaponHudTimeout();
-    this.weaponHudPhase = "active";
-    this.weaponHudTimeoutId = this.spec.window.setTimeout(() => {
-      this.weaponHudTimeoutId = undefined;
-      this.weaponHudPhase = "idle";
-      this.updateAndRenderNow();
-    }, WEAPON_HUD_ACTIVE_MS);
-  }
-
-  private clearWeaponHudTimeout(): void {
-    if (this.weaponHudTimeoutId === undefined) return;
-    this.spec.window.clearTimeout(this.weaponHudTimeoutId);
-    this.weaponHudTimeoutId = undefined;
-  }
-
-  private flashKeyHud(): void {
-    this.clearKeyHudTimeout();
-    this.keyHudVisible = true;
-    this.keyHudTimeoutId = this.spec.window.setTimeout(() => {
-      this.keyHudTimeoutId = undefined;
-      this.keyHudVisible = false;
-      this.updateAndRenderNow();
-    }, KEY_HUD_VISIBLE_MS);
-  }
-
-  private clearKeyHudTimeout(): void {
-    if (this.keyHudTimeoutId === undefined) return;
-    this.spec.window.clearTimeout(this.keyHudTimeoutId);
-    this.keyHudTimeoutId = undefined;
-  }
-
-  private addMessageHudMessages(messages: readonly string[]): void {
-    const activeTexts = new Set(this.messageHudEntries.map((entry) => entry.text));
-    for (const text of messages) {
-      if (activeTexts.has(text)) continue;
-      activeTexts.add(text);
-      const id = this.nextMessageHudId;
-      this.nextMessageHudId++;
-      const timeoutId = this.spec.window.setTimeout(() => this.expireMessageHudEntry(id), MESSAGE_HUD_VISIBLE_MS);
-      this.messageHudEntries.push({ id, text, timeoutId });
-    }
-    this.trimMessageHudEntries();
-  }
-
-  private trimMessageHudEntries(): void {
-    while (this.messageHudEntries.length > MESSAGE_HUD_MAX_LINES) {
-      const entry = this.messageHudEntries[0];
-      if (entry === undefined) return;
-      this.spec.window.clearTimeout(entry.timeoutId);
-      this.messageHudEntries = this.messageHudEntries.slice(1);
-    }
-  }
-
-  private expireMessageHudEntry(id: number): void {
-    this.messageHudEntries = this.messageHudEntries.filter((entry) => entry.id !== id);
-    this.updateAndRenderNow();
-  }
-
-  private clearMessageHudEntries(): void {
-    for (const entry of this.messageHudEntries) {
-      this.spec.window.clearTimeout(entry.timeoutId);
-    }
-    this.messageHudEntries = [];
-  }
-
   [Symbol.dispose](): void {
     this.controller.abort();
     this.cancelPendingFrame();
-    this.clearWeaponHudTimeout();
-    this.clearKeyHudTimeout();
-    this.clearMessageHudEntries();
     this.inputController?.[Symbol.dispose]();
     this.session?.[Symbol.dispose]();
     this.canvasController?.[Symbol.dispose]();
   }
-}
-
-function playerAttackOccurred(events: readonly GameEvent[], playerEntity: Entity): boolean {
-  return events.some((event) => {
-    switch (event.type) {
-      case "attackMissed":
-      case "damageDealt":
-      case "entityDefeated":
-        return event.actor === playerEntity;
-      default:
-        return false;
-    }
-  });
-}
-
-function keyHudShouldFlash(events: readonly GameEvent[]): boolean {
-  return events.some((event) => event.type === "keyPickedUp" || event.type === "doorLocked");
 }

@@ -1,5 +1,5 @@
 import type { GameSession } from "@/src/ecs/session.ts";
-import type { CombatFeedback } from "@/src/game/combat_feedback.ts";
+import type { PresentationView } from "@/src/game/presentation.ts";
 import type { GameMode, ViewMode } from "@/src/game/state.ts";
 import type { GameCanvasSize } from "@/src/render/canvas.ts";
 import {
@@ -10,14 +10,14 @@ import {
 import { renderDrawableEntities } from "@/src/render/drawables.ts";
 import { preloadDialogueAssets, renderDialogue } from "@/src/render/dialogue.ts";
 import type { FirstPersonRenderer } from "@/src/render/first_person.ts";
-import { type FirstPersonHudOptions, preloadHudAssets, renderFirstPersonHud, renderHud } from "@/src/render/hud.ts";
+import { preloadHudAssets, renderFirstPersonHud, renderHud } from "@/src/render/hud.ts";
 import { preloadHelpAssets, renderHelp } from "@/src/render/help.ts";
 import { renderIntermission } from "@/src/render/intermission.ts";
 import { renderMap } from "@/src/render/map.ts";
 import { renderMessageLog } from "@/src/render/messages.ts";
 import { monoFont } from "@/src/render/text.ts";
 import { preloadVerbMenuAssets, renderVerbMenu } from "@/src/render/verb_menu.ts";
-import { preloadWeaponHudAssets, renderWeaponHud, type WeaponHudPhase } from "@/src/render/weapon_hud.ts";
+import { preloadWeaponHudAssets, renderWeaponHud } from "@/src/render/weapon_hud.ts";
 
 const BACKGROUND_COLOR = "#101217";
 const OVERLAY_COLOR = "rgba(0, 0, 0, 0.6)";
@@ -39,17 +39,21 @@ export type FrameProps = {
   readonly canvasSize: GameCanvasSize;
   readonly session?: GameSession;
   readonly mode?: GameMode;
-  readonly messages?: readonly string[];
-  readonly combatFeedback?: readonly CombatFeedback[];
+  readonly presentation?: PresentationView;
   readonly viewMode?: ViewMode;
-  readonly weaponHudPhase?: WeaponHudPhase;
   readonly firstPersonRenderer?: FirstPersonRenderer;
-  readonly firstPersonHud?: FirstPersonHudOptions;
   readonly nowMs?: number;
   readonly onAssetLoad?: () => void;
 };
 
 const FIRST_PERSON_PLAY_RECT: GameRenderRect = { x: 0, y: 0, width: 0, height: 0 };
+const EMPTY_PRESENTATION: PresentationView = {
+  messages: [],
+  combatFeedback: [],
+  weaponHudPhase: "idle",
+  showKeys: false,
+  needsFrame: false,
+};
 
 export async function preloadGameAssets(
   document: Document,
@@ -72,12 +76,9 @@ export function renderGameFrame({
   canvasSize,
   session,
   mode = { type: "loading" },
-  messages = [],
-  combatFeedback = [],
+  presentation = EMPTY_PRESENTATION,
   viewMode = "firstPerson",
-  weaponHudPhase = "idle",
   firstPersonRenderer,
-  firstPersonHud = {},
   nowMs = 0,
   onAssetLoad,
 }: FrameProps): GameFrameResult {
@@ -106,23 +107,23 @@ export function renderGameFrame({
       );
       needsFrame ||= firstPersonResult.needsFrame;
       renderFirstPersonVignette(ctx, playRect);
-      renderWeaponHud(ctx, canvasSize, playerStatus.selectedWeapon, weaponHudPhase, onAssetLoad);
+      renderWeaponHud(ctx, canvasSize, playerStatus.selectedWeapon, presentation.weaponHudPhase, onAssetLoad);
       renderFirstPersonHud(
         ctx,
         canvasSize,
         playerStatus,
-        { ...firstPersonHud, facing: session.getPlayerFacing().dir },
+        { showKeys: presentation.showKeys, facing: session.getPlayerFacing().dir },
         onAssetLoad,
       );
-      renderFirstPersonCombatFeedback(ctx, canvasSize, combatFeedback, onAssetLoad);
+      renderFirstPersonCombatFeedback(ctx, canvasSize, presentation.combatFeedback, onAssetLoad);
     } else {
       const metrics = renderMap(ctx, canvasSize, map, session.getVisibility());
       renderDrawableEntities(ctx, session, metrics);
-      renderCombatFeedback(ctx, metrics, combatFeedback);
+      renderCombatFeedback(ctx, metrics, presentation.combatFeedback);
       renderHud(ctx, canvasSize, session);
     }
   }
-  renderMessageLog(ctx, canvasSize, messages);
+  renderMessageLog(ctx, canvasSize, presentation.messages);
   switch (mode.type) {
     case "loading":
       renderOverlay(ctx, canvasSize, "LOADING");

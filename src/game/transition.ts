@@ -1,6 +1,5 @@
 import type { Entity } from "@phughesmcr/miski";
 import { dialogueTreeNode } from "@/src/dialogue/dialogue.ts";
-import { type CombatFeedback, combatFeedbackForEvents } from "@/src/game/combat_feedback.ts";
 import {
   type GameCommand,
   isPlayerCommand,
@@ -8,6 +7,7 @@ import {
   type PlayerCommandResult,
 } from "@/src/game/commands.ts";
 import { hasNextIntermissionPage, type IntermissionMode, isMessageRevealed } from "@/src/game/intermission.ts";
+import { consumeGameEvents, createPresentationState, type PresentationState } from "@/src/game/presentation.ts";
 import type { CommandSlot, GameMode, VerbMenuControl, VerbMenuTarget, ViewMode } from "@/src/game/state.ts";
 import { VERBS, verbToCommand } from "@/src/game/verbs.ts";
 
@@ -37,7 +37,7 @@ export type GameModel = {
   readonly startMapName: string;
   readonly showIntro: boolean;
   readonly currentMapName: string;
-  readonly combatFeedback: readonly CombatFeedback[];
+  readonly presentation: PresentationState;
   readonly mode: GameMode;
   readonly viewMode: ViewMode;
   readonly lastVerbIndex: number;
@@ -78,7 +78,7 @@ export function createGameModel(startMapName: string, options: GameModelOptions 
     startMapName,
     showIntro: options.showIntro ?? false,
     currentMapName: startMapName,
-    combatFeedback: [],
+    presentation: createPresentationState(),
     mode: { type: "loading" },
     viewMode: "firstPerson",
     lastVerbIndex: 0,
@@ -123,6 +123,7 @@ function mapLoaded(model: GameModel, mapName: string): GameTransition {
   return done({
     ...model,
     currentMapName: mapName,
+    presentation: createPresentationState(),
     mode: { type: "playing" },
   }, [{ type: "ensureInput" }, { type: "render" }]);
 }
@@ -237,7 +238,7 @@ function outcomeCommand(
 
   const resetModel = {
     ...model,
-    combatFeedback: [],
+    presentation: createPresentationState(),
     mode: { type: "loading" },
   } satisfies GameModel;
   if (outcome === "victory") {
@@ -354,13 +355,13 @@ function playerCommandResult(
   playerEntity: Entity,
   nowMs: number,
 ): GameTransition {
-  const modelWithFeedback = applyCombatFeedback(model, playerEntity, result);
+  const modelWithPresentation = applyPresentation(model, playerEntity, result, nowMs);
   if (result.outcome) {
-    return done({ ...modelWithFeedback, mode: { type: result.outcome } }, [{ type: "render" }]);
+    return done({ ...modelWithPresentation, mode: { type: result.outcome } }, [{ type: "render" }]);
   }
   if (result.mapChange) {
     return done(
-      enterIntermission(modelWithFeedback, {
+      enterIntermission(modelWithPresentation, {
         pages: [`Entering ${result.mapChange.goto}.`],
         prompt: CONTINUE_PROMPT,
         goto: result.mapChange.goto,
@@ -371,13 +372,13 @@ function playerCommandResult(
   }
   if (result.dialogue) {
     return done({
-      ...modelWithFeedback,
+      ...modelWithPresentation,
       dialoguePointerDownSlot: undefined,
       mode: { type: "dialogue", ...result.dialogue },
     }, [{ type: "render" }]);
   }
 
-  return done(modelWithFeedback, [{ type: "render" }]);
+  return done(modelWithPresentation, [{ type: "render" }]);
 }
 
 function toggleMenu(model: GameModel): GameTransition {
@@ -518,14 +519,19 @@ function closeDialogue(model: GameModel): GameTransition {
   }, [{ type: "closeDialogue" }, { type: "render" }]);
 }
 
-function applyCombatFeedback(
+function applyPresentation(
   model: GameModel,
   playerEntity: Entity,
   result: PlayerCommandResult,
+  nowMs: number,
 ): GameModel {
   return {
     ...model,
-    combatFeedback: combatFeedbackForEvents(playerEntity, result.events),
+    presentation: consumeGameEvents(model.presentation, {
+      playerEntity,
+      events: result.events,
+      nowMs,
+    }),
   };
 }
 
