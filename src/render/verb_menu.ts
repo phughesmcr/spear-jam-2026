@@ -1,5 +1,5 @@
-import type { CommandSlot } from "@/src/game/state.ts";
-import { type VerbId, type VerbMenuTarget, VERBS } from "@/src/game/verbs.ts";
+import type { CommandSlot, VerbMenuControl, VerbMenuTarget } from "@/src/game/state.ts";
+import { type VerbId, VERBS } from "@/src/game/verbs.ts";
 import { createImageAsset, type ImageAsset, loadedImage, preloadImageAssets } from "@/src/render/assets.ts";
 import type { GameCanvasSize } from "@/src/render/canvas.ts";
 import { monoFont } from "@/src/render/text.ts";
@@ -11,8 +11,15 @@ export type VerbMenuPoint = {
 export type VerbMenuSpriteRect = VerbMenuPoint & {
   readonly size: number;
 };
-export type VerbMenuWeaponButtonRect = {
-  readonly slot: CommandSlot;
+export type VerbMenuButtonRect = {
+  readonly label: string;
+  readonly target: Exclude<VerbMenuTarget, { readonly kind: "verb" }>;
+  readonly x: number;
+  readonly y: number;
+  readonly width: number;
+  readonly height: number;
+};
+type VerbMenuRect = {
   readonly x: number;
   readonly y: number;
   readonly width: number;
@@ -48,15 +55,39 @@ const HOTSPOT_STROKE = "rgba(103, 232, 249, 0.86)";
 const LABEL_BACKGROUND = "rgba(3, 7, 18, 0.62)";
 const MENU_SCRIM = "rgba(0, 0, 0, 0.66)";
 const LABEL_MARGIN = 8;
-const WEAPON_BUTTON_SLOTS = [1, 2, 3] as const satisfies readonly CommandSlot[];
-const WEAPON_BUTTON_MARGIN = 18;
-const WEAPON_BUTTON_GAP = 10;
-const WEAPON_BUTTON_HEIGHT_MIN = 42;
-const WEAPON_BUTTON_HEIGHT_MAX = 52;
-const WEAPON_BUTTON_WIDTH_MAX = 150;
-const WEAPON_BUTTON_BACKGROUND = "rgba(8, 13, 22, 0.82)";
-const WEAPON_BUTTON_BORDER = "rgba(125, 211, 252, 0.72)";
-const WEAPON_BUTTON_TEXT = "#e0f2fe";
+const LABEL_HIT_TEXT_WIDTH_RATIO = 0.72;
+const BOTTOM_CONTROL_BUTTONS = [
+  { label: "WAIT", target: { kind: "control", control: "wait" } },
+  { label: "MAP", target: { kind: "control", control: "toggleView" } },
+] as const satisfies readonly {
+  readonly label: string;
+  readonly target: { readonly kind: "control"; readonly control: VerbMenuControl };
+}[];
+const CLOSE_BUTTON = {
+  label: "CLOSE",
+  target: { kind: "control", control: "close" },
+} as const satisfies {
+  readonly label: string;
+  readonly target: { readonly kind: "control"; readonly control: VerbMenuControl };
+};
+const WEAPON_BUTTONS = [
+  { label: "BLADE", target: { kind: "weapon", slot: 1 } },
+  { label: "GUN", target: { kind: "weapon", slot: 2 } },
+  { label: "CANNON", target: { kind: "weapon", slot: 3 } },
+] as const satisfies readonly {
+  readonly label: string;
+  readonly target: { readonly kind: "weapon"; readonly slot: CommandSlot };
+}[];
+const MENU_BUTTON_MARGIN = 18;
+const MENU_BUTTON_GAP = 10;
+const MENU_BUTTON_HEIGHT_MIN = 42;
+const MENU_BUTTON_HEIGHT_MAX = 52;
+const MENU_BUTTON_WIDTH_MAX = 150;
+const CLOSE_BUTTON_WIDTH = 112;
+const MENU_BUTTON_BACKGROUND = "rgba(8, 13, 22, 0.82)";
+const MENU_BUTTON_BORDER = "rgba(125, 211, 252, 0.72)";
+const MENU_BUTTON_TEXT = "#e0f2fe";
+const MENU_BUTTON_SELECTED_BACKGROUND = "rgba(34, 211, 238, 0.28)";
 const VERB_MENU_SPRITE_SRC = new URL("../../assets/game/ui/verb_menu_cutout.png", import.meta.url).href;
 const HOTSPOT_SPECS: Readonly<Record<VerbId, VerbHotspotSpec>> = {
   // Body-part directions use the doll's left/right, so ATTACK is the screen-right knife hand.
@@ -131,15 +162,16 @@ export async function preloadVerbMenuAssets(document: Document, onAssetLoad?: ()
 export function renderVerbMenu(
   ctx: CanvasRenderingContext2D,
   canvasSize: GameCanvasSize,
-  selectedIndex: number,
+  _selectedIndex: number,
+  hoverTarget?: VerbMenuTarget,
   onAssetLoad?: () => void,
 ): void {
   const sprite = loadedImage(ctx, spriteAsset, onAssetLoad);
   if (sprite !== undefined) {
-    renderSpriteVerbMenu(ctx, canvasSize, selectedIndex, sprite, onAssetLoad);
+    renderSpriteVerbMenu(ctx, canvasSize, hoverTarget, sprite, onAssetLoad);
     return;
   }
-  renderTextVerbMenu(ctx, canvasSize, selectedIndex);
+  renderTextVerbMenu(ctx, canvasSize, hoverTarget);
 }
 
 export function verbMenuSpriteRect(canvasSize: GameCanvasSize): VerbMenuSpriteRect {
@@ -155,35 +187,67 @@ export function verbMenuTargetAt(
   canvasSize: GameCanvasSize,
   point: VerbMenuPoint,
 ): VerbMenuTarget | undefined {
-  for (const rect of verbMenuWeaponButtonRects(canvasSize)) {
-    if (pointInRect(point, rect)) return { kind: "weapon", slot: rect.slot };
+  for (const rect of verbMenuButtonRects(canvasSize)) {
+    if (pointInRect(point, rect)) return rect.target;
   }
 
   const verbIndex = verbMenuVerbIndexAt(canvasSize, point);
   return verbIndex === undefined ? undefined : { kind: "verb", verbIndex };
 }
 
-export function verbMenuWeaponButtonRects(canvasSize: GameCanvasSize): readonly VerbMenuWeaponButtonRect[] {
-  const gap = WEAPON_BUTTON_GAP;
-  const availableWidth = Math.max(1, canvasSize.width - WEAPON_BUTTON_MARGIN * 2);
+export function verbMenuButtonRects(canvasSize: GameCanvasSize): readonly VerbMenuButtonRect[] {
+  const gap = MENU_BUTTON_GAP;
+  const availableWidth = Math.max(1, canvasSize.width - MENU_BUTTON_MARGIN * 2);
+  const height = Math.round(clamp(
+    Math.min(canvasSize.width, canvasSize.height) * 0.068,
+    MENU_BUTTON_HEIGHT_MIN,
+    MENU_BUTTON_HEIGHT_MAX,
+  ));
+  const weaponRects = buttonRowRects(
+    WEAPON_BUTTONS,
+    availableWidth,
+    canvasSize.width,
+    canvasSize.height - height - MENU_BUTTON_MARGIN,
+    height,
+    gap,
+  );
+  const controlRects = buttonRowRects(
+    BOTTOM_CONTROL_BUTTONS,
+    availableWidth,
+    canvasSize.width,
+    canvasSize.height - height * 2 - gap - MENU_BUTTON_MARGIN,
+    height,
+    gap,
+  );
+  const closeRect = topRightButtonRect(CLOSE_BUTTON, availableWidth, canvasSize.width, height);
+
+  return [closeRect, ...controlRects, ...weaponRects];
+}
+
+function buttonRowRects(
+  specs: readonly {
+    readonly label: string;
+    readonly target: Exclude<VerbMenuTarget, { readonly kind: "verb" }>;
+  }[],
+  availableWidth: number,
+  canvasWidth: number,
+  y: number,
+  height: number,
+  gap: number,
+): readonly VerbMenuButtonRect[] {
   const width = Math.max(
     1,
     Math.floor(Math.min(
-      WEAPON_BUTTON_WIDTH_MAX,
-      (availableWidth - gap * (WEAPON_BUTTON_SLOTS.length - 1)) / WEAPON_BUTTON_SLOTS.length,
+      MENU_BUTTON_WIDTH_MAX,
+      (availableWidth - gap * (specs.length - 1)) / specs.length,
     )),
   );
-  const totalWidth = width * WEAPON_BUTTON_SLOTS.length + gap * (WEAPON_BUTTON_SLOTS.length - 1);
-  const height = Math.round(clamp(
-    Math.min(canvasSize.width, canvasSize.height) * 0.068,
-    WEAPON_BUTTON_HEIGHT_MIN,
-    WEAPON_BUTTON_HEIGHT_MAX,
-  ));
-  const x = Math.round((canvasSize.width - totalWidth) / 2);
-  const y = Math.round(canvasSize.height - height - WEAPON_BUTTON_MARGIN);
+  const totalWidth = width * specs.length + gap * (specs.length - 1);
+  const x = Math.round((canvasWidth - totalWidth) / 2);
 
-  return WEAPON_BUTTON_SLOTS.map((slot, index) => ({
-    slot,
+  return specs.map((spec, index) => ({
+    label: spec.label,
+    target: spec.target,
     x: x + index * (width + gap),
     y,
     width,
@@ -191,11 +255,36 @@ export function verbMenuWeaponButtonRects(canvasSize: GameCanvasSize): readonly 
   }));
 }
 
+function topRightButtonRect(
+  spec: {
+    readonly label: string;
+    readonly target: Exclude<VerbMenuTarget, { readonly kind: "verb" }>;
+  },
+  availableWidth: number,
+  canvasWidth: number,
+  height: number,
+): VerbMenuButtonRect {
+  const width = Math.max(1, Math.min(CLOSE_BUTTON_WIDTH, availableWidth));
+  return {
+    label: spec.label,
+    target: spec.target,
+    x: canvasWidth - MENU_BUTTON_MARGIN - width,
+    y: MENU_BUTTON_MARGIN,
+    width,
+    height,
+  };
+}
+
 function verbMenuVerbIndexAt(
   canvasSize: GameCanvasSize,
   point: VerbMenuPoint,
 ): number | undefined {
   const rect = verbMenuSpriteRect(canvasSize);
+
+  for (const hotspot of HOTSPOTS) {
+    if (pointInRect(point, hotspotLabelRect(canvasSize, rect, hotspot))) return hotspot.verbIndex;
+  }
+
   const localX = (point.x - rect.x) / rect.size;
   const localY = (point.y - rect.y) / rect.size;
   if (localX < 0 || localX > 1 || localY < 0 || localY > 1) return undefined;
@@ -212,8 +301,9 @@ function verbMenuVerbIndexAt(
 function renderTextVerbMenu(
   ctx: CanvasRenderingContext2D,
   canvasSize: GameCanvasSize,
-  selectedIndex: number,
+  hoverTarget: VerbMenuTarget | undefined,
 ): void {
+  const activeTarget = hoverTarget;
   const width = Math.min(PANEL_WIDTH, canvasSize.width - PANEL_MARGIN * 2);
   const height = PANEL_PADDING * 2 + TITLE_HEIGHT + VERBS.length * ITEM_HEIGHT;
   const x = canvasSize.width - width - PANEL_MARGIN;
@@ -235,7 +325,7 @@ function renderTextVerbMenu(
   ctx.font = monoFont(700, 14);
   for (let i = 0; i < VERBS.length; i++) {
     const itemY = y + PANEL_PADDING + TITLE_HEIGHT + i * ITEM_HEIGHT;
-    const selected = i === selectedIndex;
+    const selected = activeTarget?.kind === "verb" && i === activeTarget.verbIndex;
     if (selected) {
       ctx.fillStyle = SELECTED_BACKGROUND;
       ctx.strokeStyle = SELECTED_BORDER;
@@ -247,19 +337,20 @@ function renderTextVerbMenu(
     ctx.fillText(VERBS[i]!.label, x + PANEL_PADDING, itemY + ITEM_HEIGHT / 2);
   }
 
-  drawWeaponButtons(ctx, canvasSize);
+  drawMenuButtons(ctx, canvasSize, activeTarget);
   ctx.restore();
 }
 
 function renderSpriteVerbMenu(
   ctx: CanvasRenderingContext2D,
   canvasSize: GameCanvasSize,
-  selectedIndex: number,
+  hoverTarget: VerbMenuTarget | undefined,
   sprite: HTMLImageElement,
   onAssetLoad?: () => void,
 ): void {
   const rect = verbMenuSpriteRect(canvasSize);
-  const selectedVerb = VERBS[selectedIndex];
+  const activeTarget = hoverTarget;
+  const selectedVerb = activeTarget?.kind === "verb" ? VERBS[activeTarget.verbIndex] : undefined;
   const selectedHotspot = selectedVerb === undefined ? undefined : HOTSPOTS_BY_VERB_ID[selectedVerb.id];
   const selectedGlow = selectedHotspot === undefined ?
     undefined :
@@ -286,26 +377,40 @@ function renderSpriteVerbMenu(
     drawHotspotLabel(ctx, canvasSize, rect, hotspot, hotspot === selectedHotspot);
   }
 
-  drawWeaponButtons(ctx, canvasSize);
+  drawMenuButtons(ctx, canvasSize, activeTarget);
   ctx.restore();
 }
 
-function drawWeaponButtons(ctx: CanvasRenderingContext2D, canvasSize: GameCanvasSize): void {
-  const rects = verbMenuWeaponButtonRects(canvasSize);
-  const fontSize = Math.min(15, Math.max(12, Math.round(rects[0]?.height ?? WEAPON_BUTTON_HEIGHT_MIN) * 0.3));
+function drawMenuButtons(
+  ctx: CanvasRenderingContext2D,
+  canvasSize: GameCanvasSize,
+  activeTarget: VerbMenuTarget | undefined,
+): void {
+  const rects = verbMenuButtonRects(canvasSize);
+  const fontSize = Math.min(15, Math.max(12, Math.round(rects[0]?.height ?? MENU_BUTTON_HEIGHT_MIN) * 0.3));
 
   ctx.font = monoFont(700, fontSize);
   ctx.textAlign = "center";
   ctx.textBaseline = "middle";
   for (const rect of rects) {
-    ctx.fillStyle = WEAPON_BUTTON_BACKGROUND;
-    ctx.strokeStyle = WEAPON_BUTTON_BORDER;
+    const selected = sameButtonTarget(rect.target, activeTarget);
+    ctx.fillStyle = selected ? MENU_BUTTON_SELECTED_BACKGROUND : MENU_BUTTON_BACKGROUND;
+    ctx.strokeStyle = selected ? HOTSPOT_STROKE : MENU_BUTTON_BORDER;
     ctx.lineWidth = 1;
     ctx.fillRect(rect.x, rect.y, rect.width, rect.height);
     ctx.strokeRect(rect.x + 0.5, rect.y + 0.5, rect.width - 1, rect.height - 1);
-    ctx.fillStyle = WEAPON_BUTTON_TEXT;
-    ctx.fillText(`WPN ${rect.slot}`, rect.x + rect.width / 2, rect.y + rect.height / 2 + 0.5);
+    ctx.fillStyle = MENU_BUTTON_TEXT;
+    ctx.fillText(rect.label, rect.x + rect.width / 2, rect.y + rect.height / 2 + 0.5);
   }
+}
+
+function sameButtonTarget(
+  buttonTarget: Exclude<VerbMenuTarget, { readonly kind: "verb" }>,
+  activeTarget: VerbMenuTarget | undefined,
+): boolean {
+  if (activeTarget === undefined) return false;
+  if (buttonTarget.kind === "weapon") return activeTarget.kind === "weapon" && buttonTarget.slot === activeTarget.slot;
+  return activeTarget.kind === "control" && buttonTarget.control === activeTarget.control;
 }
 
 function drawMenuVignette(
@@ -354,25 +459,53 @@ function drawHotspotLabel(
   hotspot: VerbHotspot,
   selected: boolean,
 ): void {
-  const fontSize = Math.min(18, Math.max(12, Math.round(rect.size * 0.036)));
+  const fontSize = hotspotLabelFontSize(rect);
   ctx.font = monoFont(700, fontSize);
   ctx.textAlign = "left";
   ctx.textBaseline = "middle";
-  const width = ctx.measureText(hotspot.label).width + fontSize;
+  const labelRect = hotspotLabelRect(canvasSize, rect, hotspot, ctx.measureText(hotspot.label).width);
+  ctx.fillStyle = LABEL_BACKGROUND;
+  ctx.fillRect(labelRect.x, labelRect.y, labelRect.width, labelRect.height);
+  ctx.strokeStyle = selected ? HOTSPOT_STROKE : PANEL_BORDER;
+  ctx.lineWidth = 1;
+  ctx.strokeRect(labelRect.x + 0.5, labelRect.y + 0.5, labelRect.width - 1, labelRect.height - 1);
+  ctx.fillStyle = selected ? TEXT_COLOR : MUTED_TEXT_COLOR;
+  ctx.fillText(hotspot.label, labelRect.x + 4 + fontSize * 0.2, labelRect.y + labelRect.height / 2 + 0.5);
+}
+
+function hotspotLabelRect(
+  canvasSize: GameCanvasSize,
+  spriteRect: VerbMenuSpriteRect,
+  hotspot: VerbHotspot,
+  measuredTextWidth = estimatedHotspotLabelTextWidth(hotspot, spriteRect),
+): VerbMenuRect {
+  const fontSize = hotspotLabelFontSize(spriteRect);
+  const width = measuredTextWidth + fontSize;
   const height = fontSize + 8;
-  const labelX = clamp(rect.x + hotspot.labelX * rect.size, LABEL_MARGIN, canvasSize.width - width - LABEL_MARGIN);
+  const labelX = clamp(
+    spriteRect.x + hotspot.labelX * spriteRect.size,
+    LABEL_MARGIN,
+    canvasSize.width - width - LABEL_MARGIN,
+  );
   const labelY = clamp(
-    rect.y + hotspot.labelY * rect.size,
+    spriteRect.y + hotspot.labelY * spriteRect.size,
     LABEL_MARGIN + height / 2,
     canvasSize.height - LABEL_MARGIN - height / 2,
   );
-  ctx.fillStyle = LABEL_BACKGROUND;
-  ctx.fillRect(labelX - 4, labelY - height / 2, width, height);
-  ctx.strokeStyle = selected ? HOTSPOT_STROKE : PANEL_BORDER;
-  ctx.lineWidth = 1;
-  ctx.strokeRect(labelX - 3.5, labelY - height / 2 + 0.5, width - 1, height - 1);
-  ctx.fillStyle = selected ? TEXT_COLOR : MUTED_TEXT_COLOR;
-  ctx.fillText(hotspot.label, labelX + fontSize * 0.2, labelY + 0.5);
+  return {
+    x: labelX - 4,
+    y: labelY - height / 2,
+    width,
+    height,
+  };
+}
+
+function hotspotLabelFontSize(rect: VerbMenuSpriteRect): number {
+  return Math.min(18, Math.max(12, Math.round(rect.size * 0.036)));
+}
+
+function estimatedHotspotLabelTextWidth(hotspot: VerbHotspot, rect: VerbMenuSpriteRect): number {
+  return hotspot.label.length * hotspotLabelFontSize(rect) * LABEL_HIT_TEXT_WIDTH_RATIO;
 }
 
 function clamp(value: number, min: number, max: number): number {
@@ -380,7 +513,7 @@ function clamp(value: number, min: number, max: number): number {
   return Math.min(max, Math.max(min, value));
 }
 
-function pointInRect(point: VerbMenuPoint, rect: Omit<VerbMenuWeaponButtonRect, "slot">): boolean {
+function pointInRect(point: VerbMenuPoint, rect: VerbMenuRect): boolean {
   return point.x >= rect.x &&
     point.x <= rect.x + rect.width &&
     point.y >= rect.y &&

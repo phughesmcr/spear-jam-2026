@@ -165,12 +165,26 @@ class Game implements Disposable {
       return;
     }
 
+    if (mode.type === "victory" || mode.type === "defeat") {
+      if (input.phase === "up") {
+        this.handleGameCommand({ type: "wait" });
+      }
+      return;
+    }
+
     if (mode.type === "dialogue") {
       this.apply({
         type: "dialoguePointer",
         phase: input.phase,
         optionSlot: dialogueOptionSlotAt(this.canvasSize, mode.choices, input),
       });
+      return;
+    }
+
+    if (mode.type === "playing" && this.model.viewMode === "topDown") {
+      if (input.phase === "up") {
+        this.handleGameCommand({ type: "toggleView" });
+      }
       return;
     }
 
@@ -255,7 +269,7 @@ class Game implements Disposable {
       () => this.canvasSize,
       (command) => this.handleGameCommand(command),
       (input) => this.handlePointerInput(input),
-      () => this.model.mode.type === "playing",
+      () => this.model.mode.type === "playing" && this.model.viewMode === "firstPerson",
     );
   }
 

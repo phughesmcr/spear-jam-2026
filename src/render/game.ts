@@ -128,7 +128,7 @@ export function renderGameFrame(
       renderOverlay(ctx, canvasSize, "LOAD FAILED", mode.message);
       return;
     case "verbMenu":
-      renderVerbMenu(ctx, canvasSize, mode.selectedIndex, onAssetLoad);
+      renderVerbMenu(ctx, canvasSize, mode.selectedIndex, mode.hoverTarget, onAssetLoad);
       return;
     case "playing":
       return;

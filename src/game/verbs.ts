@@ -1,5 +1,4 @@
 import type { PlayerCommand } from "@/src/game/commands.ts";
-import type { CommandSlot } from "@/src/game/state.ts";
 
 type VerbDefinition = {
   readonly id: string;
@@ -19,9 +18,6 @@ export const VERBS = Object.freeze(
 
 export type Verb = typeof VERBS[number];
 export type VerbId = Verb["id"];
-export type VerbMenuTarget =
-  | { readonly kind: "verb"; readonly verbIndex: number }
-  | { readonly kind: "weapon"; readonly slot: CommandSlot };
 
 export function verbToCommand(index: number): PlayerCommand {
   const verb = VERBS[index];
