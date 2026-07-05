@@ -54,6 +54,25 @@ Deno.test("SpatialIndex keeps its index current when entities move or are remove
   assertEquals(spatial.itemAt(2, 1), undefined);
 });
 
+Deno.test("SpatialIndex leaves occupancy unchanged when a move is rejected", async () => {
+  const world = await createWorld();
+  const actor = createEntity(world);
+  const blocker = createEntity(world);
+
+  world.components.addToEntity(GridPos, actor, { x: 1, y: 1 });
+  world.components.addToEntity(Blocking, actor);
+  world.components.addToEntity(GridPos, blocker, { x: 2, y: 1 });
+  world.components.addToEntity(Blocking, blocker);
+  world.refresh();
+
+  const spatial = new SpatialIndex(world, TEST_MAP);
+
+  assertThrows(() => spatial.moveEntity(actor, { x: 2, y: 1 }), Error, "Duplicate blocking occupancy");
+  assertEquals(world.components.getEntityData(GridPos, actor), { x: 1, y: 1 });
+  assertEquals(spatial.blockingEntityAt(1, 1), actor);
+  assertEquals(spatial.blockingEntityAt(2, 1), blocker);
+});
+
 Deno.test("SpatialIndex owns occupancy after construction", async () => {
   const world = await createWorld();
   const actor = createEntity(world);

@@ -213,11 +213,16 @@ export class SpatialIndex implements SpatialLookup, SpatialMutations {
   }
 
   private moveOccupancy(entity: Entity, toTile: number): void {
-    if (this.blockingTiles.has(entity)) {
+    const movesBlocking = this.blockingTiles.has(entity);
+    const movesItem = this.itemTiles.has(entity);
+    if (movesBlocking) this.assertCanOccupy(this.blockingOccupancy, toTile, entity, "blocking");
+    if (movesItem) this.assertCanOccupy(this.itemOccupancy, toTile, entity, "item");
+
+    if (movesBlocking) {
       this.clearOccupancy(this.blockingOccupancy, this.blockingTiles, entity);
       this.occupy(this.blockingOccupancy, this.blockingTiles, toTile, entity, "blocking");
     }
-    if (this.itemTiles.has(entity)) {
+    if (movesItem) {
       this.clearOccupancy(this.itemOccupancy, this.itemTiles, entity);
       this.occupy(this.itemOccupancy, this.itemTiles, toTile, entity, "item");
     }
@@ -236,12 +241,16 @@ export class SpatialIndex implements SpatialLookup, SpatialMutations {
     entity: Entity,
     kind: string,
   ): void {
+    this.assertCanOccupy(occupancy, tile, entity, kind);
+    occupancy[tile] = entity;
+    entityTiles.set(entity, tile);
+  }
+
+  private assertCanOccupy(occupancy: Int32Array, tile: number, entity: Entity, kind: string): void {
     const occupant = occupancy[tile]!;
     if (occupant !== EMPTY_ENTITY && occupant !== entity) {
       throw new Error(`Duplicate ${kind} occupancy at (${tile % this.width}, ${Math.floor(tile / this.width)}).`);
     }
-    occupancy[tile] = entity;
-    entityTiles.set(entity, tile);
   }
 
   private clearOccupancy(occupancy: Int32Array, entityTiles: Map<Entity, number>, entity: Entity): void {
