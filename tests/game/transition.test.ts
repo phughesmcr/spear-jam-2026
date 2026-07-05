@@ -17,6 +17,47 @@ Deno.test("transition starts with render and map loading effects", () => {
   ]);
 });
 
+Deno.test("transition can start with an intro intermission before loading the first map", () => {
+  let result = transition(createGameModel("Level 1", { showIntro: true }), { type: "start", nowMs: 1000 });
+  let mode = result.model.mode;
+
+  if (mode.type !== "intermission") throw new Error(`Expected intermission mode, got ${mode.type}.`);
+  assertEquals(mode.title, "SIGNAL ACQUIRED");
+  assertEquals(mode.pages.length, 5);
+  assertEquals(mode.pages[0]?.startsWith("The year is 2060."), true);
+  assertEquals(mode.pages.at(-1)?.endsWith("Survive the reboot."), true);
+  assertEquals(mode.pageIndex, 0);
+  assertEquals(mode.prompt, "Space to enter the network");
+  assertEquals(mode.goto, "Level 1");
+  assertEquals(mode.playerState, {});
+  assertEquals(mode.revealStartedAtMs, 1000);
+  assertEquals(mode.revealed, false);
+  assertEquals(result.effects, [{ type: "ensureInput" }, { type: "render" }]);
+
+  result = transition(result.model, { type: "gameCommand", command: { type: "wait" }, nowMs: 1000 });
+  mode = result.model.mode;
+  if (mode.type !== "intermission") throw new Error(`Expected intermission mode, got ${mode.type}.`);
+  assertEquals(mode.revealed, true);
+  assertEquals(mode.pageIndex, 0);
+  assertEquals(result.effects, [{ type: "render" }]);
+
+  result = transition(result.model, { type: "gameCommand", command: { type: "wait" }, nowMs: 1000 });
+  mode = result.model.mode;
+  if (mode.type !== "intermission") throw new Error(`Expected intermission mode, got ${mode.type}.`);
+  assertEquals(mode.pageIndex, 1);
+  assertEquals(mode.revealed, false);
+  assertEquals(mode.revealStartedAtMs, 1000);
+  assertEquals(result.effects, [{ type: "render" }]);
+
+  mode = { ...mode, pageIndex: mode.pages.length - 1, revealed: true };
+  result = transition({ ...result.model, mode }, { type: "gameCommand", command: { type: "wait" }, nowMs: 1000 });
+  assertEquals(result.model.mode, { type: "loading" });
+  assertEquals(result.effects, [
+    { type: "render" },
+    { type: "loadMap", mapName: "Level 1", playerState: {} },
+  ]);
+});
+
 Deno.test("transition moves loaded maps into playing mode and requests input setup", () => {
   const result = transition(createGameModel("Level 1"), {
     type: "mapLoaded",
@@ -50,9 +91,13 @@ Deno.test("transition derives command result intermission state", () => {
 
   assertEquals(result.model.mode, {
     type: "intermission",
-    message: "Entering Level 2. Space to continue.",
+    pages: ["Entering Level 2."],
+    pageIndex: 0,
+    prompt: "Space to continue",
     goto: "Level 2",
     playerState,
+    revealStartedAtMs: 0,
+    revealed: false,
   });
   assertEquals(result.effects, [{ type: "render" }]);
 });

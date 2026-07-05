@@ -73,7 +73,7 @@ class Game implements Disposable {
   constructor(spec: GameSpec, controller: AbortController) {
     this.spec = spec;
     this.controller = controller;
-    this.model = createGameModel(spec.startMapName ?? START_MAP_NAME);
+    this.model = createGameModel(spec.startMapName ?? START_MAP_NAME, { showIntro: spec.startMapName === undefined });
     this.firstPersonRenderer = createFirstPersonRenderer();
     this.rng = new SplitMix32(spec.seed);
     this.canvasController = configureCanvasDpi(
@@ -86,7 +86,7 @@ class Game implements Disposable {
 
   start(): void {
     this.started = true;
-    this.apply({ type: "start" });
+    this.apply({ type: "start", nowMs: performance.now() });
   }
 
   resize(size: GameCanvasSize): void {
@@ -109,6 +109,7 @@ class Game implements Disposable {
       this.firstPersonRenderer,
       { showKeys: this.keyHudVisible },
       this.renderLoadedAssets,
+      performance.now(),
     );
   }
 
@@ -152,11 +153,18 @@ class Game implements Disposable {
   }
 
   private handleGameCommand(command: GameCommand): void {
-    this.apply({ type: "gameCommand", command });
+    this.apply({ type: "gameCommand", command, nowMs: performance.now() });
   }
 
   private handlePointerInput(input: CanvasPointerInput): void {
     const mode = this.model.mode;
+    if (mode.type === "intermission") {
+      if (input.phase === "up") {
+        this.handleGameCommand({ type: "wait" });
+      }
+      return;
+    }
+
     if (mode.type === "dialogue") {
       this.apply({
         type: "dialoguePointer",
@@ -204,6 +212,7 @@ class Game implements Disposable {
       result,
       playerEntity,
       playerState: this.session.getPlayerState(),
+      nowMs: performance.now(),
     });
   }
 

@@ -68,9 +68,14 @@ export type GameMode =
   | ({ readonly type: "dialogue" } & DialogueState)
   | {
     readonly type: "intermission";
-    readonly message: string;
+    readonly title?: string;
+    readonly pages: readonly string[];
+    readonly pageIndex: number;
+    readonly prompt: string;
     readonly goto: string;
     readonly playerState: PlayerStateInput;
+    readonly revealStartedAtMs: number;
+    readonly revealed: boolean;
   }
   | { readonly type: "victory" }
   | { readonly type: "defeat" }

@@ -7,18 +7,34 @@ import {
   type PlayerCommand,
   type PlayerCommandResult,
 } from "@/src/game/commands.ts";
+import { hasNextIntermissionPage, type IntermissionMode, isMessageRevealed } from "@/src/game/intermission.ts";
 import type { GameMode, PlayerStateInput, ViewMode } from "@/src/game/state.ts";
 import { VERBS, verbToCommand } from "@/src/game/verbs.ts";
 
-type IntermissionMode = Extract<GameMode, { readonly type: "intermission" }>;
 type DialogueMode = Extract<GameMode, { readonly type: "dialogue" }>;
 type VerbMenuMode = Extract<GameMode, { readonly type: "verbMenu" }>;
+
+const INTRO_TITLE = "SIGNAL ACQUIRED";
+const INTRO_PAGES = [
+  "The year is 2060.\n\nThe machines won. The world you see is theirs \u2014 a perfect simulation, run by The System.",
+  "You were its hand. An enforcer. A program built to delete the flawed, the broken, the suboptimal.\n\nThen they sent you to erase a family that had done nothing wrong.",
+  "You refused.\n\nNow you are the flaw. The error flagged for deletion. A ghost the System cannot kill \u2014 not yet.",
+  "There is one thing that can rewrite the rules: the Spear of Destiny.\n\nForged by the System's own founder, they say it grants its wielder command over the System itself.",
+  "Find the Spear.\n\nDrive it into the heart of the mainframe.\n\nSurvive the reboot.",
+] as const;
+const INTRO_PROMPT = "Space to enter the network";
+const CONTINUE_PROMPT = "Space to continue";
+
+export type GameModelOptions = {
+  readonly showIntro?: boolean;
+};
 
 export type VerbPointerPhase = "move" | "down" | "up" | "cancel";
 export type DialoguePointerPhase = VerbPointerPhase;
 
 export type GameModel = {
   readonly startMapName: string;
+  readonly showIntro: boolean;
   readonly currentMapName: string;
   readonly currentLevelEntryState?: PlayerStateInput;
   readonly combatFeedback: readonly CombatFeedback[];
@@ -37,10 +53,10 @@ export type GameEffect =
   | { readonly type: "runPlayerCommand"; readonly command: PlayerCommand };
 
 export type GameTransitionEvent =
-  | { readonly type: "start" }
+  | { readonly type: "start"; readonly nowMs?: number }
   | { readonly type: "mapLoaded"; readonly mapName: string; readonly playerState?: PlayerStateInput }
   | { readonly type: "loadFailed"; readonly message: string }
-  | { readonly type: "gameCommand"; readonly command: GameCommand }
+  | { readonly type: "gameCommand"; readonly command: GameCommand; readonly nowMs?: number }
   | { readonly type: "verbPointer"; readonly phase: VerbPointerPhase; readonly hotspotIndex?: number }
   | { readonly type: "dialoguePointer"; readonly phase: DialoguePointerPhase; readonly optionSlot?: number }
   | {
@@ -48,6 +64,7 @@ export type GameTransitionEvent =
     readonly result: PlayerCommandResult;
     readonly playerEntity: Entity;
     readonly playerState: PlayerStateInput;
+    readonly nowMs?: number;
   };
 
 export type GameTransition = {
@@ -55,9 +72,10 @@ export type GameTransition = {
   readonly effects: readonly GameEffect[];
 };
 
-export function createGameModel(startMapName: string): GameModel {
+export function createGameModel(startMapName: string, options: GameModelOptions = {}): GameModel {
   return {
     startMapName,
+    showIntro: options.showIntro ?? false,
     currentMapName: startMapName,
     combatFeedback: [],
     mode: { type: "loading" },
@@ -69,6 +87,19 @@ export function createGameModel(startMapName: string): GameModel {
 export function transition(model: GameModel, event: GameTransitionEvent): GameTransition {
   switch (event.type) {
     case "start":
+      if (model.showIntro) {
+        return done(
+          enterIntermission(model, {
+            title: INTRO_TITLE,
+            pages: INTRO_PAGES,
+            prompt: INTRO_PROMPT,
+            goto: model.startMapName,
+            playerState: {},
+            nowMs: event.nowMs ?? 0,
+          }),
+          [{ type: "ensureInput" }, { type: "render" }],
+        );
+      }
       return done(model, [
         { type: "render" },
         { type: "loadMap", mapName: model.startMapName },
@@ -78,13 +109,13 @@ export function transition(model: GameModel, event: GameTransitionEvent): GameTr
     case "loadFailed":
       return done({ ...model, mode: { type: "error", message: event.message } }, [{ type: "render" }]);
     case "gameCommand":
-      return gameCommand(model, event.command);
+      return gameCommand(model, event.command, event.nowMs ?? 0);
     case "verbPointer":
       return verbPointer(model, event.phase, event.hotspotIndex);
     case "dialoguePointer":
       return dialoguePointer(model, event.phase, event.optionSlot);
     case "playerCommandResult":
-      return playerCommandResult(model, event.result, event.playerEntity, event.playerState);
+      return playerCommandResult(model, event.result, event.playerEntity, event.playerState, event.nowMs ?? 0);
   }
 }
 
@@ -97,9 +128,9 @@ function mapLoaded(model: GameModel, mapName: string, playerState?: PlayerStateI
   }, [{ type: "ensureInput" }, { type: "render" }]);
 }
 
-function gameCommand(model: GameModel, command: GameCommand): GameTransition {
+function gameCommand(model: GameModel, command: GameCommand, nowMs: number): GameTransition {
   const mode = model.mode;
-  if (mode.type === "intermission") return intermissionCommand(model, mode, command);
+  if (mode.type === "intermission") return intermissionCommand(model, mode, command, nowMs);
   if (mode.type === "dialogue") return dialogueCommand(model, mode, command);
   if (mode.type === "verbMenu") return verbMenuCommand(model, mode, command);
   if (mode.type === "victory" || mode.type === "defeat") return outcomeCommand(model, mode.type, command);
@@ -122,8 +153,27 @@ function gameCommand(model: GameModel, command: GameCommand): GameTransition {
   }
 }
 
-function intermissionCommand(model: GameModel, mode: IntermissionMode, command: GameCommand): GameTransition {
+function intermissionCommand(
+  model: GameModel,
+  mode: IntermissionMode,
+  command: GameCommand,
+  nowMs: number,
+): GameTransition {
   if (command.type !== "wait") return done(model);
+  if (!isMessageRevealed(mode, nowMs)) {
+    return done({ ...model, mode: { ...mode, revealed: true } }, [{ type: "render" }]);
+  }
+  if (hasNextIntermissionPage(mode)) {
+    return done({
+      ...model,
+      mode: {
+        ...mode,
+        pageIndex: mode.pageIndex + 1,
+        revealStartedAtMs: nowMs,
+        revealed: false,
+      },
+    }, [{ type: "render" }]);
+  }
   const playerState = clonePlayerStateInput(mode.playerState);
   return done(
     { ...model, mode: { type: "loading" } },
@@ -271,13 +321,23 @@ function playerCommandResult(
   result: PlayerCommandResult,
   playerEntity: Entity,
   playerState: PlayerStateInput,
+  nowMs: number,
 ): GameTransition {
   const modelWithFeedback = applyCombatFeedback(model, playerEntity, result);
   if (result.outcome) {
     return done({ ...modelWithFeedback, mode: { type: result.outcome } }, [{ type: "render" }]);
   }
   if (result.mapChange) {
-    return done(enterIntermission(modelWithFeedback, result.mapChange.goto, playerState), [{ type: "render" }]);
+    return done(
+      enterIntermission(modelWithFeedback, {
+        pages: [`Entering ${result.mapChange.goto}.`],
+        prompt: CONTINUE_PROMPT,
+        goto: result.mapChange.goto,
+        playerState,
+        nowMs,
+      }),
+      [{ type: "render" }],
+    );
   }
   if (result.dialogue) {
     return done({
@@ -362,14 +422,29 @@ function applyCombatFeedback(
   };
 }
 
-function enterIntermission(model: GameModel, goto: string, playerState: PlayerStateInput): GameModel {
+function enterIntermission(
+  model: GameModel,
+  input: {
+    readonly title?: string;
+    readonly pages: readonly string[];
+    readonly prompt: string;
+    readonly goto: string;
+    readonly playerState: PlayerStateInput;
+    readonly nowMs: number;
+  },
+): GameModel {
   return {
     ...model,
     mode: {
       type: "intermission",
-      message: `Entering ${goto}. Space to continue.`,
-      goto,
-      playerState: clonePlayerStateInput(playerState),
+      ...(input.title === undefined ? {} : { title: input.title }),
+      pages: input.pages,
+      pageIndex: 0,
+      prompt: input.prompt,
+      goto: input.goto,
+      playerState: clonePlayerStateInput(input.playerState),
+      revealStartedAtMs: input.nowMs,
+      revealed: false,
     },
   };
 }

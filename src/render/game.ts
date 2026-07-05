@@ -11,6 +11,7 @@ import { renderDrawableEntities } from "@/src/render/drawables.ts";
 import { preloadDialogueAssets, renderDialogue } from "@/src/render/dialogue.ts";
 import type { FirstPersonRenderer } from "@/src/render/first_person.ts";
 import { type FirstPersonHudOptions, preloadHudAssets, renderFirstPersonHud, renderHud } from "@/src/render/hud.ts";
+import { renderIntermission } from "@/src/render/intermission.ts";
 import { renderMap } from "@/src/render/map.ts";
 import { renderMessageLog } from "@/src/render/messages.ts";
 import { monoFont } from "@/src/render/text.ts";
@@ -57,6 +58,7 @@ export function renderGameFrame(
   firstPersonRenderer?: FirstPersonRenderer,
   firstPersonHud: FirstPersonHudOptions = {},
   onAssetLoad?: () => void,
+  nowMs: number = performance.now(),
 ): void {
   ctx.fillStyle = BACKGROUND_COLOR;
   ctx.fillRect(0, 0, canvasSize.width, canvasSize.height);
@@ -113,7 +115,8 @@ export function renderGameFrame(
       renderDialogue(ctx, canvasSize, mode, onAssetLoad);
       return;
     case "intermission":
-      renderOverlay(ctx, canvasSize, "INTERMISSION", mode.message);
+      renderIntermission(ctx, canvasSize, mode, nowMs);
+      scheduleRepaint(onAssetLoad);
       return;
     case "victory":
       renderOverlay(ctx, canvasSize, "VICTORY", "Space to play again");
