@@ -1,5 +1,5 @@
 import type { GameSession } from "@/src/ecs/session.ts";
-import type { PlayerStateSnapshot } from "@/src/ecs/progression.ts";
+import type { PlayerStatusSnapshot } from "@/src/ecs/progression.ts";
 import type { AmmoKind, PlayerHealthState } from "@/src/game/state.ts";
 import { type CardinalDirection, Direction, normalizeDirection } from "@/src/grid/direction.ts";
 import { KeyColor } from "@/src/map/map.ts";
@@ -138,8 +138,8 @@ export async function preloadHudAssets(document: Document, onAssetLoad?: () => v
 }
 
 export function renderHud(ctx: CanvasRenderingContext2D, canvasSize: GameCanvasSize, session: GameSession): void {
-  const playerState = session.getPlayerState();
-  const lines = hudLines(session.map.name, playerState);
+  const playerStatus = session.getPlayerStatus();
+  const lines = hudLines(session.map.name, playerStatus);
   const width = Math.min(HUD_WIDTH, canvasSize.width - HUD_MARGIN * 2);
   if (width <= HUD_PADDING * 2) return;
 
@@ -168,7 +168,7 @@ export function renderHud(ctx: CanvasRenderingContext2D, canvasSize: GameCanvasS
 export function renderFirstPersonHud(
   ctx: CanvasRenderingContext2D,
   canvasSize: GameCanvasSize,
-  playerState: PlayerStateSnapshot,
+  playerState: PlayerStatusSnapshot,
   options: FirstPersonHudOptions = {},
   onAssetLoad?: () => void,
 ): void {
@@ -203,7 +203,7 @@ export function renderFirstPersonHud(
 
 export function firstPersonHudPanels(
   canvasSize: GameCanvasSize,
-  playerState: PlayerStateSnapshot,
+  playerState: PlayerStatusSnapshot,
   options: FirstPersonHudOptions = {},
 ): readonly FirstPersonHudPanel[] {
   const panels: FirstPersonHudPanel[] = [{
@@ -391,7 +391,7 @@ type HudLine = {
   readonly color: string;
 };
 
-function hudLines(mapName: string, playerState: PlayerStateSnapshot): readonly HudLine[] {
+function hudLines(mapName: string, playerState: PlayerStatusSnapshot): readonly HudLine[] {
   const health = playerState.health;
   const hpText = `HP ${health.current}/${health.max}`;
   const keyText = playerState.heldKeys.length === 0 ? "Keys none" : `Keys ${playerState.heldKeys.join(", ")}`;
@@ -420,7 +420,7 @@ function hudLines(mapName: string, playerState: PlayerStateSnapshot): readonly H
   ];
 }
 
-function ownedWeaponText(playerState: PlayerStateSnapshot): string {
+function ownedWeaponText(playerState: PlayerStatusSnapshot): string {
   return playerState.unlockedWeapons.join(",");
 }
 
@@ -431,7 +431,7 @@ function healthColor(current: number, max: number): string {
 }
 
 function selectedWeaponAmmo(
-  playerState: PlayerStateSnapshot,
+  playerState: PlayerStatusSnapshot,
 ): Pick<Extract<FirstPersonHudPanel, { kind: "ammo" }>, "ammo" | "amount"> | undefined {
   switch (playerState.selectedWeapon) {
     case 1:

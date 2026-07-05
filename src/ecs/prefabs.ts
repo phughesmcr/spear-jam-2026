@@ -23,6 +23,7 @@ import {
   ItemKind,
   LightEmitter,
   Locked,
+  MapScoped,
   Npc,
   PENDING_SPRITE_ANIMATION_START_MS,
   Player,
@@ -337,13 +338,16 @@ function addExamine(world: World, entity: Entity, prefab: ExaminePrefab): void {
 
 export function createMapEntity(world: World, prefab: EntityDef): Entity {
   const create = MAP_ENTITY_CREATORS[prefab.prefab] as MapEntityCreator<typeof prefab.prefab>;
-  return create(world, prefab);
+  const entity = create(world, prefab);
+  if (prefab.prefab !== "player") world.components.addToEntity(MapScoped, entity);
+  return entity;
 }
 
 export function createCorpse(world: World, position: PositionedPrefab): Entity {
   return world.entities.createWithOrThrow(
     [
       [GridPos, position],
+      [MapScoped],
       [Drawable, { kind: DrawableKind.Sprite, layer: DrawableLayer.Item }],
       [Sprite, { id: SpriteId.Corpse }],
     ] as const,
@@ -354,6 +358,7 @@ export function createDeathEffect(world: World, position: PositionedPrefab, spri
   return world.entities.createWithOrThrow(
     [
       [GridPos, position],
+      [MapScoped],
       [Drawable, { kind: DrawableKind.Sprite, layer: DrawableLayer.Item }],
       [Sprite, { id: sprite }],
       [SpriteAnimation, {

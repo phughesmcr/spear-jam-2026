@@ -1,5 +1,5 @@
 import { assert, assertEquals } from "@std/assert";
-import type { PlayerStateSnapshot } from "@/src/ecs/progression.ts";
+import type { PlayerStatusSnapshot } from "@/src/ecs/progression.ts";
 import type { GameSession } from "@/src/ecs/session.ts";
 import { Direction } from "@/src/grid/direction.ts";
 import { createGameMap } from "@/src/map/map.ts";
@@ -117,7 +117,7 @@ function fakeSession(spriteAnimationsActive = false): GameSession {
     map: createGameMap("Fake Map", [[1]], [], {
       palette: [{ kind: "floor", id: 1, color: "#000000", floor_texture: "floor", ceiling_texture: "ceiling" }],
     }),
-    getPlayerState: () => playerSnapshot(),
+    getPlayerStatus: () => playerSnapshot(),
     getVisibility: () => undefined,
     forEachDrawable: () => {},
     targetMarkerTone: () => undefined,
@@ -126,7 +126,7 @@ function fakeSession(spriteAnimationsActive = false): GameSession {
   } as unknown as GameSession;
 }
 
-function playerSnapshot(): PlayerStateSnapshot {
+function playerSnapshot(): PlayerStatusSnapshot {
   return {
     heldKeys: [],
     selectedWeapon: 1,
@@ -140,7 +140,6 @@ function playerSnapshot(): PlayerStateSnapshot {
       xp: 0,
       levelCredits: 0,
     },
-    storyFlags: [],
   };
 }
 

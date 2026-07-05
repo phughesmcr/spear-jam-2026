@@ -30,7 +30,7 @@ import {
   lightSystem,
 } from "@/src/ecs/drawables.ts";
 import { type EnemyTurnSystem, enemyTurnSystem } from "@/src/ecs/enemy.ts";
-import { createCorpse, createMapEntity } from "@/src/ecs/prefabs.ts";
+import { createCorpse, createMapEntity, createPlayer, type PlayerPrefab } from "@/src/ecs/prefabs.ts";
 import {
   type PlayerActionResolution,
   type PlayerTurnContext,
@@ -38,7 +38,7 @@ import {
   playerTurnSystem,
   targetMarkerTone,
 } from "@/src/ecs/player_turn.ts";
-import { drawableRenderQuery, spriteAnimationQuery, storyTargetQuery } from "@/src/ecs/queries.ts";
+import { drawableRenderQuery, mapScopedQuery, spriteAnimationQuery, storyTargetQuery } from "@/src/ecs/queries.ts";
 import { SpatialIndex } from "@/src/ecs/spatial.ts";
 import { createWorld } from "@/src/ecs/world.ts";
 import type { PlayerCommand, PlayerCommandResult } from "@/src/game/commands.ts";
@@ -46,14 +46,17 @@ import type { GameEvent } from "@/src/game/events.ts";
 import type { NoiseStimulus } from "@/src/game/perception.ts";
 import {
   awardCreditsForDefeats,
+  capturePlayerProgressionCheckpoint,
   clearTransientPlayerState,
   completePlayerLevel,
-  initializePlayerProgression,
-  type PlayerStateSnapshot,
-  playerStateSnapshotFor,
+  type PlayerProgressionCheckpoint,
+  type PlayerStatusSnapshot,
+  playerStatusSnapshotFor,
+  resetPlayerProgression,
+  restorePlayerProgressionCheckpoint,
 } from "@/src/ecs/progression.ts";
 import type { RandomSource } from "@/src/game/rng.ts";
-import type { PlayerStateInput, TargetMarkerTone } from "@/src/game/state.ts";
+import type { TargetMarkerTone } from "@/src/game/state.ts";
 import {
   normalizeStoryFlags,
   type StoryAction,
@@ -65,7 +68,13 @@ import {
   storyTargetForCode,
 } from "@/src/game/story.ts";
 import { type TileVisibility, VisibilityMap } from "@/src/game/visibility.ts";
-import { type GameMap, mapDimensions, terminalDestinationForCode, VICTORY_GOTO } from "@/src/map/map.ts";
+import {
+  type EntityDef,
+  type GameMap,
+  mapDimensions,
+  terminalDestinationForCode,
+  VICTORY_GOTO,
+} from "@/src/map/map.ts";
 
 const UNCHANGED_PLAYER_COMMAND: PlayerCommandResult = Object.freeze({
   events: [],
@@ -79,26 +88,18 @@ type ActorPositionSnapshot = Map<Entity, { readonly x: number; readonly y: numbe
 export async function createGameSession(
   map: GameMap,
   random: RandomSource,
-  playerState: PlayerStateInput = {},
 ): Promise<GameSession> {
   const world = await createWorld();
 
   try {
-    let playerEntity: Entity | undefined;
-
-    for (const entityDef of map.entities) {
-      const entity = createMapEntity(world, entityDef);
-      if (entityDef.prefab === "player") {
-        playerEntity = entity;
-      }
-    }
-
-    if (playerEntity === undefined) throw new Error("Map is missing a player spawn.");
+    const playerEntity = createPlayer(world, playerSpawnFor(map));
+    resetPlayerProgression(world, playerEntity);
+    spawnMapScopedEntities(world, map);
 
     world.refresh();
     assertUniqueStoryTargets(world);
 
-    return new GameSession(world, playerEntity, map, random, playerState);
+    return new GameSession(world, playerEntity, map, random);
   } catch (error) {
     await world.destroy();
     throw error;
@@ -108,7 +109,7 @@ export async function createGameSession(
 export class GameSession implements Disposable {
   readonly world: World;
   readonly playerEntity: Entity;
-  readonly map: GameMap;
+  map: GameMap;
   private readonly random: RandomSource;
   private readonly drawableSystem: DrawableSystem;
   private readonly drawableScratch = createDrawableRenderScratch();
@@ -116,10 +117,10 @@ export class GameSession implements Disposable {
   private readonly lightScratch = createLightEntityScratch();
   private readonly playerTurnSystem: PlayerTurnSystem;
   private readonly enemyTurnSystem: EnemyTurnSystem;
-  private readonly spatial: SpatialIndex;
-  private readonly playerTurnContext: PlayerTurnContext;
-  private readonly visibility: VisibilityMap;
+  private spatial: SpatialIndex;
+  private visibility: VisibilityMap;
   private readonly storyFlags: Set<StoryFlag>;
+  private levelEntryCheckpoint: PlayerProgressionCheckpoint;
   private pendingDialogueStoryEvent?: StoryEventId;
   private disposed = false;
 
@@ -128,33 +129,29 @@ export class GameSession implements Disposable {
     playerEntity: Entity,
     map: GameMap,
     random: RandomSource,
-    playerState: PlayerStateInput,
   ) {
     this.world = world;
     this.playerEntity = playerEntity;
     this.map = map;
     this.random = random;
-    initializePlayerProgression(this.world, this.playerEntity, playerState);
-    this.world.refresh();
     this.drawableSystem = world.systems.create(drawableSystem);
     this.lightSystem = world.systems.create(lightSystem);
     this.playerTurnSystem = world.systems.create(playerTurnSystem);
     this.enemyTurnSystem = world.systems.create(enemyTurnSystem);
     this.spatial = new SpatialIndex(world, map);
     const dimensions = mapDimensions(map);
-    this.playerTurnContext = {
-      world,
-      player: playerEntity,
-      spatial: this.spatial,
-      random,
-    };
     this.visibility = new VisibilityMap(dimensions);
-    this.storyFlags = new Set(normalizeStoryFlags(playerState.storyFlags));
+    this.storyFlags = new Set();
     this.refreshVisibility();
+    this.levelEntryCheckpoint = this.captureCheckpoint();
   }
 
-  getPlayerState(): PlayerStateSnapshot {
-    return playerStateSnapshotFor(this.world, this.playerEntity, [...this.storyFlags]);
+  getPlayerStatus(): PlayerStatusSnapshot {
+    return playerStatusSnapshotFor(this.world, this.playerEntity);
+  }
+
+  getStoryFlags(): readonly StoryFlag[] {
+    return normalizeStoryFlags([...this.storyFlags]);
   }
 
   getPlayerPosition(): GridPosSchema {
@@ -167,7 +164,7 @@ export class GameSession implements Disposable {
   }
 
   targetMarkerTone(): TargetMarkerTone | undefined {
-    return targetMarkerTone(this.playerTurnContext);
+    return targetMarkerTone(this.playerTurnContext());
   }
 
   forEachDrawable(visit: DrawableEntityVisitor): void {
@@ -186,6 +183,23 @@ export class GameSession implements Disposable {
 
   getVisibility(): TileVisibility {
     return this.visibility;
+  }
+
+  loadMap(map: GameMap): void {
+    this.loadMapContent(map);
+    this.levelEntryCheckpoint = this.captureCheckpoint();
+  }
+
+  retryMap(map: GameMap): void {
+    this.restoreCheckpoint(this.levelEntryCheckpoint);
+    this.loadMapContent(map);
+  }
+
+  resetRun(map: GameMap): void {
+    resetPlayerProgression(this.world, this.playerEntity);
+    this.storyFlags.clear();
+    this.loadMapContent(map);
+    this.levelEntryCheckpoint = this.captureCheckpoint();
   }
 
   advanceSpriteAnimations(nowMs: number): boolean {
@@ -222,13 +236,56 @@ export class GameSession implements Disposable {
   }
 
   handlePlayerCommand(command: PlayerCommand): PlayerCommandResult {
-    return this.commitPlayerAction(this.playerTurnSystem({ ...this.playerTurnContext, command }));
+    return this.commitPlayerAction(this.playerTurnSystem({ ...this.playerTurnContext(), command }));
   }
 
   closeDialogue(): void {
     const event = this.pendingDialogueStoryEvent;
     this.pendingDialogueStoryEvent = undefined;
     if (event !== undefined) this.applyStoryEvent(event);
+  }
+
+  private loadMapContent(map: GameMap): void {
+    const spawn = playerSpawnFor(map);
+    this.pendingDialogueStoryEvent = undefined;
+    this.clearMapScopedEntities();
+    this.map = map;
+    this.world.components.setEntityData(GridPos, this.playerEntity, { x: spawn.x, y: spawn.y });
+    this.world.components.setEntityData(Facing, this.playerEntity, { dir: normalizeDirection(spawn.dir) });
+    spawnMapScopedEntities(this.world, map);
+    this.world.refresh();
+    assertUniqueStoryTargets(this.world);
+    this.rebuildMapRuntimeState(map);
+  }
+
+  private clearMapScopedEntities(): void {
+    const entities = Array.from(this.world.entities.query(mapScopedQuery));
+    for (const entity of entities) this.world.entities.destroy(entity);
+  }
+
+  private rebuildMapRuntimeState(map: GameMap): void {
+    this.spatial = new SpatialIndex(this.world, map);
+    this.visibility = new VisibilityMap(mapDimensions(map));
+    this.refreshVisibility();
+  }
+
+  private captureCheckpoint(): PlayerProgressionCheckpoint {
+    return capturePlayerProgressionCheckpoint(this.world, this.playerEntity, [...this.storyFlags]);
+  }
+
+  private restoreCheckpoint(checkpoint: PlayerProgressionCheckpoint): void {
+    const storyFlags = restorePlayerProgressionCheckpoint(this.world, this.playerEntity, checkpoint);
+    this.storyFlags.clear();
+    for (const flag of storyFlags) this.storyFlags.add(flag);
+  }
+
+  private playerTurnContext(): PlayerTurnContext {
+    return {
+      world: this.world,
+      player: this.playerEntity,
+      spatial: this.spatial,
+      random: this.random,
+    };
   }
 
   private queueTalkStoryEvent(target: Entity | undefined): void {
@@ -468,5 +525,19 @@ function assertUniqueStoryTargets(world: World): void {
     const { id } = world.components.getEntityData(StoryTarget, entity);
     if (seen.has(id)) throw new Error(`Duplicate story target "${storyTargetForCode(id)}".`);
     seen.add(id);
+  }
+}
+
+function playerSpawnFor(map: GameMap): PlayerPrefab {
+  const player = map.entities.find((entity): entity is Extract<EntityDef, { readonly prefab: "player" }> =>
+    entity.prefab === "player"
+  );
+  if (player === undefined) throw new Error("Map is missing a player spawn.");
+  return player;
+}
+
+function spawnMapScopedEntities(world: World, map: GameMap): void {
+  for (const entityDef of map.entities) {
+    if (entityDef.prefab !== "player") createMapEntity(world, entityDef);
   }
 }

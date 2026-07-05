@@ -14,7 +14,6 @@ const MODE: IntermissionMode = {
   pageIndex: 0,
   prompt: "Space",
   goto: "Level 1",
-  playerState: {},
   revealStartedAtMs: 100,
   revealed: false,
 };

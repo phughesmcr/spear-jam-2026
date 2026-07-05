@@ -1,5 +1,5 @@
 import { assertEquals } from "@std/assert";
-import type { PlayerStateSnapshot } from "@/src/ecs/progression.ts";
+import type { PlayerStatusSnapshot } from "@/src/ecs/progression.ts";
 import { Direction } from "@/src/grid/direction.ts";
 import { KeyColor } from "@/src/map/map.ts";
 import {
@@ -142,14 +142,14 @@ function expectPanel<Kind extends FirstPersonHudPanel["kind"]>(
 }
 
 type PlayerSnapshotPatch =
-  & Partial<Omit<PlayerStateSnapshot, "ammo" | "health" | "progress">>
+  & Partial<Omit<PlayerStatusSnapshot, "ammo" | "health" | "progress">>
   & {
-    readonly ammo?: Partial<PlayerStateSnapshot["ammo"]>;
-    readonly health?: Partial<PlayerStateSnapshot["health"]>;
-    readonly progress?: Partial<PlayerStateSnapshot["progress"]>;
+    readonly ammo?: Partial<PlayerStatusSnapshot["ammo"]>;
+    readonly health?: Partial<PlayerStatusSnapshot["health"]>;
+    readonly progress?: Partial<PlayerStatusSnapshot["progress"]>;
   };
 
-function playerSnapshot(patch: PlayerSnapshotPatch = {}): PlayerStateSnapshot {
+function playerSnapshot(patch: PlayerSnapshotPatch = {}): PlayerStatusSnapshot {
   return {
     heldKeys: patch.heldKeys ?? [],
     selectedWeapon: patch.selectedWeapon ?? 1,
@@ -169,7 +169,6 @@ function playerSnapshot(patch: PlayerSnapshotPatch = {}): PlayerStateSnapshot {
       xp: patch.progress?.xp ?? 0,
       levelCredits: patch.progress?.levelCredits ?? 0,
     },
-    storyFlags: patch.storyFlags ?? [],
   };
 }
 

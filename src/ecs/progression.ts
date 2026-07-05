@@ -20,14 +20,12 @@ import {
   type PlayerAmmoState,
   type PlayerHealthState,
   type PlayerProgressState,
-  type PlayerStateInput,
 } from "@/src/game/state.ts";
 import { normalizeStoryFlags, type StoryFlag } from "@/src/game/story.ts";
 import { KeyColor, type KeyColor as KeyColorType, keyColorCode } from "@/src/map/map.ts";
 
 const ENEMY_DEFEAT_CREDITS = 10;
 const DEFAULT_PLAYER_WEAPON: CommandSlot = 1;
-const MAX_PLAYER_HEALTH = 255;
 
 export const DEFAULT_PLAYER_HEALTH: PlayerHealthState = {
   current: 10,
@@ -61,8 +59,8 @@ const KEY_COLOR_ORDER: readonly KeyColorType[] = [
 
 const WEAPON_SLOT_ORDER: readonly CommandSlot[] = [1, 2, 3];
 
-/** Boundary snapshot generated from ECS components; ECS remains the owner. */
-export type PlayerStateSnapshot = {
+/** Presentation snapshot generated from ECS components; ECS remains the owner. */
+export type PlayerStatusSnapshot = {
   readonly heldKeys: readonly KeyColorType[];
   readonly selectedWeapon: CommandSlot;
   readonly unlockedWeapons: readonly CommandSlot[];
@@ -70,25 +68,53 @@ export type PlayerStateSnapshot = {
   readonly health: PlayerHealthState;
   readonly hasUplinkCode: boolean;
   readonly progress: PlayerProgressState;
+};
+
+export type PlayerProgressionCheckpoint = {
+  readonly health: HealthSchema;
+  readonly inventory: PlayerInventorySchema;
+  readonly equipment: PlayerEquipmentSchema;
+  readonly progress: PlayerProgressSchema;
   readonly storyFlags: readonly StoryFlag[];
 };
 
-export function initializePlayerProgression(
-  world: World,
-  playerEntity: Entity,
-  input: PlayerStateInput = {},
-): void {
-  upsertPlayerHealth(world, playerEntity, healthForInput(input));
-  upsertPlayerInventory(world, playerEntity, inventoryForInput(input));
-  upsertPlayerEquipment(world, playerEntity, equipmentForInput(input));
-  upsertPlayerProgress(world, playerEntity, progressForInput(input));
+export function resetPlayerProgression(world: World, playerEntity: Entity): void {
+  upsertPlayerHealth(world, playerEntity, DEFAULT_PLAYER_HEALTH);
+  upsertPlayerInventory(world, playerEntity, DEFAULT_PLAYER_INVENTORY);
+  upsertPlayerEquipment(world, playerEntity, DEFAULT_PLAYER_EQUIPMENT);
+  upsertPlayerProgress(world, playerEntity, DEFAULT_PLAYER_PROGRESS);
 }
 
-export function playerStateSnapshotFor(
+export function capturePlayerProgressionCheckpoint(
   world: World,
   playerEntity: Entity,
   storyFlags: readonly StoryFlag[] = [],
-): PlayerStateSnapshot {
+): PlayerProgressionCheckpoint {
+  return {
+    health: { ...(healthFor(world, playerEntity) ?? DEFAULT_PLAYER_HEALTH) },
+    inventory: { ...playerInventoryFor(world, playerEntity) },
+    equipment: { ...playerEquipmentFor(world, playerEntity) },
+    progress: { ...playerProgressFor(world, playerEntity) },
+    storyFlags: normalizeStoryFlags(storyFlags),
+  };
+}
+
+export function restorePlayerProgressionCheckpoint(
+  world: World,
+  playerEntity: Entity,
+  checkpoint: PlayerProgressionCheckpoint,
+): readonly StoryFlag[] {
+  upsertPlayerHealth(world, playerEntity, checkpoint.health);
+  upsertPlayerInventory(world, playerEntity, checkpoint.inventory);
+  upsertPlayerEquipment(world, playerEntity, checkpoint.equipment);
+  upsertPlayerProgress(world, playerEntity, checkpoint.progress);
+  return normalizeStoryFlags(checkpoint.storyFlags);
+}
+
+export function playerStatusSnapshotFor(
+  world: World,
+  playerEntity: Entity,
+): PlayerStatusSnapshot {
   const inventory = playerInventoryFor(world, playerEntity);
   const equipment = playerEquipmentFor(world, playerEntity);
   const progress = playerProgressFor(world, playerEntity);
@@ -105,7 +131,6 @@ export function playerStateSnapshotFor(
     health: { ...health },
     hasUplinkCode: inventory.hasUplinkCode === 1,
     progress: { ...progress },
-    storyFlags: normalizeStoryFlags(storyFlags),
   };
 }
 
@@ -299,72 +324,12 @@ function playerProgressFor(world: World, playerEntity: Entity): PlayerProgressSc
   return world.components.readEntityData(PlayerProgress, playerEntity) ?? { ...DEFAULT_PLAYER_PROGRESS };
 }
 
-function healthForInput(input: PlayerStateInput): HealthSchema {
-  if (input.health === undefined) return DEFAULT_PLAYER_HEALTH;
-
-  const max = normalizeHealthValue(input.health.max, DEFAULT_PLAYER_HEALTH.max);
-  return {
-    current: Math.min(normalizeHealthValue(input.health.current, max), max),
-    max,
-  };
-}
-
-function normalizeHealthValue(value: number, fallback: number): number {
-  return Number.isFinite(value) ? Math.min(MAX_PLAYER_HEALTH, Math.max(0, Math.trunc(value))) : fallback;
-}
-
-function inventoryForInput(input: PlayerStateInput): PlayerInventorySchema {
-  return {
-    keyMask: keyMaskFor(input.heldKeys ?? []),
-    hasUplinkCode: input.hasUplinkCode === true ? 1 : 0,
-    pistolAmmo: input.ammo?.pistol ?? DEFAULT_PLAYER_INVENTORY.pistolAmmo,
-    cannonAmmo: input.ammo?.cannon ?? DEFAULT_PLAYER_INVENTORY.cannonAmmo,
-  };
-}
-
-function equipmentForInput(input: PlayerStateInput): PlayerEquipmentSchema {
-  const unlockedWeaponMask = weaponMaskFor([
-    DEFAULT_PLAYER_WEAPON,
-    ...(input.unlockedWeapons ?? []),
-  ]);
-  const selectedWeapon =
-    input.selectedWeapon !== undefined && (unlockedWeaponMask & weaponBit(input.selectedWeapon)) !== 0 ?
-      input.selectedWeapon :
-      DEFAULT_PLAYER_EQUIPMENT.selectedWeapon;
-
-  return {
-    selectedWeapon,
-    unlockedWeaponMask,
-  };
-}
-
-function progressForInput(input: PlayerStateInput): PlayerProgressSchema {
-  return {
-    credits: input.progress?.credits ?? DEFAULT_PLAYER_PROGRESS.credits,
-    score: input.progress?.score ?? DEFAULT_PLAYER_PROGRESS.score,
-    xp: input.progress?.xp ?? DEFAULT_PLAYER_PROGRESS.xp,
-    levelCredits: input.progress?.levelCredits ?? DEFAULT_PLAYER_PROGRESS.levelCredits,
-  };
-}
-
-function keyMaskFor(keys: readonly KeyColorType[]): number {
-  let mask = 0;
-  for (const key of keys) mask |= keyBit(key);
-  return mask;
-}
-
 function keyColorsForMask(mask: number): readonly KeyColorType[] {
   return KEY_COLOR_ORDER.filter((color) => (mask & keyBit(color)) !== 0);
 }
 
 function keyBit(color: KeyColorType): number {
   return 1 << keyColorCode(color);
-}
-
-function weaponMaskFor(slots: readonly CommandSlot[]): number {
-  let mask = 0;
-  for (const slot of slots) mask |= weaponBit(slot);
-  return mask;
 }
 
 function weaponSlotsForMask(mask: number): readonly CommandSlot[] {

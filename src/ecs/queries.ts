@@ -9,6 +9,7 @@ import {
   Health,
   LightEmitter,
   Locked,
+  MapScoped,
   Player,
   Secret,
   Sprite,
@@ -60,4 +61,9 @@ export const playerTurnQuery = new Query({
 /** All enemies that participate in the turn loop */
 export const enemyTurnQuery = new Query({
   all: { enemy: Enemy, turnTaker: TurnTaker, gridPos: GridPos, facing: Facing, enemyAwareness: EnemyAwareness },
+});
+
+/** Entities whose lifetime is bound to the currently loaded map. */
+export const mapScopedQuery = new Query({
+  all: { mapScoped: MapScoped },
 });

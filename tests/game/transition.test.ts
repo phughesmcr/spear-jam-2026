@@ -2,8 +2,6 @@ import { assertEquals } from "@std/assert";
 import type { Entity } from "@phughesmcr/miski";
 import { createGameModel, type GameModel, transition } from "@/src/game/transition.ts";
 import { DisplayName } from "@/src/game/names.ts";
-import { StoryFlag } from "@/src/game/story.ts";
-import { KeyColor } from "@/src/map/map.ts";
 
 const PLAYER = 1 as Entity;
 
@@ -29,7 +27,6 @@ Deno.test("transition can start with an intro intermission before loading the fi
   assertEquals(mode.pageIndex, 0);
   assertEquals(mode.prompt, "Space to enter the network");
   assertEquals(mode.goto, "Level 1");
-  assertEquals(mode.playerState, {});
   assertEquals(mode.revealStartedAtMs, 1000);
   assertEquals(mode.revealed, false);
   assertEquals(result.effects, [{ type: "ensureInput" }, { type: "render" }]);
@@ -54,7 +51,7 @@ Deno.test("transition can start with an intro intermission before loading the fi
   assertEquals(result.model.mode, { type: "loading" });
   assertEquals(result.effects, [
     { type: "render" },
-    { type: "loadMap", mapName: "Level 1", playerState: {} },
+    { type: "loadMap", mapName: "Level 1" },
   ]);
 });
 
@@ -62,12 +59,10 @@ Deno.test("transition moves loaded maps into playing mode and requests input set
   const result = transition(createGameModel("Level 1"), {
     type: "mapLoaded",
     mapName: "Level 2",
-    playerState: { heldKeys: [KeyColor.Red], storyFlags: [StoryFlag.JohnSpoken] },
   });
 
   assertEquals(result.model.currentMapName, "Level 2");
-  assertEquals(result.model.currentLevelEntryState?.heldKeys, [KeyColor.Red]);
-  assertEquals(result.model.currentLevelEntryState?.storyFlags, [StoryFlag.JohnSpoken]);
+  assertEquals(Object.hasOwn(result.model, "currentLevelEntryState"), false);
   assertEquals(result.model.mode, { type: "playing" });
   assertEquals(result.effects, [{ type: "ensureInput" }, { type: "render" }]);
 });
@@ -77,12 +72,10 @@ Deno.test("transition derives command result intermission state", () => {
     type: "mapLoaded",
     mapName: "Level 1",
   }).model;
-  const playerState = { hasUplinkCode: true, storyFlags: [StoryFlag.JohnSpoken] };
 
   const result = transition(playing, {
     type: "playerCommandResult",
     playerEntity: PLAYER,
-    playerState,
     result: {
       events: [{ type: "examined", text: "The uplink hums." }],
       mapChange: { goto: "Level 2" },
@@ -95,7 +88,6 @@ Deno.test("transition derives command result intermission state", () => {
     pageIndex: 0,
     prompt: "Space to continue",
     goto: "Level 2",
-    playerState,
     revealStartedAtMs: 0,
     revealed: false,
   });
@@ -347,22 +339,15 @@ Deno.test("transition confirms dialogue pointer only when down and up hit the sa
   assertEquals(result.effects, [{ type: "closeDialogue" }, { type: "render" }]);
 });
 
-Deno.test("transition retries defeat from the current level entry snapshot", () => {
-  const entryState = {
-    heldKeys: [KeyColor.Yellow],
-    health: { current: 8, max: 10 },
-    storyFlags: [StoryFlag.JohnSpoken],
-  };
+Deno.test("transition retries defeat through a session-owned checkpoint effect", () => {
   let model = transition(createGameModel("Level 1"), {
     type: "mapLoaded",
     mapName: "Level 2",
-    playerState: entryState,
   }).model;
 
   ({ model } = transition(model, {
     type: "playerCommandResult",
     playerEntity: PLAYER,
-    playerState: { health: { current: 0, max: 10 } },
     result: {
       events: [{ type: "examined", text: "You fall." }],
       outcome: "defeat",
@@ -374,7 +359,31 @@ Deno.test("transition retries defeat from the current level entry snapshot", () 
   assertEquals(result.model.mode, { type: "loading" });
   assertEquals(result.effects, [
     { type: "render" },
-    { type: "loadMap", mapName: "Level 2", playerState: entryState },
+    { type: "retryMap", mapName: "Level 2" },
+  ]);
+});
+
+Deno.test("transition resets victory through a fresh-run effect", () => {
+  let model = transition(createGameModel("Level 1"), {
+    type: "mapLoaded",
+    mapName: "Final Level",
+  }).model;
+
+  ({ model } = transition(model, {
+    type: "playerCommandResult",
+    playerEntity: PLAYER,
+    result: {
+      events: [{ type: "examined", text: "The system reboots." }],
+      outcome: "victory",
+    },
+  }));
+
+  const result = transition(model, { type: "gameCommand", command: { type: "wait" } });
+  assertEquals(result.model.combatFeedback, []);
+  assertEquals(result.model.mode, { type: "loading" });
+  assertEquals(result.effects, [
+    { type: "render" },
+    { type: "resetRun", mapName: "Level 1" },
   ]);
 });
 

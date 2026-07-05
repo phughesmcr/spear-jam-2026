@@ -8,14 +8,7 @@ import {
   type PlayerCommandResult,
 } from "@/src/game/commands.ts";
 import { hasNextIntermissionPage, type IntermissionMode, isMessageRevealed } from "@/src/game/intermission.ts";
-import type {
-  CommandSlot,
-  GameMode,
-  PlayerStateInput,
-  VerbMenuControl,
-  VerbMenuTarget,
-  ViewMode,
-} from "@/src/game/state.ts";
+import type { CommandSlot, GameMode, VerbMenuControl, VerbMenuTarget, ViewMode } from "@/src/game/state.ts";
 import { VERBS, verbToCommand } from "@/src/game/verbs.ts";
 
 type DialogueMode = Extract<GameMode, { readonly type: "dialogue" }>;
@@ -44,7 +37,6 @@ export type GameModel = {
   readonly startMapName: string;
   readonly showIntro: boolean;
   readonly currentMapName: string;
-  readonly currentLevelEntryState?: PlayerStateInput;
   readonly combatFeedback: readonly CombatFeedback[];
   readonly mode: GameMode;
   readonly viewMode: ViewMode;
@@ -57,12 +49,14 @@ export type GameEffect =
   | { readonly type: "render" }
   | { readonly type: "closeDialogue" }
   | { readonly type: "ensureInput" }
-  | { readonly type: "loadMap"; readonly mapName: string; readonly playerState?: PlayerStateInput }
+  | { readonly type: "loadMap"; readonly mapName: string }
+  | { readonly type: "retryMap"; readonly mapName: string }
+  | { readonly type: "resetRun"; readonly mapName: string }
   | { readonly type: "runPlayerCommand"; readonly command: PlayerCommand };
 
 export type GameTransitionEvent =
   | { readonly type: "start"; readonly nowMs?: number }
-  | { readonly type: "mapLoaded"; readonly mapName: string; readonly playerState?: PlayerStateInput }
+  | { readonly type: "mapLoaded"; readonly mapName: string }
   | { readonly type: "loadFailed"; readonly message: string }
   | { readonly type: "gameCommand"; readonly command: GameCommand; readonly nowMs?: number }
   | { readonly type: "verbPointer"; readonly phase: VerbPointerPhase; readonly target?: VerbMenuTarget }
@@ -71,7 +65,6 @@ export type GameTransitionEvent =
     readonly type: "playerCommandResult";
     readonly result: PlayerCommandResult;
     readonly playerEntity: Entity;
-    readonly playerState: PlayerStateInput;
     readonly nowMs?: number;
   };
 
@@ -102,7 +95,6 @@ export function transition(model: GameModel, event: GameTransitionEvent): GameTr
             pages: INTRO_PAGES,
             prompt: INTRO_PROMPT,
             goto: model.startMapName,
-            playerState: {},
             nowMs: event.nowMs ?? 0,
           }),
           [{ type: "ensureInput" }, { type: "render" }],
@@ -113,7 +105,7 @@ export function transition(model: GameModel, event: GameTransitionEvent): GameTr
         { type: "loadMap", mapName: model.startMapName },
       ]);
     case "mapLoaded":
-      return mapLoaded(model, event.mapName, event.playerState);
+      return mapLoaded(model, event.mapName);
     case "loadFailed":
       return done({ ...model, mode: { type: "error", message: event.message } }, [{ type: "render" }]);
     case "gameCommand":
@@ -123,15 +115,14 @@ export function transition(model: GameModel, event: GameTransitionEvent): GameTr
     case "dialoguePointer":
       return dialoguePointer(model, event.phase, event.optionSlot);
     case "playerCommandResult":
-      return playerCommandResult(model, event.result, event.playerEntity, event.playerState, event.nowMs ?? 0);
+      return playerCommandResult(model, event.result, event.playerEntity, event.nowMs ?? 0);
   }
 }
 
-function mapLoaded(model: GameModel, mapName: string, playerState?: PlayerStateInput): GameTransition {
+function mapLoaded(model: GameModel, mapName: string): GameTransition {
   return done({
     ...model,
     currentMapName: mapName,
-    currentLevelEntryState: playerState === undefined ? undefined : clonePlayerStateInput(playerState),
     mode: { type: "playing" },
   }, [{ type: "ensureInput" }, { type: "render" }]);
 }
@@ -183,10 +174,9 @@ function intermissionCommand(
       },
     }, [{ type: "render" }]);
   }
-  const playerState = clonePlayerStateInput(mode.playerState);
   return done(
     { ...model, mode: { type: "loading" } },
-    [{ type: "render" }, { type: "loadMap", mapName: mode.goto, playerState }],
+    [{ type: "render" }, { type: "loadMap", mapName: mode.goto }],
   );
 }
 
@@ -251,13 +241,10 @@ function outcomeCommand(
     mode: { type: "loading" },
   } satisfies GameModel;
   if (outcome === "victory") {
-    return done(resetModel, [{ type: "render" }, { type: "loadMap", mapName: model.startMapName }]);
+    return done(resetModel, [{ type: "render" }, { type: "resetRun", mapName: model.startMapName }]);
   }
 
-  const playerState = model.currentLevelEntryState === undefined ?
-    undefined :
-    clonePlayerStateInput(model.currentLevelEntryState);
-  return done(resetModel, [{ type: "render" }, { type: "loadMap", mapName: model.currentMapName, playerState }]);
+  return done(resetModel, [{ type: "render" }, { type: "retryMap", mapName: model.currentMapName }]);
 }
 
 function verbMenuCommand(model: GameModel, mode: VerbMenuMode, command: GameCommand): GameTransition {
@@ -365,7 +352,6 @@ function playerCommandResult(
   model: GameModel,
   result: PlayerCommandResult,
   playerEntity: Entity,
-  playerState: PlayerStateInput,
   nowMs: number,
 ): GameTransition {
   const modelWithFeedback = applyCombatFeedback(model, playerEntity, result);
@@ -378,7 +364,6 @@ function playerCommandResult(
         pages: [`Entering ${result.mapChange.goto}.`],
         prompt: CONTINUE_PROMPT,
         goto: result.mapChange.goto,
-        playerState,
         nowMs,
       }),
       [{ type: "render" }],
@@ -551,7 +536,6 @@ function enterIntermission(
     readonly pages: readonly string[];
     readonly prompt: string;
     readonly goto: string;
-    readonly playerState: PlayerStateInput;
     readonly nowMs: number;
   },
 ): GameModel {
@@ -564,23 +548,9 @@ function enterIntermission(
       pageIndex: 0,
       prompt: input.prompt,
       goto: input.goto,
-      playerState: clonePlayerStateInput(input.playerState),
       revealStartedAtMs: input.nowMs,
       revealed: false,
     },
-  };
-}
-
-function clonePlayerStateInput(playerState: PlayerStateInput): PlayerStateInput {
-  return {
-    ...(playerState.heldKeys === undefined ? {} : { heldKeys: [...playerState.heldKeys] }),
-    ...(playerState.selectedWeapon === undefined ? {} : { selectedWeapon: playerState.selectedWeapon }),
-    ...(playerState.unlockedWeapons === undefined ? {} : { unlockedWeapons: [...playerState.unlockedWeapons] }),
-    ...(playerState.ammo === undefined ? {} : { ammo: { ...playerState.ammo } }),
-    ...(playerState.health === undefined ? {} : { health: { ...playerState.health } }),
-    ...(playerState.hasUplinkCode === undefined ? {} : { hasUplinkCode: playerState.hasUplinkCode }),
-    ...(playerState.progress === undefined ? {} : { progress: { ...playerState.progress } }),
-    ...(playerState.storyFlags === undefined ? {} : { storyFlags: [...playerState.storyFlags] }),
   };
 }
 

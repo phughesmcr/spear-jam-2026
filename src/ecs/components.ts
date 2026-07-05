@@ -83,6 +83,8 @@ export const Examine: Component<ExamineSchema> = new Component<ExamineSchema>({
 
 export const Player: Component<null> = new Component<null>({ name: "player", maxEntities: 1 });
 
+export const MapScoped: Component<null> = new Component<null>({ name: "mapScoped" });
+
 export type PlayerInventorySchema = {
   keyMask: number;
   hasUplinkCode: number;
@@ -439,6 +441,7 @@ export const ALL_COMPONENTS: DynamicComponent[] = [
   Dialogue,
   Examine,
   Player,
+  MapScoped,
   PlayerInventory,
   PlayerEquipment,
   PlayerProgress,

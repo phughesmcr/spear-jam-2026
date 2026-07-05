@@ -1,6 +1,10 @@
 import { assert, assertEquals, assertRejects } from "@std/assert";
 import {
+  Health,
   ItemKind,
+  PlayerEquipment,
+  PlayerInventory,
+  PlayerProgress,
   SPRITE_ATTACK_MS,
   SPRITE_DEATH_MS,
   SPRITE_WALK_MS,
@@ -9,7 +13,7 @@ import {
 import { DrawableKind, SpriteId } from "@/src/ecs/drawables.ts";
 import type { ActorDrawableEntity, DrawableEntity } from "@/src/ecs/drawables.ts";
 import { EnemyArchetype } from "@/src/ecs/enemy_catalog.ts";
-import { createGameSession } from "@/src/ecs/session.ts";
+import { createGameSession, type GameSession } from "@/src/ecs/session.ts";
 import { DialogueTreeId } from "@/src/dialogue/dialogue.ts";
 import type { PlayerCommandResult } from "@/src/game/commands.ts";
 import { DisplayName } from "@/src/game/names.ts";
@@ -20,14 +24,11 @@ import type { EntityDef, GameMap } from "@/src/map/map.ts";
 import { DEFAULT_BARS_TERRAIN_ID, DEFAULT_WALL_TERRAIN_ID } from "@/src/map/terrain_palettes.ts";
 import { flatTestMap } from "@/tests/ecs/helpers.ts";
 
-Deno.test("createGameSession applies carried player state and requires a player spawn", async () => {
-  const session = await createGameSession(testMap([]), () => 0, {
-    heldKeys: [KeyColor.Red],
-    health: { current: 4, max: 9 },
-  });
+Deno.test("createGameSession initializes default player progression and requires a player spawn", async () => {
+  const session = await createGameSession(testMap([]), () => 0);
   try {
-    assertEquals(session.getPlayerState().heldKeys, [KeyColor.Red]);
-    assertEquals(session.getPlayerState().health, { current: 4, max: 9 });
+    assertEquals(session.getPlayerStatus().heldKeys, []);
+    assertEquals(session.getPlayerStatus().health, { current: 10, max: 10 });
   } finally {
     session[Symbol.dispose]();
   }
@@ -57,10 +58,10 @@ Deno.test("player movement collects map-authored pickups into player state", asy
     assertEquals(eventTypes(session.handlePlayerCommand({ type: "move", direction: "forward" })), ["weaponPickedUp"]);
     assertEquals(eventTypes(session.handlePlayerCommand({ type: "move", direction: "forward" })), ["ammoPickedUp"]);
 
-    assertEquals(session.getPlayerState().heldKeys, [KeyColor.Red]);
-    assertEquals(session.getPlayerState().hasUplinkCode, true);
-    assertEquals(session.getPlayerState().unlockedWeapons, [1, 2]);
-    assertEquals(session.getPlayerState().ammo.pistol, 5);
+    assertEquals(session.getPlayerStatus().heldKeys, [KeyColor.Red]);
+    assertEquals(session.getPlayerStatus().hasUplinkCode, true);
+    assertEquals(session.getPlayerStatus().unlockedWeapons, [1, 2]);
+    assertEquals(session.getPlayerStatus().ammo.pistol, 5);
   } finally {
     session[Symbol.dispose]();
   }
@@ -93,12 +94,12 @@ Deno.test("talking to John once opens dialogue and moves him off the entrance", 
       const result = session.handlePlayerCommand({ type: "interact" });
 
       assertEquals(result.dialogue?.title, "John");
-      assertEquals(session.getPlayerState().storyFlags, []);
+      assertEquals(session.getStoryFlags(), []);
       assertEquals(actorAt(sessionDrawables(session), 2, 1)?.x, 2);
 
       session.closeDialogue();
 
-      assertEquals(session.getPlayerState().storyFlags, [StoryFlag.JohnSpoken]);
+      assertEquals(session.getStoryFlags(), [StoryFlag.JohnSpoken]);
       assertEquals(actorAt(sessionDrawables(session), 2, 1), undefined);
 
       session.handlePlayerCommand({ type: "move", direction: "forward" });
@@ -134,7 +135,7 @@ Deno.test("John's talk story event is one-shot", async () => {
 
     assertEquals(secondTalk.dialogue?.title, "John");
     session.closeDialogue();
-    assertEquals(session.getPlayerState().storyFlags, [StoryFlag.JohnSpoken]);
+    assertEquals(session.getStoryFlags(), [StoryFlag.JohnSpoken]);
     assertEquals(actorAt(sessionDrawables(session), 1, 3)?.x, 1);
   } finally {
     session[Symbol.dispose]();
@@ -166,12 +167,12 @@ Deno.test("blocked story destination leaves John in place and does not set the f
     const result = session.handlePlayerCommand({ type: "interact" });
 
     assertEquals(result.dialogue?.title, "John");
-    assertEquals(session.getPlayerState().storyFlags, []);
+    assertEquals(session.getStoryFlags(), []);
     assertEquals(actorAt(sessionDrawables(session), 2, 1)?.x, 2);
 
     session.closeDialogue();
 
-    assertEquals(session.getPlayerState().storyFlags, []);
+    assertEquals(session.getStoryFlags(), []);
     assertEquals(actorAt(sessionDrawables(session), 2, 1)?.x, 2);
 
     session.handlePlayerCommand({ type: "move", direction: "forward" });
@@ -314,20 +315,23 @@ Deno.test("activating an uplink terminal completes the level and clears transien
   const session = await createGameSession(
     testMap([{ prefab: "uplinkTerminal", x: 2, y: 1, goto: "Next Map" }]),
     () => 0,
-    {
-      hasUplinkCode: true,
-      heldKeys: [KeyColor.Blue],
-      progress: { xp: 5, levelCredits: 13 },
-    },
   );
   try {
+    worldPlayerInventory(session, { keyMask: 1 << 2, hasUplinkCode: 1 });
+    session.world.components.setEntityData(PlayerProgress, session.playerEntity, {
+      credits: 0,
+      score: 0,
+      xp: 5,
+      levelCredits: 13,
+    });
+
     const result = session.handlePlayerCommand({ type: "interact" });
 
     assertEquals(eventTypes(result), ["uplinkTerminalActivated", "xpGained"]);
     assertEquals(result.mapChange, { goto: "Next Map" });
-    assertEquals(session.getPlayerState().hasUplinkCode, false);
-    assertEquals(session.getPlayerState().heldKeys, []);
-    assertEquals(session.getPlayerState().progress, {
+    assertEquals(session.getPlayerStatus().hasUplinkCode, false);
+    assertEquals(session.getPlayerStatus().heldKeys, []);
+    assertEquals(session.getPlayerStatus().progress, {
       credits: 0,
       score: 0,
       xp: 18,
@@ -342,13 +346,171 @@ Deno.test("activating a victory uplink terminal reports the victory outcome", as
   const session = await createGameSession(
     testMap([{ prefab: "uplinkTerminal", x: 2, y: 1, goto: VICTORY_GOTO }]),
     () => 0,
-    { hasUplinkCode: true },
   );
   try {
+    worldPlayerInventory(session, { hasUplinkCode: 1 });
+
     const result = session.handlePlayerCommand({ type: "interact" });
 
     assertEquals(eventTypes(result), ["uplinkTerminalActivated"]);
     assertEquals(result.outcome, "victory");
+  } finally {
+    session[Symbol.dispose]();
+  }
+});
+
+Deno.test("normal map loads keep the same player entity and durable progression", async () => {
+  const session = await createGameSession(
+    testMap([
+      { prefab: "key", x: 2, y: 1, color: KeyColor.Red },
+      { prefab: "uplinkCode", x: 3, y: 1 },
+      { prefab: "weaponPickup", x: 4, y: 1, slot: 2 },
+      { prefab: "item", x: 5, y: 1, item: ItemKind.PistolAmmo, amount: 5 },
+    ], 7),
+    () => 0,
+  );
+  try {
+    const playerEntity = session.playerEntity;
+    session.handlePlayerCommand({ type: "move", direction: "forward" });
+    session.handlePlayerCommand({ type: "move", direction: "forward" });
+    session.handlePlayerCommand({ type: "move", direction: "forward" });
+    session.handlePlayerCommand({ type: "move", direction: "forward" });
+    session.world.components.setEntityData(Health, playerEntity, { current: 4, max: 10 });
+    session.world.components.setEntityData(PlayerProgress, playerEntity, {
+      credits: 7,
+      score: 8,
+      xp: 9,
+      levelCredits: 10,
+    });
+
+    session.loadMap(flatTestMap(5, 3, [{ prefab: "player", x: 3, y: 1, dir: Direction.West }]));
+
+    assertEquals(session.playerEntity, playerEntity);
+    assertEquals(playerPosition(session), { x: 3, y: 1 });
+    assertEquals(session.getPlayerFacing(), { dir: Direction.West });
+    assertEquals(session.getPlayerStatus(), {
+      heldKeys: [KeyColor.Red],
+      selectedWeapon: 1,
+      unlockedWeapons: [1, 2],
+      ammo: { pistol: 5, cannon: 0 },
+      health: { current: 4, max: 10 },
+      hasUplinkCode: true,
+      progress: { credits: 7, score: 8, xp: 9, levelCredits: 10 },
+    });
+  } finally {
+    session[Symbol.dispose]();
+  }
+});
+
+Deno.test("normal map loads preserve durable story flags", async () => {
+  const session = await createGameSession(storyTestMap(), () => 0);
+  try {
+    session.handlePlayerCommand({ type: "interact" });
+    session.closeDialogue();
+    assertEquals(session.getStoryFlags(), [StoryFlag.JohnSpoken]);
+
+    session.loadMap(testMap([]));
+
+    assertEquals(session.getStoryFlags(), [StoryFlag.JohnSpoken]);
+  } finally {
+    session[Symbol.dispose]();
+  }
+});
+
+Deno.test("map-scoped entities, death effects, and corpses do not survive map loads", async () => {
+  await withFakePerformanceNow(200, async () => {
+    const session = await createGameSession(
+      testMap([
+        { prefab: "key", x: 4, y: 1, color: KeyColor.Red },
+        {
+          prefab: "enemy",
+          x: 2,
+          y: 1,
+          dir: Direction.West,
+          displayName: DisplayName.DigitalDog,
+          archetype: EnemyArchetype.MeleeDog,
+          health: 1,
+        },
+      ], 5),
+      sequenceRandom([0.999, 0]),
+    );
+    try {
+      assertEquals(spriteAt(sessionDrawables(session), 4, 1)?.spriteId, SpriteId.RedKey);
+      session.handlePlayerCommand({ type: "attack" });
+      assertEquals(spriteAt(sessionDrawables(session), 2, 1)?.spriteId, SpriteId.DigitalDog);
+      session.advanceSpriteAnimations(200 + SPRITE_DEATH_MS);
+      assertEquals(spriteAt(sessionDrawables(session), 2, 1)?.spriteId, SpriteId.Corpse);
+
+      session.loadMap(flatTestMap(5, 3, [{ prefab: "player", x: 1, y: 1, dir: Direction.East }]));
+
+      const sprites = sessionDrawables(session).filter((drawable) => drawable.kind === DrawableKind.Sprite);
+      assertEquals(sprites, []);
+    } finally {
+      session[Symbol.dispose]();
+    }
+  });
+});
+
+Deno.test("retryMap restores the current level-entry checkpoint and map content", async () => {
+  const level = testMap([
+    { prefab: "key", x: 2, y: 1, color: KeyColor.Red },
+    { prefab: "item", x: 3, y: 1, item: ItemKind.PistolAmmo, amount: 4 },
+  ], 5);
+  const session = await createGameSession(level, () => 0);
+  try {
+    session.handlePlayerCommand({ type: "move", direction: "forward" });
+    session.handlePlayerCommand({ type: "move", direction: "forward" });
+    session.world.components.setEntityData(Health, session.playerEntity, { current: 1, max: 10 });
+
+    session.retryMap(level);
+
+    assertEquals(playerPosition(session), { x: 1, y: 1 });
+    assertEquals(session.getPlayerStatus().heldKeys, []);
+    assertEquals(session.getPlayerStatus().ammo.pistol, 0);
+    assertEquals(session.getPlayerStatus().health, { current: 10, max: 10 });
+    assertEquals(spriteAt(sessionDrawables(session), 2, 1)?.spriteId, SpriteId.RedKey);
+  } finally {
+    session[Symbol.dispose]();
+  }
+});
+
+Deno.test("resetRun clears durable state and returns to the start map spawn", async () => {
+  const session = await createGameSession(
+    testMap([
+      { prefab: "key", x: 2, y: 1, color: KeyColor.Red },
+      { prefab: "uplinkCode", x: 3, y: 1 },
+      { prefab: "weaponPickup", x: 4, y: 1, slot: 2 },
+      { prefab: "item", x: 5, y: 1, item: ItemKind.PistolAmmo, amount: 5 },
+    ], 7),
+    () => 0,
+  );
+  try {
+    session.handlePlayerCommand({ type: "move", direction: "forward" });
+    session.handlePlayerCommand({ type: "move", direction: "forward" });
+    session.handlePlayerCommand({ type: "move", direction: "forward" });
+    session.handlePlayerCommand({ type: "move", direction: "forward" });
+    session.world.components.setEntityData(Health, session.playerEntity, { current: 1, max: 10 });
+    session.world.components.setEntityData(PlayerProgress, session.playerEntity, {
+      credits: 10,
+      score: 20,
+      xp: 30,
+      levelCredits: 40,
+    });
+
+    session.resetRun(flatTestMap(5, 3, [{ prefab: "player", x: 2, y: 1, dir: Direction.South }]));
+
+    assertEquals(playerPosition(session), { x: 2, y: 1 });
+    assertEquals(session.getPlayerFacing(), { dir: Direction.South });
+    assertEquals(session.getStoryFlags(), []);
+    assertEquals(session.getPlayerStatus(), {
+      heldKeys: [],
+      selectedWeapon: 1,
+      unlockedWeapons: [1],
+      ammo: { pistol: 0, cannon: 0 },
+      health: { current: 10, max: 10 },
+      hasUplinkCode: false,
+      progress: { credits: 0, score: 0, xp: 0, levelCredits: 0 },
+    });
   } finally {
     session[Symbol.dispose]();
   }
@@ -365,18 +527,19 @@ Deno.test("ranged attacks spend ammo before resolving combat and level credit", 
       archetype: EnemyArchetype.NetworkNeophyte,
     }]),
     sequenceRandom([0.999, 0]),
-    {
-      selectedWeapon: 2,
-      unlockedWeapons: [2],
-      ammo: { pistol: 1 },
-    },
   );
   try {
+    worldPlayerInventory(session, { pistolAmmo: 1 });
+    session.world.components.setEntityData(PlayerEquipment, session.playerEntity, {
+      selectedWeapon: 2,
+      unlockedWeaponMask: (1 << 1) | (1 << 2),
+    });
+
     const result = session.handlePlayerCommand({ type: "attack" });
 
     assertEquals(eventTypes(result), ["ammoSpent", "damageDealt", "entityDefeated", "creditsEarned"]);
-    assertEquals(session.getPlayerState().ammo.pistol, 0);
-    assertEquals(session.getPlayerState().progress, {
+    assertEquals(session.getPlayerStatus().ammo.pistol, 0);
+    assertEquals(session.getPlayerStatus().progress, {
       credits: 10,
       score: 10,
       xp: 0,
@@ -553,6 +716,17 @@ function spriteAt(drawables: readonly DrawableEntity[], x: number, y: number) {
     spriteId: sprite.spriteId,
     animation: sprite.animation,
   };
+}
+
+function worldPlayerInventory(
+  session: GameSession,
+  patch: Partial<{ keyMask: number; hasUplinkCode: number; pistolAmmo: number; cannonAmmo: number }>,
+): void {
+  const current = session.world.components.getEntityData(PlayerInventory, session.playerEntity);
+  session.world.components.setEntityData(PlayerInventory, session.playerEntity, {
+    ...current,
+    ...patch,
+  });
 }
 
 async function withFakePerformanceNow(nowMs: number, run: () => Promise<void>): Promise<void> {

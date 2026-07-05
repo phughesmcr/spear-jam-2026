@@ -79,7 +79,7 @@ export function renderGameFrame(
       playRect.y = 0;
       playRect.width = canvasSize.width;
       playRect.height = canvasSize.height;
-      const playerState = session.getPlayerState();
+      const playerStatus = session.getPlayerStatus();
       firstPersonRenderer.render(
         ctx,
         playRect,
@@ -88,11 +88,11 @@ export function renderGameFrame(
         onAssetLoad,
       );
       renderFirstPersonVignette(ctx, playRect);
-      renderWeaponHud(ctx, canvasSize, playerState.selectedWeapon, weaponHudPhase, onAssetLoad);
+      renderWeaponHud(ctx, canvasSize, playerStatus.selectedWeapon, weaponHudPhase, onAssetLoad);
       renderFirstPersonHud(
         ctx,
         canvasSize,
-        playerState,
+        playerStatus,
         { ...firstPersonHud, facing: session.getPlayerFacing().dir },
         onAssetLoad,
       );

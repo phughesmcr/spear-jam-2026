@@ -12,7 +12,6 @@ import {
   type GameTransitionEvent,
   transition,
 } from "@/src/game/transition.ts";
-import type { PlayerStateInput } from "@/src/game/state.ts";
 import { setupInput } from "@/src/input/input.ts";
 import type { CanvasPointerInput } from "@/src/input/pointer.ts";
 import { getMap, START_MAP_NAME } from "@/src/map/maps.ts";
@@ -113,34 +112,84 @@ class Game implements Disposable {
     );
   }
 
-  private async loadMap(mapName: string, playerState?: PlayerStateInput): Promise<void> {
-    const [session] = await Promise.all([
-      createGameSession(getMap(mapName), () => this.rng.nextFloat(), playerState),
-      preloadGameAssets(
+  private async loadMap(mapName: string): Promise<void> {
+    const map = getMap(mapName);
+    let createdSession: GameSession | undefined;
+    try {
+      await preloadGameAssets(
         this.spec.canvas.ownerDocument,
         this.firstPersonRenderer,
         this.renderLoadedAssets,
-      ),
-    ]);
+      );
+      if (this.session === undefined) {
+        createdSession = await createGameSession(map, () => this.rng.nextFloat());
+      } else {
+        this.session.loadMap(map);
+      }
+    } catch (error) {
+      createdSession?.[Symbol.dispose]();
+      throw error;
+    }
     if (this.controller.signal.aborted) {
-      session[Symbol.dispose]();
+      createdSession?.[Symbol.dispose]();
       return;
     }
+    if (createdSession !== undefined) this.session = createdSession;
+    this.finishMapLoad(mapName);
+  }
 
-    const previousSession = this.session;
-    this.session = session;
+  private async retryMap(mapName: string): Promise<void> {
+    await this.withLoadedAssets(() => {
+      const session = this.session;
+      if (session === undefined) {
+        throw new Error("Cannot retry before the game session exists.");
+      }
+      session.retryMap(getMap(mapName));
+    });
+    if (!this.controller.signal.aborted) this.finishMapLoad(mapName);
+  }
+
+  private async resetRun(mapName: string): Promise<void> {
+    await this.withLoadedAssets(() => {
+      const session = this.session;
+      if (session === undefined) {
+        throw new Error("Cannot reset before the game session exists.");
+      }
+      session.resetRun(getMap(mapName));
+    });
+    if (!this.controller.signal.aborted) this.finishMapLoad(mapName);
+  }
+
+  private async withLoadedAssets(run: () => void): Promise<void> {
+    await preloadGameAssets(
+      this.spec.canvas.ownerDocument,
+      this.firstPersonRenderer,
+      this.renderLoadedAssets,
+    );
+    if (this.controller.signal.aborted) return;
+    run();
+  }
+
+  private finishMapLoad(mapName: string): void {
     this.firstPersonRenderer.reset();
     this.clearWeaponHudTimeout();
     this.clearKeyHudTimeout();
     this.clearMessageHudEntries();
     this.weaponHudPhase = "idle";
     this.keyHudVisible = false;
-    previousSession?.[Symbol.dispose]();
-    this.apply({ type: "mapLoaded", mapName, playerState });
+    this.apply({ type: "mapLoaded", mapName });
   }
 
-  private startLoad(mapName: string, playerState?: PlayerStateInput): void {
-    void this.loadMap(mapName, playerState).catch((error: unknown) => this.handleLoadError(error));
+  private startLoad(mapName: string): void {
+    void this.loadMap(mapName).catch((error: unknown) => this.handleLoadError(error));
+  }
+
+  private startRetry(mapName: string): void {
+    void this.retryMap(mapName).catch((error: unknown) => this.handleLoadError(error));
+  }
+
+  private startResetRun(mapName: string): void {
+    void this.resetRun(mapName).catch((error: unknown) => this.handleLoadError(error));
   }
 
   private handleLoadError(error: unknown): void {
@@ -232,7 +281,6 @@ class Game implements Disposable {
       type: "playerCommandResult",
       result,
       playerEntity,
-      playerState: this.session.getPlayerState(),
       nowMs: performance.now(),
     });
   }
@@ -260,7 +308,13 @@ class Game implements Disposable {
           this.ensureInput();
           break;
         case "loadMap":
-          this.startLoad(effect.mapName, effect.playerState);
+          this.startLoad(effect.mapName);
+          break;
+        case "retryMap":
+          this.startRetry(effect.mapName);
+          break;
+        case "resetRun":
+          this.startResetRun(effect.mapName);
           break;
         case "runPlayerCommand":
           this.handlePlayerCommand(effect.command);
