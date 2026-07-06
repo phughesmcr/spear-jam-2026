@@ -1,5 +1,5 @@
 import { type AudioRuntime, createAudioRuntime } from "@/src/audio/audio_runtime.ts";
-import { createGameSession, type GameSession } from "@/src/ecs/session.ts";
+import type { GameSession } from "@/src/ecs/session.ts";
 import { type GameCommand, type PlayerCommand, relativeMoveDirectionOffset } from "@/src/game/commands.ts";
 import { directionDelta, normalizeDirection } from "@/src/grid/direction.ts";
 import { firstPersonTouchGesturesEnabled, routePointerInput } from "@/src/game/input_routing.ts";
@@ -13,12 +13,18 @@ import {
   type GameTransitionEvent,
   transition,
 } from "@/src/game/transition.ts";
+import {
+  loadMapSession,
+  resetRunSession,
+  retryMapSession,
+  type SessionLifecycleSpec,
+} from "@/src/entry/session_lifecycle.ts";
 import { setupInput } from "@/src/input/input.ts";
 import type { CanvasPointerInput } from "@/src/input/pointer.ts";
-import { getMap, START_MAP_NAME } from "@/src/map/maps.ts";
+import { START_MAP_NAME } from "@/src/map/maps.ts";
 import { configureCanvasDpi, DEFAULT_GAME_CANVAS_SIZE, type GameCanvasSize } from "@/src/render/canvas.ts";
 import { createFirstPersonRenderer, type FirstPersonRenderer } from "@/src/render/first_person.ts";
-import { preloadGameAssets, renderGameFrame } from "@/src/render/game.ts";
+import { renderGameFrame } from "@/src/render/game.ts";
 
 export interface GameSpec {
   ctx: CanvasRenderingContext2D;
@@ -137,61 +143,49 @@ class Game implements Disposable {
   }
 
   private async loadMap(mapName: string): Promise<void> {
-    const map = getMap(mapName);
-    let createdSession: GameSession | undefined;
-    try {
-      await preloadGameAssets(
-        this.spec.canvas.ownerDocument,
-        this.firstPersonRenderer,
-        this.renderLoadedAssets,
-      );
-      if (this.session === undefined) {
-        createdSession = await createGameSession(map, () => this.rng.nextFloat());
-      } else {
-        this.session.loadMap(map);
-      }
-    } catch (error) {
-      createdSession?.[Symbol.dispose]();
-      throw error;
-    }
-    if (this.controller.signal.aborted) {
-      createdSession?.[Symbol.dispose]();
-      return;
-    }
-    if (createdSession !== undefined) this.session = createdSession;
-    this.finishMapLoad(mapName);
+    const result = await loadMapSession({
+      ...this.sessionLifecycleSpec(),
+      mapName,
+      currentSession: this.session,
+      random: () => this.rng.nextFloat(),
+    });
+    if (result === undefined) return;
+
+    this.session = result.session;
+    this.finishMapLoad(result.mapName);
   }
 
   private async retryMap(mapName: string): Promise<void> {
-    await this.withLoadedAssets(() => {
-      const session = this.session;
-      if (session === undefined) {
-        throw new Error("Cannot retry before the game session exists.");
-      }
-      session.retryMap(getMap(mapName));
+    const result = await retryMapSession({
+      ...this.sessionLifecycleSpec(),
+      mapName,
+      currentSession: this.session,
     });
-    if (!this.controller.signal.aborted) this.finishMapLoad(mapName);
+    if (result === undefined) return;
+
+    this.session = result.session;
+    this.finishMapLoad(result.mapName);
   }
 
   private async resetRun(mapName: string): Promise<void> {
-    await this.withLoadedAssets(() => {
-      const session = this.session;
-      if (session === undefined) {
-        throw new Error("Cannot reset before the game session exists.");
-      }
-      session.resetRun(getMap(mapName));
+    const result = await resetRunSession({
+      ...this.sessionLifecycleSpec(),
+      mapName,
+      currentSession: this.session,
     });
-    if (!this.controller.signal.aborted) this.finishMapLoad(mapName);
+    if (result === undefined) return;
+
+    this.session = result.session;
+    this.finishMapLoad(result.mapName);
   }
 
-  private async withLoadedAssets(run: () => void): Promise<void> {
-    await preloadGameAssets(
-      this.spec.canvas.ownerDocument,
-      this.firstPersonRenderer,
-      this.renderLoadedAssets,
-    );
-    if (this.controller.signal.aborted) return;
-    run();
+  private sessionLifecycleSpec(): SessionLifecycleSpec {
+    return {
+      document: this.spec.canvas.ownerDocument,
+      firstPersonRenderer: this.firstPersonRenderer,
+      signal: this.controller.signal,
+      onAssetLoad: this.renderLoadedAssets,
+    };
   }
 
   private finishMapLoad(mapName: string): void {
