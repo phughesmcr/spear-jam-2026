@@ -1,49 +1,12 @@
 import { assert, assertEquals, assertRejects } from "@std/assert";
 import { SplitMix32 } from "@/src/game/rng.ts";
 import { START_MAP_NAME } from "@/src/map/maps.ts";
-import type { FirstPersonRenderer } from "@/src/render/first_person.ts";
 import {
   loadMapSession,
   resetRunSession,
   retryMapSession,
   type SessionLifecycleSpec,
 } from "@/src/entry/session_lifecycle.ts";
-
-type FakeImageEvent = "load" | "error";
-type FakeImageListener = () => void;
-
-class FakeImage {
-  decoding: "async" | "auto" | "sync" = "auto";
-  private currentSrc = "";
-  private readonly listeners: Record<FakeImageEvent, FakeImageListener[]> = {
-    load: [],
-    error: [],
-  };
-
-  get src(): string {
-    return this.currentSrc;
-  }
-
-  set src(value: string) {
-    this.currentSrc = value;
-    queueMicrotask(() => this.dispatch("load"));
-  }
-
-  addEventListener(type: FakeImageEvent, listener: FakeImageListener): void {
-    this.listeners[type].push(listener);
-  }
-
-  dispatch(type: FakeImageEvent): void {
-    for (const listener of this.listeners[type]) listener();
-  }
-}
-
-class FakeDocument {
-  createElement(tagName: string): FakeImage {
-    if (tagName !== "img") throw new Error(`Unexpected tag ${tagName}.`);
-    return new FakeImage();
-  }
-}
 
 Deno.test("loadMapSession creates a new game session when none exists", async () => {
   const controller = new AbortController();
@@ -142,26 +105,8 @@ Deno.test("loadMapSession returns no session when aborted before commit", async 
 
 function lifecycleSpec(controller: AbortController): SessionLifecycleSpec {
   return {
-    document: new FakeDocument() as unknown as Document,
-    firstPersonRenderer: firstPersonRenderer(),
     signal: controller.signal,
-    onAssetLoad: () => {},
-  };
-}
-
-function firstPersonRenderer(): FirstPersonRenderer {
-  return {
-    preloadAssets() {
-      return Promise.resolve();
-    },
-    sceneForMap() {
-      throw new Error("Unexpected sceneForMap call.");
-    },
-    reset() {},
-    bump() {},
-    render() {
-      return { needsFrame: false };
-    },
+    preloadAssets: () => Promise.resolve(),
   };
 }
 

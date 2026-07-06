@@ -1,11 +1,9 @@
-import { type AudioRuntime, createAudioRuntime } from "@/src/audio/audio_runtime.ts";
 import type { GameSession } from "@/src/ecs/session.ts";
 import { type GameCommand, type PlayerCommand, relativeMoveDirectionOffset } from "@/src/game/commands.ts";
 import { directionDelta, normalizeDirection } from "@/src/grid/direction.ts";
 import { firstPersonTouchGesturesEnabled, routePointerInput } from "@/src/game/input_routing.ts";
-import { presentationView } from "@/src/game/presentation.ts";
 import { SplitMix32 } from "@/src/game/rng.ts";
-import type { EnemyIdleSoundSource, SoundEmitterSnapshot } from "@/src/game/sound.ts";
+import { createGameRuntimeLoop, type GameRuntimeLoop } from "@/src/game/runtime_loop.ts";
 import {
   createGameModel,
   type GameEffect,
@@ -22,9 +20,7 @@ import {
 import { setupInput } from "@/src/input/input.ts";
 import type { CanvasPointerInput } from "@/src/input/pointer.ts";
 import { START_MAP_NAME } from "@/src/map/maps.ts";
-import { configureCanvasDpi, DEFAULT_GAME_CANVAS_SIZE, type GameCanvasSize } from "@/src/render/canvas.ts";
-import { createFirstPersonRenderer, type FirstPersonRenderer } from "@/src/render/first_person.ts";
-import { renderGameFrame } from "@/src/render/game.ts";
+import { configureCanvasDpi } from "@/src/render/canvas.ts";
 
 export interface GameSpec {
   ctx: CanvasRenderingContext2D;
@@ -44,102 +40,37 @@ export function startGame(spec: GameSpec): Disposable {
 class Game implements Disposable {
   private readonly spec: GameSpec;
   private readonly controller: AbortController;
-  private readonly audio: AudioRuntime;
-  private readonly firstPersonRenderer: FirstPersonRenderer;
+  private readonly runtime: GameRuntimeLoop;
   private readonly rng: SplitMix32;
-  private readonly soundEmitters: SoundEmitterSnapshot[] = [];
-  private readonly enemyIdleSources: EnemyIdleSoundSource[] = [];
   private model: GameModel;
   private canvasController: Disposable;
-  private canvasSize: GameCanvasSize = DEFAULT_GAME_CANVAS_SIZE;
   private inputController?: Disposable;
   private session?: GameSession;
-  private started = false;
-  private animationFrameId?: number;
-  private readonly runAnimationFrame = (nowMs: number): void => {
-    this.animationFrameId = undefined;
-    this.updateAndRender(nowMs);
-  };
-  private readonly renderLoadedAssets = (): void => {
-    if (this.started) this.updateAndRenderNow();
-  };
 
   constructor(spec: GameSpec, controller: AbortController) {
     this.spec = spec;
     this.controller = controller;
     this.model = createGameModel(spec.startMapName ?? START_MAP_NAME, { showIntro: spec.startMapName === undefined });
-    this.audio = createAudioRuntime(spec.window);
-    this.firstPersonRenderer = createFirstPersonRenderer();
+    this.runtime = createGameRuntimeLoop({
+      window: spec.window,
+      document: spec.canvas.ownerDocument,
+      ctx: spec.ctx,
+      signal: controller.signal,
+      getModel: () => this.model,
+      getSession: () => this.session,
+    });
     this.rng = new SplitMix32(spec.seed);
     this.canvasController = configureCanvasDpi(
       spec.window,
       spec.canvas,
       spec.ctx,
-      (size) => this.resize(size),
+      (size) => this.runtime.resize(size),
     );
   }
 
   start(): void {
-    this.started = true;
+    this.runtime.start();
     this.apply({ type: "start", nowMs: performance.now() });
-  }
-
-  resize(size: GameCanvasSize): void {
-    this.canvasSize = size;
-    if (this.started) {
-      this.updateAndRenderNow();
-    }
-  }
-
-  private updateAndRenderNow(): void {
-    if (!this.started || this.controller.signal.aborted) return;
-    this.cancelPendingFrame();
-    this.updateAndRender(performance.now());
-  }
-
-  private updateAndRender(nowMs: number): void {
-    if (!this.started || this.controller.signal.aborted) return;
-    const tickResult = this.tickSession(nowMs);
-    this.updateAudioListener();
-    const presentation = presentationView(this.model.presentation, nowMs);
-    const renderResult = renderGameFrame({
-      ctx: this.spec.ctx,
-      canvasSize: this.canvasSize,
-      session: this.session,
-      mode: this.model.mode,
-      presentation,
-      viewMode: this.model.viewMode,
-      firstPersonRenderer: this.firstPersonRenderer,
-      nowMs,
-      onAssetLoad: this.renderLoadedAssets,
-    });
-    this.setFrameNeeded(tickResult.needsFrame || presentation.needsFrame || renderResult.needsFrame);
-  }
-
-  private tickSession(nowMs: number): { readonly needsFrame: boolean } {
-    if (this.session === undefined) return { needsFrame: false };
-    const mode = this.model.mode.type;
-    if (mode !== "playing" && mode !== "verbMenu") return { needsFrame: false };
-    return this.session.tick(nowMs);
-  }
-
-  private setFrameNeeded(needsFrame: boolean): void {
-    if (needsFrame) {
-      this.requestNextFrame();
-      return;
-    }
-    this.cancelPendingFrame();
-  }
-
-  private requestNextFrame(): void {
-    if (this.animationFrameId !== undefined || this.controller.signal.aborted || !this.started) return;
-    this.animationFrameId = this.spec.window.requestAnimationFrame(this.runAnimationFrame);
-  }
-
-  private cancelPendingFrame(): void {
-    if (this.animationFrameId === undefined) return;
-    this.spec.window.cancelAnimationFrame(this.animationFrameId);
-    this.animationFrameId = undefined;
   }
 
   private async loadMap(mapName: string): Promise<void> {
@@ -181,20 +112,18 @@ class Game implements Disposable {
 
   private sessionLifecycleSpec(): SessionLifecycleSpec {
     return {
-      document: this.spec.canvas.ownerDocument,
-      firstPersonRenderer: this.firstPersonRenderer,
       signal: this.controller.signal,
-      onAssetLoad: this.renderLoadedAssets,
+      preloadAssets: () => this.runtime.preloadAssets(),
     };
   }
 
   private finishMapLoad(mapName: string): void {
-    this.firstPersonRenderer.reset();
+    this.runtime.resetFirstPerson();
     // Position the listener at the new map's player spawn before starting
     // ambient emitters/music so the first loops are spatialized correctly.
-    this.updateAudioListener();
-    this.syncAudioWorld();
-    this.audio.startMusic();
+    this.runtime.updateAudioListener();
+    this.runtime.syncAudioWorld();
+    this.runtime.startMusic();
     this.apply({ type: "mapLoaded", mapName });
   }
 
@@ -220,14 +149,14 @@ class Game implements Disposable {
   }
 
   private handleGameCommand(command: GameCommand): void {
-    void this.audio.unlock();
+    void this.runtime.unlockAudio();
     this.apply({ type: "gameCommand", command, nowMs: performance.now() });
   }
 
   private handlePointerInput(input: CanvasPointerInput): void {
-    if (input.phase === "down") void this.audio.unlock();
+    if (input.phase === "down") void this.runtime.unlockAudio();
 
-    const route = routePointerInput(this.model, this.canvasSize, input);
+    const route = routePointerInput(this.model, this.runtime.canvasSize, input);
     if (route.type === "command") {
       this.handleGameCommand(route.command);
       return;
@@ -244,9 +173,9 @@ class Game implements Disposable {
     const result = this.session.handlePlayerCommand(command);
     // Refresh the listener pose before spatializing cues so movement, pickup,
     // door and attack sounds are panned from the player's new position/facing.
-    this.updateAudioListener();
-    this.audio.playCues(result.soundCues ?? []);
-    this.syncAudioWorld();
+    this.runtime.updateAudioListener();
+    this.runtime.playCues(result.soundCues ?? []);
+    this.runtime.syncAudioWorld();
     if (command.type === "move" && moveFrom !== undefined) {
       const position = this.session.getPlayerPosition();
       if (position.x === moveFrom.x && position.y === moveFrom.y) {
@@ -255,7 +184,7 @@ class Game implements Disposable {
           this.session.getPlayerFacing().dir + relativeMoveDirectionOffset(command.direction),
         );
         const delta = directionDelta(worldDir);
-        this.firstPersonRenderer.bump(delta.dx, delta.dy, nowMs);
+        this.runtime.bumpFirstPerson(delta.dx, delta.dy, nowMs);
       }
     }
     this.apply({
@@ -271,7 +200,7 @@ class Game implements Disposable {
     const next = transition(this.model, event);
     this.model = next.model;
     if (this.model.viewMode !== previousViewMode) {
-      this.firstPersonRenderer.reset();
+      this.runtime.resetFirstPerson();
     }
     this.executeEffects(next.effects);
   }
@@ -280,7 +209,7 @@ class Game implements Disposable {
     for (const effect of effects) {
       switch (effect.type) {
         case "render":
-          this.updateAndRenderNow();
+          this.runtime.renderNow();
           break;
         case "closeDialogue":
           this.session?.closeDialogue();
@@ -308,35 +237,16 @@ class Game implements Disposable {
     this.inputController ??= setupInput(
       this.spec.window,
       this.spec.canvas,
-      () => this.canvasSize,
+      () => this.runtime.canvasSize,
       (command) => this.handleGameCommand(command),
       (input) => this.handlePointerInput(input),
       () => firstPersonTouchGesturesEnabled(this.model),
     );
   }
 
-  private updateAudioListener(): void {
-    const session = this.session;
-    if (session === undefined) return;
-    this.audio.updateListener(session.getPlayerPosition(), session.getPlayerFacing().dir);
-  }
-
-  private syncAudioWorld(): void {
-    const session = this.session;
-    this.soundEmitters.length = 0;
-    this.enemyIdleSources.length = 0;
-    if (session !== undefined) {
-      session.forEachSoundEmitter((emitter) => this.soundEmitters.push({ ...emitter }));
-      session.forEachEnemyIdleSoundSource((source) => this.enemyIdleSources.push({ ...source }));
-    }
-    this.audio.syncAmbientEmitters(this.soundEmitters);
-    this.audio.syncEnemyIdleSources(this.enemyIdleSources);
-  }
-
   [Symbol.dispose](): void {
     this.controller.abort();
-    this.cancelPendingFrame();
-    this.audio[Symbol.dispose]();
+    this.runtime[Symbol.dispose]();
     this.inputController?.[Symbol.dispose]();
     this.session?.[Symbol.dispose]();
     this.canvasController?.[Symbol.dispose]();
