@@ -1,3 +1,5 @@
+import { createCodeRegistry } from "@/src/utils/code_registry.ts";
+
 export const DisplayName = {
   John: "john",
   DigitalDog: "digitalDog",
@@ -18,29 +20,24 @@ const DISPLAY_NAMES: Readonly<Record<DisplayName, string>> = {
   [DisplayName.AgenticAcolyte]: "Agentic Acolyte",
 };
 
-const DISPLAY_NAME_CODES: Readonly<Record<DisplayName, number>> = {
-  [DisplayName.John]: 1,
-  [DisplayName.DigitalDog]: 2,
-  [DisplayName.GigabitGunslinger]: 3,
-  [DisplayName.NetworkNeophyte]: 4,
-  [DisplayName.SystemSentinel]: 5,
-  [DisplayName.AgenticAcolyte]: 6,
-};
-
-const DISPLAY_NAMES_BY_CODE = new Map<number, DisplayName>(
-  Object.entries(DISPLAY_NAME_CODES).map(([displayName, code]) => [code, displayName as DisplayName]),
-);
+// Codes are the 1-based position of each id in this list; only ever append to keep them stable.
+const DISPLAY_NAME_REGISTRY = createCodeRegistry("display name", [
+  DisplayName.John,
+  DisplayName.DigitalDog,
+  DisplayName.GigabitGunslinger,
+  DisplayName.NetworkNeophyte,
+  DisplayName.SystemSentinel,
+  DisplayName.AgenticAcolyte,
+]);
 
 export function displayNameText(displayName: DisplayName): string {
   return DISPLAY_NAMES[displayName];
 }
 
 export function displayNameCode(displayName: DisplayName): number {
-  return DISPLAY_NAME_CODES[displayName];
+  return DISPLAY_NAME_REGISTRY.encode(displayName);
 }
 
 export function displayNameForCode(code: number): DisplayName {
-  const displayName = DISPLAY_NAMES_BY_CODE.get(code);
-  if (displayName === undefined) throw new Error(`Unknown display name code: ${code}`);
-  return displayName;
+  return DISPLAY_NAME_REGISTRY.decode(code);
 }

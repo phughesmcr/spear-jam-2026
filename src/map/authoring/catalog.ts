@@ -21,6 +21,7 @@ import {
   TEXTURE_TERRAIN_COUNT,
 } from "@/src/map/terrain_palettes.ts";
 import type { TiledObject, TiledProperty, TiledTilesetReference } from "@/src/map/authoring/tiled_types.ts";
+import { lowerFirst } from "@/src/utils/strings.ts";
 
 export const MAPS_DIR = "game_assets/maps";
 export const TEMPLATE_DIR = `${MAPS_DIR}/templates`;
@@ -498,10 +499,6 @@ function propertyTypeForValue(value: TiledProperty["value"]): "bool" | "int" | "
 
 function authoringKeys(source: Readonly<Record<string, unknown>>): readonly string[] {
   return Object.keys(source).map(lowerFirst);
-}
-
-function lowerFirst(value: string): string {
-  return value.length === 0 ? value : `${value[0]!.toLowerCase()}${value.slice(1)}`;
 }
 
 function snakeCase(value: string): string {

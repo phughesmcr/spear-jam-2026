@@ -5,6 +5,7 @@ import { ExamineTextId as KnownExamineTextId } from "@/src/game/examine_content.
 import { DisplayName as KnownDisplayName } from "@/src/game/names.ts";
 import { AMBIENT_SOUND_IDS, type SoundId as KnownSoundId } from "@/src/game/sound.ts";
 import { StoryEventId as KnownStoryEventId, StoryTargetId as KnownStoryTargetId } from "@/src/game/story.ts";
+import { lowerFirst } from "@/src/utils/strings.ts";
 
 export const KeyColor = {
   Red: "red",
@@ -284,8 +285,4 @@ function stringEnumSchema<T extends string>(values: readonly T[], name: string):
   return z.custom<T>((value) => typeof value === "string" && allowed.has(value), {
     message: `${name} must be one of ${values.join(", ")}`,
   });
-}
-
-function lowerFirst(value: string): string {
-  return value.length === 0 ? value : `${value[0]!.toLowerCase()}${value.slice(1)}`;
 }

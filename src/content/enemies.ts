@@ -1,3 +1,6 @@
+import { createCodeRegistry } from "@/src/utils/code_registry.ts";
+import { lowerFirst } from "@/src/utils/strings.ts";
+
 export const EnemyArchetype = {
   MeleeDog: 1,
   Gunslinger: 2,
@@ -27,26 +30,21 @@ const ENEMY_ARCHETYPE_AUTHORING_KEYS_BY_CODE = {
 
 export const ENEMY_ARCHETYPE_AUTHORING_KEYS = ENEMY_ARCHETYPE_CODES.map(enemyArchetypeAuthoringKey);
 
-const ENEMY_ARCHETYPES_BY_AUTHORING_KEY: Readonly<Record<string, EnemyArchetype>> = Object.fromEntries(
-  ENEMY_ARCHETYPE_CODES.map((archetype) => [enemyArchetypeAuthoringKey(archetype), archetype]),
-);
+// Authoring keys are ordered by archetype, so each key's registry code equals its archetype value.
+const ENEMY_ARCHETYPE_REGISTRY = createCodeRegistry("enemy archetype", ENEMY_ARCHETYPE_AUTHORING_KEYS);
 
 export function enemyArchetypeAuthoringKey(archetype: EnemyArchetype): string {
   return ENEMY_ARCHETYPE_AUTHORING_KEYS_BY_CODE[archetype];
 }
 
 export function enemyArchetypeForAuthoringKey(authoringKey: string): EnemyArchetype {
-  const archetype = ENEMY_ARCHETYPES_BY_AUTHORING_KEY[authoringKey] ??
-    ENEMY_ARCHETYPES_BY_AUTHORING_KEY[lowerFirst(authoringKey)];
-  if (archetype === undefined) throw new Error(`Unknown enemy archetype "${authoringKey}".`);
-  return archetype;
+  const key = ENEMY_ARCHETYPE_REGISTRY.has(authoringKey) ? authoringKey : lowerFirst(authoringKey);
+  if (!ENEMY_ARCHETYPE_REGISTRY.has(key)) throw new Error(`Unknown enemy archetype "${authoringKey}".`);
+  return ENEMY_ARCHETYPE_REGISTRY.encode(key) as EnemyArchetype;
 }
 
 export function enemyArchetypeForCode(archetype: number): EnemyArchetype {
-  if (Object.hasOwn(ENEMY_ARCHETYPE_AUTHORING_KEYS_BY_CODE, archetype)) return archetype as EnemyArchetype;
-  throw new Error(`Unknown enemy archetype: ${archetype}`);
-}
-
-function lowerFirst(value: string): string {
-  return value.length === 0 ? value : `${value[0]!.toLowerCase()}${value.slice(1)}`;
+  // Codes are the archetype values themselves; decode throws consistently for unknown codes.
+  ENEMY_ARCHETYPE_REGISTRY.decode(archetype);
+  return archetype as EnemyArchetype;
 }

@@ -43,6 +43,7 @@ import {
   validatePropertyNames,
 } from "@/src/map/authoring/properties.ts";
 import type { TiledLayer, TiledMap, TiledObject, TiledTemplate } from "@/src/map/authoring/tiled_types.ts";
+import { coerceKnownString as knownString, coerceLookup as lookup } from "@/src/utils/strings.ts";
 
 export type CompileTiledMapOptions = {
   readonly sourcePath?: string;
@@ -853,17 +854,6 @@ function positiveInteger(value: number): boolean {
   return Number.isInteger(value) && value > 0;
 }
 
-function knownString<T extends string>(
-  values: readonly T[],
-  value: string,
-  kind: string,
-  context: string,
-): T {
-  const mapped = values.find((candidate) => candidate === value || candidate === lowerFirst(value));
-  if (mapped === undefined) throw new Error(`${context}: Unknown ${kind} "${value}".`);
-  return mapped;
-}
-
 function optionalKnownString<T extends string>(
   values: readonly T[],
   value: string,
@@ -872,16 +862,6 @@ function optionalKnownString<T extends string>(
 ): Exclude<T, "none"> | undefined {
   const mapped = knownString(values, value, kind, context);
   return mapped === "none" ? undefined : mapped as Exclude<T, "none">;
-}
-
-function lookup<T>(table: Readonly<Record<string, T>>, value: string, kind: string, context: string): T {
-  const mapped = table[value] ?? table[lowerFirst(value)];
-  if (mapped === undefined) throw new Error(`${context}: Unknown ${kind} "${value}".`);
-  return mapped;
-}
-
-function lowerFirst(value: string): string {
-  return value.length === 0 ? value : `${value[0]!.toLowerCase()}${value.slice(1)}`;
 }
 
 function resolveTemplatePath(sourcePath: string | undefined, templatePath: string): string {

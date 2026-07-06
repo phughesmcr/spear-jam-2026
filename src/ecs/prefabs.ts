@@ -101,6 +101,7 @@ import {
   type UplinkTerminalDef,
   type WeaponPickupDef,
 } from "@/src/map/map.ts";
+import { coerceKnownString as knownString, coerceLookup as lookup } from "@/src/utils/strings.ts";
 
 const DEFAULT_PLAYER_HIT_DC = 10;
 const ITEM_KINDS = {
@@ -516,20 +517,4 @@ function itemKindForPrefab(item: string): ItemKind {
 
 function decorationKindForPrefab(decoration: string): DecorationKind {
   return lookup(DECORATION_KINDS, decoration, "decoration kind");
-}
-
-function knownString<T extends string>(values: readonly T[], value: string, kind: string): T {
-  const mapped = values.find((candidate) => candidate === value || candidate === lowerFirst(value));
-  if (mapped === undefined) throw new Error(`Unknown ${kind} "${value}".`);
-  return mapped;
-}
-
-function lookup<T>(table: Readonly<Record<string, T>>, value: string, kind: string): T {
-  const mapped = table[value] ?? table[lowerFirst(value)];
-  if (mapped === undefined) throw new Error(`Unknown ${kind} "${value}".`);
-  return mapped;
-}
-
-function lowerFirst(value: string): string {
-  return value.length === 0 ? value : `${value[0]!.toLowerCase()}${value.slice(1)}`;
 }

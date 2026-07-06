@@ -1,6 +1,7 @@
 import type { Entity } from "@phughesmcr/miski";
 import type { CommandSlot } from "@/src/game/state.ts";
 import type { CardinalDirection, GridPoint } from "@/src/grid/direction.ts";
+import { createCodeRegistry } from "@/src/utils/code_registry.ts";
 
 export const SoundId = {
   MusicMain: "musicMain",
@@ -61,7 +62,8 @@ export const AMBIENT_SOUND_IDS = [
 ] as const satisfies readonly SoundId[];
 export type AmbientSoundId = (typeof AMBIENT_SOUND_IDS)[number];
 
-const SOUND_ID_CODES = new Map<SoundId, number>(SOUND_IDS.map((soundId, index) => [soundId, index + 1]));
+// Codes are the 1-based position of each id in SOUND_IDS; only ever append to keep them stable.
+const SOUND_ID_REGISTRY = createCodeRegistry("sound id", SOUND_IDS);
 
 const AMBIENT_SOUND_ID_SET = new Set<SoundId>(AMBIENT_SOUND_IDS);
 
@@ -93,7 +95,7 @@ export type WebAudioPoint = {
 };
 
 export function isSoundId(value: string): value is SoundId {
-  return SOUND_IDS.includes(value as SoundId);
+  return SOUND_ID_REGISTRY.has(value);
 }
 
 export function isAmbientSoundId(value: string): value is SoundId {
@@ -101,13 +103,11 @@ export function isAmbientSoundId(value: string): value is SoundId {
 }
 
 export function soundIdCode(soundId: SoundId): number {
-  return SOUND_ID_CODES.get(soundId) ?? 0;
+  return SOUND_ID_REGISTRY.encode(soundId);
 }
 
 export function soundIdForCode(code: number): SoundId {
-  const soundId = SOUND_IDS[code - 1];
-  if (soundId === undefined) throw new Error(`Unknown sound id code: ${code}`);
-  return soundId;
+  return SOUND_ID_REGISTRY.decode(code);
 }
 
 export function soundPointForGrid(point: GridPoint): WebAudioPoint {
