@@ -38,6 +38,7 @@ import {
   SPRITE_DEATH_MS,
   SpriteAnimation,
   SpriteAnimationKind,
+  StoryFlags,
   StoryTarget,
   TerminalDestination,
   TurnTaker,
@@ -145,10 +146,12 @@ export function createPlayer(world: World, prefab: PlayerPrefab): Entity {
     entity,
     [
       [Player],
+      [TurnTaker],
       [Health, { current: DEFAULT_PLAYER_HEALTH.max, max: DEFAULT_PLAYER_HEALTH.max }],
       [PlayerInventory, DEFAULT_PLAYER_INVENTORY],
       [PlayerEquipment, DEFAULT_PLAYER_EQUIPMENT],
       [PlayerProgress, DEFAULT_PLAYER_PROGRESS],
+      [StoryFlags, { mask: 0 }],
       [Defense, { hitDc: DEFAULT_PLAYER_HIT_DC }],
     ] as const,
   );
@@ -216,6 +219,7 @@ export function createEnemy(world: World, prefab: EnemyPrefab): Entity {
     entity,
     [
       [Enemy],
+      [TurnTaker],
       [EnemyAwareness, IDLE_AWARENESS],
       [EnemyArchetypeComponent, { archetype }],
       [Health, { current: health, max: health }],
@@ -394,7 +398,6 @@ function createGridActor(
       [Drawable, { kind, layer }],
       [Sprite, { id: sprite }],
       [Blocking],
-      [TurnTaker],
     ] as const,
   );
 }

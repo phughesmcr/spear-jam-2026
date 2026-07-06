@@ -1,9 +1,10 @@
 import type { GameSession } from "@/src/ecs/session.ts";
 import {
   loadMapSession,
+  type LoadMapSessionSpec,
   resetRunSession,
   retryMapSession,
-  type SessionLifecycleSpec,
+  type SessionLifecycleResult,
 } from "@/src/entry/session_lifecycle.ts";
 import { type GameCommand, type PlayerCommand, relativeMoveDirectionOffset } from "@/src/game/commands.ts";
 import { firstPersonTouchGesturesEnabled, routePointerInput } from "@/src/game/input_routing.ts";
@@ -29,6 +30,19 @@ export interface GameSpec {
   startMapName?: string;
   window: Window;
 }
+
+/** The map-loading effects, each carrying a `mapName`, that drive a session transition. */
+type SessionTransitionKind = Extract<GameEffect, { readonly mapName: string }>["type"];
+
+/** Maps each session-transition effect to the lifecycle function that fulfils it. */
+const SESSION_TRANSITIONS: Record<
+  SessionTransitionKind,
+  (spec: LoadMapSessionSpec) => Promise<SessionLifecycleResult | undefined>
+> = {
+  loadMap: loadMapSession,
+  retryMap: retryMapSession,
+  resetRun: resetRunSession,
+};
 
 export function startGame(spec: GameSpec): Disposable {
   const controller = new AbortController();
@@ -73,9 +87,14 @@ class Game implements Disposable {
     this.apply({ type: "start", nowMs: performance.now() });
   }
 
-  private async loadMap(mapName: string): Promise<void> {
-    const result = await loadMapSession({
-      ...this.sessionLifecycleSpec(),
+  private startSessionTransition(kind: SessionTransitionKind, mapName: string): void {
+    void this.runSessionTransition(kind, mapName).catch((error: unknown) => this.handleLoadError(error));
+  }
+
+  private async runSessionTransition(kind: SessionTransitionKind, mapName: string): Promise<void> {
+    const result = await SESSION_TRANSITIONS[kind]({
+      signal: this.controller.signal,
+      preloadAssets: () => this.runtime.preloadAssets(),
       mapName,
       currentSession: this.session,
       random: () => this.rng.nextFloat(),
@@ -86,37 +105,6 @@ class Game implements Disposable {
     this.finishMapLoad(result.mapName);
   }
 
-  private async retryMap(mapName: string): Promise<void> {
-    const result = await retryMapSession({
-      ...this.sessionLifecycleSpec(),
-      mapName,
-      currentSession: this.session,
-    });
-    if (result === undefined) return;
-
-    this.session = result.session;
-    this.finishMapLoad(result.mapName);
-  }
-
-  private async resetRun(mapName: string): Promise<void> {
-    const result = await resetRunSession({
-      ...this.sessionLifecycleSpec(),
-      mapName,
-      currentSession: this.session,
-    });
-    if (result === undefined) return;
-
-    this.session = result.session;
-    this.finishMapLoad(result.mapName);
-  }
-
-  private sessionLifecycleSpec(): SessionLifecycleSpec {
-    return {
-      signal: this.controller.signal,
-      preloadAssets: () => this.runtime.preloadAssets(),
-    };
-  }
-
   private finishMapLoad(mapName: string): void {
     this.runtime.resetFirstPerson();
     // Position the listener at the new map's player spawn before starting
@@ -125,18 +113,6 @@ class Game implements Disposable {
     this.runtime.syncAudioWorld();
     this.runtime.startMusic();
     this.apply({ type: "mapLoaded", mapName });
-  }
-
-  private startLoad(mapName: string): void {
-    void this.loadMap(mapName).catch((error: unknown) => this.handleLoadError(error));
-  }
-
-  private startRetry(mapName: string): void {
-    void this.retryMap(mapName).catch((error: unknown) => this.handleLoadError(error));
-  }
-
-  private startResetRun(mapName: string): void {
-    void this.resetRun(mapName).catch((error: unknown) => this.handleLoadError(error));
   }
 
   private handleLoadError(error: unknown): void {
@@ -218,13 +194,9 @@ class Game implements Disposable {
           this.ensureInput();
           break;
         case "loadMap":
-          this.startLoad(effect.mapName);
-          break;
         case "retryMap":
-          this.startRetry(effect.mapName);
-          break;
         case "resetRun":
-          this.startResetRun(effect.mapName);
+          this.startSessionTransition(effect.type, effect.mapName);
           break;
         case "runPlayerCommand":
           this.handlePlayerCommand(effect.command);

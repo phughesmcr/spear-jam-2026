@@ -15,10 +15,11 @@ import {
   TurnTaker,
 } from "@/src/ecs/components.ts";
 import type { AttackSchema, HealthSchema } from "@/src/ecs/components.ts";
-import { enemyTurnSystem } from "@/src/ecs/enemy.ts";
 import { EnemyArchetype } from "@/src/ecs/enemy_catalog.ts";
 import { createEnemy, createPlayer } from "@/src/ecs/prefabs.ts";
+import { enemyTurnQuery } from "@/src/ecs/queries.ts";
 import { SpatialIndex } from "@/src/ecs/spatial.ts";
+import { isPlayerDefeated, runEnemyActorTurn } from "@/src/ecs/turn/enemy.ts";
 import { createWorld } from "@/src/ecs/world.ts";
 import type { GameEvent } from "@/src/game/events.ts";
 import type { NoiseStimulus } from "@/src/game/perception.ts";
@@ -28,7 +29,7 @@ import { createGameMap } from "@/src/map/map.ts";
 import { DEFAULT_BARS_TERRAIN_ID } from "@/src/map/terrain_palettes.ts";
 import { createEntity, flatTestMap } from "@/tests/ecs/helpers.ts";
 
-Deno.test("enemyTurnSystem moves enemies without an attack component", async () => {
+Deno.test("enemy actor turns move enemies without an attack component", async () => {
   const world = await createWorld();
   const playerEntity = createEntity(world);
   const enemy = createEntity(world);
@@ -44,14 +45,8 @@ Deno.test("enemyTurnSystem moves enemies without an attack component", async () 
   world.components.addToEntity(TurnTaker, enemy);
   world.refresh();
 
-  const runEnemyTurn = world.systems.create(enemyTurnSystem);
   const spatial = new SpatialIndex(world, TEST_MAP);
-  runEnemyTurn({
-    world,
-    player: playerEntity,
-    spatial,
-    random: () => 0,
-  });
+  runEnemyPhase(world, playerEntity, TEST_MAP, [], () => 0, spatial);
 
   assertEquals(world.components.getEntityData(GridPos, enemy), { x: 2, y: 1 });
   assertEquals(world.components.getEntityData(Facing, enemy), { dir: 1 });
@@ -59,7 +54,7 @@ Deno.test("enemyTurnSystem moves enemies without an attack component", async () 
   assertEquals(spatial.blockingEntityAt(2, 1), enemy);
 });
 
-Deno.test("enemyTurnSystem routes around blocking terrain when pursuing", async () => {
+Deno.test("enemy actor turns route around blocking terrain when pursuing", async () => {
   const world = await createWorld();
   const playerEntity = spawnPlayer(world, {
     x: 5,
@@ -75,7 +70,7 @@ Deno.test("enemyTurnSystem routes around blocking terrain when pursuing", async 
   });
   world.refresh();
 
-  const events = runEnemyTurn(
+  const events = runEnemyPhase(
     world,
     playerEntity,
     createGameMap("Routing Test Map", [
@@ -90,7 +85,7 @@ Deno.test("enemyTurnSystem routes around blocking terrain when pursuing", async 
   assertEquals(world.components.getEntityData(Facing, enemy), { dir: Direction.North });
 });
 
-Deno.test("enemyTurnSystem leaves unaware enemies idle", async () => {
+Deno.test("enemy actor turns leave unaware enemies idle", async () => {
   const world = await createWorld();
   const playerEntity = spawnPlayer(world, {
     x: 4,
@@ -108,14 +103,14 @@ Deno.test("enemyTurnSystem leaves unaware enemies idle", async () => {
   });
   world.refresh();
 
-  const events = runEnemyTurn(world, playerEntity, flatTestMap(6, 3));
+  const events = runEnemyPhase(world, playerEntity, flatTestMap(6, 3));
 
   assertEquals(world.components.getEntityData(GridPos, enemy), { x: 1, y: 1 });
   assertEquals(world.components.getEntityData(Facing, enemy), { dir: Direction.West });
   assertEquals(events, []);
 });
 
-Deno.test("enemyTurnSystem investigates heard noises instead of omniscient player position", async () => {
+Deno.test("enemy actor turns investigate heard noises instead of omniscient player position", async () => {
   const world = await createWorld();
   const playerEntity = spawnPlayer(world, {
     x: 4,
@@ -133,7 +128,7 @@ Deno.test("enemyTurnSystem investigates heard noises instead of omniscient playe
   });
   world.refresh();
 
-  const events = runEnemyTurn(world, playerEntity, flatTestMap(6, 3), [{ x: 1, y: 2, radius: 2 }]);
+  const events = runEnemyPhase(world, playerEntity, flatTestMap(6, 3), [{ x: 1, y: 2, radius: 2 }]);
 
   assertEquals(world.components.getEntityData(GridPos, enemy), { x: 1, y: 2 });
   assertEquals(world.components.getEntityData(Facing, enemy), { dir: Direction.South });
@@ -158,7 +153,7 @@ Deno.test("melee dogs investigate noise with a two-step pounce", async () => {
   });
   world.refresh();
 
-  const events = runEnemyTurn(world, playerEntity, flatTestMap(7, 3), [{ x: 3, y: 1, radius: 3 }]);
+  const events = runEnemyPhase(world, playerEntity, flatTestMap(7, 3), [{ x: 3, y: 1, radius: 3 }]);
 
   assertEquals(world.components.getEntityData(GridPos, dog), { x: 3, y: 1 });
   assertEquals(world.components.getEntityData(Facing, dog), { dir: Direction.East });
@@ -183,7 +178,7 @@ Deno.test("system sentinels investigate noise by watching without moving", async
   });
   world.refresh();
 
-  const events = runEnemyTurn(world, playerEntity, flatTestMap(7, 3), [{ x: 3, y: 1, radius: 3 }]);
+  const events = runEnemyPhase(world, playerEntity, flatTestMap(7, 3), [{ x: 3, y: 1, radius: 3 }]);
 
   assertEquals(world.components.getEntityData(GridPos, sentinel), { x: 1, y: 1 });
   assertEquals(world.components.getEntityData(Facing, sentinel), { dir: Direction.East });
@@ -208,14 +203,14 @@ Deno.test("system sentinels face the dominant axis when watching a noise", async
   });
   world.refresh();
 
-  const events = runEnemyTurn(world, playerEntity, flatTestMap(4, 6), [{ x: 2, y: 4, radius: 5 }]);
+  const events = runEnemyPhase(world, playerEntity, flatTestMap(4, 6), [{ x: 2, y: 4, radius: 5 }]);
 
   assertEquals(world.components.getEntityData(GridPos, sentinel), { x: 1, y: 1 });
   assertEquals(world.components.getEntityData(Facing, sentinel), { dir: Direction.South });
   assertEquals(events, []);
 });
 
-Deno.test("enemyTurnSystem keeps investigating the last known position after noise stops", async () => {
+Deno.test("enemy actor turns keep investigating the last known position after noise stops", async () => {
   const world = await createWorld();
   const playerEntity = spawnPlayer(world, {
     x: 5,
@@ -233,24 +228,12 @@ Deno.test("enemyTurnSystem keeps investigating the last known position after noi
   });
   world.refresh();
 
-  const runTurn = world.systems.create(enemyTurnSystem);
   const spatial = new SpatialIndex(world, flatTestMap(7, 3));
 
-  runTurn({
-    world,
-    player: playerEntity,
-    spatial,
-    random: () => 0,
-    noises: [{ x: 4, y: 1, radius: 4 }],
-  });
+  runEnemyPhase(world, playerEntity, flatTestMap(7, 3), [{ x: 4, y: 1, radius: 4 }], () => 0, spatial);
   assertEquals(world.components.getEntityData(GridPos, enemy), { x: 2, y: 1 });
 
-  runTurn({
-    world,
-    player: playerEntity,
-    spatial,
-    random: () => 0,
-  });
+  runEnemyPhase(world, playerEntity, flatTestMap(7, 3), [], () => 0, spatial);
   assertEquals(world.components.getEntityData(GridPos, enemy), { x: 3, y: 1 });
   assertEquals(world.components.getEntityData(Facing, enemy), { dir: Direction.East });
 });
@@ -273,12 +256,7 @@ Deno.test("melee dogs close two tiles and bite when they reach the player", asyn
   });
   world.refresh();
 
-  const events = world.systems.create(enemyTurnSystem)({
-    world,
-    player: playerEntity,
-    spatial: new SpatialIndex(world, flatTestMap(6, 3)),
-    random: () => 0,
-  });
+  const events = runEnemyPhase(world, playerEntity, flatTestMap(6, 3));
 
   assertEquals(world.components.getEntityData(GridPos, dog), { x: 3, y: 1 });
   assertEquals(world.components.getEntityData(Facing, dog), { dir: 1 });
@@ -304,12 +282,7 @@ Deno.test("gunslingers shoot from range instead of closing", async () => {
   });
   world.refresh();
 
-  const events = world.systems.create(enemyTurnSystem)({
-    world,
-    player: playerEntity,
-    spatial: new SpatialIndex(world, flatTestMap(6, 3)),
-    random: () => 0,
-  });
+  const events = runEnemyPhase(world, playerEntity, flatTestMap(6, 3));
 
   assertEquals(world.components.getEntityData(GridPos, gunslinger), { x: 1, y: 1 });
   assertEquals(world.components.getEntityData(Facing, gunslinger), { dir: 1 });
@@ -317,7 +290,7 @@ Deno.test("gunslingers shoot from range instead of closing", async () => {
   assertEquals(events.map((event) => event.type), ["damageDealt"]);
 });
 
-Deno.test("enemyTurnSystem stops the enemy phase after player defeat", async () => {
+Deno.test("enemy actor turns stop the enemy phase after player defeat", async () => {
   const world = await createWorld();
   const playerEntity = spawnPlayer(world, {
     x: 2,
@@ -343,12 +316,7 @@ Deno.test("enemyTurnSystem stops the enemy phase after player defeat", async () 
   });
   world.refresh();
 
-  const events = world.systems.create(enemyTurnSystem)({
-    world,
-    player: playerEntity,
-    spatial: new SpatialIndex(world, flatTestMap(6, 3)),
-    random: () => 0,
-  });
+  const events = runEnemyPhase(world, playerEntity, flatTestMap(6, 3));
 
   assertEquals(events, [
     {
@@ -392,12 +360,7 @@ Deno.test("gunslingers back away when adjacent", async () => {
   });
   world.refresh();
 
-  const events = world.systems.create(enemyTurnSystem)({
-    world,
-    player: playerEntity,
-    spatial: new SpatialIndex(world, flatTestMap(6, 3)),
-    random: () => 0,
-  });
+  const events = runEnemyPhase(world, playerEntity, flatTestMap(6, 3));
 
   assertEquals(world.components.getEntityData(GridPos, gunslinger), { x: 1, y: 1 });
   assertEquals(world.components.getEntityData(Facing, gunslinger), { dir: 3 });
@@ -423,12 +386,7 @@ Deno.test("network neophytes use standard one-step pursuit", async () => {
   });
   world.refresh();
 
-  const events = world.systems.create(enemyTurnSystem)({
-    world,
-    player: playerEntity,
-    spatial: new SpatialIndex(world, flatTestMap(6, 3)),
-    random: () => 0,
-  });
+  const events = runEnemyPhase(world, playerEntity, flatTestMap(6, 3));
 
   assertEquals(world.components.getEntityData(GridPos, neophyte), { x: 2, y: 1 });
   assertEquals(world.components.getEntityData(Facing, neophyte), { dir: 1 });
@@ -454,12 +412,7 @@ Deno.test("system sentinels hold position and face the player when out of range"
   });
   world.refresh();
 
-  const events = world.systems.create(enemyTurnSystem)({
-    world,
-    player: playerEntity,
-    spatial: new SpatialIndex(world, flatTestMap(6, 3)),
-    random: () => 0,
-  });
+  const events = runEnemyPhase(world, playerEntity, flatTestMap(6, 3));
 
   assertEquals(world.components.getEntityData(GridPos, sentinel), { x: 1, y: 1 });
   assertEquals(world.components.getEntityData(Facing, sentinel), { dir: 1 });
@@ -491,12 +444,7 @@ Deno.test("agentic acolytes attack nearby cardinal targets without facing first"
   });
   world.refresh();
 
-  const events = world.systems.create(enemyTurnSystem)({
-    world,
-    player: playerEntity,
-    spatial: new SpatialIndex(world, flatTestMap(6, 3)),
-    random: () => 0,
-  });
+  const events = runEnemyPhase(world, playerEntity, flatTestMap(6, 3));
 
   assertEquals(world.components.getEntityData(GridPos, acolyte), { x: 1, y: 1 });
   assertEquals(world.components.getEntityData(Facing, acolyte), { dir: Direction.East });
@@ -504,19 +452,27 @@ Deno.test("agentic acolytes attack nearby cardinal targets without facing first"
   assertEquals(events.map((event) => event.type), ["damageDealt"]);
 });
 
-function runEnemyTurn(
+function runEnemyPhase(
   world: World,
   playerEntity: Entity,
   map = TEST_MAP,
   noises: readonly NoiseStimulus[] = [],
+  random = () => 0,
+  spatial = new SpatialIndex(world, map),
 ): readonly GameEvent[] {
-  return world.systems.create(enemyTurnSystem)({
+  const context = {
     world,
     player: playerEntity,
-    spatial: new SpatialIndex(world, map),
-    random: () => 0,
+    spatial,
+    random,
     noises,
-  });
+  };
+  const events: GameEvent[] = [];
+  for (const enemy of world.entities.query(enemyTurnQuery)) {
+    if (isPlayerDefeated(context)) break;
+    events.push(...runEnemyActorTurn(context, enemy));
+  }
+  return events;
 }
 
 type SpawnPlayerOptions = {

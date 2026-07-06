@@ -11,7 +11,6 @@ import {
   LightEmitter,
   Locked,
   MapScoped,
-  Player,
   Secret,
   SoundEmitter,
   Sprite,
@@ -57,11 +56,6 @@ export const soundEmitterQuery = new Query({
 /** All active enemies that can emit sparse idle sounds */
 export const enemyIdleSoundSourceQuery = new Query({
   all: { enemy: Enemy, gridPos: GridPos, enemyArchetype: EnemyArchetypeComponent },
-});
-
-/** The singleton player command actor */
-export const playerTurnQuery = new Query({
-  all: { player: Player, gridPos: GridPos, facing: Facing },
 });
 
 /** All enemies that participate in the turn loop */

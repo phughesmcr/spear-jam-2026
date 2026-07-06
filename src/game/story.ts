@@ -42,6 +42,18 @@ const STORY_FLAG_ORDER: readonly StoryFlag[] = [
   StoryFlag.JohnSpoken,
 ];
 
+// Each story flag owns one bit, positioned by its index in STORY_FLAG_ORDER, so a
+// `Uint32Array` mask on the player entity can hold up to 32 flags as ECS-native state.
+const STORY_FLAG_BITS = new Map<StoryFlag, number>(
+  STORY_FLAG_ORDER.map((flag, index) => [flag, 1 << index]),
+);
+
+function storyFlagBit(flag: StoryFlag): number {
+  const bit = STORY_FLAG_BITS.get(flag);
+  if (bit === undefined) throw new Error(`Story flag "${flag}" has no assigned bit.`);
+  return bit;
+}
+
 const STORY_EVENT_IDS: readonly StoryEventId[] = Object.values(StoryEventId);
 const STORY_TARGET_IDS: readonly StoryTargetId[] = Object.values(StoryTargetId);
 
@@ -65,9 +77,22 @@ export function storyEventDefinition(event: StoryEventId): StoryEventDefinition 
   return STORY_EVENT_DEFINITIONS[event];
 }
 
-export function normalizeStoryFlags(flags: readonly StoryFlag[] = []): readonly StoryFlag[] {
-  const input = new Set(flags);
-  return STORY_FLAG_ORDER.filter((flag) => input.has(flag));
+export function maskHasStoryFlag(mask: number, flag: StoryFlag): boolean {
+  return (mask & storyFlagBit(flag)) !== 0;
+}
+
+export function maskWithStoryFlag(mask: number, flag: StoryFlag): number {
+  return (mask | storyFlagBit(flag)) >>> 0;
+}
+
+export function storyFlagsToMask(flags: Iterable<StoryFlag>): number {
+  let mask = 0;
+  for (const flag of flags) mask |= storyFlagBit(flag);
+  return mask >>> 0;
+}
+
+export function storyFlagsFromMask(mask: number): readonly StoryFlag[] {
+  return STORY_FLAG_ORDER.filter((flag) => (mask & storyFlagBit(flag)) !== 0);
 }
 
 export function storyEventIdFor(value: string, context: string): StoryEventId {

@@ -19,6 +19,8 @@ import type { GameEvent } from "@/src/game/events.ts";
 import { type AmmoKind, type CommandSlot, commandSlotForCode, type DialogueState } from "@/src/game/state.ts";
 import { type KeyColor, keyColorForCode } from "@/src/map/map.ts";
 
+type InteractionSpatial = Pick<SpatialIndex, "setDoorOpen">;
+
 export type ItemPickup =
   | { readonly type: "key"; readonly entity: Entity; readonly color: KeyColor }
   | { readonly type: "uplinkCode"; readonly entity: Entity }
@@ -56,7 +58,7 @@ const VERB_PERMISSIONS: Readonly<Record<InteractVerb, readonly InteractionKind[]
 
 export function collectItemAt(
   world: World,
-  spatial: SpatialIndex,
+  spatial: Pick<SpatialIndex, "itemAt" | "removeEntity">,
   x: number,
   y: number,
 ): ItemPickup | undefined {
@@ -95,7 +97,7 @@ function itemPickupFor(entity: Entity, kind: ItemKind, value: number): ItemPicku
 
 export function interactWithEntity(
   world: World,
-  spatial: SpatialIndex,
+  spatial: InteractionSpatial,
   target: Entity | undefined,
   heldKeys: ReadonlySet<KeyColor>,
   hasUplinkCode: boolean,
@@ -133,7 +135,7 @@ function verbAllowedForKind(verb: InteractVerb, kind: InteractionKind): boolean 
 
 function performInteraction(
   world: World,
-  spatial: SpatialIndex,
+  spatial: InteractionSpatial,
   target: Entity,
   heldKeys: ReadonlySet<KeyColor>,
   hasUplinkCode: boolean,
@@ -152,7 +154,7 @@ function performInteraction(
 
 function interactWithDoor(
   world: World,
-  spatial: SpatialIndex,
+  spatial: InteractionSpatial,
   door: Entity,
   heldKeys: ReadonlySet<KeyColor>,
   reportAlreadyOpen: boolean,

@@ -1,16 +1,10 @@
 import type { Entity, World } from "@phughesmcr/miski";
 import { Facing, GridPos } from "@/src/ecs/components.ts";
-import {
-  capturePlayerProgressionCheckpoint,
-  type PlayerProgressionCheckpoint,
-  restorePlayerProgressionCheckpoint,
-} from "@/src/ecs/progression.ts";
 import { createMapEntity, type PlayerPrefab } from "@/src/ecs/prefabs.ts";
 import { mapScopedQuery } from "@/src/ecs/queries.ts";
 import { SpatialIndex } from "@/src/ecs/spatial.ts";
 import { assertUniqueTargets } from "@/src/ecs/session/story_actions.ts";
 import { normalizeDirection } from "@/src/grid/direction.ts";
-import type { StoryFlag } from "@/src/game/story.ts";
 import { VisibilityMap } from "@/src/game/visibility.ts";
 import { type EntityDef, type GameMap, mapDimensions } from "@/src/map/map.ts";
 
@@ -37,25 +31,6 @@ export function rebuildRuntimeState(world: World, playerEntity: Entity, map: Gam
   const visibility = new VisibilityMap(mapDimensions(map));
   refreshVisibility(world, playerEntity, spatial, visibility);
   return { spatial, visibility };
-}
-
-export function captureCheckpoint(
-  world: World,
-  playerEntity: Entity,
-  storyFlags: Iterable<StoryFlag>,
-): PlayerProgressionCheckpoint {
-  return capturePlayerProgressionCheckpoint(world, playerEntity, [...storyFlags]);
-}
-
-export function restoreCheckpoint(
-  world: World,
-  playerEntity: Entity,
-  storyFlags: Set<StoryFlag>,
-  checkpoint: PlayerProgressionCheckpoint,
-): void {
-  const restoredStoryFlags = restorePlayerProgressionCheckpoint(world, playerEntity, checkpoint);
-  storyFlags.clear();
-  for (const flag of restoredStoryFlags) storyFlags.add(flag);
 }
 
 export function refreshVisibility(

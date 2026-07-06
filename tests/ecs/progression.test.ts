@@ -2,12 +2,14 @@ import { assertEquals } from "@std/assert";
 import type { Entity } from "@phughesmcr/miski";
 import { Health, PlayerEquipment, PlayerInventory, PlayerProgress } from "@/src/ecs/components.ts";
 import {
+  addPlayerStoryFlag,
   applyItemPickupToPlayer,
   awardCreditsForDefeats,
   capturePlayerProgressionCheckpoint,
   clearTransientPlayerState,
   completePlayerLevel,
   playerStatusSnapshotFor,
+  playerStoryFlags,
   resetPlayerProgression,
   restorePlayerProgressionCheckpoint,
   selectedPlayerWeapon,
@@ -166,12 +168,16 @@ Deno.test("player progression checkpoint round-trips raw durable ECS state and s
     levelCredits: 50,
   });
 
-  const checkpoint = capturePlayerProgressionCheckpoint(world, player, [StoryFlag.JohnSpoken]);
+  addPlayerStoryFlag(world, player, StoryFlag.JohnSpoken);
+
+  const checkpoint = capturePlayerProgressionCheckpoint(world, player);
+  assertEquals(checkpoint.storyFlags, [StoryFlag.JohnSpoken]);
   resetPlayerProgression(world, player);
+  assertEquals(playerStoryFlags(world, player), []);
 
-  const storyFlags = restorePlayerProgressionCheckpoint(world, player, checkpoint);
+  restorePlayerProgressionCheckpoint(world, player, checkpoint);
 
-  assertEquals(storyFlags, [StoryFlag.JohnSpoken]);
+  assertEquals(playerStoryFlags(world, player), [StoryFlag.JohnSpoken]);
   assertEquals(playerStatusSnapshotFor(world, player), {
     heldKeys: [KeyColor.Blue],
     selectedWeapon: 2,

@@ -1,6 +1,7 @@
 import type { Entity, World } from "@phughesmcr/miski";
 import { OnTalkEvent, SpriteAnimationKind, StoryTarget } from "@/src/ecs/components.ts";
 import type { SpriteAnimationSchema } from "@/src/ecs/components.ts";
+import { addPlayerStoryFlag, playerHasStoryFlag } from "@/src/ecs/progression.ts";
 import { mapScopedQuery } from "@/src/ecs/queries.ts";
 import type { SpatialIndex } from "@/src/ecs/spatial.ts";
 import {
@@ -8,7 +9,6 @@ import {
   storyEventDefinition,
   storyEventForCode,
   type StoryEventId,
-  type StoryFlag,
   storyTargetForCode,
 } from "@/src/game/story.ts";
 
@@ -18,7 +18,7 @@ type AnimationWriter = (entity: Entity, animation: SpriteAnimationSchema) => voi
 
 export function queueTalkEvent(
   world: World,
-  storyFlags: ReadonlySet<StoryFlag>,
+  playerEntity: Entity,
   target: Entity | undefined,
 ): StoryEventId | undefined {
   if (target === undefined) return undefined;
@@ -28,19 +28,19 @@ export function queueTalkEvent(
 
   const event = storyEventForCode(eventCode);
   const definition = storyEventDefinition(event);
-  return storyFlags.has(definition.flag) ? undefined : event;
+  return playerHasStoryFlag(world, playerEntity, definition.flag) ? undefined : event;
 }
 
 export function applyEvent(
   world: World,
+  playerEntity: Entity,
   spatial: SpatialIndex,
-  storyFlags: Set<StoryFlag>,
   event: StoryEventId,
   nowMs: number,
   writeAnimation: AnimationWriter,
 ): boolean {
   const definition = storyEventDefinition(event);
-  if (storyFlags.has(definition.flag)) return false;
+  if (playerHasStoryFlag(world, playerEntity, definition.flag)) return false;
   if (!canApplyActions(world, spatial, definition.actions)) return false;
 
   for (const action of definition.actions) {
@@ -59,7 +59,7 @@ export function applyEvent(
     }
   }
 
-  storyFlags.add(definition.flag);
+  addPlayerStoryFlag(world, playerEntity, definition.flag);
   world.refresh();
   return true;
 }

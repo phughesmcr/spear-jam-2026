@@ -98,6 +98,18 @@ export const PlayerProgress: Component<PlayerProgressSchema, typeof PLAYER_PROGR
   schema: PLAYER_PROGRESS_STORAGE,
 });
 
+// Durable story progression as a bitmask (one bit per story flag). Held on the
+// player entity so the ECS is the single source of truth for story state.
+export type StoryFlagsSchema = { mask: number };
+const STORY_FLAGS_STORAGE = { mask: Uint32Array };
+export const StoryFlags: Component<StoryFlagsSchema, typeof STORY_FLAGS_STORAGE> = new Component<
+  StoryFlagsSchema,
+  typeof STORY_FLAGS_STORAGE
+>({
+  name: "playerStoryFlags",
+  schema: STORY_FLAGS_STORAGE,
+});
+
 export const Blocking: Component<null> = new Component<null>({ name: "blocking" });
 
 export const Interactable: Component<null> = new Component<null>({ name: "interactable" });
@@ -465,6 +477,7 @@ export const ALL_COMPONENTS: DynamicComponent[] = [
   PlayerInventory,
   PlayerEquipment,
   PlayerProgress,
+  StoryFlags,
   Blocking,
   Interactable,
   Drawable,

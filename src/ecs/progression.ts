@@ -8,6 +8,7 @@ import {
   type PlayerInventorySchema,
   PlayerProgress,
   type PlayerProgressSchema,
+  StoryFlags,
 } from "@/src/ecs/components.ts";
 import type { ItemPickup } from "@/src/ecs/interactions.ts";
 import type { GameEvent } from "@/src/game/events.ts";
@@ -18,7 +19,13 @@ import {
   type PlayerHealthState,
   type PlayerStatusSnapshot,
 } from "@/src/game/state.ts";
-import { normalizeStoryFlags, type StoryFlag } from "@/src/game/story.ts";
+import {
+  maskHasStoryFlag,
+  maskWithStoryFlag,
+  type StoryFlag,
+  storyFlagsFromMask,
+  storyFlagsToMask,
+} from "@/src/game/story.ts";
 import { playerWeaponSpec } from "@/src/game/weapons.ts";
 import { KeyColor, type KeyColor as KeyColorType, keyColorCode } from "@/src/map/map.ts";
 
@@ -70,19 +77,36 @@ export function resetPlayerProgression(world: World, playerEntity: Entity): void
   world.components.setEntityData(PlayerInventory, playerEntity, DEFAULT_PLAYER_INVENTORY);
   world.components.setEntityData(PlayerEquipment, playerEntity, DEFAULT_PLAYER_EQUIPMENT);
   world.components.setEntityData(PlayerProgress, playerEntity, DEFAULT_PLAYER_PROGRESS);
+  world.components.setEntityData(StoryFlags, playerEntity, { mask: 0 });
+}
+
+export function playerStoryFlags(world: World, playerEntity: Entity): readonly StoryFlag[] {
+  return storyFlagsFromMask(playerStoryFlagMask(world, playerEntity));
+}
+
+export function playerHasStoryFlag(world: World, playerEntity: Entity, flag: StoryFlag): boolean {
+  return maskHasStoryFlag(playerStoryFlagMask(world, playerEntity), flag);
+}
+
+export function addPlayerStoryFlag(world: World, playerEntity: Entity, flag: StoryFlag): void {
+  const mask = maskWithStoryFlag(playerStoryFlagMask(world, playerEntity), flag);
+  world.components.setEntityData(StoryFlags, playerEntity, { mask });
+}
+
+function playerStoryFlagMask(world: World, playerEntity: Entity): number {
+  return world.components.readEntityData(StoryFlags, playerEntity)?.mask ?? 0;
 }
 
 export function capturePlayerProgressionCheckpoint(
   world: World,
   playerEntity: Entity,
-  storyFlags: readonly StoryFlag[] = [],
 ): PlayerProgressionCheckpoint {
   return {
     health: { ...playerHealthFor(world, playerEntity) },
     inventory: { ...playerInventoryFor(world, playerEntity) },
     equipment: { ...playerEquipmentFor(world, playerEntity) },
     progress: { ...playerProgressFor(world, playerEntity) },
-    storyFlags: normalizeStoryFlags(storyFlags),
+    storyFlags: playerStoryFlags(world, playerEntity),
   };
 }
 
@@ -90,12 +114,12 @@ export function restorePlayerProgressionCheckpoint(
   world: World,
   playerEntity: Entity,
   checkpoint: PlayerProgressionCheckpoint,
-): readonly StoryFlag[] {
+): void {
   world.components.setEntityData(Health, playerEntity, checkpoint.health);
   world.components.setEntityData(PlayerInventory, playerEntity, checkpoint.inventory);
   world.components.setEntityData(PlayerEquipment, playerEntity, checkpoint.equipment);
   world.components.setEntityData(PlayerProgress, playerEntity, checkpoint.progress);
-  return normalizeStoryFlags(checkpoint.storyFlags);
+  world.components.setEntityData(StoryFlags, playerEntity, { mask: storyFlagsToMask(checkpoint.storyFlags) });
 }
 
 export function playerStatusSnapshotFor(
