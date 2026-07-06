@@ -8,7 +8,7 @@ import { createFirstPersonRenderer, type FirstPersonRenderer } from "@/src/rende
 import { preloadGameAssets, renderGameFrame } from "@/src/render/game.ts";
 
 export type GameRuntimeLoopSpec = {
-  readonly window: Window;
+  readonly host: Window;
   readonly document: Document;
   readonly ctx: CanvasRenderingContext2D;
   readonly signal: AbortSignal;
@@ -60,7 +60,7 @@ class RuntimeLoop implements GameRuntimeLoop {
 
   constructor(spec: GameRuntimeLoopSpec) {
     this.spec = spec;
-    this.audio = spec.dependencies?.audio ?? createAudioRuntime(spec.window);
+    this.audio = spec.dependencies?.audio ?? createAudioRuntime(spec.host);
     this.firstPersonRenderer = spec.dependencies?.firstPersonRenderer ?? createFirstPersonRenderer();
   }
 
@@ -165,12 +165,12 @@ class RuntimeLoop implements GameRuntimeLoop {
 
   private requestNextFrame(): void {
     if (this.animationFrameId !== undefined || this.spec.signal.aborted || !this.started) return;
-    this.animationFrameId = this.spec.window.requestAnimationFrame(this.runAnimationFrame);
+    this.animationFrameId = this.spec.host.requestAnimationFrame(this.runAnimationFrame);
   }
 
   private cancelPendingFrame(): void {
     if (this.animationFrameId === undefined) return;
-    this.spec.window.cancelAnimationFrame(this.animationFrameId);
+    this.spec.host.cancelAnimationFrame(this.animationFrameId);
     this.animationFrameId = undefined;
   }
 }

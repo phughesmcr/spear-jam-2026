@@ -3,31 +3,21 @@ import { debounce, DisposableListener } from "@/src/utils/helpers.ts";
 export interface GameCanvasSize {
   readonly width: number;
   readonly height: number;
+  readonly scale: number;
 }
 
 export const GAME_WIDTH = 720;
 export const GAME_HEIGHT = 1280;
 export const MAX_DPR = 2;
-export const DEFAULT_GAME_CANVAS_SIZE: GameCanvasSize = { width: GAME_WIDTH, height: GAME_HEIGHT };
+export const DEFAULT_GAME_CANVAS_SIZE: GameCanvasSize = { width: GAME_WIDTH, height: GAME_HEIGHT, scale: 1 };
 
-interface GameCanvasDisplaySize extends GameCanvasSize {
-  readonly scale: number;
-}
-
-export function selectGameCanvasSize(viewportWidth: number, viewportHeight: number): GameCanvasSize {
-  void viewportWidth;
-  void viewportHeight;
-  return { width: GAME_WIDTH, height: GAME_HEIGHT };
-}
-
-export function selectGameCanvasDisplaySize(
+export function calculateGameCanvasDisplaySize(
   viewportWidth: number,
   viewportHeight: number,
   size: GameCanvasSize,
-): GameCanvasDisplaySize {
+): GameCanvasSize {
   const aspectRatio = size.width / size.height;
   const widthAtFullHeight = viewportHeight * aspectRatio;
-
   if (widthAtFullHeight <= viewportWidth) {
     const height = Math.max(1, Math.floor(viewportHeight));
     return {
@@ -36,7 +26,6 @@ export function selectGameCanvasDisplaySize(
       scale: height / size.height,
     };
   }
-
   const width = Math.max(1, Math.floor(viewportWidth));
   return {
     width,
@@ -45,16 +34,16 @@ export function selectGameCanvasDisplaySize(
   };
 }
 
-export function canvasDpiController(
-  window: Window,
+export function canvasSizeController(
+  host: Window,
   canvas: HTMLCanvasElement,
   ctx: CanvasRenderingContext2D,
   onApply?: (size: GameCanvasSize) => void,
 ): Disposable {
   const applyDpi = (): void => {
-    const size = selectGameCanvasSize(window.innerWidth, window.innerHeight);
-    const displaySize = selectGameCanvasDisplaySize(window.innerWidth, window.innerHeight, size);
-    const dpr = Math.min(window.devicePixelRatio ?? 1, MAX_DPR);
+    const size = { width: host.innerWidth, height: host.innerHeight, scale: 1 };
+    const displaySize = calculateGameCanvasDisplaySize(host.innerWidth, host.innerHeight, size);
+    const dpr = Math.min(host.devicePixelRatio ?? 1, MAX_DPR);
     canvas.style.setProperty("--game-aspect-ratio", String(size.width / size.height));
     canvas.style.setProperty("--game-display-width", `${displaySize.width}px`);
     canvas.style.setProperty("--game-display-height", `${displaySize.height}px`);
@@ -64,7 +53,7 @@ export function canvasDpiController(
     onApply?.(size);
   };
   applyDpi();
-  const listener = new DisposableListener(window, "resize", debounce(applyDpi, 16));
+  const listener = new DisposableListener(host, "resize", debounce(applyDpi, 16));
   return {
     [Symbol.dispose]() {
       listener[Symbol.dispose]();

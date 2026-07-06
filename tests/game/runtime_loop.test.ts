@@ -1,14 +1,14 @@
-import { assertEquals } from "@std/assert";
-import type { Entity } from "@phughesmcr/miski";
 import type { AudioRuntime } from "@/src/audio/audio_runtime.ts";
-import type { RuntimeSession } from "@/src/game/session_ports.ts";
-import { createGameModel, type GameModel } from "@/src/game/transition.ts";
-import { type EnemyIdleSoundSource, type SoundCue, type SoundEmitterSnapshot, SoundId } from "@/src/game/sound.ts";
 import { createGameRuntimeLoop } from "@/src/game/runtime_loop.ts";
+import type { RuntimeSession } from "@/src/game/session_ports.ts";
+import { type EnemyIdleSoundSource, type SoundCue, type SoundEmitterSnapshot, SoundId } from "@/src/game/sound.ts";
 import type { PlayerStatusSnapshot } from "@/src/game/state.ts";
+import { createGameModel, type GameModel } from "@/src/game/transition.ts";
 import { Direction } from "@/src/grid/direction.ts";
 import { createGameMap } from "@/src/map/map.ts";
 import type { FirstPersonRenderer } from "@/src/render/first_person.ts";
+import type { Entity } from "@phughesmcr/miski";
+import { assertEquals } from "@std/assert";
 
 const EMITTER = 2 as Entity;
 
@@ -17,7 +17,7 @@ Deno.test("runtime renderNow cancels a pending RAF before rendering immediately"
   const audio = new FakeAudioRuntime();
   let model = modelNeedingFrame();
   const runtime = createGameRuntimeLoop({
-    window: window as unknown as Window,
+    host: Window as unknown as Window,
     document: new FakeDocument() as unknown as Document,
     ctx: new FakeContext() as unknown as CanvasRenderingContext2D,
     signal: new AbortController().signal,
@@ -39,7 +39,7 @@ Deno.test("runtime renderNow cancels a pending RAF before rendering immediately"
 Deno.test("runtime RAF callback clears the pending frame before requesting another", () => {
   const window = new FakeWindow();
   const runtime = createGameRuntimeLoop({
-    window: window as unknown as Window,
+    host: Window as unknown as Window,
     document: new FakeDocument() as unknown as Document,
     ctx: new FakeContext() as unknown as CanvasRenderingContext2D,
     signal: new AbortController().signal,
@@ -61,7 +61,7 @@ Deno.test("runtime dispose cancels pending RAF and disposes audio", () => {
   const window = new FakeWindow();
   const audio = new FakeAudioRuntime();
   const runtime = createGameRuntimeLoop({
-    window: window as unknown as Window,
+    host: Window as unknown as Window,
     document: new FakeDocument() as unknown as Document,
     ctx: new FakeContext() as unknown as CanvasRenderingContext2D,
     signal: new AbortController().signal,

@@ -41,7 +41,7 @@ type AmbientLoop = {
 
 const AMBIENT_GAIN_RAMP_SECONDS = 0.18;
 
-export function createAudioRuntime(window: Window): AudioRuntime {
+export function createAudioRuntime(host: Window): AudioRuntime {
   return new WebAudioRuntime(window);
 }
 
@@ -53,7 +53,7 @@ export function soundAttenuationForDistance(distance: number, radius: number): n
 }
 
 class WebAudioRuntime implements AudioRuntime {
-  private readonly window: Window;
+  private readonly host: Window;
   private graph?: AudioGraph;
   private unlocked = false;
   private pendingMusic = false;
@@ -69,7 +69,7 @@ class WebAudioRuntime implements AudioRuntime {
   private listenerPosition?: GridPoint;
   private disposed = false;
 
-  constructor(window: Window) {
+  constructor(host: Window) {
     this.window = window;
   }
 

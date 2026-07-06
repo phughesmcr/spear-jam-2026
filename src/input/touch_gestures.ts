@@ -146,16 +146,16 @@ export default class TouchGestures implements Disposable {
   }
 }
 
-export function windowTouchGestureScheduler(window: Window): TouchGestureScheduler {
+export function windowTouchGestureScheduler(host: Window): TouchGestureScheduler {
   return {
     now() {
-      return window.performance.now();
+      return host.performance.now();
     },
     setTimeout(callback: () => void, delayMs: number) {
-      return window.setTimeout(callback, delayMs);
+      return host.setTimeout(callback, delayMs);
     },
     clearTimeout(timeoutId: number) {
-      window.clearTimeout(timeoutId);
+      host.clearTimeout(timeoutId);
     },
   };
 }

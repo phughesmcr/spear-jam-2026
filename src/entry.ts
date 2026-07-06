@@ -21,14 +21,14 @@ import { directionDelta, normalizeDirection } from "@/src/grid/direction.ts";
 import { setupInput } from "@/src/input/input.ts";
 import type { CanvasPointerInput } from "@/src/input/pointer.ts";
 import { START_MAP_NAME } from "@/src/map/maps.ts";
-import { canvasDpiController } from "@/src/render/canvas.ts";
+import { canvasSizeController } from "@/src/render/canvas.ts";
 
 export interface GameSpec {
   ctx: CanvasRenderingContext2D;
   canvas: HTMLCanvasElement;
   seed: number;
   startMapName?: string;
-  window: Window;
+  host: Window;
 }
 
 /** The map-loading effects, each carrying a `mapName`, that drive a session transition. */
@@ -66,7 +66,7 @@ class Game implements Disposable {
     this.controller = controller;
     this.model = createGameModel(spec.startMapName ?? START_MAP_NAME, { showIntro: spec.startMapName === undefined });
     this.runtime = createGameRuntimeLoop({
-      window: spec.window,
+      host: spec.host,
       document: spec.canvas.ownerDocument,
       ctx: spec.ctx,
       signal: controller.signal,
@@ -74,8 +74,8 @@ class Game implements Disposable {
       getSession: () => this.session,
     });
     this.rng = new SplitMix32(spec.seed);
-    this.canvasController = canvasDpiController(
-      spec.window,
+    this.canvasController = canvasSizeController(
+      spec.host,
       spec.canvas,
       spec.ctx,
       (size) => this.runtime.resize(size),
@@ -207,7 +207,7 @@ class Game implements Disposable {
 
   private ensureInput(): void {
     this.inputController ??= setupInput(
-      this.spec.window,
+      this.spec.host,
       this.spec.canvas,
       () => this.runtime.canvasSize,
       (command) => this.handleGameCommand(command),
