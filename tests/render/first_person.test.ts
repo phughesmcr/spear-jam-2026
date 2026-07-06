@@ -1,4 +1,5 @@
-import { assert, assertAlmostEquals, assertEquals, assertNotEquals, assertThrows } from "@std/assert";
+import { spriteAppearance } from "@/src/content/sprites.ts";
+import type { DrawableEntity, LightEntity, SpriteId as SpriteIdType } from "@/src/ecs/drawables.ts";
 import {
   DrawableKind,
   SPRITE_ATTACK_MS,
@@ -7,19 +8,17 @@ import {
   SpriteAnimationKind,
   SpriteId,
 } from "@/src/ecs/drawables.ts";
-import type { DrawableEntity, LightEntity } from "@/src/ecs/drawables.ts";
-import type { SpriteId as SpriteIdType } from "@/src/ecs/drawables.ts";
-import { spriteAppearance } from "@/src/content/sprites.ts";
-import { Direction } from "@/src/grid/direction.ts";
 import type { CardinalDirection } from "@/src/grid/direction.ts";
-import { createGameMap, SKY_CEILING_TEXTURE, TexturePack } from "@/src/map/map.ts";
+import { Direction } from "@/src/grid/direction.ts";
 import type { GameMap } from "@/src/map/map.ts";
+import { createGameMap, SKY_CEILING_TEXTURE, TexturePack } from "@/src/map/map.ts";
 import { GAME_MAPS } from "@/src/map/maps.ts";
 import { DEFAULT_BARS_TERRAIN_ID, DEFAULT_WALL_TERRAIN_ID } from "@/src/map/terrain_palettes.ts";
-import { createFirstPersonRenderer } from "@/src/render/first_person.ts";
 import type { FirstPersonRenderSession } from "@/src/render/first_person.ts";
+import { createFirstPersonRenderer } from "@/src/render/first_person.ts";
 import type { RaycastScene } from "@/src/render/raycast/scene.ts";
-import { TURN_TWEEN_MS } from "@/src/render/raycast/tween.ts";
+import { TURN_TWEEN_MS } from "@/src/render/tween.ts";
+import { assert, assertAlmostEquals, assertEquals, assertNotEquals, assertThrows } from "@std/assert";
 
 type FakeImageEvent = "load" | "error";
 type FakeImageListener = () => void;

@@ -1,9 +1,13 @@
-import { ENEMY_ARCHETYPE_AUTHORING_KEYS } from "@/src/content/enemies.ts";
-import { DialogueTreeId } from "@/src/dialogue/dialogue.ts";
-import { ExamineTextId } from "@/src/game/examine_content.ts";
-import { DisplayName } from "@/src/game/names.ts";
-import { AMBIENT_SOUND_IDS, type AmbientSoundId } from "@/src/game/sound.ts";
-import { storyEventIdFor, storyTargetIdFor } from "@/src/game/story.ts";
+import {
+  AMBIENT_SOUND_IDS,
+  type AmbientSoundId,
+  ENEMY_ARCHETYPE_AUTHORING_KEYS,
+  KNOWN_DIALOGUE_TREE_IDS,
+  KNOWN_DISPLAY_NAMES,
+  KNOWN_EXAMINE_TEXT_IDS,
+  storyEventIdFor,
+  storyTargetIdFor,
+} from "@/src/content/known_ids.ts";
 import {
   type AttackDef,
   AttackFacingRequirement,
@@ -606,7 +610,7 @@ function requiredDirection(properties: PropertyMap, context: string): number {
 
 function requiredDisplayName(properties: PropertyMap, context: string): string {
   return knownString(
-    Object.values(DisplayName),
+    KNOWN_DISPLAY_NAMES,
     requiredString(properties, "displayName", context),
     "display name",
     `${context} property "displayName"`,
@@ -619,7 +623,7 @@ function optionalDisplayName(
 ): { readonly displayName?: string } {
   const value = optionalString(properties, "displayName", context);
   return value === undefined ? {} : {
-    displayName: knownString(Object.values(DisplayName), value, "display name", `${context} property "displayName"`),
+    displayName: knownString(KNOWN_DISPLAY_NAMES, value, "display name", `${context} property "displayName"`),
   };
 }
 
@@ -680,7 +684,7 @@ function optionalDialogueTreeId(
   if (value === undefined) return {};
 
   const dialogueTreeId = optionalKnownString(
-    [...Object.values(DialogueTreeId), "none"],
+    [...KNOWN_DIALOGUE_TREE_IDS, "none"],
     value,
     "dialogue tree",
     `${context} property "dialogueTreeId"`,
@@ -711,7 +715,7 @@ function optionalExamineTextId(
   const value = optionalString(properties, "examineTextId", context);
   return value === undefined ? {} : {
     examineTextId: knownString(
-      Object.values(ExamineTextId),
+      KNOWN_EXAMINE_TEXT_IDS,
       value,
       "examine text",
       `${context} property "examineTextId"`,

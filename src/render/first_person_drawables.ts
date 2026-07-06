@@ -22,7 +22,7 @@ import {
   type ScalarTween,
   type SpritePoint,
   type SpriteTween,
-} from "@/src/render/raycast/tween.ts";
+} from "@/src/render/tween.ts";
 import type { ViewRect } from "@/src/render/raycast/view.ts";
 
 export type FirstPersonDrawableState = FirstPersonAssetState & {

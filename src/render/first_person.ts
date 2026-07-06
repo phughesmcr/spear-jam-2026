@@ -52,7 +52,7 @@ import {
   type SpritePoint,
   type SpriteTween,
   startNudgeTween,
-} from "@/src/render/raycast/tween.ts";
+} from "@/src/render/tween.ts";
 import { createRaycastView, type ViewRect } from "@/src/render/raycast/view.ts";
 
 export interface FirstPersonRenderSession {

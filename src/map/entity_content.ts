@@ -1,10 +1,14 @@
 import { z } from "zod";
-import { ENEMY_ARCHETYPE_AUTHORING_KEYS } from "@/src/content/enemies.ts";
-import { DialogueTreeId as KnownDialogueTreeId } from "@/src/dialogue/dialogue.ts";
-import { ExamineTextId as KnownExamineTextId } from "@/src/game/examine_content.ts";
-import { DisplayName as KnownDisplayName } from "@/src/game/names.ts";
-import { AMBIENT_SOUND_IDS, type SoundId as KnownSoundId } from "@/src/game/sound.ts";
-import { StoryEventId as KnownStoryEventId, StoryTargetId as KnownStoryTargetId } from "@/src/game/story.ts";
+import {
+  AMBIENT_SOUND_IDS,
+  ENEMY_ARCHETYPE_AUTHORING_KEYS,
+  KNOWN_DIALOGUE_TREE_IDS,
+  KNOWN_DISPLAY_NAMES,
+  KNOWN_EXAMINE_TEXT_IDS,
+  KNOWN_STORY_EVENT_IDS,
+  KNOWN_STORY_TARGET_IDS,
+  type SoundId as KnownSoundId,
+} from "@/src/content/known_ids.ts";
 import { lowerFirst } from "@/src/utils/strings.ts";
 
 export const KeyColor = {
@@ -74,16 +78,16 @@ const DIRECTION_SCHEMA = INTEGER_SCHEMA.min(0).max(3);
 const KEY_COLOR_SCHEMA = z.enum([KeyColor.Red, KeyColor.Blue, KeyColor.Yellow]) satisfies z.ZodType<KeyColor>;
 const DOOR_SLIDE_SCHEMA = z.enum(DOOR_SLIDES);
 const LIGHT_COLOR_SCHEMA = z.string().regex(/^#[0-9a-fA-F]{6}$/);
-const DISPLAY_NAME_SCHEMA = stringEnumSchema<DisplayName>(Object.values(KnownDisplayName), "displayName");
-const STORY_TARGET_ID_SCHEMA = stringEnumSchema<StoryTargetId>(Object.values(KnownStoryTargetId), "storyId");
-const STORY_EVENT_ID_SCHEMA = stringEnumSchema<StoryEventId>(Object.values(KnownStoryEventId), "onTalkEvent");
-const DIALOGUE_TREE_ID_SCHEMA = stringEnumSchema<DialogueTreeId>(Object.values(KnownDialogueTreeId), "dialogueTreeId");
+const DISPLAY_NAME_SCHEMA = stringEnumSchema<DisplayName>(KNOWN_DISPLAY_NAMES, "displayName");
+const STORY_TARGET_ID_SCHEMA = stringEnumSchema<StoryTargetId>(KNOWN_STORY_TARGET_IDS, "storyId");
+const STORY_EVENT_ID_SCHEMA = stringEnumSchema<StoryEventId>(KNOWN_STORY_EVENT_IDS, "onTalkEvent");
+const DIALOGUE_TREE_ID_SCHEMA = stringEnumSchema<DialogueTreeId>(KNOWN_DIALOGUE_TREE_IDS, "dialogueTreeId");
 const ENEMY_ARCHETYPE_SCHEMA = stringEnumSchema<EnemyArchetype>(
   ENEMY_ARCHETYPE_AUTHORING_KEYS,
   "archetype",
 );
 const SOUND_ID_SCHEMA = z.enum(AMBIENT_SOUND_IDS) satisfies z.ZodType<SoundId>;
-const EXAMINE_TEXT_ID_SCHEMA = stringEnumSchema<ExamineTextId>(Object.values(KnownExamineTextId), "examineTextId");
+const EXAMINE_TEXT_ID_SCHEMA = stringEnumSchema<ExamineTextId>(KNOWN_EXAMINE_TEXT_IDS, "examineTextId");
 const ITEM_KIND_SCHEMA = z.enum(ITEM_KINDS) satisfies z.ZodType<ItemKind>;
 const DECORATION_KIND_SCHEMA = z.enum(DECORATION_KINDS) satisfies z.ZodType<DecorationKind>;
 const ATTACK_FACING_REQUIREMENT_SCHEMA = z.enum([

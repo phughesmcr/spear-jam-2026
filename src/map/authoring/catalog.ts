@@ -1,10 +1,13 @@
-import { ENEMY_ARCHETYPE_AUTHORING_KEYS } from "@/src/content/enemies.ts";
-import { DialogueTreeId } from "@/src/dialogue/dialogue.ts";
+import {
+  AMBIENT_SOUND_IDS,
+  ENEMY_ARCHETYPE_AUTHORING_KEYS,
+  KNOWN_DIALOGUE_TREE_IDS,
+  KNOWN_DISPLAY_NAMES,
+  KNOWN_EXAMINE_TEXT_IDS,
+  KNOWN_STORY_EVENT_IDS,
+  KNOWN_STORY_TARGET_IDS,
+} from "@/src/content/known_ids.ts";
 import { AttackPattern } from "@/src/game/attack.ts";
-import { ExamineTextId } from "@/src/game/examine_content.ts";
-import { DisplayName } from "@/src/game/names.ts";
-import { AMBIENT_SOUND_IDS } from "@/src/game/sound.ts";
-import { StoryEventId, StoryTargetId } from "@/src/game/story.ts";
 import {
   DECORATION_KINDS,
   type EntityPrefab,
@@ -155,9 +158,9 @@ export const PROPERTY_TYPES: readonly TiledPropertyType[] = [
   enumPropertyType(3, "Facing", ["north", "east", "south", "west"]),
   enumPropertyType(4, "KeyColor", Object.values(KeyColor)),
   enumPropertyType(5, "DoorSlide", ["north", "east", "south", "west", "up", "down"]),
-  enumPropertyType(6, "DisplayName", authoringKeys(DisplayName)),
-  enumPropertyType(7, "DialogueTreeId", ["none", ...authoringKeys(DialogueTreeId)]),
-  enumPropertyType(8, "ExamineTextId", authoringKeys(ExamineTextId)),
+  enumPropertyType(6, "DisplayName", KNOWN_DISPLAY_NAMES),
+  enumPropertyType(7, "DialogueTreeId", ["none", ...KNOWN_DIALOGUE_TREE_IDS]),
+  enumPropertyType(8, "ExamineTextId", KNOWN_EXAMINE_TEXT_IDS),
   enumPropertyType(9, "ItemKind", ["healthPatch", "pistolAmmo", "cannonAmmo"]),
   enumPropertyType(
     10,
@@ -169,8 +172,8 @@ export const PROPERTY_TYPES: readonly TiledPropertyType[] = [
   enumPropertyType(13, "AttackRequiresFacing", ["required", "none"]),
   enumPropertyType(14, "TextureRef", TEXTURE_REFS),
   enumPropertyType(15, "DecorationKind", DECORATION_KINDS),
-  enumPropertyType(16, "StoryTargetId", Object.values(StoryTargetId)),
-  enumPropertyType(17, "StoryEventId", Object.values(StoryEventId)),
+  enumPropertyType(16, "StoryTargetId", KNOWN_STORY_TARGET_IDS),
+  enumPropertyType(17, "StoryEventId", KNOWN_STORY_EVENT_IDS),
   enumPropertyType(18, "SoundId", AMBIENT_SOUND_IDS),
   classPropertyType(20, "map_metadata", "#ff0ea5e9", true, ["map"], [
     classMember("name", "string", "Boot Sector"),

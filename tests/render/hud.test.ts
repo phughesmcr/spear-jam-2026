@@ -2,17 +2,16 @@ import { assertAlmostEquals, assertEquals } from "@std/assert";
 import type { PlayerStatusSnapshot } from "@/src/game/state.ts";
 import { Direction } from "@/src/grid/direction.ts";
 import { KeyColor } from "@/src/map/map.ts";
+import { renderFirstPersonHud } from "@/src/render/hud.ts";
 import {
   firstPersonCompassMarkers,
   firstPersonCompassMarkersAtAngle,
   firstPersonCompassRect,
-  firstPersonHudPanels,
-  preloadHudAssets,
   renderFirstPersonCompass,
   renderFirstPersonCompassAtAngle,
-  renderFirstPersonHud,
-} from "@/src/render/hud.ts";
-import type { FirstPersonHudPanel } from "@/src/render/hud.ts";
+} from "@/src/render/hud_compass.ts";
+import { firstPersonHudPanels, preloadHudAssets } from "@/src/render/hud_meters.ts";
+import type { FirstPersonHudPanel } from "@/src/render/hud_meters.ts";
 
 const CANVAS = { width: 720, height: 1280 };
 const HUD_MARGIN = 12;

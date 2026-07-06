@@ -16,10 +16,8 @@ import {
   createDrawableRenderScratch,
   createLightEntityScratch,
   type DrawableEntityVisitor,
-  type DrawableSystem,
   drawableSystem,
   type LightEntityVisitor,
-  type LightSystem,
   lightSystem,
 } from "@/src/ecs/drawables.ts";
 import { createPlayer } from "@/src/ecs/prefabs.ts";
@@ -46,10 +44,8 @@ import type { PlayerStatusSnapshot } from "@/src/game/state.ts";
 import {
   createEnemyIdleSoundSourceScratch,
   createSoundEmitterScratch,
-  type EnemyIdleSoundSourceSystem,
   enemyIdleSoundSourceSystem,
   type EnemyIdleSoundSourceVisitor,
-  type SoundEmitterSystem,
   soundEmitterSystem,
   type SoundEmitterVisitor,
 } from "@/src/ecs/sounds.ts";
@@ -82,6 +78,14 @@ const UNCHANGED_PLAYER_COMMAND: PlayerCommandResult = Object.freeze({
   type: "continue",
   events: [],
 });
+
+/** Binds a render/audio system to its reused scratch, yielding a ready-to-call `forEach`. */
+function boundScratchSystem<Scratch, Visitor>(
+  system: (context: { readonly scratch: Scratch; readonly visit: Visitor }) => void,
+  scratch: Scratch,
+): (visit: Visitor) => void {
+  return (visit: Visitor): void => system({ scratch, visit });
+}
 
 type EntityPositionSnapshot = ReadonlyMap<Entity, { readonly x: number; readonly y: number }>;
 export type GameSessionTickResult = {
@@ -122,14 +126,10 @@ export class GameSession implements Disposable {
   private readonly playerEntity: Entity;
   private currentMap: GameMap;
   private readonly random: RandomSource;
-  private readonly drawableSystem: DrawableSystem;
-  private readonly drawableScratch = createDrawableRenderScratch();
-  private readonly lightSystem: LightSystem;
-  private readonly lightScratch = createLightEntityScratch();
-  private readonly soundEmitterSystem: SoundEmitterSystem;
-  private readonly soundEmitterScratch = createSoundEmitterScratch();
-  private readonly enemyIdleSoundSourceSystem: EnemyIdleSoundSourceSystem;
-  private readonly enemyIdleSoundSourceScratch = createEnemyIdleSoundSourceScratch();
+  readonly forEachDrawable: (visit: DrawableEntityVisitor) => void;
+  readonly forEachLight: (visit: LightEntityVisitor) => void;
+  readonly forEachSoundEmitter: (visit: SoundEmitterVisitor) => void;
+  readonly forEachEnemyIdleSoundSource: (visit: EnemyIdleSoundSourceVisitor) => void;
   private spatial: SpatialIndex;
   private visibility: VisibilityMap;
   private levelEntryCheckpoint: PlayerProgressionCheckpoint;
@@ -146,10 +146,16 @@ export class GameSession implements Disposable {
     this.playerEntity = playerEntity;
     this.currentMap = map;
     this.random = random;
-    this.drawableSystem = world.systems.create(drawableSystem);
-    this.lightSystem = world.systems.create(lightSystem);
-    this.soundEmitterSystem = world.systems.create(soundEmitterSystem);
-    this.enemyIdleSoundSourceSystem = world.systems.create(enemyIdleSoundSourceSystem);
+    this.forEachDrawable = boundScratchSystem(world.systems.create(drawableSystem), createDrawableRenderScratch());
+    this.forEachLight = boundScratchSystem(world.systems.create(lightSystem), createLightEntityScratch());
+    this.forEachSoundEmitter = boundScratchSystem(
+      world.systems.create(soundEmitterSystem),
+      createSoundEmitterScratch(),
+    );
+    this.forEachEnemyIdleSoundSource = boundScratchSystem(
+      world.systems.create(enemyIdleSoundSourceSystem),
+      createEnemyIdleSoundSourceScratch(),
+    );
     const runtimeState = rebuildRuntimeState(world, playerEntity, map);
     this.spatial = runtimeState.spatial;
     this.visibility = runtimeState.visibility;
@@ -205,34 +211,6 @@ export class GameSession implements Disposable {
 
   targetMarkerTone(): TargetMarkerTone | undefined {
     return targetMarkerTone(this.turnContext());
-  }
-
-  forEachDrawable(visit: DrawableEntityVisitor): void {
-    this.drawableSystem({
-      scratch: this.drawableScratch,
-      visit,
-    });
-  }
-
-  forEachLight(visit: LightEntityVisitor): void {
-    this.lightSystem({
-      scratch: this.lightScratch,
-      visit,
-    });
-  }
-
-  forEachSoundEmitter(visit: SoundEmitterVisitor): void {
-    this.soundEmitterSystem({
-      scratch: this.soundEmitterScratch,
-      visit,
-    });
-  }
-
-  forEachEnemyIdleSoundSource(visit: EnemyIdleSoundSourceVisitor): void {
-    this.enemyIdleSoundSourceSystem({
-      scratch: this.enemyIdleSoundSourceScratch,
-      visit,
-    });
   }
 
   getVisibility(): TileVisibility {

@@ -1,4 +1,4 @@
-import { assert, assertAlmostEquals, assertEquals } from "@std/assert";
+import type { NudgeSample, PoseSample, ScalarSample, SpritePoint } from "@/src/render/tween.ts";
 import {
   createNudgeTween,
   createPoseTween,
@@ -19,8 +19,8 @@ import {
   snapPoseTween,
   startNudgeTween,
   TURN_TWEEN_MS,
-} from "@/src/render/raycast/tween.ts";
-import type { NudgeSample, PoseSample, ScalarSample, SpritePoint } from "@/src/render/raycast/tween.ts";
+} from "@/src/render/tween.ts";
+import { assert, assertAlmostEquals, assertEquals } from "@std/assert";
 
 const EAST = 0;
 const SOUTH = Math.PI / 2;
