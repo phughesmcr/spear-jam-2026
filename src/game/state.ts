@@ -1,5 +1,6 @@
 import type { DialogueChoice } from "@/src/dialogue/dialogue.ts";
 import type { DisplayName } from "@/src/game/names.ts";
+import type { KeyColor } from "@/src/map/map.ts";
 
 export type CommandSlot = 1 | 2 | 3;
 export type VerbMenuControl = "wait" | "toggleView" | "help" | "close";
@@ -36,6 +37,16 @@ export type PlayerProgressState = {
   readonly score: number;
   readonly xp: number;
   readonly levelCredits: number;
+};
+
+export type PlayerStatusSnapshot = {
+  readonly heldKeys: readonly KeyColor[];
+  readonly selectedWeapon: CommandSlot;
+  readonly unlockedWeapons: readonly CommandSlot[];
+  readonly ammo: PlayerAmmoState;
+  readonly health: PlayerHealthState;
+  readonly hasUplinkCode: boolean;
+  readonly progress: PlayerProgressState;
 };
 
 export type DialogueState = {

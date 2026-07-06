@@ -1,5 +1,5 @@
+import { ENEMY_ARCHETYPE_AUTHORING_KEYS } from "@/src/content/enemies.ts";
 import { DialogueTreeId } from "@/src/dialogue/dialogue.ts";
-import { ENEMY_ARCHETYPE_CODES, enemyCatalogEntry } from "@/src/ecs/enemy_catalog.ts";
 import { ExamineTextId } from "@/src/game/examine_content.ts";
 import { DisplayName } from "@/src/game/names.ts";
 import { AMBIENT_SOUND_IDS, type AmbientSoundId } from "@/src/game/sound.ts";
@@ -89,7 +89,6 @@ const DIRECTIONS: Readonly<Record<string, number>> = {
   south: 2,
   west: 3,
 };
-const ENEMY_ARCHETYPE_KEYS = ENEMY_ARCHETYPE_CODES.map((archetype) => enemyCatalogEntry(archetype).authoringKey);
 const TERRAIN_PROPERTY_NAMES: ReadonlySet<string> = new Set([
   "terrainId",
   "terrainKind",
@@ -719,7 +718,12 @@ function optionalEnemyArchetype(
 ): { readonly archetype?: string } {
   const value = optionalString(properties, "archetype", context);
   return value === undefined ? {} : {
-    archetype: knownString(ENEMY_ARCHETYPE_KEYS, value, "enemy archetype", `${context} property "archetype"`),
+    archetype: knownString(
+      ENEMY_ARCHETYPE_AUTHORING_KEYS,
+      value,
+      "enemy archetype",
+      `${context} property "archetype"`,
+    ),
   };
 }
 

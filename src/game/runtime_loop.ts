@@ -1,6 +1,6 @@
 import { type AudioRuntime, createAudioRuntime } from "@/src/audio/audio_runtime.ts";
-import type { GameSession } from "@/src/ecs/session.ts";
 import { presentationView } from "@/src/game/presentation.ts";
+import type { RuntimeSession } from "@/src/game/session_ports.ts";
 import type { EnemyIdleSoundSource, SoundCue, SoundEmitterSnapshot } from "@/src/game/sound.ts";
 import type { GameModel } from "@/src/game/transition.ts";
 import { DEFAULT_GAME_CANVAS_SIZE, type GameCanvasSize } from "@/src/render/canvas.ts";
@@ -13,7 +13,7 @@ export type GameRuntimeLoopSpec = {
   readonly ctx: CanvasRenderingContext2D;
   readonly signal: AbortSignal;
   readonly getModel: () => GameModel;
-  readonly getSession: () => GameSession | undefined;
+  readonly getSession: () => RuntimeSession | undefined;
   readonly dependencies?: GameRuntimeLoopDependencies;
 };
 
@@ -150,7 +150,7 @@ class RuntimeLoop implements GameRuntimeLoop {
     this.setFrameNeeded(tickResult.needsFrame || presentation.needsFrame || renderResult.needsFrame);
   }
 
-  private updateAudioListenerFor(session: GameSession | undefined): void {
+  private updateAudioListenerFor(session: RuntimeSession | undefined): void {
     if (session === undefined) return;
     this.audio.updateListener(session.getPlayerPosition(), session.getPlayerFacing().dir);
   }
@@ -176,7 +176,7 @@ class RuntimeLoop implements GameRuntimeLoop {
 }
 
 function tickSession(
-  session: GameSession | undefined,
+  session: RuntimeSession | undefined,
   modeType: GameModel["mode"]["type"],
   nowMs: number,
 ): { readonly needsFrame: boolean } {

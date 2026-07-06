@@ -6,7 +6,7 @@ import {
   type SpriteDrawableEntity,
   SpriteId,
 } from "@/src/ecs/drawables.ts";
-import type { GameSession } from "@/src/ecs/session.ts";
+import type { FrameRenderSession } from "@/src/game/session_ports.ts";
 import { directionDelta } from "@/src/grid/direction.ts";
 import { KeyColor, type KeyColor as KeyColorType } from "@/src/map/map.ts";
 import type { MapRenderMetrics } from "@/src/render/map.ts";
@@ -35,7 +35,7 @@ const NPC_RADIUS_RATIO = 0.28;
 
 export function renderDrawableEntities(
   ctx: CanvasRenderingContext2D,
-  session: GameSession,
+  session: FrameRenderSession,
   metrics: MapRenderMetrics,
 ): void {
   const visibility = session.getVisibility();

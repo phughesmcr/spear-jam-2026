@@ -1,4 +1,4 @@
-import type { GameSession } from "@/src/ecs/session.ts";
+import type { FrameRenderSession } from "@/src/game/session_ports.ts";
 import type { PresentationView } from "@/src/game/presentation.ts";
 import type { GameMode, ViewMode } from "@/src/game/state.ts";
 import type { GameCanvasSize } from "@/src/render/canvas.ts";
@@ -37,7 +37,7 @@ export type GameFrameResult = {
 export type FrameProps = {
   readonly ctx: CanvasRenderingContext2D;
   readonly canvasSize: GameCanvasSize;
-  readonly session?: GameSession;
+  readonly session?: FrameRenderSession;
   readonly mode?: GameMode;
   readonly presentation?: PresentationView;
   readonly viewMode?: ViewMode;

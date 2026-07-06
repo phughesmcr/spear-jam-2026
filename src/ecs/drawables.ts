@@ -6,6 +6,10 @@ import {
   ItemKind,
   type ItemKind as ItemKindType,
   type LightEmitterSchema,
+  SPRITE_ATTACK_MS,
+  SPRITE_DEATH_MS,
+  SPRITE_WALK_MS,
+  SpriteAnimationKind,
   type SpriteAnimationSchema,
   SpriteId,
   type SpriteId as SpriteIdType,
@@ -22,7 +26,8 @@ import {
   keyColorForCode,
 } from "@/src/map/map.ts";
 
-export { DrawableKind, SpriteId };
+export { DrawableKind, SPRITE_ATTACK_MS, SPRITE_DEATH_MS, SPRITE_WALK_MS, SpriteAnimationKind, SpriteId };
+export type { SpriteAnimationSchema };
 
 type TopDownShape = "actor" | "badge" | "corpse" | "key" | "player" | "terminal" | "uplinkCode" | "weapon";
 type SpriteSourceFrame = readonly [number, number, number, number];
@@ -334,7 +339,11 @@ export type DrawableEntity =
   | SpriteDrawableEntity;
 
 export type LightEntity = DrawableBase & LightEmitterSchema;
+
+/** Receives a reused scratch object; copy fields before storing it past the callback. */
 export type DrawableEntityVisitor = (drawable: DrawableEntity) => void;
+
+/** Receives a reused scratch object; copy fields before storing it past the callback. */
 export type LightEntityVisitor = (light: LightEntity) => void;
 
 type DrawableHealthScratch = {

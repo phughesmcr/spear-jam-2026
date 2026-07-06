@@ -1,5 +1,5 @@
 import { assertAlmostEquals, assertEquals } from "@std/assert";
-import type { PlayerStatusSnapshot } from "@/src/ecs/progression.ts";
+import type { PlayerStatusSnapshot } from "@/src/game/state.ts";
 import { Direction } from "@/src/grid/direction.ts";
 import { KeyColor } from "@/src/map/map.ts";
 import {

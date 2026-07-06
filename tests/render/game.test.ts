@@ -1,6 +1,6 @@
 import { assert, assertEquals } from "@std/assert";
-import type { PlayerStatusSnapshot } from "@/src/ecs/progression.ts";
-import type { GameSession } from "@/src/ecs/session.ts";
+import type { FrameRenderSession } from "@/src/game/session_ports.ts";
+import type { PlayerStatusSnapshot } from "@/src/game/state.ts";
 import { Direction } from "@/src/grid/direction.ts";
 import { createGameMap } from "@/src/map/map.ts";
 import { renderGameFrame } from "@/src/render/game.ts";
@@ -118,21 +118,23 @@ function fakeFirstPersonRenderer(needsFrame = false): FirstPersonRenderer {
   };
 }
 
-function fakeSession(onTick?: () => void): GameSession {
+function fakeSession(onTick?: () => void): FrameRenderSession & { tick(): { readonly needsFrame: boolean } } {
   return {
     map: createGameMap("Fake Map", [[1]], [], {
       palette: [{ kind: "floor", id: 1, color: "#000000", floor_texture: "floor", ceiling_texture: "ceiling" }],
     }),
     getPlayerStatus: () => playerSnapshot(),
-    getVisibility: () => undefined,
+    getVisibility: () => ({ isVisible: () => false, isExplored: () => false }),
+    getPlayerPosition: () => ({ x: 0, y: 0 }),
     forEachDrawable: () => {},
+    forEachLight: () => {},
     targetMarkerTone: () => undefined,
     tick: () => {
       onTick?.();
       return { needsFrame: true };
     },
     getPlayerFacing: () => ({ dir: Direction.North }),
-  } as unknown as GameSession;
+  };
 }
 
 function playerSnapshot(): PlayerStatusSnapshot {

@@ -285,7 +285,7 @@ export const OnTalkEvent: Component<OnTalkEventSchema, typeof ON_TALK_EVENT_STOR
 });
 
 export type TerminalDestinationSchema = { destination: number };
-const TERMINAL_DESTINATION_STORAGE = { destination: Uint16Array };
+const TERMINAL_DESTINATION_STORAGE = { destination: Uint32Array };
 export const TerminalDestination: Component<TerminalDestinationSchema, typeof TERMINAL_DESTINATION_STORAGE> =
   new Component<TerminalDestinationSchema, typeof TERMINAL_DESTINATION_STORAGE>({
     name: "terminalDestination",

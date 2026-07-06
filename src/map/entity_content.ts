@@ -1,6 +1,6 @@
 import { z } from "zod";
+import { ENEMY_ARCHETYPE_AUTHORING_KEYS } from "@/src/content/enemies.ts";
 import { DialogueTreeId as KnownDialogueTreeId } from "@/src/dialogue/dialogue.ts";
-import { ENEMY_ARCHETYPE_CODES, enemyCatalogEntry } from "@/src/ecs/enemy_catalog.ts";
 import { ExamineTextId as KnownExamineTextId } from "@/src/game/examine_content.ts";
 import { DisplayName as KnownDisplayName } from "@/src/game/names.ts";
 import { AMBIENT_SOUND_IDS, type SoundId as KnownSoundId } from "@/src/game/sound.ts";
@@ -78,7 +78,7 @@ const STORY_TARGET_ID_SCHEMA = stringEnumSchema<StoryTargetId>(Object.values(Kno
 const STORY_EVENT_ID_SCHEMA = stringEnumSchema<StoryEventId>(Object.values(KnownStoryEventId), "onTalkEvent");
 const DIALOGUE_TREE_ID_SCHEMA = stringEnumSchema<DialogueTreeId>(Object.values(KnownDialogueTreeId), "dialogueTreeId");
 const ENEMY_ARCHETYPE_SCHEMA = stringEnumSchema<EnemyArchetype>(
-  ENEMY_ARCHETYPE_CODES.map((archetype) => enemyCatalogEntry(archetype).authoringKey),
+  ENEMY_ARCHETYPE_AUTHORING_KEYS,
   "archetype",
 );
 const SOUND_ID_SCHEMA = z.enum(AMBIENT_SOUND_IDS) satisfies z.ZodType<SoundId>;

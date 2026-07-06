@@ -3,7 +3,10 @@ import { enemyArchetypeForCode, enemyCatalogEntry } from "@/src/ecs/enemy_catalo
 import { enemyIdleSoundSourceQuery, soundEmitterQuery } from "@/src/ecs/queries.ts";
 import { type EnemyIdleSoundSource, type SoundEmitterSnapshot, SoundId, soundIdForCode } from "@/src/game/sound.ts";
 
+/** Receives a reused scratch object; copy fields before storing it past the callback. */
 export type SoundEmitterVisitor = (sound: SoundEmitterSnapshot) => void;
+
+/** Receives a reused scratch object; copy fields before storing it past the callback. */
 export type EnemyIdleSoundSourceVisitor = (source: EnemyIdleSoundSource) => void;
 
 type Mutable<T> = {

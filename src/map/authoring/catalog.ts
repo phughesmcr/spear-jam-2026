@@ -1,12 +1,18 @@
+import { ENEMY_ARCHETYPE_AUTHORING_KEYS } from "@/src/content/enemies.ts";
 import { DialogueTreeId } from "@/src/dialogue/dialogue.ts";
-import { DecorationKind } from "@/src/ecs/components.ts";
-import { ENEMY_ARCHETYPE_CODES, enemyCatalogEntry } from "@/src/ecs/enemy_catalog.ts";
 import { AttackPattern } from "@/src/game/attack.ts";
 import { ExamineTextId } from "@/src/game/examine_content.ts";
 import { DisplayName } from "@/src/game/names.ts";
 import { AMBIENT_SOUND_IDS } from "@/src/game/sound.ts";
 import { StoryEventId, StoryTargetId } from "@/src/game/story.ts";
-import { type EntityPrefab, KeyColor, SKY_CEILING_TEXTURE, TexturePack, VICTORY_GOTO } from "@/src/map/map.ts";
+import {
+  DECORATION_KINDS,
+  type EntityPrefab,
+  KeyColor,
+  SKY_CEILING_TEXTURE,
+  TexturePack,
+  VICTORY_GOTO,
+} from "@/src/map/map.ts";
 import {
   BARRIER_TERRAIN_COUNT,
   TERRAIN_CATALOG_TILE_COLUMNS,
@@ -155,13 +161,13 @@ export const PROPERTY_TYPES: readonly TiledPropertyType[] = [
   enumPropertyType(
     10,
     "EnemyArchetype",
-    ENEMY_ARCHETYPE_CODES.map((archetype) => enemyCatalogEntry(archetype).authoringKey),
+    ENEMY_ARCHETYPE_AUTHORING_KEYS,
   ),
   enumPropertyType(11, "AttackPattern", authoringKeys(AttackPattern)),
   enumPropertyType(12, "AttackTargets", ["first", "all"]),
   enumPropertyType(13, "AttackRequiresFacing", ["required", "none"]),
   enumPropertyType(14, "TextureRef", TEXTURE_REFS),
-  enumPropertyType(15, "DecorationKind", authoringKeys(DecorationKind)),
+  enumPropertyType(15, "DecorationKind", DECORATION_KINDS),
   enumPropertyType(16, "StoryTargetId", Object.values(StoryTargetId)),
   enumPropertyType(17, "StoryEventId", Object.values(StoryEventId)),
   enumPropertyType(18, "SoundId", AMBIENT_SOUND_IDS),
@@ -247,14 +253,13 @@ export const TEMPLATE_DEFINITIONS: readonly TemplateDefinition[] = [
     property("storyId", "john", "StoryTargetId"),
     property("onTalkEvent", "johnSpoken", "StoryEventId"),
   ]),
-  ...ENEMY_ARCHETYPE_CODES.map((archetype) => {
-    const authoringKey = enemyCatalogEntry(archetype).authoringKey;
-    return templateDefinition(`enemy_${snakeCase(authoringKey)}.tx`, "enemy", "enemy", authoringKey, [
+  ...ENEMY_ARCHETYPE_AUTHORING_KEYS.map((authoringKey) =>
+    templateDefinition(`enemy_${snakeCase(authoringKey)}.tx`, "enemy", "enemy", authoringKey, [
       property("prefab", "enemy", "Prefab"),
       property("facing", "north", "Facing"),
       property("archetype", authoringKey, "EnemyArchetype"),
-    ]);
-  }),
+    ])
+  ),
   templateDefinition("door.tx", "door", "door", "Door", [
     property("prefab", "door", "Prefab"),
     property("slide", "up", "DoorSlide"),

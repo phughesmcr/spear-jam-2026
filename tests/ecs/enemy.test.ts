@@ -1,5 +1,6 @@
 import { assertEquals } from "@std/assert";
 import type { Entity, World } from "@phughesmcr/miski";
+import { enemyArchetypeAuthoringKey } from "@/src/content/enemies.ts";
 import {
   AttackFacingRequirement,
   AttackPattern,
@@ -15,7 +16,7 @@ import {
 } from "@/src/ecs/components.ts";
 import type { AttackSchema, HealthSchema } from "@/src/ecs/components.ts";
 import { enemyTurnSystem } from "@/src/ecs/enemy.ts";
-import { EnemyArchetype, enemyCatalogEntry } from "@/src/ecs/enemy_catalog.ts";
+import { EnemyArchetype } from "@/src/ecs/enemy_catalog.ts";
 import { createEnemy, createPlayer } from "@/src/ecs/prefabs.ts";
 import { SpatialIndex } from "@/src/ecs/spatial.ts";
 import { createWorld } from "@/src/ecs/world.ts";
@@ -553,7 +554,7 @@ function spawnEnemy(world: World, opts: SpawnEnemyOptions): Entity {
     dir: opts.dir ?? Direction.East,
     displayName: opts.displayName,
     attack: attackPrefabFor(opts.attack),
-    archetype: opts.archetype === undefined ? undefined : enemyCatalogEntry(opts.archetype).authoringKey,
+    archetype: opts.archetype === undefined ? undefined : enemyArchetypeAuthoringKey(opts.archetype),
   });
 }
 

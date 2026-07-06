@@ -16,9 +16,8 @@ import {
   type AmmoKind,
   type CommandSlot,
   commandSlotForCode,
-  type PlayerAmmoState,
   type PlayerHealthState,
-  type PlayerProgressState,
+  type PlayerStatusSnapshot,
 } from "@/src/game/state.ts";
 import { normalizeStoryFlags, type StoryFlag } from "@/src/game/story.ts";
 import { KeyColor, type KeyColor as KeyColorType, keyColorCode } from "@/src/map/map.ts";
@@ -57,17 +56,6 @@ const KEY_COLOR_ORDER: readonly KeyColorType[] = [
 ];
 
 const WEAPON_SLOT_ORDER: readonly CommandSlot[] = [1, 2, 3];
-
-/** Presentation snapshot generated from ECS components; ECS remains the owner. */
-export type PlayerStatusSnapshot = {
-  readonly heldKeys: readonly KeyColorType[];
-  readonly selectedWeapon: CommandSlot;
-  readonly unlockedWeapons: readonly CommandSlot[];
-  readonly ammo: PlayerAmmoState;
-  readonly health: PlayerHealthState;
-  readonly hasUplinkCode: boolean;
-  readonly progress: PlayerProgressState;
-};
 
 export type PlayerProgressionCheckpoint = {
   readonly health: HealthSchema;

@@ -1,10 +1,13 @@
 import { assertEquals } from "@std/assert";
 import type { Entity } from "@phughesmcr/miski";
 import type { AudioRuntime } from "@/src/audio/audio_runtime.ts";
-import type { GameSession } from "@/src/ecs/session.ts";
+import type { RuntimeSession } from "@/src/game/session_ports.ts";
 import { createGameModel, type GameModel } from "@/src/game/transition.ts";
 import { type EnemyIdleSoundSource, type SoundCue, type SoundEmitterSnapshot, SoundId } from "@/src/game/sound.ts";
 import { createGameRuntimeLoop } from "@/src/game/runtime_loop.ts";
+import type { PlayerStatusSnapshot } from "@/src/game/state.ts";
+import { Direction } from "@/src/grid/direction.ts";
+import { createGameMap } from "@/src/map/map.ts";
 import type { FirstPersonRenderer } from "@/src/render/first_person.ts";
 
 const EMITTER = 2 as Entity;
@@ -77,7 +80,7 @@ Deno.test("runtime dispose cancels pending RAF and disposes audio", () => {
 
 Deno.test("runtime audio world sync clears stale emitters when the session disappears", () => {
   const audio = new FakeAudioRuntime();
-  let session: GameSession | undefined = fakeAudioSession();
+  let session: RuntimeSession | undefined = fakeAudioSession();
   const runtime = createGameRuntimeLoop({
     window: new FakeWindow() as unknown as Window,
     document: new FakeDocument() as unknown as Document,
@@ -147,17 +150,44 @@ function fakeFirstPersonRenderer(): FirstPersonRenderer {
   };
 }
 
-function fakeAudioSession(): GameSession {
+function fakeAudioSession(): RuntimeSession {
   return {
     getPlayerPosition: () => ({ x: 3, y: 4 }),
-    getPlayerFacing: () => ({ dir: 1 }),
+    getPlayerFacing: () => ({ dir: Direction.East }),
     forEachSoundEmitter(visit: (emitter: SoundEmitterSnapshot) => void): void {
       visit(ambientEmitter());
     },
     forEachEnemyIdleSoundSource(visit: (source: EnemyIdleSoundSource) => void): void {
       visit(enemyIdleSource());
     },
-  } as unknown as GameSession;
+    map: createGameMap("Fake Map", [[1]], [], {
+      palette: [{ kind: "floor", id: 1, color: "#000000", floor_texture: "floor", ceiling_texture: "ceiling" }],
+    }),
+    getPlayerStatus: () => playerSnapshot(),
+    getVisibility: () => ({ isVisible: () => false, isExplored: () => false }),
+    forEachDrawable() {},
+    forEachLight() {},
+    targetMarkerTone: () => undefined,
+    tick: () => ({ needsFrame: false }),
+    playerEntity: 1 as Entity,
+  };
+}
+
+function playerSnapshot(): PlayerStatusSnapshot {
+  return {
+    heldKeys: [],
+    selectedWeapon: 1,
+    unlockedWeapons: [1],
+    ammo: { pistol: 0, cannon: 0 },
+    health: { current: 10, max: 10 },
+    hasUplinkCode: false,
+    progress: {
+      credits: 0,
+      score: 0,
+      xp: 0,
+      levelCredits: 0,
+    },
+  };
 }
 
 function ambientEmitter(): SoundEmitterSnapshot {

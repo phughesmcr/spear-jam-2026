@@ -1,4 +1,5 @@
 import type { Entity, World } from "@phughesmcr/miski";
+import { enemyArchetypeForAuthoringKey } from "@/src/content/enemies.ts";
 import {
   Attack,
   type AttackSchema,
@@ -52,7 +53,6 @@ import {
 } from "@/src/ecs/drawables.ts";
 import {
   DEFAULT_ENEMY_ARCHETYPE,
-  ENEMY_ARCHETYPE_CODES,
   type EnemyArchetype as EnemyArchetypeType,
   type EnemyCatalogEntry,
   enemyCatalogEntry,
@@ -127,10 +127,6 @@ const ATTACK_TARGETS = {
   first: AttackTargetMode.First,
   all: AttackTargetMode.All,
 } as const satisfies Readonly<Record<string, AttackTargetModeType>>;
-const ENEMY_ARCHETYPES: Readonly<Record<string, EnemyArchetypeType>> = Object.fromEntries(
-  ENEMY_ARCHETYPE_CODES.map((archetype) => [enemyCatalogEntry(archetype).authoringKey, archetype]),
-);
-
 type PositionedPrefab = {
   readonly x: number;
   readonly y: number;
@@ -372,7 +368,7 @@ export function createSound(world: World, prefab: SoundPrefab): Entity {
 }
 
 function enemyArchetypeForPrefab(archetype: string | undefined): EnemyArchetypeType {
-  return archetype === undefined ? DEFAULT_ENEMY_ARCHETYPE : lookup(ENEMY_ARCHETYPES, archetype, "enemy archetype");
+  return archetype === undefined ? DEFAULT_ENEMY_ARCHETYPE : enemyArchetypeForAuthoringKey(archetype);
 }
 
 function createPickup(world: World, prefab: PositionedPrefab, item: ItemKind, value: number): Entity {

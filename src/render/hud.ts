@@ -1,6 +1,5 @@
-import type { GameSession } from "@/src/ecs/session.ts";
-import type { PlayerStatusSnapshot } from "@/src/ecs/progression.ts";
-import type { AmmoKind, PlayerHealthState } from "@/src/game/state.ts";
+import type { FrameRenderSession } from "@/src/game/session_ports.ts";
+import type { AmmoKind, PlayerHealthState, PlayerStatusSnapshot } from "@/src/game/state.ts";
 import { type CardinalDirection, Direction, directionDelta, normalizeDirection } from "@/src/grid/direction.ts";
 import { KeyColor } from "@/src/map/map.ts";
 import { createImageAsset, loadedImage, preloadImageAssets } from "@/src/render/assets.ts";
@@ -147,7 +146,11 @@ export async function preloadHudAssets(document: Document, onAssetLoad?: () => v
   await preloadImageAssets(document, FIRST_PERSON_HUD_IMAGE_ASSETS, onAssetLoad);
 }
 
-export function renderHud(ctx: CanvasRenderingContext2D, canvasSize: GameCanvasSize, session: GameSession): void {
+export function renderHud(
+  ctx: CanvasRenderingContext2D,
+  canvasSize: GameCanvasSize,
+  session: FrameRenderSession,
+): void {
   const playerStatus = session.getPlayerStatus();
   const lines = hudLines(session.map.name, playerStatus);
   const width = Math.min(HUD_WIDTH, canvasSize.width - HUD_MARGIN * 2);

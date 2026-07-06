@@ -1,8 +1,15 @@
 import { assert, assertAlmostEquals, assertEquals, assertNotEquals, assertThrows } from "@std/assert";
-import { SPRITE_ATTACK_MS, SPRITE_DEATH_MS, SPRITE_WALK_MS, SpriteAnimationKind } from "@/src/ecs/components.ts";
-import { DrawableKind, spriteAppearance, SpriteId } from "@/src/ecs/drawables.ts";
+import {
+  DrawableKind,
+  SPRITE_ATTACK_MS,
+  SPRITE_DEATH_MS,
+  SPRITE_WALK_MS,
+  SpriteAnimationKind,
+  spriteAppearance,
+  SpriteId,
+} from "@/src/ecs/drawables.ts";
 import type { DrawableEntity, LightEntity } from "@/src/ecs/drawables.ts";
-import type { SpriteId as SpriteIdType } from "@/src/ecs/components.ts";
+import type { SpriteId as SpriteIdType } from "@/src/ecs/drawables.ts";
 import { Direction } from "@/src/grid/direction.ts";
 import type { CardinalDirection } from "@/src/grid/direction.ts";
 import { createGameMap, SKY_CEILING_TEXTURE, TexturePack } from "@/src/map/map.ts";

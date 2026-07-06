@@ -1,4 +1,5 @@
 import {
+  DECORATION_KINDS,
   type DoorSlide,
   type EntityDef,
   KeyColor as ContentKeyColor,
@@ -7,6 +8,7 @@ import {
 import { SKY_CEILING_TEXTURE, TERRAIN_CATALOG } from "@/src/map/terrain_palettes.ts";
 
 export const KeyColor = ContentKeyColor;
+export { DECORATION_KINDS };
 export type KeyColor = KeyColorType;
 export type {
   DecorationDef,
@@ -101,28 +103,20 @@ export function keyColorForCode(code: number): KeyColorType {
 /** Sentinel `goto` for exits that end the game in victory instead of loading a map. */
 export const VICTORY_GOTO = "victory";
 const VICTORY_DESTINATION_CODE = 0;
-let nextTerminalDestinationCode = 1;
-const TERMINAL_DESTINATION_CODES = new Map<string, number>();
-const TERMINAL_DESTINATIONS_BY_CODE = new Map<number, string>();
 
 export function terminalDestinationCode(goto: string): number {
   if (goto === VICTORY_GOTO) return VICTORY_DESTINATION_CODE;
 
-  const existing = TERMINAL_DESTINATION_CODES.get(goto);
-  if (existing !== undefined) return existing;
-
-  const code = nextTerminalDestinationCode++;
-  TERMINAL_DESTINATION_CODES.set(goto, code);
-  TERMINAL_DESTINATIONS_BY_CODE.set(code, goto);
-  return code;
+  return stableContentCode(goto);
 }
 
-export function terminalDestinationForCode(code: number): string {
-  if (code === VICTORY_DESTINATION_CODE) return VICTORY_GOTO;
-
-  const goto = TERMINAL_DESTINATIONS_BY_CODE.get(code);
-  if (goto === undefined) throw new Error(`Unknown terminal destination code: ${code}`);
-  return goto;
+function stableContentCode(value: string): number {
+  let hash = 0x811c9dc5;
+  for (let index = 0; index < value.length; index++) {
+    hash ^= value.charCodeAt(index);
+    hash = Math.imul(hash, 0x01000193) >>> 0;
+  }
+  return hash === VICTORY_DESTINATION_CODE ? 1 : hash;
 }
 
 /**
