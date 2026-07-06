@@ -18,6 +18,7 @@ import {
   Item,
   Npc,
   OnTalkEvent,
+  SoundEmitter,
   Sprite,
   SpriteId,
   StoryTarget,
@@ -28,8 +29,16 @@ import { dialogueTreeCode } from "@/src/dialogue/dialogue.ts";
 import { ExamineTextId } from "@/src/game/examine.ts";
 import { examineTextCode } from "@/src/game/examine_content.ts";
 import { DisplayName, displayNameCode } from "@/src/game/names.ts";
+import { SoundId, soundIdCode } from "@/src/game/sound.ts";
 import { storyEventCode, StoryEventId, storyTargetCode, StoryTargetId } from "@/src/game/story.ts";
-import { createDecoration, createDoor, createEnemy, createNpc, createUplinkTerminal } from "@/src/ecs/prefabs.ts";
+import {
+  createDecoration,
+  createDoor,
+  createEnemy,
+  createNpc,
+  createSound,
+  createUplinkTerminal,
+} from "@/src/ecs/prefabs.ts";
 import { createWorld } from "@/src/ecs/world.ts";
 import { terminalDestinationCode } from "@/src/map/map.ts";
 
@@ -145,6 +154,23 @@ Deno.test("decorations spawn as non-blocking structure sprites", async () => {
   assertEquals(world.components.getEntityData(Sprite, decoration), { id: SpriteId.DecorServerPile });
   assertEquals(world.components.entityHas(Blocking, decoration), false);
   assertEquals(world.components.entityHas(Item, decoration), false);
+});
+
+Deno.test("sound prefabs attach positional sound emitter metadata", async () => {
+  const world = await createWorld();
+  const sound = createSound(world, {
+    x: 1,
+    y: 2,
+    soundId: SoundId.AmbientHum,
+    radius: 6,
+    volume: 0.5,
+  });
+
+  assertEquals(world.components.getEntityData(SoundEmitter, sound), {
+    soundId: soundIdCode(SoundId.AmbientHum),
+    radius: 6,
+    volume: 0.5,
+  });
 });
 
 Deno.test("enemy archetypes apply top-down tuning defaults", async () => {

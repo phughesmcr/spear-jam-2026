@@ -5,7 +5,9 @@
   "unstable": ["tsgo"],
   "nodeModulesDir": "manual",
   "tasks": {
-    "check": "export CI=1 && deno task maps:check && deno fmt --check . && deno lint . && deno check && deno test",
+    "check": "export CI=1 && deno task audio:check && deno task maps:check && deno fmt --check . && deno lint . && deno check && deno test",
+    "audio:generate": "deno run -A scripts/audio_assets.ts generate",
+    "audio:check": "deno run -A scripts/audio_assets.ts check",
     "dev": "vite",
     "build": "vite build",
     "maps:compile": "deno run -A scripts/maps.ts compile",
@@ -68,6 +70,7 @@
     "noUnusedLocals": true,
     "noUnusedParameters": true,
     "lib": [
+      "esnext",
       "dom",
       "dom.asynciterable",
       "dom.iterable",

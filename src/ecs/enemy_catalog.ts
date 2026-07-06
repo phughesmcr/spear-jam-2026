@@ -1,5 +1,6 @@
 import { type AttackDef, AttackFacingRequirement, AttackPattern, AttackTargetMode } from "@/src/game/attack.ts";
 import { DisplayName } from "@/src/game/names.ts";
+import { SoundId, type SoundId as SoundIdType } from "@/src/game/sound.ts";
 
 export const EnemyArchetype = {
   MeleeDog: 1,
@@ -47,6 +48,23 @@ export type EnemyCatalogEntry = {
   readonly damage: number;
   readonly attack: Readonly<Partial<AttackDef>>;
   readonly behavior: EnemyBehaviorPolicy;
+  readonly idleSound: EnemyIdleSoundProfile;
+};
+
+export type EnemyIdleSoundProfile = {
+  readonly soundId: SoundIdType;
+  readonly radius: number;
+  readonly volume: number;
+  readonly minDelayMs: number;
+  readonly maxDelayMs: number;
+};
+
+export const DEFAULT_ENEMY_IDLE_SOUND: EnemyIdleSoundProfile = {
+  soundId: SoundId.EnemyIdle,
+  radius: 5,
+  volume: 0.42,
+  minDelayMs: 7000,
+  maxDelayMs: 14000,
 };
 
 export const ENEMY_CATALOG = {
@@ -64,6 +82,7 @@ export const ENEMY_CATALOG = {
       alert: { type: "advance", steps: 2, attackAfterMove: true },
       investigate: { type: "move", steps: 2 },
     },
+    idleSound: DEFAULT_ENEMY_IDLE_SOUND,
   },
   [EnemyArchetype.Gunslinger]: {
     authoringKey: "gunslinger",
@@ -79,6 +98,7 @@ export const ENEMY_CATALOG = {
       alert: { type: "skirmish", retreatRange: 1, advanceSteps: 1 },
       investigate: { type: "move", steps: 1 },
     },
+    idleSound: DEFAULT_ENEMY_IDLE_SOUND,
   },
   [EnemyArchetype.NetworkNeophyte]: {
     authoringKey: "networkNeophyte",
@@ -91,6 +111,7 @@ export const ENEMY_CATALOG = {
       range: 1,
     },
     behavior: DEFAULT_ENEMY_BEHAVIOR_POLICY,
+    idleSound: DEFAULT_ENEMY_IDLE_SOUND,
   },
   [EnemyArchetype.SystemSentinel]: {
     authoringKey: "systemSentinel",
@@ -106,6 +127,7 @@ export const ENEMY_CATALOG = {
       alert: { type: "hold" },
       investigate: { type: "watch" },
     },
+    idleSound: DEFAULT_ENEMY_IDLE_SOUND,
   },
   [EnemyArchetype.AgenticAcolyte]: {
     authoringKey: "agenticAcolyte",
@@ -121,6 +143,7 @@ export const ENEMY_CATALOG = {
       targets: AttackTargetMode.All,
     },
     behavior: DEFAULT_ENEMY_BEHAVIOR_POLICY,
+    idleSound: DEFAULT_ENEMY_IDLE_SOUND,
   },
 } as const satisfies Readonly<Record<EnemyArchetype, EnemyCatalogEntry>>;
 

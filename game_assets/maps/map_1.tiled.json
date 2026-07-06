@@ -27,7 +27,7 @@
          "width":15,
          "x":0,
          "y":0
-        }, 
+        },
         {
          "draworder":"topdown",
          "id":2,
@@ -45,7 +45,7 @@
                          "propertytype":"Facing",
                          "type":"string",
                          "value":"south"
-                        }, 
+                        },
                         {
                          "name":"prefab",
                          "propertytype":"Prefab",
@@ -71,7 +71,7 @@
                          "propertytype":"DialogueTreeId",
                          "type":"string",
                          "value":"johnThanks"
-                        }, 
+                        },
                         {
                          "name":"displayName",
                          "propertytype":"DisplayName",
@@ -108,7 +108,7 @@
                  "width":16,
                  "x":32,
                  "y":64
-                }, 
+                },
                 {
                  "gid":144,
                  "height":16,
@@ -161,12 +161,12 @@
                          "propertytype":"Prefab",
                          "type":"string",
                          "value":"door"
-                        }, 
+                        },
                         {
                          "name":"secret",
                          "type":"bool",
                          "value":true
-                        }, 
+                        },
                         {
                          "name":"slide",
                          "propertytype":"DoorSlide",
@@ -828,7 +828,7 @@
          "visible":true,
          "x":0,
          "y":0
-        }, 
+        },
         {
          "draworder":"topdown",
          "id":3,
@@ -1169,9 +1169,79 @@
          "visible":true,
          "x":0,
          "y":0
+        },
+        {
+         "class":"sound_layer",
+         "draworder":"topdown",
+         "id":4,
+         "name":"sounds",
+         "objects":[
+                {
+                 "height":16,
+                 "id":43,
+                 "name":"terminal_hum",
+                 "opacity":1,
+                 "properties":[
+                        {
+                         "name":"radius",
+                         "type":"int",
+                         "value":4
+                        },
+                        {
+                         "name":"soundId",
+                         "propertytype":"SoundId",
+                         "type":"string",
+                         "value":"ambientHum"
+                        },
+                        {
+                         "name":"volume",
+                         "type":"float",
+                         "value":0.3
+                        }],
+                 "rotation":0,
+                 "type":"sound",
+                 "visible":true,
+                 "width":16,
+                 "x":96,
+                 "y":208
+                },
+                {
+                 "height":16,
+                 "id":44,
+                 "name":"ceiling_light_buzz",
+                 "opacity":1,
+                 "properties":[
+                        {
+                         "name":"radius",
+                         "type":"int",
+                         "value":3
+                        },
+                        {
+                         "name":"soundId",
+                         "propertytype":"SoundId",
+                         "type":"string",
+                         "value":"ambientLightBuzz"
+                        },
+                        {
+                         "name":"volume",
+                         "type":"float",
+                         "value":0.3
+                        }],
+                 "rotation":0,
+                 "type":"sound",
+                 "visible":true,
+                 "width":16,
+                 "x":176,
+                 "y":144
+                }],
+         "opacity":1,
+         "type":"objectgroup",
+         "visible":true,
+         "x":0,
+         "y":0
         }],
- "nextlayerid":4,
- "nextobjectid":43,
+ "nextlayerid":5,
+ "nextobjectid":45,
  "orientation":"orthogonal",
  "properties":[
         {

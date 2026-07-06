@@ -24,6 +24,7 @@ export type {
   LightDef,
   NpcDef,
   PlayerDef,
+  SoundDef,
   UplinkCodeDef,
   UplinkTerminalDef,
   WeaponPickupDef,

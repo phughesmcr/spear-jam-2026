@@ -2,6 +2,7 @@ import { assertEquals, assertThrows } from "@std/assert";
 import { DialogueTreeId } from "@/src/dialogue/dialogue.ts";
 import { ExamineTextId } from "@/src/game/examine_content.ts";
 import { DisplayName } from "@/src/game/names.ts";
+import { SoundId } from "@/src/game/sound.ts";
 import { StoryEventId, StoryTargetId } from "@/src/game/story.ts";
 import { compileTiledMap } from "@/src/map/authoring/compile.ts";
 import type { TiledMap, TiledObject, TiledProperty, TiledTemplate } from "@/src/map/authoring/tiled_types.ts";
@@ -683,12 +684,122 @@ Deno.test("compileTiledMap rejects lights on the objects layer", () => {
   );
 });
 
+Deno.test("compileTiledMap compiles optional positional sound emitters", () => {
+  const compiled = compileTiledMap(
+    tiledMap({
+      width: 3,
+      height: 3,
+      soundObjects: [
+        object({
+          x: TILE_SIZE,
+          y: TILE_SIZE,
+          properties: [
+            property("soundId", SoundId.AmbientHum),
+            property("radius", 6),
+            property("volume", 0.5),
+          ],
+        }),
+      ],
+    }),
+    compileOptions(),
+  );
+
+  assertEquals(compiled.gameMap.entities, [
+    { prefab: "sound", x: 1, y: 1, soundId: SoundId.AmbientHum, radius: 6, volume: 0.5 },
+  ]);
+});
+
+Deno.test("compileTiledMap rejects sounds on the objects layer", () => {
+  assertThrows(
+    () =>
+      compileTiledMap(
+        tiledMap({
+          objects: [
+            object({
+              x: TILE_SIZE,
+              y: TILE_SIZE,
+              type: "sound",
+              properties: [
+                property("soundId", SoundId.AmbientHum),
+                property("radius", 6),
+              ],
+            }),
+          ],
+        }),
+        compileOptions(),
+      ),
+    Error,
+    'Sound objects must be authored on the dedicated "sounds" layer.',
+  );
+});
+
+Deno.test("compileTiledMap validates sound ids and volume", () => {
+  assertThrows(
+    () =>
+      compileTiledMap(
+        tiledMap({
+          soundObjects: [
+            object({
+              properties: [
+                property("soundId", "missing"),
+                property("radius", 6),
+              ],
+            }),
+          ],
+        }),
+        compileOptions(),
+      ),
+    Error,
+    'Unknown ambient sound id "missing"',
+  );
+
+  assertThrows(
+    () =>
+      compileTiledMap(
+        tiledMap({
+          soundObjects: [
+            object({
+              properties: [
+                property("soundId", SoundId.MusicMain),
+                property("radius", 6),
+              ],
+            }),
+          ],
+        }),
+        compileOptions(),
+      ),
+    Error,
+    'Unknown ambient sound id "musicMain"',
+  );
+
+  assertThrows(
+    () =>
+      compileTiledMap(
+        tiledMap({
+          soundObjects: [
+            object({
+              properties: [
+                property("soundId", SoundId.AmbientHum),
+                property("radius", 6),
+                property("volume", 1.5),
+              ],
+            }),
+          ],
+        }),
+        compileOptions(),
+      ),
+    Error,
+    'Property "volume" must be between 0 and 1.',
+  );
+});
+
 type TiledMapOverrides = {
   readonly width?: number;
   readonly height?: number;
   readonly terrainData?: readonly number[];
   readonly objects?: readonly TiledObject[];
   readonly lightObjects?: readonly TiledObject[];
+  readonly soundObjects?: readonly TiledObject[];
   readonly properties?: readonly TiledProperty[];
 };
 
@@ -810,6 +921,12 @@ function tiledMap(overrides: TiledMapOverrides = {}): TiledMap {
         name: "lights",
         type: "objectgroup",
         objects: overrides.lightObjects,
+      }]),
+      ...(overrides.soundObjects === undefined ? [] : [{
+        id: 4,
+        name: "sounds",
+        type: "objectgroup",
+        objects: overrides.soundObjects,
       }]),
     ],
   };

@@ -9,6 +9,7 @@ import {
   type RgbaImage,
   startMapUrlPath,
 } from "@/scripts/maps.ts";
+import { AMBIENT_SOUND_IDS } from "@/src/game/sound.ts";
 
 Deno.test("buildScaffoldMap creates a bordered Tiled map ready for authoring", () => {
   const map = buildScaffoldMap({
@@ -26,6 +27,7 @@ Deno.test("buildScaffoldMap creates a bordered Tiled map ready for authoring", (
     ["terrain", "tilelayer"],
     ["objects", "objectgroup"],
     ["lights", "objectgroup"],
+    ["sounds", "objectgroup"],
   ]);
   assertEquals(map.layers[0]?.data, [
     61,
@@ -51,6 +53,7 @@ Deno.test("buildScaffoldMap creates a bordered Tiled map ready for authoring", (
   ]);
   assertEquals(map.layers[1]?.objects, []);
   assertEquals(map.layers[2]?.objects, []);
+  assertEquals(map.layers[3]?.objects, []);
   assertEquals(map.tilesets?.map((tileset) => tileset.source ?? tileset.name), [
     "terrain/floors.tsj",
     "terrain/walls.tsj",
@@ -87,6 +90,7 @@ Deno.test("generatedTiledProjectSource includes one-click play and automapping",
     automappingRulesFile: string;
     commands: readonly { readonly command: string; readonly executable: string; readonly arguments: string }[];
     folders: readonly string[];
+    propertyTypes: readonly { readonly name: string; readonly type: string; readonly values?: readonly string[] }[];
   };
 
   assertEquals(project.automappingRulesFile, "automap/rules.txt");
@@ -97,6 +101,7 @@ Deno.test("generatedTiledProjectSource includes one-click play and automapping",
       command.arguments === '-lc "deno task maps:play -- \\"%mapfile\\""'
     ),
   );
+  assertEquals(project.propertyTypes.find((type) => type.name === "SoundId")?.values, AMBIENT_SOUND_IDS);
 });
 
 Deno.test("generatedAutomappingSources includes reset and wall variant rules", () => {

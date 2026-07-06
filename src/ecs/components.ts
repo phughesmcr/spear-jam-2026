@@ -334,6 +334,24 @@ export const LightEmitter: Component<LightEmitterSchema, typeof LIGHT_EMITTER_ST
   schema: LIGHT_EMITTER_STORAGE,
 });
 
+export type SoundEmitterSchema = {
+  soundId: number;
+  radius: number;
+  volume: number;
+};
+const SOUND_EMITTER_STORAGE = {
+  soundId: Uint8Array,
+  radius: Uint8Array,
+  volume: Float32Array,
+};
+export const SoundEmitter: Component<SoundEmitterSchema, typeof SOUND_EMITTER_STORAGE> = new Component<
+  SoundEmitterSchema,
+  typeof SOUND_EMITTER_STORAGE
+>({
+  name: "soundEmitter",
+  schema: SOUND_EMITTER_STORAGE,
+});
+
 export const TurnTaker: Component<null> = new Component<null>({ name: "turnTaker" });
 
 export const Enemy: Component<null> = new Component<null>({ name: "enemy" });
@@ -464,6 +482,7 @@ export const ALL_COMPONENTS: DynamicComponent[] = [
   TerminalDestination,
   Item,
   LightEmitter,
+  SoundEmitter,
   TurnTaker,
   Enemy,
   EnemyAwareness,

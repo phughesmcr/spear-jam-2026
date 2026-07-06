@@ -22,6 +22,7 @@ import { createGameSession, type GameSession } from "@/src/ecs/session.ts";
 import { dialogueTreeCode, DialogueTreeId } from "@/src/dialogue/dialogue.ts";
 import type { PlayerCommandResult } from "@/src/game/commands.ts";
 import { DisplayName, displayNameCode } from "@/src/game/names.ts";
+import { type EnemyIdleSoundSource, type SoundEmitterSnapshot, SoundId } from "@/src/game/sound.ts";
 import { storyEventCode, StoryEventId, StoryFlag, storyTargetCode, StoryTargetId } from "@/src/game/story.ts";
 import { Direction } from "@/src/grid/direction.ts";
 import { createGameMap, KeyColor, terminalDestinationCode, VICTORY_GOTO } from "@/src/map/map.ts";
@@ -209,6 +210,90 @@ Deno.test("terrain barriers block movement but not visibility", async () => {
 
     assertEquals(eventTypes(result), []);
     assertEquals(playerPosition(session), { x: 1, y: 1 });
+  } finally {
+    session[Symbol.dispose]();
+  }
+});
+
+Deno.test("blocked movement results include positional sound cues", async () => {
+  const session = await createGameSession(
+    createGameMap("Blocked", [
+      [0, 0, 0],
+      [0, 0, DEFAULT_WALL_TERRAIN_ID],
+      [0, 0, 0],
+    ], [
+      { prefab: "player", x: 1, y: 1, dir: Direction.East },
+    ]),
+    () => 0,
+  );
+  try {
+    const result = session.handlePlayerCommand({ type: "move", direction: "forward" });
+
+    assertEquals(eventTypes(result), []);
+    assertEquals(result.soundCues, [
+      { soundId: SoundId.BlockedMove, position: { x: 1, y: 1 }, radius: 2 },
+    ]);
+  } finally {
+    session[Symbol.dispose]();
+  }
+});
+
+Deno.test("pickup results include positional sound cues", async () => {
+  const session = await createGameSession(
+    testMap([{ prefab: "key", x: 2, y: 1, color: KeyColor.Red }]),
+    () => 0,
+  );
+  try {
+    const result = session.handlePlayerCommand({ type: "move", direction: "forward" });
+
+    assertEquals(eventTypes(result), ["keyPickedUp"]);
+    assertEquals(result.soundCues, [
+      { soundId: SoundId.PickupKey, position: { x: 2, y: 1 }, radius: 3 },
+    ]);
+  } finally {
+    session[Symbol.dispose]();
+  }
+});
+
+Deno.test("sessions expose ambient emitters and enemy idle sound sources", async () => {
+  const session = await createGameSession(
+    testMap([
+      {
+        prefab: "sound",
+        x: 2,
+        y: 1,
+        soundId: SoundId.AmbientLightBuzz,
+        radius: 4,
+        volume: 0.25,
+      },
+      {
+        prefab: "enemy",
+        x: 3,
+        y: 1,
+        dir: Direction.West,
+        displayName: DisplayName.DigitalDog,
+        archetype: "meleeDog",
+      },
+    ]),
+    () => 0,
+  );
+  try {
+    assertEquals(sessionSoundEmitters(session).map(withoutEntity), [{
+      soundId: SoundId.AmbientLightBuzz,
+      x: 2,
+      y: 1,
+      radius: 4,
+      volume: 0.25,
+    }]);
+    assertEquals(sessionEnemyIdleSoundSources(session).map(withoutEntity), [{
+      soundId: SoundId.EnemyIdle,
+      x: 3,
+      y: 1,
+      radius: 5,
+      volume: 0.42,
+      minDelayMs: 7000,
+      maxDelayMs: 14000,
+    }]);
   } finally {
     session[Symbol.dispose]();
   }
@@ -718,6 +803,25 @@ function sessionDrawables(session: { forEachDrawable(visit: (drawable: DrawableE
   const drawables: DrawableEntity[] = [];
   session.forEachDrawable((drawable) => drawables.push({ ...drawable }));
   return drawables;
+}
+
+function sessionSoundEmitters(session: { forEachSoundEmitter(visit: (emitter: SoundEmitterSnapshot) => void): void }) {
+  const emitters: SoundEmitterSnapshot[] = [];
+  session.forEachSoundEmitter((emitter) => emitters.push({ ...emitter }));
+  return emitters;
+}
+
+function sessionEnemyIdleSoundSources(
+  session: { forEachEnemyIdleSoundSource(visit: (source: EnemyIdleSoundSource) => void): void },
+) {
+  const sources: EnemyIdleSoundSource[] = [];
+  session.forEachEnemyIdleSoundSource((source) => sources.push({ ...source }));
+  return sources;
+}
+
+function withoutEntity<T extends SoundEmitterSnapshot>(source: T): Omit<T, "entity"> {
+  const { entity: _entity, ...snapshot } = source;
+  return snapshot;
 }
 
 function playerPosition(session: { forEachDrawable(visit: (drawable: DrawableEntity) => void): void }) {

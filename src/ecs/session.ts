@@ -29,6 +29,7 @@ import {
   type LightSystem,
   lightSystem,
 } from "@/src/ecs/drawables.ts";
+import { playerWeaponSpec } from "@/src/ecs/combat.ts";
 import { type EnemyTurnSystem, enemyTurnSystem } from "@/src/ecs/enemy.ts";
 import { createCorpse, createMapEntity, createPlayer, type PlayerPrefab } from "@/src/ecs/prefabs.ts";
 import {
@@ -38,7 +39,7 @@ import {
   playerTurnSystem,
   targetMarkerTone,
 } from "@/src/ecs/player_turn.ts";
-import { drawableRenderQuery, mapScopedQuery, spriteAnimationQuery } from "@/src/ecs/queries.ts";
+import { drawableRenderQuery, mapScopedQuery, positionedQuery, spriteAnimationQuery } from "@/src/ecs/queries.ts";
 import { SpatialIndex } from "@/src/ecs/spatial.ts";
 import { createWorld } from "@/src/ecs/world.ts";
 import type { PlayerCommand, PlayerCommandResult } from "@/src/game/commands.ts";
@@ -54,8 +55,21 @@ import {
   playerStatusSnapshotFor,
   resetPlayerProgression,
   restorePlayerProgressionCheckpoint,
+  selectedPlayerWeapon,
 } from "@/src/ecs/progression.ts";
+import {
+  createEnemyIdleSoundSourceScratch,
+  createSoundEmitterScratch,
+  type EnemyIdleSoundSourceSystem,
+  enemyIdleSoundSourceSystem,
+  type EnemyIdleSoundSourceVisitor,
+  type SoundEmitterSystem,
+  soundEmitterSystem,
+  type SoundEmitterVisitor,
+} from "@/src/ecs/sounds.ts";
 import type { RandomSource } from "@/src/game/rng.ts";
+import type { SoundCue } from "@/src/game/sound.ts";
+import { soundCuesForEvents } from "@/src/game/sound_cues.ts";
 import type { TargetMarkerTone } from "@/src/game/state.ts";
 import {
   normalizeStoryFlags,
@@ -84,6 +98,7 @@ const DOOR_NOISE_RADIUS = 4;
 const STORY_MOVE_MS = 260;
 
 type ActorPositionSnapshot = Map<Entity, { readonly x: number; readonly y: number }>;
+type EntityPositionSnapshot = ReadonlyMap<Entity, { readonly x: number; readonly y: number }>;
 export type GameSessionTickResult = {
   readonly needsFrame: boolean;
 };
@@ -117,6 +132,10 @@ export class GameSession implements Disposable {
   private readonly drawableScratch = createDrawableRenderScratch();
   private readonly lightSystem: LightSystem;
   private readonly lightScratch = createLightEntityScratch();
+  private readonly soundEmitterSystem: SoundEmitterSystem;
+  private readonly soundEmitterScratch = createSoundEmitterScratch();
+  private readonly enemyIdleSoundSourceSystem: EnemyIdleSoundSourceSystem;
+  private readonly enemyIdleSoundSourceScratch = createEnemyIdleSoundSourceScratch();
   private readonly playerTurnSystem: PlayerTurnSystem;
   private readonly enemyTurnSystem: EnemyTurnSystem;
   private spatial: SpatialIndex;
@@ -138,6 +157,8 @@ export class GameSession implements Disposable {
     this.random = random;
     this.drawableSystem = world.systems.create(drawableSystem);
     this.lightSystem = world.systems.create(lightSystem);
+    this.soundEmitterSystem = world.systems.create(soundEmitterSystem);
+    this.enemyIdleSoundSourceSystem = world.systems.create(enemyIdleSoundSourceSystem);
     this.playerTurnSystem = world.systems.create(playerTurnSystem);
     this.enemyTurnSystem = world.systems.create(enemyTurnSystem);
     this.spatial = new SpatialIndex(world, map);
@@ -183,6 +204,20 @@ export class GameSession implements Disposable {
     });
   }
 
+  forEachSoundEmitter(visit: SoundEmitterVisitor): void {
+    this.soundEmitterSystem({
+      scratch: this.soundEmitterScratch,
+      visit,
+    });
+  }
+
+  forEachEnemyIdleSoundSource(visit: EnemyIdleSoundSourceVisitor): void {
+    this.enemyIdleSoundSourceSystem({
+      scratch: this.enemyIdleSoundSourceScratch,
+      visit,
+    });
+  }
+
   getVisibility(): TileVisibility {
     return this.visibility;
   }
@@ -209,7 +244,28 @@ export class GameSession implements Disposable {
   }
 
   handlePlayerCommand(command: PlayerCommand): PlayerCommandResult {
-    return this.commitPlayerAction(this.playerTurnSystem({ ...this.playerTurnContext(), command }));
+    const positionsBefore = this.entityPositionSnapshot();
+    const playerPositionBefore = this.getPlayerPosition();
+    const playerWeaponSlot = selectedPlayerWeapon(this.world, this.playerEntity);
+    const playerWeapon = playerWeaponSpec(playerWeaponSlot);
+    const action = this.playerTurnSystem({ ...this.playerTurnContext(), command });
+    const dialogueTarget = action.type === "dialogue" ? action.target : undefined;
+    const result = this.commitPlayerAction(action);
+    const playerPositionAfter = this.getPlayerPosition();
+    const blockedMove = command.type === "move" &&
+      samePosition(playerPositionBefore, playerPositionAfter) &&
+      result.events.length === 0;
+    const soundCues = soundCuesForEvents(result.events, {
+      playerEntity: this.playerEntity,
+      playerPosition: playerPositionAfter,
+      positionsBefore,
+      positionsAfter: this.entityPositionSnapshot(),
+      blockedMove,
+      dialogueTarget,
+      playerWeaponSlot,
+      playerWeaponRadius: playerWeapon.noiseRadius,
+    });
+    return withSoundCues(result, soundCues);
   }
 
   closeDialogue(): void {
@@ -460,6 +516,15 @@ export class GameSession implements Disposable {
     return positions;
   }
 
+  private entityPositionSnapshot(): EntityPositionSnapshot {
+    const positions = new Map<Entity, { readonly x: number; readonly y: number }>();
+    for (const entity of this.world.entities.query(positionedQuery)) {
+      const position = this.world.components.readEntityData(GridPos, entity);
+      if (position !== undefined) positions.set(entity, { x: position.x, y: position.y });
+    }
+    return positions;
+  }
+
   private applyWalkAnimations(positions: ActorPositionSnapshot, nowMs: number): void {
     for (const [entity, from] of positions) {
       if (!this.world.entities.isActive(entity)) continue;
@@ -529,6 +594,28 @@ export class GameSession implements Disposable {
     this.disposed = true;
     void this.world.destroy();
   }
+}
+
+function withSoundCues(result: PlayerCommandResult, soundCues: readonly SoundCue[]): PlayerCommandResult {
+  if (soundCues.length === 0) return result;
+
+  switch (result.type) {
+    case "continue":
+      return { type: "continue", events: result.events, soundCues };
+    case "dialogue":
+      return { type: "dialogue", events: result.events, dialogue: result.dialogue, soundCues };
+    case "mapChange":
+      return { type: "mapChange", events: result.events, mapChange: result.mapChange, soundCues };
+    case "outcome":
+      return { type: "outcome", events: result.events, outcome: result.outcome, soundCues };
+  }
+}
+
+function samePosition(
+  a: { readonly x: number; readonly y: number },
+  b: { readonly x: number; readonly y: number },
+): boolean {
+  return a.x === b.x && a.y === b.y;
 }
 
 function assertUniqueStoryTargets(world: World): void {

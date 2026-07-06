@@ -3,6 +3,7 @@ import {
   Door,
   Drawable,
   Enemy,
+  EnemyArchetypeComponent,
   EnemyAwareness,
   Facing,
   GridPos,
@@ -12,6 +13,7 @@ import {
   MapScoped,
   Player,
   Secret,
+  SoundEmitter,
   Sprite,
   SpriteAnimation,
   TurnTaker,
@@ -45,6 +47,16 @@ export const spriteAnimationQuery = new Query({
 /** All map-authored light emitters */
 export const lightRenderQuery = new Query({
   all: { gridPos: GridPos, lightEmitter: LightEmitter },
+});
+
+/** All map-authored positional looping sound emitters */
+export const soundEmitterQuery = new Query({
+  all: { gridPos: GridPos, soundEmitter: SoundEmitter },
+});
+
+/** All active enemies that can emit sparse idle sounds */
+export const enemyIdleSoundSourceQuery = new Query({
+  all: { enemy: Enemy, gridPos: GridPos, enemyArchetype: EnemyArchetypeComponent },
 });
 
 /** The singleton player command actor */

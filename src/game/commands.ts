@@ -1,5 +1,6 @@
 import type { CommandSlot, DialogueState } from "@/src/game/state.ts";
 import type { GameEvent } from "@/src/game/events.ts";
+import type { SoundCue } from "@/src/game/sound.ts";
 
 export type RelativeMoveDirection = "forward" | "backward" | "left" | "right";
 export type TurnDirection = "left" | "right";
@@ -30,10 +31,25 @@ export type MapChange = {
 export type GameOutcome = "victory" | "defeat";
 
 export type PlayerCommandResult =
-  | { readonly type: "continue"; readonly events: readonly GameEvent[] }
-  | { readonly type: "mapChange"; readonly events: readonly GameEvent[]; readonly mapChange: MapChange }
-  | { readonly type: "dialogue"; readonly events: readonly GameEvent[]; readonly dialogue: DialogueState }
-  | { readonly type: "outcome"; readonly events: readonly GameEvent[]; readonly outcome: GameOutcome };
+  | { readonly type: "continue"; readonly events: readonly GameEvent[]; readonly soundCues?: readonly SoundCue[] }
+  | {
+    readonly type: "mapChange";
+    readonly events: readonly GameEvent[];
+    readonly soundCues?: readonly SoundCue[];
+    readonly mapChange: MapChange;
+  }
+  | {
+    readonly type: "dialogue";
+    readonly events: readonly GameEvent[];
+    readonly soundCues?: readonly SoundCue[];
+    readonly dialogue: DialogueState;
+  }
+  | {
+    readonly type: "outcome";
+    readonly events: readonly GameEvent[];
+    readonly soundCues?: readonly SoundCue[];
+    readonly outcome: GameOutcome;
+  };
 
 const MOVE_DIRECTION_OFFSETS: Readonly<Record<RelativeMoveDirection, number>> = {
   forward: 0,

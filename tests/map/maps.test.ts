@@ -1,4 +1,5 @@
 import { assertEquals, assertThrows } from "@std/assert";
+import { SoundId } from "@/src/game/sound.ts";
 import { TERRAIN_CATALOG } from "@/src/map/terrain_palettes.ts";
 import { loadGameMapsData } from "@/src/map/maps.ts";
 
@@ -14,6 +15,7 @@ Deno.test("loadGameMapsData validates compact compiled map data", () => {
           { prefab: "uplinkCode", x: 1, y: 0 },
           { prefab: "uplinkTerminal", x: 2, y: 0, goto: "victory" },
           { prefab: "light", x: 1, y: 0, color: "#66ccff", radius: 4, flickerAmount: 0.2, flickerSpeed: 9 },
+          { prefab: "sound", x: 1, y: 0, soundId: SoundId.AmbientHum, radius: 5, volume: 0.5 },
         ],
       },
     ],
@@ -26,6 +28,7 @@ Deno.test("loadGameMapsData validates compact compiled map data", () => {
     { prefab: "uplinkCode", x: 1, y: 0 },
     { prefab: "uplinkTerminal", x: 2, y: 0, goto: "victory" },
     { prefab: "light", x: 1, y: 0, color: "#66ccff", radius: 4, flickerAmount: 0.2, flickerSpeed: 9 },
+    { prefab: "sound", x: 1, y: 0, soundId: SoundId.AmbientHum, radius: 5, volume: 0.5 },
   ]);
 });
 

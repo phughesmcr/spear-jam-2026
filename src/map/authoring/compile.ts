@@ -2,6 +2,7 @@ import { DialogueTreeId } from "@/src/dialogue/dialogue.ts";
 import { ENEMY_ARCHETYPE_CODES, enemyCatalogEntry } from "@/src/ecs/enemy_catalog.ts";
 import { ExamineTextId } from "@/src/game/examine_content.ts";
 import { DisplayName } from "@/src/game/names.ts";
+import { AMBIENT_SOUND_IDS, type AmbientSoundId } from "@/src/game/sound.ts";
 import { storyEventIdFor, storyTargetIdFor } from "@/src/game/story.ts";
 import {
   type AttackDef,
@@ -19,7 +20,7 @@ import {
   mapEntityPrefab,
   PREFAB_AUTHORING_PROPERTY_NAMES,
 } from "@/src/map/entity_content.ts";
-import { createGameMap, type EntityDef, type GameMap, type LightDef } from "@/src/map/map.ts";
+import { createGameMap, type EntityDef, type GameMap, type LightDef, type SoundDef } from "@/src/map/map.ts";
 import { TERRAIN_CATALOG } from "@/src/map/terrain_palettes.ts";
 import {
   createTilesetRegistry,
@@ -57,6 +58,7 @@ type RequiredLayers = {
   readonly terrain: TiledLayer;
   readonly objects: TiledLayer;
   readonly lights?: TiledLayer;
+  readonly sounds?: TiledLayer;
 };
 
 type GridPosition = {
@@ -80,6 +82,7 @@ type Mutable<T> = {
 const NO_PROPERTY_NAMES: ReadonlySet<string> = new Set();
 const MAP_PROPERTY_NAMES: ReadonlySet<string> = new Set(["name", "campaignOrder"]);
 const LIGHT_PROPERTY_NAMES: ReadonlySet<string> = new Set(["color", "radius", "flickerAmount", "flickerSpeed"]);
+const SOUND_PROPERTY_NAMES: ReadonlySet<string> = new Set(["soundId", "radius", "volume"]);
 const DIRECTIONS: Readonly<Record<string, number>> = {
   north: 0,
   east: 1,
@@ -113,6 +116,7 @@ export function compileTiledMap(source: TiledMap, options: CompileTiledMapOption
   const entities = [
     ...compileEntities(source, layers.objects, registry, options),
     ...compileLights(source, layers.lights),
+    ...compileSounds(source, layers.sounds),
   ];
 
   return {
@@ -138,6 +142,7 @@ function requiredLayers(source: TiledMap): RequiredLayers {
   let terrain: TiledLayer | undefined;
   let objects: TiledLayer | undefined;
   let lights: TiledLayer | undefined;
+  let sounds: TiledLayer | undefined;
   for (const layer of source.layers) {
     validateLayerCommon(layer);
     switch (layer.name) {
@@ -156,6 +161,11 @@ function requiredLayers(source: TiledMap): RequiredLayers {
         if (lights !== undefined) throw new Error(`Tiled map has duplicate lights layers.`);
         lights = layer;
         break;
+      case "sounds":
+        if (layer.type !== "objectgroup") throw new Error(`Layer "sounds" must be an object layer.`);
+        if (sounds !== undefined) throw new Error(`Tiled map has duplicate sounds layers.`);
+        sounds = layer;
+        break;
       default:
         throw new Error(`Unsupported gameplay layer "${layer.name}".`);
     }
@@ -163,7 +173,12 @@ function requiredLayers(source: TiledMap): RequiredLayers {
 
   if (terrain === undefined) throw new Error(`Tiled map is missing terrain layer.`);
   if (objects === undefined) throw new Error(`Tiled map is missing objects layer.`);
-  return lights === undefined ? { terrain, objects } : { terrain, objects, lights };
+  return {
+    terrain,
+    objects,
+    ...(lights === undefined ? {} : { lights }),
+    ...(sounds === undefined ? {} : { sounds }),
+  };
 }
 
 function validateLayerCommon(layer: TiledLayer): void {
@@ -268,12 +283,25 @@ function compileLights(source: TiledMap, layer: TiledLayer | undefined): readonl
   return (layer.objects ?? []).map((object, index) => compileLight(source, object, index));
 }
 
+function compileSounds(source: TiledMap, layer: TiledLayer | undefined): readonly SoundDef[] {
+  if (layer === undefined) return [];
+  return (layer.objects ?? []).map((object, index) => compileSound(source, object, index));
+}
+
 function compileLight(source: TiledMap, object: TiledObject, index: number): LightDef {
   const context = objectContext(object, index);
   validateObjectAuthoringState(object, context);
   const properties = readProperties(object.properties, LIGHT_PROPERTY_NAMES, context);
   const position = objectGridPosition(object, source.tilewidth, source.tileheight, context);
   return compileLightEntity(position, properties, context);
+}
+
+function compileSound(source: TiledMap, object: TiledObject, index: number): SoundDef {
+  const context = objectContext(object, index);
+  validateObjectAuthoringState(object, context);
+  const properties = readProperties(object.properties, SOUND_PROPERTY_NAMES, context);
+  const position = objectGridPosition(object, source.tilewidth, source.tileheight, context);
+  return compileSoundEntity(position, properties, context);
 }
 
 function compileEntity(
@@ -288,6 +316,9 @@ function compileEntity(
   const prefab = mapEntityPrefab(requiredString(resolved.properties, "prefab", context), context);
   if (prefab === "light") {
     throw new Error(`${context}: Light objects must be authored on the dedicated "lights" layer.`);
+  }
+  if (prefab === "sound") {
+    throw new Error(`${context}: Sound objects must be authored on the dedicated "sounds" layer.`);
   }
   validatePropertyNames(resolved.properties, PREFAB_AUTHORING_PROPERTY_NAMES[prefab], context);
 
@@ -385,6 +416,23 @@ function compileLightEntity(
     ...optionalLightNumberField(properties, "flickerAmount", context),
     ...optionalLightNumberField(properties, "flickerSpeed", context),
   }, context) as LightDef;
+}
+
+function compileSoundEntity(
+  position: GridPosition,
+  properties: PropertyMap,
+  context: string,
+): SoundDef {
+  const radius = requiredInteger(properties, "radius", context);
+  if (radius <= 0) throw new Error(`${context}: Property "radius" must be positive.`);
+
+  return parseEntity({
+    prefab: "sound",
+    ...position,
+    soundId: requiredSoundId(properties, context),
+    radius,
+    ...optionalSoundVolume(properties, context),
+  }, context) as SoundDef;
 }
 
 function parseEntity(entity: EntityDef, context: string): EntityDef {
@@ -603,6 +651,15 @@ function requiredDecorationKind(properties: PropertyMap, context: string): Decor
   );
 }
 
+function requiredSoundId(properties: PropertyMap, context: string): AmbientSoundId {
+  return knownString(
+    AMBIENT_SOUND_IDS,
+    requiredString(properties, "soundId", context),
+    "ambient sound id",
+    `${context} property "soundId"`,
+  );
+}
+
 function requiredWeaponSlot(properties: PropertyMap, context: string): 2 | 3 {
   const slot = requiredInteger(properties, "slot", context);
   if (slot !== 2 && slot !== 3) throw new Error(`${context}: Property "slot" must be 2 or 3.`);
@@ -699,6 +756,13 @@ function optionalLightNumberField(properties: PropertyMap, name: string, context
     throw new Error(`${context}: Property "flickerSpeed" must be positive.`);
   }
   return { [name]: value };
+}
+
+function optionalSoundVolume(properties: PropertyMap, context: string): { readonly volume?: number } {
+  const value = optionalNumber(properties, "volume", context);
+  if (value === undefined) return {};
+  if (value < 0 || value > 1) throw new Error(`${context}: Property "volume" must be between 0 and 1.`);
+  return { volume: value };
 }
 
 function optionalBooleanField(properties: PropertyMap, name: string, context: string): Record<string, boolean> {

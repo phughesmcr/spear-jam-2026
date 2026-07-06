@@ -1,4 +1,5 @@
 import { assert, assertEquals } from "@std/assert";
+import { SoundId } from "@/src/game/sound.ts";
 import { createGameMap, KeyColor, SKY_CEILING_TEXTURE, VICTORY_GOTO } from "@/src/map/map.ts";
 import type { TerrainTile } from "@/src/map/map.ts";
 import { GAME_MAPS } from "@/src/map/maps.ts";
@@ -183,6 +184,23 @@ Deno.test("map validation reports entities on blocking terrain and invalid doorw
         { prefab: "door", x: 1, y: 1 },
         { prefab: "uplinkCode", x: 1, y: 0 },
         { prefab: "uplinkTerminal", x: 2, y: 0, goto: VICTORY_GOTO },
+      ]),
+    ]),
+    [],
+  );
+});
+
+Deno.test("map validation allows sound emitters on blocking terrain", () => {
+  assertEquals(
+    validateGameMaps([
+      createGameMap("Ambient Wall", [
+        [0, DEFAULT_WALL_TERRAIN_ID, 0],
+        [0, 0, 0],
+      ], [
+        { prefab: "player", x: 0, y: 1, dir: 1 },
+        { prefab: "sound", x: 1, y: 0, soundId: SoundId.AmbientHum, radius: 5 },
+        { prefab: "uplinkCode", x: 0, y: 0 },
+        { prefab: "uplinkTerminal", x: 2, y: 1, goto: VICTORY_GOTO },
       ]),
     ]),
     [],

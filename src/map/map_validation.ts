@@ -65,7 +65,7 @@ function validateGameMap(map: GameMap, mapNames: ReadonlySet<string>): readonly 
     }
 
     const terrain = terrainAt(map, entity.x, entity.y);
-    if (entity.prefab !== "light" && terrainBlocksMovement(terrain)) {
+    if (entity.prefab !== "light" && entity.prefab !== "sound" && terrainBlocksMovement(terrain)) {
       issues.push(`${map.name}: ${entity.prefab} at (${entity.x},${entity.y}) is placed on blocking terrain.`);
     }
 
@@ -220,6 +220,7 @@ function reachabilityIndexes(map: GameMap): ReachabilityIndexes {
       case "item":
       case "light":
       case "player":
+      case "sound":
       case "weaponPickup":
         break;
     }

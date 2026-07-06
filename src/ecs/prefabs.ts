@@ -32,6 +32,7 @@ import {
   PlayerInventory,
   PlayerProgress,
   Secret,
+  SoundEmitter,
   Sprite,
   SPRITE_DEATH_MS,
   SpriteAnimation,
@@ -79,6 +80,7 @@ import {
 } from "@/src/game/attack.ts";
 import { examineTextCode, ExamineTextId, type ExamineTextId as ExamineTextIdType } from "@/src/game/examine_content.ts";
 import { DisplayName, type DisplayName as DisplayNameType, displayNameCode } from "@/src/game/names.ts";
+import { soundIdCode } from "@/src/game/sound.ts";
 import { storyEventCode, storyEventIdFor, storyTargetCode, storyTargetIdFor } from "@/src/game/story.ts";
 import { normalizeDirection } from "@/src/grid/direction.ts";
 import {
@@ -93,6 +95,7 @@ import {
   type LightDef,
   type NpcDef,
   type PlayerDef,
+  type SoundDef,
   terminalDestinationCode,
   type UplinkCodeDef,
   type UplinkTerminalDef,
@@ -353,6 +356,21 @@ export function createLight(world: World, prefab: LightPrefab): Entity {
   );
 }
 
+export type SoundPrefab = Omit<SoundDef, "prefab">;
+
+export function createSound(world: World, prefab: SoundPrefab): Entity {
+  return world.entities.createWithOrThrow(
+    [
+      [GridPos, { x: prefab.x, y: prefab.y }],
+      [SoundEmitter, {
+        soundId: soundIdCode(prefab.soundId),
+        radius: prefab.radius,
+        volume: prefab.volume ?? 1,
+      }],
+    ] as const,
+  );
+}
+
 function enemyArchetypeForPrefab(archetype: string | undefined): EnemyArchetypeType {
   return archetype === undefined ? DEFAULT_ENEMY_ARCHETYPE : lookup(ENEMY_ARCHETYPES, archetype, "enemy archetype");
 }
@@ -417,6 +435,8 @@ function createMapEntityByPrefab(world: World, prefab: EntityDef): Entity {
       return createDecoration(world, prefab);
     case "light":
       return createLight(world, prefab);
+    case "sound":
+      return createSound(world, prefab);
   }
 }
 

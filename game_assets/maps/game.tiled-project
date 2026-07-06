@@ -77,7 +77,8 @@
         "uplinkTerminal",
         "weaponPickup",
         "item",
-        "decoration"
+        "decoration",
+        "sound"
       ],
       "valuesAsFlags": false
     },
@@ -322,6 +323,17 @@
       "valuesAsFlags": false
     },
     {
+      "id": 18,
+      "name": "SoundId",
+      "storageType": "string",
+      "type": "enum",
+      "values": [
+        "ambientHum",
+        "ambientLightBuzz"
+      ],
+      "valuesAsFlags": false
+    },
+    {
       "color": "#ff0ea5e9",
       "drawFill": true,
       "id": 20,
@@ -360,6 +372,17 @@
       "id": 22,
       "members": [],
       "name": "object_layer",
+      "type": "class",
+      "useAs": [
+        "layer"
+      ]
+    },
+    {
+      "color": "#ff14b8a6",
+      "drawFill": false,
+      "id": 23,
+      "members": [],
+      "name": "sound_layer",
       "type": "class",
       "useAs": [
         "layer"
@@ -637,6 +660,34 @@
         }
       ],
       "name": "decoration",
+      "type": "class",
+      "useAs": [
+        "object"
+      ]
+    },
+    {
+      "color": "#ff14b8a6",
+      "drawFill": false,
+      "id": 40,
+      "members": [
+        {
+          "name": "soundId",
+          "propertyType": "SoundId",
+          "type": "string",
+          "value": "ambientHum"
+        },
+        {
+          "name": "radius",
+          "type": "int",
+          "value": 5
+        },
+        {
+          "name": "volume",
+          "type": "float",
+          "value": 1
+        }
+      ],
+      "name": "sound",
       "type": "class",
       "useAs": [
         "object"

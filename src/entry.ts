@@ -1,8 +1,10 @@
+import { type AudioRuntime, createAudioRuntime } from "@/src/audio/audio_runtime.ts";
 import { createGameSession, type GameSession } from "@/src/ecs/session.ts";
 import { type GameCommand, type PlayerCommand, relativeMoveDirectionOffset } from "@/src/game/commands.ts";
 import { directionDelta, normalizeDirection } from "@/src/grid/direction.ts";
 import { presentationView } from "@/src/game/presentation.ts";
 import { SplitMix32 } from "@/src/game/rng.ts";
+import type { EnemyIdleSoundSource, SoundEmitterSnapshot } from "@/src/game/sound.ts";
 import {
   createGameModel,
   type GameEffect,
@@ -37,8 +39,11 @@ export function startGame(spec: GameSpec): Disposable {
 class Game implements Disposable {
   private readonly spec: GameSpec;
   private readonly controller: AbortController;
+  private readonly audio: AudioRuntime;
   private readonly firstPersonRenderer: FirstPersonRenderer;
   private readonly rng: SplitMix32;
+  private readonly soundEmitters: SoundEmitterSnapshot[] = [];
+  private readonly enemyIdleSources: EnemyIdleSoundSource[] = [];
   private model: GameModel;
   private canvasController: Disposable;
   private canvasSize: GameCanvasSize = DEFAULT_GAME_CANVAS_SIZE;
@@ -58,6 +63,7 @@ class Game implements Disposable {
     this.spec = spec;
     this.controller = controller;
     this.model = createGameModel(spec.startMapName ?? START_MAP_NAME, { showIntro: spec.startMapName === undefined });
+    this.audio = createAudioRuntime(spec.window);
     this.firstPersonRenderer = createFirstPersonRenderer();
     this.rng = new SplitMix32(spec.seed);
     this.canvasController = configureCanvasDpi(
@@ -89,6 +95,7 @@ class Game implements Disposable {
   private updateAndRender(nowMs: number): void {
     if (!this.started || this.controller.signal.aborted) return;
     const tickResult = this.tickSession(nowMs);
+    this.updateAudioListener();
     const presentation = presentationView(this.model.presentation, nowMs);
     const renderResult = renderGameFrame({
       ctx: this.spec.ctx,
@@ -190,6 +197,11 @@ class Game implements Disposable {
 
   private finishMapLoad(mapName: string): void {
     this.firstPersonRenderer.reset();
+    // Position the listener at the new map's player spawn before starting
+    // ambient emitters/music so the first loops are spatialized correctly.
+    this.updateAudioListener();
+    this.syncAudioWorld();
+    this.audio.startMusic();
     this.apply({ type: "mapLoaded", mapName });
   }
 
@@ -215,10 +227,13 @@ class Game implements Disposable {
   }
 
   private handleGameCommand(command: GameCommand): void {
+    void this.audio.unlock();
     this.apply({ type: "gameCommand", command, nowMs: performance.now() });
   }
 
   private handlePointerInput(input: CanvasPointerInput): void {
+    if (input.phase === "down") void this.audio.unlock();
+
     const mode = this.model.mode;
     if (mode.type === "intermission") {
       if (input.phase === "up") {
@@ -271,6 +286,11 @@ class Game implements Disposable {
     const playerEntity = this.session.playerEntity;
     const moveFrom = command.type === "move" ? this.session.getPlayerPosition() : undefined;
     const result = this.session.handlePlayerCommand(command);
+    // Refresh the listener pose before spatializing cues so movement, pickup,
+    // door and attack sounds are panned from the player's new position/facing.
+    this.updateAudioListener();
+    this.audio.playCues(result.soundCues ?? []);
+    this.syncAudioWorld();
     if (command.type === "move" && moveFrom !== undefined) {
       const position = this.session.getPlayerPosition();
       if (position.x === moveFrom.x && position.y === moveFrom.y) {
@@ -339,9 +359,28 @@ class Game implements Disposable {
     );
   }
 
+  private updateAudioListener(): void {
+    const session = this.session;
+    if (session === undefined) return;
+    this.audio.updateListener(session.getPlayerPosition(), session.getPlayerFacing().dir);
+  }
+
+  private syncAudioWorld(): void {
+    const session = this.session;
+    this.soundEmitters.length = 0;
+    this.enemyIdleSources.length = 0;
+    if (session !== undefined) {
+      session.forEachSoundEmitter((emitter) => this.soundEmitters.push({ ...emitter }));
+      session.forEachEnemyIdleSoundSource((source) => this.enemyIdleSources.push({ ...source }));
+    }
+    this.audio.syncAmbientEmitters(this.soundEmitters);
+    this.audio.syncEnemyIdleSources(this.enemyIdleSources);
+  }
+
   [Symbol.dispose](): void {
     this.controller.abort();
     this.cancelPendingFrame();
+    this.audio[Symbol.dispose]();
     this.inputController?.[Symbol.dispose]();
     this.session?.[Symbol.dispose]();
     this.canvasController?.[Symbol.dispose]();

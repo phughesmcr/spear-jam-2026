@@ -4,6 +4,7 @@ import { ENEMY_ARCHETYPE_CODES, enemyCatalogEntry } from "@/src/ecs/enemy_catalo
 import { AttackPattern } from "@/src/game/attack.ts";
 import { ExamineTextId } from "@/src/game/examine_content.ts";
 import { DisplayName } from "@/src/game/names.ts";
+import { AMBIENT_SOUND_IDS } from "@/src/game/sound.ts";
 import { StoryEventId, StoryTargetId } from "@/src/game/story.ts";
 import { type EntityPrefab, KeyColor, SKY_CEILING_TEXTURE, TexturePack, VICTORY_GOTO } from "@/src/map/map.ts";
 import {
@@ -82,6 +83,7 @@ export type EntityMarkerType = (typeof ENTITY_MARKER_TYPES)[number];
 const PREFAB_AUTHORING_VALUES = [
   ...ENTITY_MARKER_TYPES,
   "decoration",
+  "sound",
 ] as const satisfies readonly EntityPrefab[];
 
 export type TiledProjectCommand = {
@@ -121,7 +123,7 @@ export type TiledClassPropertyType = {
 export type TiledClassMember = {
   readonly name: string;
   readonly propertyType?: string;
-  readonly type: "bool" | "int" | "string";
+  readonly type: "bool" | "float" | "int" | "string";
   readonly value: boolean | number | string;
 };
 
@@ -162,12 +164,14 @@ export const PROPERTY_TYPES: readonly TiledPropertyType[] = [
   enumPropertyType(15, "DecorationKind", authoringKeys(DecorationKind)),
   enumPropertyType(16, "StoryTargetId", Object.values(StoryTargetId)),
   enumPropertyType(17, "StoryEventId", Object.values(StoryEventId)),
+  enumPropertyType(18, "SoundId", AMBIENT_SOUND_IDS),
   classPropertyType(20, "map_metadata", "#ff0ea5e9", true, ["map"], [
     classMember("name", "string", "Boot Sector"),
     classMember("campaignOrder", "int", 1),
   ]),
   classPropertyType(21, "terrain_layer", "#ff334155", true, ["layer"], []),
   classPropertyType(22, "object_layer", "#ffa855f7", false, ["layer"], []),
+  classPropertyType(23, "sound_layer", "#ff14b8a6", false, ["layer"], []),
   classPropertyType(30, "player", "#ff22d3ee", false, ["object"], [
     classMember("prefab", "string", "player", "Prefab"),
     classMember("facing", "string", "north", "Facing"),
@@ -214,6 +218,11 @@ export const PROPERTY_TYPES: readonly TiledPropertyType[] = [
   classPropertyType(39, "decoration", "#ff64748b", false, ["object"], [
     classMember("prefab", "string", "decoration", "Prefab"),
     classMember("decoration", "string", "serverPile", "DecorationKind"),
+  ]),
+  classPropertyType(40, "sound", "#ff14b8a6", false, ["object"], [
+    classMember("soundId", "string", "ambientHum", "SoundId"),
+    classMember("radius", "int", 5),
+    classMember("volume", "float", 1),
   ]),
 ];
 

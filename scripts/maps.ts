@@ -268,8 +268,20 @@ export function buildScaffoldMap(options: NewMapOptions): TiledMap {
         x: 0,
         y: 0,
       },
+      {
+        class: "sound_layer",
+        draworder: "topdown",
+        id: 4,
+        name: "sounds",
+        objects: [],
+        opacity: 1,
+        type: "objectgroup",
+        visible: true,
+        x: 0,
+        y: 0,
+      },
     ],
-    nextlayerid: 4,
+    nextlayerid: 5,
     nextobjectid: 1,
     orientation: "orthogonal",
     properties: [
@@ -914,9 +926,11 @@ function validateRawMap(path: string, map: TiledMap): void {
   const terrainLayers = map.layers.filter((layer) => layer.name === "terrain");
   const objectLayers = map.layers.filter((layer) => layer.name === "objects");
   const lightLayers = map.layers.filter((layer) => layer.name === "lights");
+  const soundLayers = map.layers.filter((layer) => layer.name === "sounds");
   if (terrainLayers.length !== 1) issues.push(`${path}: expected exactly one "terrain" layer.`);
   if (objectLayers.length !== 1) issues.push(`${path}: expected exactly one "objects" layer.`);
   if (lightLayers.length > 1) issues.push(`${path}: expected at most one "lights" layer.`);
+  if (soundLayers.length > 1) issues.push(`${path}: expected at most one "sounds" layer.`);
   for (const layer of terrainLayers) {
     if (layer.type !== "tilelayer") issues.push(`${path}: layer "terrain" must be a tile layer.`);
     if (layer.class !== undefined && layer.class !== "terrain_layer") {
@@ -933,6 +947,12 @@ function validateRawMap(path: string, map: TiledMap): void {
     if (layer.type !== "objectgroup") issues.push(`${path}: layer "lights" must be an object layer.`);
     if (layer.class !== undefined && layer.class !== "light_layer") {
       issues.push(`${path}: layer "lights" class must be "light_layer" when set.`);
+    }
+  }
+  for (const layer of soundLayers) {
+    if (layer.type !== "objectgroup") issues.push(`${path}: layer "sounds" must be an object layer.`);
+    if (layer.class !== undefined && layer.class !== "sound_layer") {
+      issues.push(`${path}: layer "sounds" class must be "sound_layer" when set.`);
     }
   }
   const floorTileset = map.tilesets?.find((tileset) => tileset.firstgid === FLOOR_TILESET_FIRST_GID);
