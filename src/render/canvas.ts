@@ -1,3 +1,5 @@
+import { debounce, DisposableListener } from "@/src/utils/helpers.ts";
+
 export interface GameCanvasSize {
   readonly width: number;
   readonly height: number;
@@ -43,7 +45,7 @@ export function selectGameCanvasDisplaySize(
   };
 }
 
-export function configureCanvasDpi(
+export function canvasDpiController(
   window: Window,
   canvas: HTMLCanvasElement,
   ctx: CanvasRenderingContext2D,
@@ -62,10 +64,10 @@ export function configureCanvasDpi(
     onApply?.(size);
   };
   applyDpi();
-  window.addEventListener("resize", applyDpi);
+  const listener = new DisposableListener(window, "resize", debounce(applyDpi, 16));
   return {
     [Symbol.dispose]() {
-      window.removeEventListener("resize", applyDpi);
+      listener[Symbol.dispose]();
     },
   };
 }

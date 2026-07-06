@@ -1,6 +1,11 @@
 import type { GameSession } from "@/src/ecs/session.ts";
+import {
+  loadMapSession,
+  resetRunSession,
+  retryMapSession,
+  type SessionLifecycleSpec,
+} from "@/src/entry/session_lifecycle.ts";
 import { type GameCommand, type PlayerCommand, relativeMoveDirectionOffset } from "@/src/game/commands.ts";
-import { directionDelta, normalizeDirection } from "@/src/grid/direction.ts";
 import { firstPersonTouchGesturesEnabled, routePointerInput } from "@/src/game/input_routing.ts";
 import { SplitMix32 } from "@/src/game/rng.ts";
 import { createGameRuntimeLoop, type GameRuntimeLoop } from "@/src/game/runtime_loop.ts";
@@ -11,16 +16,11 @@ import {
   type GameTransitionEvent,
   transition,
 } from "@/src/game/transition.ts";
-import {
-  loadMapSession,
-  resetRunSession,
-  retryMapSession,
-  type SessionLifecycleSpec,
-} from "@/src/entry/session_lifecycle.ts";
+import { directionDelta, normalizeDirection } from "@/src/grid/direction.ts";
 import { setupInput } from "@/src/input/input.ts";
 import type { CanvasPointerInput } from "@/src/input/pointer.ts";
 import { START_MAP_NAME } from "@/src/map/maps.ts";
-import { configureCanvasDpi } from "@/src/render/canvas.ts";
+import { canvasDpiController } from "@/src/render/canvas.ts";
 
 export interface GameSpec {
   ctx: CanvasRenderingContext2D;
@@ -60,7 +60,7 @@ class Game implements Disposable {
       getSession: () => this.session,
     });
     this.rng = new SplitMix32(spec.seed);
-    this.canvasController = configureCanvasDpi(
+    this.canvasController = canvasDpiController(
       spec.window,
       spec.canvas,
       spec.ctx,
