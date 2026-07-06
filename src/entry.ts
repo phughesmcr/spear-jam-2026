@@ -2,6 +2,7 @@ import { type AudioRuntime, createAudioRuntime } from "@/src/audio/audio_runtime
 import { createGameSession, type GameSession } from "@/src/ecs/session.ts";
 import { type GameCommand, type PlayerCommand, relativeMoveDirectionOffset } from "@/src/game/commands.ts";
 import { directionDelta, normalizeDirection } from "@/src/grid/direction.ts";
+import { firstPersonTouchGesturesEnabled, routePointerInput } from "@/src/game/input_routing.ts";
 import { presentationView } from "@/src/game/presentation.ts";
 import { SplitMix32 } from "@/src/game/rng.ts";
 import type { EnemyIdleSoundSource, SoundEmitterSnapshot } from "@/src/game/sound.ts";
@@ -16,10 +17,8 @@ import { setupInput } from "@/src/input/input.ts";
 import type { CanvasPointerInput } from "@/src/input/pointer.ts";
 import { getMap, START_MAP_NAME } from "@/src/map/maps.ts";
 import { configureCanvasDpi, DEFAULT_GAME_CANVAS_SIZE, type GameCanvasSize } from "@/src/render/canvas.ts";
-import { dialogueOptionSlotAt } from "@/src/render/dialogue.ts";
 import { createFirstPersonRenderer, type FirstPersonRenderer } from "@/src/render/first_person.ts";
 import { preloadGameAssets, renderGameFrame } from "@/src/render/game.ts";
-import { verbMenuTargetAt } from "@/src/render/verb_menu.ts";
 
 export interface GameSpec {
   ctx: CanvasRenderingContext2D;
@@ -234,49 +233,12 @@ class Game implements Disposable {
   private handlePointerInput(input: CanvasPointerInput): void {
     if (input.phase === "down") void this.audio.unlock();
 
-    const mode = this.model.mode;
-    if (mode.type === "intermission") {
-      if (input.phase === "up") {
-        this.handleGameCommand({ type: "wait" });
-      }
+    const route = routePointerInput(this.model, this.canvasSize, input);
+    if (route.type === "command") {
+      this.handleGameCommand(route.command);
       return;
     }
-
-    if (mode.type === "victory" || mode.type === "defeat") {
-      if (input.phase === "up") {
-        this.handleGameCommand({ type: "wait" });
-      }
-      return;
-    }
-
-    if (mode.type === "dialogue") {
-      this.apply({
-        type: "dialoguePointer",
-        phase: input.phase,
-        optionSlot: dialogueOptionSlotAt(this.canvasSize, mode.choices, input),
-      });
-      return;
-    }
-
-    if (mode.type === "help") {
-      if (input.phase === "up") {
-        this.handleGameCommand({ type: "wait" });
-      }
-      return;
-    }
-
-    if (mode.type === "playing" && this.model.viewMode === "topDown") {
-      if (input.phase === "up") {
-        this.handleGameCommand({ type: "toggleView" });
-      }
-      return;
-    }
-
-    this.apply({
-      type: "verbPointer",
-      phase: input.phase,
-      target: verbMenuTargetAt(this.canvasSize, input),
-    });
+    if (route.type === "transition") this.apply(route.event);
   }
 
   private handlePlayerCommand(command: PlayerCommand): void {
@@ -355,7 +317,7 @@ class Game implements Disposable {
       () => this.canvasSize,
       (command) => this.handleGameCommand(command),
       (input) => this.handlePointerInput(input),
-      () => this.model.mode.type === "playing" && this.model.viewMode === "firstPerson",
+      () => firstPersonTouchGesturesEnabled(this.model),
     );
   }
 
