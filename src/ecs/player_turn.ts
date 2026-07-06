@@ -1,6 +1,6 @@
 import { type Entity, System, type World } from "@phughesmcr/miski";
 import { Door, Facing, GridPos, Interactable, Locked, Npc, Secret, UplinkTerminal } from "@/src/ecs/components.ts";
-import { attackTargetsForSelectedWeapon, attackWithSelectedWeapon, playerWeaponSpec } from "@/src/ecs/combat.ts";
+import { attackTargetsForSelectedWeapon, attackWithSelectedWeapon, type DefeatEffectWriter } from "@/src/ecs/combat.ts";
 import { collectItemAt, interactWithEntity, type PlayerInteractionResult } from "@/src/ecs/interactions.ts";
 import {
   applyItemPickupToPlayer,
@@ -25,6 +25,7 @@ import type { GameEvent } from "@/src/game/events.ts";
 import type { NoiseStimulus } from "@/src/game/perception.ts";
 import type { RandomSource } from "@/src/game/rng.ts";
 import type { CommandSlot, TargetMarkerTone } from "@/src/game/state.ts";
+import { playerWeaponSpec } from "@/src/game/weapons.ts";
 import { directionDelta, type GridPoint, normalizeDirection } from "@/src/grid/direction.ts";
 
 const MOVE_NOISE_RADIUS = 2;
@@ -40,6 +41,7 @@ export type PlayerTurnContext = {
   readonly player: Entity;
   readonly spatial: SpatialIndex;
   readonly random: RandomSource;
+  readonly writeDefeatEffect?: DefeatEffectWriter;
 };
 
 export type PlayerTurnSystemContext = Omit<PlayerTurnContext, "player"> & {
@@ -178,6 +180,7 @@ function resolvePlayerAttackAction(context: PlayerTurnContext): PlayerActionReso
     selectedWeapon,
     context.spatial,
     context.random,
+    context.writeDefeatEffect,
   );
   return {
     type: "consumeTurn",

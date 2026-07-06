@@ -1,0 +1,272 @@
+import {
+  DecorationKind,
+  type DecorationKind as DecorationKindType,
+  ItemKind,
+  type ItemKind as ItemKindType,
+  SpriteId,
+  type SpriteId as SpriteIdType,
+} from "@/src/ecs/components.ts";
+import { EnemyArchetype, type EnemyArchetype as EnemyArchetypeType } from "@/src/ecs/enemy_catalog.ts";
+import { DisplayName } from "@/src/game/names.ts";
+import { KeyColor, type KeyColor as KeyColorType, keyColorForCode } from "@/src/map/map.ts";
+
+type TopDownShape = "actor" | "badge" | "corpse" | "key" | "player" | "terminal" | "uplinkCode" | "weapon";
+type SpriteSourceFrame = readonly [number, number, number, number];
+type SpriteAsset = {
+  readonly src: string;
+  readonly frame?: SpriteSourceFrame;
+  readonly lightmapSrc?: string;
+  readonly cropFrame?: SpriteSourceFrame;
+};
+
+export type SpriteAppearance = {
+  readonly firstPersonSlot?: number;
+  readonly firstPersonScale: number;
+  readonly firstPersonElevation: number;
+  readonly fallbackColor?: string;
+  readonly asset?: SpriteAsset;
+  readonly enemySheet: boolean;
+  readonly itemBob: boolean;
+  readonly topDownShape: TopDownShape;
+  readonly topDownColor: string;
+  readonly topDownSymbol?: string;
+};
+
+const SCALE_ACTOR = 0.75;
+const SCALE_CORPSE = 0.6;
+const SCALE_ITEM = 0.4;
+const SCALE_TERMINAL = 0.9;
+const SCALE_DECOR_LARGE = 0.85;
+const SCALE_DECOR_TALL = 0.95;
+const SCALE_DECOR_CEILING_LIGHT = 0.45;
+const SCALE_DECOR_CEILING_LONG = 0.75;
+const ELEVATION_CEILING_LIGHT = 1 - SCALE_DECOR_CEILING_LIGHT;
+const ELEVATION_CEILING_LONG = 1 - SCALE_DECOR_CEILING_LONG;
+const ENEMY_CROP: SpriteSourceFrame = [0, 0, 1 / 4, 1 / 4];
+
+// Sprite asset URLs must be static `new URL` literals so Vite can resolve them.
+const JOHN = new URL("../../assets/game/sprites/john.png", import.meta.url).href;
+const DIGITAL_DOG = new URL("../../assets/game/sprites/digital_dog.png", import.meta.url).href;
+const DIGITAL_DOG_LIGHT = new URL("../../assets/game/sprites/digital_dog_lightmap.png", import.meta.url).href;
+const GUNSLINGER = new URL("../../assets/game/sprites/gigabit_gun_slinger.png", import.meta.url).href;
+const GUNSLINGER_LIGHT = new URL("../../assets/game/sprites/gigabit_gun_slinger_lightmap.png", import.meta.url).href;
+const NEOPHYTE = new URL("../../assets/game/sprites/network_neophyte.png", import.meta.url).href;
+const NEOPHYTE_LIGHT = new URL("../../assets/game/sprites/network_neophyte_lightmap.png", import.meta.url).href;
+const SENTINEL = new URL("../../assets/game/sprites/system_sentinel.png", import.meta.url).href;
+const SENTINEL_LIGHT = new URL("../../assets/game/sprites/system_sentinel_lightmap.png", import.meta.url).href;
+const ACOLYTE = new URL("../../assets/game/sprites/agentic_acolyte.png", import.meta.url).href;
+const ACOLYTE_LIGHT = new URL("../../assets/game/sprites/agentic_acolyte_lightmap.png", import.meta.url).href;
+const TERMINAL = new URL("../../assets/game/sprites/uplink_terminal.png", import.meta.url).href;
+const HEALTH = new URL("../../assets/game/sprites/health.png", import.meta.url).href;
+const RED_KEY = new URL("../../assets/game/sprites/red_key.png", import.meta.url).href;
+const BLUE_KEY = new URL("../../assets/game/sprites/blue_key.png", import.meta.url).href;
+const YELLOW_KEY = new URL("../../assets/game/sprites/yellow_key.png", import.meta.url).href;
+const WEAPON_2 = new URL("../../assets/game/sprites/weapon_2.png", import.meta.url).href;
+const WEAPON_3 = new URL("../../assets/game/sprites/weapon_3.png", import.meta.url).href;
+const UPLINK_CODE = new URL("../../assets/game/sprites/uplink_code.png", import.meta.url).href;
+const CORPSE = new URL("../../assets/game/sprites/corpse.png", import.meta.url).href;
+const PISTOL_AMMO = new URL("../../assets/game/sprites/pistol_ammo.png", import.meta.url).href;
+const CANNON_AMMO = new URL("../../assets/game/sprites/cannon_ammo.png", import.meta.url).href;
+const DECOR_SERVER_PILE = new URL("../../assets/game/sprites/decor_server_pile.png", import.meta.url).href;
+const DECOR_CYBORG = new URL("../../assets/game/sprites/decor_cyborg.png", import.meta.url).href;
+const DECOR_CEILING_HOOK = new URL("../../assets/game/sprites/decor_ceiling_hook.png", import.meta.url).href;
+const DECOR_CEILING_LIGHT = new URL("../../assets/game/sprites/decor_ceiling_light.png", import.meta.url).href;
+const DECOR_CEILING_WIRES = new URL("../../assets/game/sprites/decor_ceiling_wires.png", import.meta.url).href;
+
+const SPRITE_APPEARANCES: Readonly<Record<SpriteIdType, SpriteAppearance>> = {
+  [SpriteId.Player]: appearance(undefined, SCALE_ACTOR, "player", "#f0c84b"),
+  [SpriteId.Npc]: appearance(87, SCALE_ACTOR, "actor", "#59d39b"),
+  [SpriteId.John]: appearance(88, SCALE_ACTOR, "actor", "#59d39b", {
+    asset: spriteAsset(JOHN),
+  }),
+  [SpriteId.DigitalDog]: enemyAppearance(0, "#ef4444", "D", DIGITAL_DOG, DIGITAL_DOG_LIGHT),
+  [SpriteId.GigabitGunslinger]: enemyAppearance(16, "#38bdf8", "G", GUNSLINGER, GUNSLINGER_LIGHT),
+  [SpriteId.NetworkNeophyte]: enemyAppearance(32, "#34d399", "N", NEOPHYTE, NEOPHYTE_LIGHT),
+  [SpriteId.SystemSentinel]: enemyAppearance(48, "#f59e0b", "S", SENTINEL, SENTINEL_LIGHT),
+  [SpriteId.AgenticAcolyte]: enemyAppearance(64, "#a78bfa", "A", ACOLYTE, ACOLYTE_LIGHT),
+  [SpriteId.UplinkTerminal]: appearance(80, SCALE_TERMINAL, "terminal", "#22c55e", {
+    asset: spriteAsset(TERMINAL, [0.5, 0, 0.5, 1]),
+  }),
+  [SpriteId.HealthPatch]: itemAppearance(81, "badge", "#ef4444", HEALTH, "+", "#59d39b"),
+  [SpriteId.RedKey]: itemAppearance(82, "key", "#df4f45", RED_KEY),
+  [SpriteId.BlueKey]: itemAppearance(83, "key", "#4f8df7", BLUE_KEY),
+  [SpriteId.YellowKey]: itemAppearance(84, "key", "#f4d35e", YELLOW_KEY),
+  [SpriteId.Weapon2]: itemAppearance(85, "weapon", "#c084fc", WEAPON_2, "2"),
+  [SpriteId.Weapon3]: itemAppearance(86, "weapon", "#c084fc", WEAPON_3, "3"),
+  [SpriteId.UplinkCode]: itemAppearance(89, "uplinkCode", "#7dd3fc", UPLINK_CODE),
+  [SpriteId.Corpse]: appearance(90, SCALE_CORPSE, "corpse", "#4b5563", {
+    asset: spriteAsset(CORPSE),
+  }),
+  [SpriteId.PistolAmmo]: itemAppearance(91, "badge", "#38bdf8", PISTOL_AMMO, "P"),
+  [SpriteId.CannonAmmo]: itemAppearance(92, "badge", "#f97316", CANNON_AMMO, "C"),
+  [SpriteId.DecorServerPile]: decorationAppearance(93, SCALE_DECOR_LARGE, 0, "#64748b", "S", DECOR_SERVER_PILE),
+  [SpriteId.DecorCyborg]: decorationAppearance(94, SCALE_DECOR_TALL, 0, "#94a3b8", "C", DECOR_CYBORG),
+  [SpriteId.DecorCeilingHook]: decorationAppearance(
+    95,
+    SCALE_DECOR_CEILING_LONG,
+    ELEVATION_CEILING_LONG,
+    "#9f7a5d",
+    "H",
+    DECOR_CEILING_HOOK,
+  ),
+  [SpriteId.DecorCeilingLight]: decorationAppearance(
+    96,
+    SCALE_DECOR_CEILING_LIGHT,
+    ELEVATION_CEILING_LIGHT,
+    "#facc15",
+    "L",
+    DECOR_CEILING_LIGHT,
+  ),
+  [SpriteId.DecorCeilingWires]: decorationAppearance(
+    97,
+    SCALE_DECOR_CEILING_LONG,
+    ELEVATION_CEILING_LONG,
+    "#64748b",
+    "W",
+    DECOR_CEILING_WIRES,
+  ),
+};
+
+const SPRITE_APPEARANCE_LIST = Object.values(SPRITE_APPEARANCES);
+
+const ENEMY_SPRITE_IDS: Readonly<Record<EnemyArchetypeType, SpriteIdType>> = {
+  [EnemyArchetype.MeleeDog]: SpriteId.DigitalDog,
+  [EnemyArchetype.Gunslinger]: SpriteId.GigabitGunslinger,
+  [EnemyArchetype.NetworkNeophyte]: SpriteId.NetworkNeophyte,
+  [EnemyArchetype.SystemSentinel]: SpriteId.SystemSentinel,
+  [EnemyArchetype.AgenticAcolyte]: SpriteId.AgenticAcolyte,
+};
+
+const ITEM_SPRITE_IDS: Readonly<
+  Record<Exclude<ItemKindType, typeof ItemKind.Key | typeof ItemKind.Weapon>, SpriteIdType>
+> = {
+  [ItemKind.HealthPatch]: SpriteId.HealthPatch,
+  [ItemKind.PistolAmmo]: SpriteId.PistolAmmo,
+  [ItemKind.CannonAmmo]: SpriteId.CannonAmmo,
+  [ItemKind.UplinkCode]: SpriteId.UplinkCode,
+};
+
+const KEY_SPRITE_IDS: Readonly<Record<KeyColorType, SpriteIdType>> = {
+  [KeyColor.Red]: SpriteId.RedKey,
+  [KeyColor.Blue]: SpriteId.BlueKey,
+  [KeyColor.Yellow]: SpriteId.YellowKey,
+};
+
+const DECORATION_SPRITE_IDS: Readonly<Record<DecorationKindType, SpriteIdType>> = {
+  [DecorationKind.ServerPile]: SpriteId.DecorServerPile,
+  [DecorationKind.Cyborg]: SpriteId.DecorCyborg,
+  [DecorationKind.CeilingHook]: SpriteId.DecorCeilingHook,
+  [DecorationKind.CeilingLight]: SpriteId.DecorCeilingLight,
+  [DecorationKind.CeilingWires]: SpriteId.DecorCeilingWires,
+};
+
+export function spriteAppearance(id: SpriteIdType): SpriteAppearance {
+  return SPRITE_APPEARANCES[id];
+}
+
+export function spriteAppearances(): readonly SpriteAppearance[] {
+  return SPRITE_APPEARANCE_LIST;
+}
+
+export function spriteIdForDisplayName(displayName: DisplayName): SpriteIdType {
+  return displayName === DisplayName.John ? SpriteId.John : SpriteId.Npc;
+}
+
+export function spriteIdForEnemyArchetype(archetype: EnemyArchetypeType): SpriteIdType {
+  return ENEMY_SPRITE_IDS[archetype];
+}
+
+export function spriteIdForItem(item: ItemKindType, value: number): SpriteIdType {
+  switch (item) {
+    case ItemKind.Key:
+      return KEY_SPRITE_IDS[keyColorForCode(value)];
+    case ItemKind.Weapon:
+      return value === 2 ? SpriteId.Weapon2 : SpriteId.Weapon3;
+    default:
+      return ITEM_SPRITE_IDS[item];
+  }
+}
+
+export function spriteIdForDecoration(decoration: DecorationKindType): SpriteIdType {
+  return DECORATION_SPRITE_IDS[decoration];
+}
+
+function spriteAsset(
+  src: string,
+  frame?: SpriteSourceFrame,
+  lightmapSrc?: string,
+  cropFrame?: SpriteSourceFrame,
+): SpriteAsset {
+  return {
+    src,
+    ...(frame === undefined ? {} : { frame }),
+    ...(lightmapSrc === undefined ? {} : { lightmapSrc }),
+    ...(cropFrame === undefined ? {} : { cropFrame }),
+  };
+}
+
+function appearance(
+  firstPersonSlot: number | undefined,
+  firstPersonScale: number,
+  topDownShape: TopDownShape,
+  topDownColor: string,
+  options: Partial<SpriteAppearance> = {},
+): SpriteAppearance {
+  return {
+    firstPersonSlot,
+    firstPersonScale,
+    firstPersonElevation: options.firstPersonElevation ?? 0,
+    ...(firstPersonSlot === undefined ? {} : { fallbackColor: options.fallbackColor ?? topDownColor }),
+    ...(options.asset === undefined ? {} : { asset: options.asset }),
+    enemySheet: options.enemySheet ?? false,
+    itemBob: options.itemBob ?? false,
+    topDownShape,
+    topDownColor,
+    ...(options.topDownSymbol === undefined ? {} : { topDownSymbol: options.topDownSymbol }),
+  };
+}
+
+function enemyAppearance(
+  firstPersonSlot: number,
+  topDownColor: string,
+  topDownSymbol: string,
+  src: string,
+  lightmapSrc: string,
+): SpriteAppearance {
+  return appearance(firstPersonSlot, SCALE_ACTOR, "actor", topDownColor, {
+    enemySheet: true,
+    asset: spriteAsset(src, undefined, lightmapSrc, ENEMY_CROP),
+    topDownSymbol,
+  });
+}
+
+function itemAppearance(
+  firstPersonSlot: number,
+  topDownShape: TopDownShape,
+  topDownColor: string,
+  src: string,
+  topDownSymbol?: string,
+  fallbackColor = topDownColor,
+): SpriteAppearance {
+  return appearance(firstPersonSlot, SCALE_ITEM, topDownShape, topDownColor, {
+    asset: spriteAsset(src),
+    fallbackColor,
+    itemBob: true,
+    ...(topDownSymbol === undefined ? {} : { topDownSymbol }),
+  });
+}
+
+function decorationAppearance(
+  firstPersonSlot: number,
+  firstPersonScale: number,
+  firstPersonElevation: number,
+  topDownColor: string,
+  topDownSymbol: string,
+  src: string,
+): SpriteAppearance {
+  return appearance(firstPersonSlot, firstPersonScale, "badge", topDownColor, {
+    asset: spriteAsset(src),
+    firstPersonElevation,
+    topDownSymbol,
+  });
+}

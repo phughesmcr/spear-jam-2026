@@ -43,14 +43,13 @@ import {
   TurnTaker,
   UplinkTerminal,
 } from "@/src/ecs/components.ts";
+import { DrawableKind, SpriteId } from "@/src/ecs/drawables.ts";
 import {
-  DrawableKind,
-  SpriteId,
   spriteIdForDecoration,
   spriteIdForDisplayName,
   spriteIdForEnemyArchetype,
   spriteIdForItem,
-} from "@/src/ecs/drawables.ts";
+} from "@/src/content/sprites.ts";
 import {
   DEFAULT_ENEMY_ARCHETYPE,
   type EnemyArchetype as EnemyArchetypeType,

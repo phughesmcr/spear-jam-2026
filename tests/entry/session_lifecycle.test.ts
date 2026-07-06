@@ -18,7 +18,7 @@ Deno.test("loadMapSession creates a new game session when none exists", async ()
 
   assert(result !== undefined);
   assertEquals(result.mapName, START_MAP_NAME);
-  assertEquals(result.session.map.name, START_MAP_NAME);
+  assertEquals(result.session.getMap().name, START_MAP_NAME);
   result.session[Symbol.dispose]();
 });
 
@@ -41,7 +41,7 @@ Deno.test("loadMapSession reuses the current game session when it exists", async
 
     assert(loaded !== undefined);
     assert(loaded.session === initial.session);
-    assertEquals(loaded.session.map.name, START_MAP_NAME);
+    assertEquals(loaded.session.getMap().name, START_MAP_NAME);
   } finally {
     initial.session[Symbol.dispose]();
   }

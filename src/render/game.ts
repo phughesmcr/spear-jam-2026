@@ -86,7 +86,7 @@ export function renderGameFrame({
   ctx.fillStyle = BACKGROUND_COLOR;
   ctx.fillRect(0, 0, canvasSize.width, canvasSize.height);
   if (session) {
-    const { map } = session;
+    const map = session.getMap();
     if (viewMode === "firstPerson") {
       if (firstPersonRenderer === undefined) {
         throw new Error("renderGameFrame requires a first-person renderer for first-person sessions.");

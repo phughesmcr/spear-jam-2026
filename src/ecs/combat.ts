@@ -15,20 +15,21 @@ import {
   Sprite,
   type SpriteId,
 } from "@/src/ecs/components.ts";
-import { createDeathEffect } from "@/src/ecs/prefabs.ts";
 import type { SpatialAccess, SpatialLookup, SpatialMutations } from "@/src/ecs/spatial.ts";
 import { CARDINAL_DELTAS, directionDelta } from "@/src/grid/direction.ts";
-import { DEFAULT_ATTACK } from "@/src/game/attack.ts";
 import type { GameEvent } from "@/src/game/events.ts";
 import type { RandomSource } from "@/src/game/rng.ts";
 import { displayNameForCode, displayNameText } from "@/src/game/names.ts";
-import type { AmmoKind, CommandSlot } from "@/src/game/state.ts";
+import type { CommandSlot } from "@/src/game/state.ts";
+import { playerWeaponSpec } from "@/src/game/weapons.ts";
 
-export type PlayerWeaponSpec = AttackSchema & {
-  readonly label: string;
-  readonly ammo?: AmmoKind;
-  readonly noiseRadius: number;
+export type DefeatEffect = {
+  readonly x: number;
+  readonly y: number;
+  readonly sprite: SpriteId;
 };
+
+export type DefeatEffectWriter = (effect: DefeatEffect) => void;
 
 type EntityPredicate = (entity: Entity) => boolean;
 
@@ -42,47 +43,13 @@ export type AttackOutcome =
     readonly critical: boolean;
   };
 
-const MELEE_ATTACK_NOISE_RADIUS = 4;
-const RANGED_ATTACK_NOISE_RADIUS = 8;
-const PLAYER_WEAPON_SPECS: Readonly<Record<CommandSlot, PlayerWeaponSpec>> = {
-  1: {
-    ...DEFAULT_ATTACK,
-    label: "Bit Shifter",
-    noiseRadius: MELEE_ATTACK_NOISE_RADIUS,
-    maxDamage: 2,
-    attackBonus: 4,
-  },
-  2: {
-    ...DEFAULT_ATTACK,
-    label: "Pulse Pistol",
-    ammo: "pistol",
-    noiseRadius: RANGED_ATTACK_NOISE_RADIUS,
-    minDamage: 2,
-    maxDamage: 3,
-    range: 2,
-  },
-  3: {
-    ...DEFAULT_ATTACK,
-    label: "Current Cannon",
-    ammo: "cannon",
-    noiseRadius: RANGED_ATTACK_NOISE_RADIUS,
-    minDamage: 2,
-    maxDamage: 4,
-    range: 6,
-    attackBonus: 1,
-  },
-};
-
-export function playerWeaponSpec(slot: CommandSlot): PlayerWeaponSpec {
-  return PLAYER_WEAPON_SPECS[slot];
-}
-
 export function attackWithSelectedWeapon(
   world: World,
   player: Entity,
   selectedWeapon: CommandSlot,
   spatial: SpatialAccess,
   random: RandomSource,
+  writeDefeatEffect?: DefeatEffectWriter,
 ): readonly GameEvent[] {
   const weapon = playerWeaponSpec(selectedWeapon);
   const targets = attackTargetsForSelectedWeapon(world, player, selectedWeapon, spatial);
@@ -97,7 +64,7 @@ export function attackWithSelectedWeapon(
 
   const events: GameEvent[] = [];
   for (const target of targets) {
-    events.push(...attackEntity(world, player, target, weapon, random, spatial));
+    events.push(...attackEntity(world, player, target, weapon, random, spatial, writeDefeatEffect));
   }
   return events;
 }
@@ -124,6 +91,7 @@ export function attackEntity(
   attack: AttackSchema,
   random: RandomSource,
   spatial: SpatialMutations,
+  writeDefeatEffect?: DefeatEffectWriter,
 ): readonly GameEvent[] {
   const health = world.components.readEntityData(Health, defender);
   if (health === undefined) return [];
@@ -174,7 +142,9 @@ export function attackEntity(
   if (!world.components.entityHas(PlayerTag, defender)) {
     const position = world.components.readEntityData(GridPos, defender);
     const sprite = world.components.readEntityData(Sprite, defender);
-    if (position !== undefined && sprite !== undefined) createDeathEffect(world, position, sprite.id as SpriteId);
+    if (position !== undefined && sprite !== undefined) {
+      writeDefeatEffect?.({ x: position.x, y: position.y, sprite: sprite.id as SpriteId });
+    }
     spatial.removeEntity(defender);
   }
   return events;

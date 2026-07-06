@@ -9,7 +9,6 @@ import {
   PlayerProgress,
   type PlayerProgressSchema,
 } from "@/src/ecs/components.ts";
-import { playerWeaponSpec } from "@/src/ecs/combat.ts";
 import type { ItemPickup } from "@/src/ecs/interactions.ts";
 import type { GameEvent } from "@/src/game/events.ts";
 import {
@@ -20,6 +19,7 @@ import {
   type PlayerStatusSnapshot,
 } from "@/src/game/state.ts";
 import { normalizeStoryFlags, type StoryFlag } from "@/src/game/story.ts";
+import { playerWeaponSpec } from "@/src/game/weapons.ts";
 import { KeyColor, type KeyColor as KeyColorType, keyColorCode } from "@/src/map/map.ts";
 
 const ENEMY_DEFEAT_CREDITS = 10;

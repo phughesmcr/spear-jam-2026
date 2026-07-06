@@ -3,9 +3,8 @@ import {
   DrawableKind,
   SpriteAnimationKind,
   type SpriteAnimationSchema,
-  type SpriteAppearance,
-  spriteAppearance,
 } from "@/src/ecs/drawables.ts";
+import { type SpriteAppearance, spriteAppearance } from "@/src/content/sprites.ts";
 import { type CardinalDirection, normalizeDirection } from "@/src/grid/direction.ts";
 import type { TargetMarkerTone } from "@/src/game/state.ts";
 import type { GameMap } from "@/src/map/map.ts";

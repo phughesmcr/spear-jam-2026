@@ -25,7 +25,7 @@ export interface AudioWorldSession extends PlayerPoseSession {
 }
 
 export interface FrameRenderSession extends PlayerPoseSession {
-  readonly map: GameMap;
+  getMap(): GameMap;
   getPlayerStatus(): PlayerStatusSnapshot;
   getVisibility(): TileVisibility;
   forEachDrawable(visit: DrawableEntityVisitor): void;
@@ -34,5 +34,5 @@ export interface FrameRenderSession extends PlayerPoseSession {
 }
 
 export interface RuntimeSession extends FrameRenderSession, AudioWorldSession, TickSession {
-  readonly playerEntity: Entity;
+  getPlayerEntity(): Entity;
 }

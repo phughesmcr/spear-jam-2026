@@ -13,8 +13,9 @@ import {
   Player as PlayerTag,
 } from "@/src/ecs/components.ts";
 import type { AttackSchema } from "@/src/ecs/components.ts";
-import { attackEntity, attackTargets, playerWeaponSpec, resolveAttack } from "@/src/ecs/combat.ts";
+import { attackEntity, attackTargets, resolveAttack } from "@/src/ecs/combat.ts";
 import { DisplayName, displayNameCode } from "@/src/game/names.ts";
+import { playerWeaponSpec } from "@/src/game/weapons.ts";
 import { SpatialIndex } from "@/src/ecs/spatial.ts";
 import type { SpatialLookup } from "@/src/ecs/spatial.ts";
 import { createWorld } from "@/src/ecs/world.ts";

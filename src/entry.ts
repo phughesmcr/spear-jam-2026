@@ -168,7 +168,7 @@ class Game implements Disposable {
     if (!this.session) return;
 
     const nowMs = performance.now();
-    const playerEntity = this.session.playerEntity;
+    const playerEntity = this.session.getPlayerEntity();
     const moveFrom = command.type === "move" ? this.session.getPlayerPosition() : undefined;
     const result = this.session.handlePlayerCommand(command);
     // Refresh the listener pose before spatializing cues so movement, pickup,

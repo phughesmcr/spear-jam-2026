@@ -1,24 +1,8 @@
 import { assert, assertEquals, assertRejects } from "@std/assert";
-import {
-  DialogueTreeRef,
-  DisplayNameComponent,
-  ExamineTextRef,
-  Health,
-  OnTalkEvent,
-  PlayerEquipment,
-  PlayerInventory,
-  PlayerProgress,
-  SPRITE_ATTACK_MS,
-  SPRITE_DEATH_MS,
-  SPRITE_WALK_MS,
-  SpriteAnimationKind,
-  StoryTarget,
-  TerminalDestination,
-} from "@/src/ecs/components.ts";
+import { SPRITE_ATTACK_MS, SPRITE_DEATH_MS, SPRITE_WALK_MS, SpriteAnimationKind } from "@/src/ecs/components.ts";
 import { DrawableKind, SpriteId } from "@/src/ecs/drawables.ts";
 import type { ActorDrawableEntity, DrawableEntity } from "@/src/ecs/drawables.ts";
-import { mapScopedQuery } from "@/src/ecs/queries.ts";
-import { createGameSession, type GameSession } from "@/src/ecs/session.ts";
+import { createGameSession } from "@/src/ecs/session.ts";
 import { dialogueTreeCode, DialogueTreeId } from "@/src/dialogue/dialogue.ts";
 import type { PlayerCommandResult } from "@/src/game/commands.ts";
 import { DisplayName, displayNameCode } from "@/src/game/names.ts";
@@ -406,17 +390,30 @@ Deno.test("consumed player actions run enemy phase and visibility refresh", asyn
 
 Deno.test("activating an uplink terminal completes the level and clears transient state", async () => {
   const session = await createGameSession(
-    testMap([{ prefab: "uplinkTerminal", x: 2, y: 1, goto: "Next Map" }]),
-    () => 0,
+    testMap([
+      {
+        prefab: "enemy",
+        x: 2,
+        y: 1,
+        dir: Direction.West,
+        displayName: DisplayName.DigitalDog,
+        archetype: "meleeDog",
+        health: 1,
+      },
+      { prefab: "uplinkCode", x: 2, y: 1 },
+      { prefab: "uplinkTerminal", x: 3, y: 1, goto: "Next Map" },
+    ]),
+    sequenceRandom([0.999, 0]),
   );
   try {
-    worldPlayerInventory(session, { keyMask: 1 << 2, hasUplinkCode: 1 });
-    session.world.components.setEntityData(PlayerProgress, session.playerEntity, {
-      credits: 0,
-      score: 0,
-      xp: 5,
-      levelCredits: 13,
-    });
+    assertEquals(eventTypes(session.handlePlayerCommand({ type: "attack" })), [
+      "damageDealt",
+      "entityDefeated",
+      "creditsEarned",
+    ]);
+    assertEquals(eventTypes(session.handlePlayerCommand({ type: "move", direction: "forward" })), [
+      "uplinkCodePickedUp",
+    ]);
 
     const result = session.handlePlayerCommand({ type: "interact" });
 
@@ -426,9 +423,9 @@ Deno.test("activating an uplink terminal completes the level and clears transien
     assertEquals(session.getPlayerStatus().hasUplinkCode, false);
     assertEquals(session.getPlayerStatus().heldKeys, []);
     assertEquals(session.getPlayerStatus().progress, {
-      credits: 0,
-      score: 0,
-      xp: 18,
+      credits: 10,
+      score: 10,
+      xp: 10,
       levelCredits: 0,
     });
   } finally {
@@ -438,11 +435,16 @@ Deno.test("activating an uplink terminal completes the level and clears transien
 
 Deno.test("activating a victory uplink terminal reports the victory outcome", async () => {
   const session = await createGameSession(
-    testMap([{ prefab: "uplinkTerminal", x: 2, y: 1, goto: VICTORY_GOTO }]),
+    testMap([
+      { prefab: "uplinkCode", x: 2, y: 1 },
+      { prefab: "uplinkTerminal", x: 3, y: 1, goto: VICTORY_GOTO },
+    ]),
     () => 0,
   );
   try {
-    worldPlayerInventory(session, { hasUplinkCode: 1 });
+    assertEquals(eventTypes(session.handlePlayerCommand({ type: "move", direction: "forward" })), [
+      "uplinkCodePickedUp",
+    ]);
 
     const result = session.handlePlayerCommand({ type: "interact" });
 
@@ -465,22 +467,15 @@ Deno.test("normal map loads keep the same player entity and durable progression"
     () => 0,
   );
   try {
-    const playerEntity = session.playerEntity;
+    const playerEntity = session.getPlayerEntity();
     session.handlePlayerCommand({ type: "move", direction: "forward" });
     session.handlePlayerCommand({ type: "move", direction: "forward" });
     session.handlePlayerCommand({ type: "move", direction: "forward" });
     session.handlePlayerCommand({ type: "move", direction: "forward" });
-    session.world.components.setEntityData(Health, playerEntity, { current: 4, max: 10 });
-    session.world.components.setEntityData(PlayerProgress, playerEntity, {
-      credits: 7,
-      score: 8,
-      xp: 9,
-      levelCredits: 10,
-    });
 
     session.loadMap(flatTestMap(5, 3, [{ prefab: "player", x: 3, y: 1, dir: Direction.West }]));
 
-    assertEquals(session.playerEntity, playerEntity);
+    assertEquals(session.getPlayerEntity(), playerEntity);
     assertEquals(playerPosition(session), { x: 3, y: 1 });
     assertEquals(session.getPlayerFacing(), { dir: Direction.West });
     assertEquals(session.getPlayerStatus(), {
@@ -488,9 +483,9 @@ Deno.test("normal map loads keep the same player entity and durable progression"
       selectedWeapon: 1,
       unlockedWeapons: [1, 2],
       ammo: { pistol: 5, cannon: 0 },
-      health: { current: 4, max: 10 },
+      health: { current: 10, max: 10 },
       hasUplinkCode: true,
-      progress: { credits: 7, score: 8, xp: 9, levelCredits: 10 },
+      progress: { credits: 0, score: 0, xp: 0, levelCredits: 0 },
     });
   } finally {
     session[Symbol.dispose]();
@@ -515,7 +510,7 @@ Deno.test("normal map loads preserve durable story flags", async () => {
 Deno.test("normal map loads clear old metadata components and write new map metadata", async () => {
   const session = await createGameSession(storyTestMap(), () => 0);
   try {
-    assertEquals(mapScopedMetadata(session), [{
+    assertEquals(session.getMapScopedMetadata(), [{
       displayName: displayNameCode(DisplayName.John),
       dialogueTreeId: dialogueTreeCode(DialogueTreeId.JohnIntro),
       storyId: storyTargetCode(StoryTargetId.John),
@@ -524,7 +519,7 @@ Deno.test("normal map loads clear old metadata components and write new map meta
 
     session.loadMap(testMap([{ prefab: "uplinkTerminal", x: 2, y: 1, goto: "Next Map" }]));
 
-    assertEquals(mapScopedMetadata(session), [{
+    assertEquals(session.getMapScopedMetadata(), [{
       terminalDestination: terminalDestinationCode("Next Map"),
     }]);
   } finally {
@@ -575,7 +570,6 @@ Deno.test("retryMap restores the current level-entry checkpoint and map content"
   try {
     session.handlePlayerCommand({ type: "move", direction: "forward" });
     session.handlePlayerCommand({ type: "move", direction: "forward" });
-    session.world.components.setEntityData(Health, session.playerEntity, { current: 1, max: 10 });
 
     session.retryMap(level);
 
@@ -604,13 +598,6 @@ Deno.test("resetRun clears durable state and returns to the start map spawn", as
     session.handlePlayerCommand({ type: "move", direction: "forward" });
     session.handlePlayerCommand({ type: "move", direction: "forward" });
     session.handlePlayerCommand({ type: "move", direction: "forward" });
-    session.world.components.setEntityData(Health, session.playerEntity, { current: 1, max: 10 });
-    session.world.components.setEntityData(PlayerProgress, session.playerEntity, {
-      credits: 10,
-      score: 20,
-      xp: 30,
-      levelCredits: 40,
-    });
 
     session.resetRun(flatTestMap(5, 3, [{ prefab: "player", x: 2, y: 1, dir: Direction.South }]));
 
@@ -633,22 +620,27 @@ Deno.test("resetRun clears durable state and returns to the start map spawn", as
 
 Deno.test("ranged attacks spend ammo before resolving combat and level credit", async () => {
   const session = await createGameSession(
-    testMap([{
-      prefab: "enemy",
-      x: 2,
-      y: 1,
-      dir: Direction.West,
-      displayName: DisplayName.DigitalDog,
-      archetype: "networkNeophyte",
-    }]),
+    testMap([
+      { prefab: "weaponPickup", x: 2, y: 1, slot: 2 },
+      { prefab: "item", x: 3, y: 1, item: "pistolAmmo", amount: 1 },
+    ], 5),
     sequenceRandom([0.999, 0]),
   );
   try {
-    worldPlayerInventory(session, { pistolAmmo: 1 });
-    session.world.components.setEntityData(PlayerEquipment, session.playerEntity, {
-      selectedWeapon: 2,
-      unlockedWeaponMask: (1 << 1) | (1 << 2),
-    });
+    assertEquals(eventTypes(session.handlePlayerCommand({ type: "move", direction: "forward" })), ["weaponPickedUp"]);
+    assertEquals(eventTypes(session.handlePlayerCommand({ type: "move", direction: "forward" })), ["ammoPickedUp"]);
+    assertEquals(eventTypes(session.handlePlayerCommand({ type: "selectWeapon", slot: 2 })), ["weaponSelected"]);
+
+    session.loadMap(testMap([
+      {
+        prefab: "enemy",
+        x: 3,
+        y: 1,
+        dir: Direction.West,
+        displayName: DisplayName.DigitalDog,
+        archetype: "networkNeophyte",
+      },
+    ]));
 
     const result = session.handlePlayerCommand({ type: "attack" });
 
@@ -850,48 +842,6 @@ function spriteAt(drawables: readonly DrawableEntity[], x: number, y: number) {
     spriteId: sprite.spriteId,
     animation: sprite.animation,
   };
-}
-
-type MapScopedMetadata = Partial<{
-  readonly displayName: number;
-  readonly dialogueTreeId: number;
-  readonly examineTextId: number;
-  readonly storyId: number;
-  readonly onTalkEvent: number;
-  readonly terminalDestination: number;
-}>;
-
-function mapScopedMetadata(session: GameSession): readonly MapScopedMetadata[] {
-  const metadata: MapScopedMetadata[] = [];
-  for (const entity of session.world.entities.query(mapScopedQuery)) {
-    const displayName = session.world.components.readEntityData(DisplayNameComponent, entity)?.displayName;
-    const dialogueTreeId = session.world.components.readEntityData(DialogueTreeRef, entity)?.dialogueTreeId;
-    const examineTextId = session.world.components.readEntityData(ExamineTextRef, entity)?.examineTextId;
-    const storyId = session.world.components.readEntityData(StoryTarget, entity)?.storyId;
-    const onTalkEvent = session.world.components.readEntityData(OnTalkEvent, entity)?.onTalkEvent;
-    const terminalDestination = session.world.components.readEntityData(TerminalDestination, entity)?.destination;
-    const entry: MapScopedMetadata = {
-      ...(displayName === undefined ? {} : { displayName }),
-      ...(dialogueTreeId === undefined ? {} : { dialogueTreeId }),
-      ...(examineTextId === undefined ? {} : { examineTextId }),
-      ...(storyId === undefined ? {} : { storyId }),
-      ...(onTalkEvent === undefined ? {} : { onTalkEvent }),
-      ...(terminalDestination === undefined ? {} : { terminalDestination }),
-    };
-    if (Object.keys(entry).length > 0) metadata.push(entry);
-  }
-  return metadata;
-}
-
-function worldPlayerInventory(
-  session: GameSession,
-  patch: Partial<{ keyMask: number; hasUplinkCode: number; pistolAmmo: number; cannonAmmo: number }>,
-): void {
-  const current = session.world.components.getEntityData(PlayerInventory, session.playerEntity);
-  session.world.components.setEntityData(PlayerInventory, session.playerEntity, {
-    ...current,
-    ...patch,
-  });
 }
 
 async function withFakePerformanceNow(nowMs: number, run: () => Promise<void>): Promise<void> {

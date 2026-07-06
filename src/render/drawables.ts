@@ -2,10 +2,10 @@ import {
   type ActorDrawableEntity,
   type DrawableEntity,
   DrawableKind,
-  spriteAppearance,
   type SpriteDrawableEntity,
   SpriteId,
 } from "@/src/ecs/drawables.ts";
+import { spriteAppearance } from "@/src/content/sprites.ts";
 import type { FrameRenderSession } from "@/src/game/session_ports.ts";
 import { directionDelta } from "@/src/grid/direction.ts";
 import { KeyColor, type KeyColor as KeyColorType } from "@/src/map/map.ts";

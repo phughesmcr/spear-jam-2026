@@ -56,7 +56,7 @@ import {
 import { createRaycastView, type ViewRect } from "@/src/render/raycast/view.ts";
 
 export interface FirstPersonRenderSession {
-  readonly map: GameMap;
+  getMap(): GameMap;
   forEachDrawable(visit: DrawableEntityVisitor): void;
   forEachLight(visit: LightEntityVisitor): void;
 }
@@ -160,7 +160,7 @@ function renderFirstPersonView(
   targetTone?: TargetMarkerTone,
   onAssetLoad?: () => void,
 ): FirstPersonRenderResult {
-  const map = session.map;
+  const map = session.getMap();
   const scene = sceneForMapForState(state, map);
   bakeLoadedAssets(state, ctx, onAssetLoad);
   clearSceneDynamic(scene);

@@ -1,10 +1,15 @@
 import type { Entity, World } from "@phughesmcr/miski";
 import {
+  DialogueTreeRef,
+  DisplayNameComponent,
+  ExamineTextRef,
   Facing,
   type FacingSchema,
   GridPos,
   type GridPosSchema,
   healthFor,
+  OnTalkEvent,
+  StoryTarget,
   TerminalDestination,
 } from "@/src/ecs/components.ts";
 import { normalizeDirection } from "@/src/grid/direction.ts";
@@ -18,7 +23,6 @@ import {
   type LightSystem,
   lightSystem,
 } from "@/src/ecs/drawables.ts";
-import { playerWeaponSpec } from "@/src/ecs/combat.ts";
 import { type EnemyTurnSystem, enemyTurnSystem } from "@/src/ecs/enemy.ts";
 import { createPlayer } from "@/src/ecs/prefabs.ts";
 import {
@@ -28,7 +32,7 @@ import {
   playerTurnSystem,
   targetMarkerTone,
 } from "@/src/ecs/player_turn.ts";
-import { positionedQuery } from "@/src/ecs/queries.ts";
+import { mapScopedQuery, positionedQuery } from "@/src/ecs/queries.ts";
 import type { SpatialIndex } from "@/src/ecs/spatial.ts";
 import { createWorld } from "@/src/ecs/world.ts";
 import type { PlayerCommand, PlayerCommandResult } from "@/src/game/commands.ts";
@@ -60,6 +64,7 @@ import { soundCuesForEvents } from "@/src/game/sound_cues.ts";
 import type { TargetMarkerTone } from "@/src/game/state.ts";
 import { normalizeStoryFlags, type StoryEventId, type StoryFlag } from "@/src/game/story.ts";
 import type { TileVisibility, VisibilityMap } from "@/src/game/visibility.ts";
+import { playerWeaponSpec } from "@/src/game/weapons.ts";
 import { type EntityDef, type GameMap, VICTORY_GOTO } from "@/src/map/map.ts";
 import {
   actorPositionSnapshot,
@@ -67,6 +72,7 @@ import {
   applyEventAnimations,
   applyWalkAnimations,
   setAnimation,
+  writeDefeatEffect,
 } from "@/src/ecs/session/sprite_animations.ts";
 import {
   captureCheckpoint,
@@ -91,6 +97,15 @@ export type GameSessionTickResult = {
   readonly needsFrame: boolean;
 };
 
+export type MapScopedMetadataSnapshot = Partial<{
+  readonly displayName: number;
+  readonly dialogueTreeId: number;
+  readonly examineTextId: number;
+  readonly storyId: number;
+  readonly onTalkEvent: number;
+  readonly terminalDestination: number;
+}>;
+
 export async function createGameSession(
   map: GameMap,
   random: RandomSource,
@@ -112,9 +127,9 @@ export async function createGameSession(
 }
 
 export class GameSession implements Disposable {
-  readonly world: World;
-  readonly playerEntity: Entity;
-  map: GameMap;
+  private readonly world: World;
+  private readonly playerEntity: Entity;
+  private currentMap: GameMap;
   private readonly random: RandomSource;
   private readonly drawableSystem: DrawableSystem;
   private readonly drawableScratch = createDrawableRenderScratch();
@@ -141,7 +156,7 @@ export class GameSession implements Disposable {
   ) {
     this.world = world;
     this.playerEntity = playerEntity;
-    this.map = map;
+    this.currentMap = map;
     this.random = random;
     this.drawableSystem = world.systems.create(drawableSystem);
     this.lightSystem = world.systems.create(lightSystem);
@@ -160,8 +175,38 @@ export class GameSession implements Disposable {
     return playerStatusSnapshotFor(this.world, this.playerEntity);
   }
 
+  getMap(): GameMap {
+    return this.currentMap;
+  }
+
+  getPlayerEntity(): Entity {
+    return this.playerEntity;
+  }
+
   getStoryFlags(): readonly StoryFlag[] {
     return normalizeStoryFlags([...this.storyFlags]);
+  }
+
+  getMapScopedMetadata(): readonly MapScopedMetadataSnapshot[] {
+    const metadata: MapScopedMetadataSnapshot[] = [];
+    for (const entity of this.world.entities.query(mapScopedQuery)) {
+      const displayName = this.world.components.readEntityData(DisplayNameComponent, entity)?.displayName;
+      const dialogueTreeId = this.world.components.readEntityData(DialogueTreeRef, entity)?.dialogueTreeId;
+      const examineTextId = this.world.components.readEntityData(ExamineTextRef, entity)?.examineTextId;
+      const storyId = this.world.components.readEntityData(StoryTarget, entity)?.storyId;
+      const onTalkEvent = this.world.components.readEntityData(OnTalkEvent, entity)?.onTalkEvent;
+      const terminalDestination = this.world.components.readEntityData(TerminalDestination, entity)?.destination;
+      const entry: MapScopedMetadataSnapshot = {
+        ...(displayName === undefined ? {} : { displayName }),
+        ...(dialogueTreeId === undefined ? {} : { dialogueTreeId }),
+        ...(examineTextId === undefined ? {} : { examineTextId }),
+        ...(storyId === undefined ? {} : { storyId }),
+        ...(onTalkEvent === undefined ? {} : { onTalkEvent }),
+        ...(terminalDestination === undefined ? {} : { terminalDestination }),
+      };
+      if (Object.keys(entry).length > 0) metadata.push(entry);
+    }
+    return metadata;
   }
 
   getPlayerPosition(): GridPosSchema {
@@ -211,7 +256,7 @@ export class GameSession implements Disposable {
 
   loadMap(map: GameMap): void {
     this.pendingDialogueStoryEvent = undefined;
-    this.map = map;
+    this.currentMap = map;
     this.replaceMapContent(map);
     this.levelEntryCheckpoint = captureCheckpoint(this.world, this.playerEntity, this.storyFlags);
   }
@@ -219,7 +264,7 @@ export class GameSession implements Disposable {
   retryMap(map: GameMap): void {
     restoreCheckpoint(this.world, this.playerEntity, this.storyFlags, this.levelEntryCheckpoint);
     this.pendingDialogueStoryEvent = undefined;
-    this.map = map;
+    this.currentMap = map;
     this.replaceMapContent(map);
   }
 
@@ -227,7 +272,7 @@ export class GameSession implements Disposable {
     resetPlayerProgression(this.world, this.playerEntity);
     this.storyFlags.clear();
     this.pendingDialogueStoryEvent = undefined;
-    this.map = map;
+    this.currentMap = map;
     this.replaceMapContent(map);
     this.levelEntryCheckpoint = captureCheckpoint(this.world, this.playerEntity, this.storyFlags);
   }
@@ -279,6 +324,7 @@ export class GameSession implements Disposable {
       player: this.playerEntity,
       spatial: this.spatial,
       random: this.random,
+      writeDefeatEffect: (effect) => writeDefeatEffect(this.world, effect),
     };
   }
 
@@ -323,7 +369,7 @@ export class GameSession implements Disposable {
     const position = this.world.components.readEntityData(GridPos, terminal);
     if (position === undefined) throw new Error(`Uplink terminal ${terminal} is missing a grid position.`);
 
-    const terminalDef = this.map.entities.find((
+    const terminalDef = this.currentMap.entities.find((
       entity,
     ): entity is Extract<EntityDef, { readonly prefab: "uplinkTerminal" }> =>
       entity.prefab === "uplinkTerminal" && entity.x === position.x && entity.y === position.y
@@ -367,6 +413,7 @@ export class GameSession implements Disposable {
       random: this.random,
       blocksSight: (x, y) => this.tileBlocksSight(x, y),
       noises: this.noisesForPlayerAction(actionEvents, action.noise),
+      writeDefeatEffect: (effect) => writeDefeatEffect(this.world, effect),
     });
     const allEvents = [...actionEvents, ...enemyEvents];
     const nowMs = performance.now();

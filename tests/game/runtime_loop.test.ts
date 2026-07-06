@@ -160,16 +160,17 @@ function fakeAudioSession(): RuntimeSession {
     forEachEnemyIdleSoundSource(visit: (source: EnemyIdleSoundSource) => void): void {
       visit(enemyIdleSource());
     },
-    map: createGameMap("Fake Map", [[1]], [], {
-      palette: [{ kind: "floor", id: 1, color: "#000000", floor_texture: "floor", ceiling_texture: "ceiling" }],
-    }),
+    getMap: () =>
+      createGameMap("Fake Map", [[1]], [], {
+        palette: [{ kind: "floor", id: 1, color: "#000000", floor_texture: "floor", ceiling_texture: "ceiling" }],
+      }),
     getPlayerStatus: () => playerSnapshot(),
     getVisibility: () => ({ isVisible: () => false, isExplored: () => false }),
     forEachDrawable() {},
     forEachLight() {},
     targetMarkerTone: () => undefined,
     tick: () => ({ needsFrame: false }),
-    playerEntity: 1 as Entity,
+    getPlayerEntity: () => 1 as Entity,
   };
 }
 

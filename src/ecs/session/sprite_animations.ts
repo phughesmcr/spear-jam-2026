@@ -10,8 +10,9 @@ import {
   type SpriteAnimationSchema,
 } from "@/src/ecs/components.ts";
 import { DrawableKind } from "@/src/ecs/drawables.ts";
-import { createCorpse } from "@/src/ecs/prefabs.ts";
+import { createCorpse, createDeathEffect } from "@/src/ecs/prefabs.ts";
 import { drawableRenderQuery, spriteAnimationQuery } from "@/src/ecs/queries.ts";
+import type { DefeatEffect } from "@/src/ecs/combat.ts";
 import type { GameEvent } from "@/src/game/events.ts";
 
 export type ActorPositionSnapshot = Map<Entity, { readonly x: number; readonly y: number }>;
@@ -64,6 +65,10 @@ export function applyEventAnimations(
       });
     }
   }
+}
+
+export function writeDefeatEffect(world: World, effect: DefeatEffect): void {
+  createDeathEffect(world, { x: effect.x, y: effect.y }, effect.sprite);
 }
 
 export function actorPositionSnapshot(world: World): ActorPositionSnapshot {

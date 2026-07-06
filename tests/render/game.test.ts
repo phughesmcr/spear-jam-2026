@@ -120,9 +120,10 @@ function fakeFirstPersonRenderer(needsFrame = false): FirstPersonRenderer {
 
 function fakeSession(onTick?: () => void): FrameRenderSession & { tick(): { readonly needsFrame: boolean } } {
   return {
-    map: createGameMap("Fake Map", [[1]], [], {
-      palette: [{ kind: "floor", id: 1, color: "#000000", floor_texture: "floor", ceiling_texture: "ceiling" }],
-    }),
+    getMap: () =>
+      createGameMap("Fake Map", [[1]], [], {
+        palette: [{ kind: "floor", id: 1, color: "#000000", floor_texture: "floor", ceiling_texture: "ceiling" }],
+      }),
     getPlayerStatus: () => playerSnapshot(),
     getVisibility: () => ({ isVisible: () => false, isExplored: () => false }),
     getPlayerPosition: () => ({ x: 0, y: 0 }),

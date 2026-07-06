@@ -11,7 +11,7 @@ import {
   Health,
   IDLE_AWARENESS,
 } from "@/src/ecs/components.ts";
-import { attackEntity, attackTargets, entityAttack } from "@/src/ecs/combat.ts";
+import { attackEntity, attackTargets, type DefeatEffectWriter, entityAttack } from "@/src/ecs/combat.ts";
 import { DEFAULT_ENEMY_BEHAVIOR_POLICY, type EnemyBehaviorPolicy, enemyCatalogEntry } from "@/src/ecs/enemy_catalog.ts";
 import { enemyTurnQuery } from "@/src/ecs/queries.ts";
 import type { SpatialAccess, SpatialDistanceField, SpatialLookup, SpatialMutations } from "@/src/ecs/spatial.ts";
@@ -37,6 +37,7 @@ export type EnemyTurnContext = {
   readonly random: RandomSource;
   readonly noises?: readonly NoiseStimulus[];
   readonly blocksSight?: BlocksSight;
+  readonly writeDefeatEffect?: DefeatEffectWriter;
 };
 
 type EnemySpatialAccess = SpatialAccess & {
@@ -257,7 +258,7 @@ function attackPlayerIfPossible(
     if (targets.length > 0) {
       const events: GameEvent[] = [];
       for (const target of targets) {
-        events.push(...attackEntity(world, entity, target, attack, random, spatial));
+        events.push(...attackEntity(world, entity, target, attack, random, spatial, context.writeDefeatEffect));
       }
       return events;
     }

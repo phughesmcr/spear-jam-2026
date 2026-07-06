@@ -5,11 +5,11 @@ import {
   SPRITE_DEATH_MS,
   SPRITE_WALK_MS,
   SpriteAnimationKind,
-  spriteAppearance,
   SpriteId,
 } from "@/src/ecs/drawables.ts";
 import type { DrawableEntity, LightEntity } from "@/src/ecs/drawables.ts";
 import type { SpriteId as SpriteIdType } from "@/src/ecs/drawables.ts";
+import { spriteAppearance } from "@/src/content/sprites.ts";
 import { Direction } from "@/src/grid/direction.ts";
 import type { CardinalDirection } from "@/src/grid/direction.ts";
 import { createGameMap, SKY_CEILING_TEXTURE, TexturePack } from "@/src/map/map.ts";
@@ -160,7 +160,7 @@ function sessionFor(
   lights: readonly LightEntity[] = [],
 ): FirstPersonRenderSession {
   return {
-    map,
+    getMap: () => map,
     forEachDrawable(visit): void {
       for (const drawable of drawables) visit(drawable);
     },

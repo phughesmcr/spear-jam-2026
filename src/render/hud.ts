@@ -152,7 +152,7 @@ export function renderHud(
   session: FrameRenderSession,
 ): void {
   const playerStatus = session.getPlayerStatus();
-  const lines = hudLines(session.map.name, playerStatus);
+  const lines = hudLines(session.getMap().name, playerStatus);
   const width = Math.min(HUD_WIDTH, canvasSize.width - HUD_MARGIN * 2);
   if (width <= HUD_PADDING * 2) return;
 

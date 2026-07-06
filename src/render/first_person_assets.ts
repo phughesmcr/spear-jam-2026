@@ -1,4 +1,4 @@
-import { spriteAppearances } from "@/src/ecs/drawables.ts";
+import { spriteAppearances } from "@/src/content/sprites.ts";
 import {
   BarrierTexture,
   type BarrierTexture as BarrierTextureType,
