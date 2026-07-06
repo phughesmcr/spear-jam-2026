@@ -14,6 +14,7 @@ import {
   DOOR_SLIDES,
   ENTITY_AUTHORING_PROPERTY_NAMES,
   ENTITY_SCHEMA,
+  type EntityPrefab,
   ITEM_KINDS,
   type ItemKind,
   KeyColor,
@@ -83,8 +84,11 @@ type Mutable<T> = {
 
 const NO_PROPERTY_NAMES: ReadonlySet<string> = new Set();
 const MAP_PROPERTY_NAMES: ReadonlySet<string> = new Set(["name", "campaignOrder"]);
-const LIGHT_PROPERTY_NAMES: ReadonlySet<string> = new Set(["color", "radius", "flickerAmount", "flickerSpeed"]);
-const SOUND_PROPERTY_NAMES: ReadonlySet<string> = new Set(["soundId", "radius", "volume"]);
+// Lights and sounds live on dedicated layers, so their authored objects carry no "prefab"
+// property. Derive the accepted names from the single ENTITY_DEFINITIONS source of truth
+// rather than restating them, so schema changes cannot drift from the compiler.
+const LIGHT_PROPERTY_NAMES: ReadonlySet<string> = authoredFieldNames("light");
+const SOUND_PROPERTY_NAMES: ReadonlySet<string> = authoredFieldNames("sound");
 const DIRECTIONS: Readonly<Record<string, number>> = {
   north: 0,
   east: 1,
@@ -833,6 +837,12 @@ function addAttackInteger<K extends keyof AttackDef>(
   if (value !== undefined) {
     attack[attackName] = value as AttackDef[K];
   }
+}
+
+function authoredFieldNames(prefab: EntityPrefab): ReadonlySet<string> {
+  const names = new Set(PREFAB_AUTHORING_PROPERTY_NAMES[prefab]);
+  names.delete("prefab");
+  return names;
 }
 
 function objectContext(object: TiledObject, index: number): string {
