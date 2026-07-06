@@ -39,8 +39,17 @@ type AmbientLoop = {
   readonly panner: PannerNode;
 };
 
+const AMBIENT_GAIN_RAMP_SECONDS = 0.18;
+
 export function createAudioRuntime(window: Window): AudioRuntime {
   return new WebAudioRuntime(window);
+}
+
+export function soundAttenuationForDistance(distance: number, radius: number): number {
+  const audibleRadius = Math.max(0, radius);
+  const safeDistance = Math.max(0, distance);
+  if (safeDistance > audibleRadius) return 0;
+  return 1 - safeDistance / (audibleRadius + 1);
 }
 
 class WebAudioRuntime implements AudioRuntime {
@@ -57,6 +66,7 @@ class WebAudioRuntime implements AudioRuntime {
   private readonly enemyIdleTimers = new Map<Entity, number>();
   private readonly pendingCues: SoundCue[] = [];
   private readonly abortController = new AbortController();
+  private listenerPosition?: GridPoint;
   private disposed = false;
 
   constructor(window: Window) {
@@ -82,6 +92,7 @@ class WebAudioRuntime implements AudioRuntime {
   }
 
   updateListener(position: GridPoint, facing: CardinalDirection): void {
+    this.listenerPosition = copyGridPoint(position);
     if (this.graph === undefined) return;
     const point = soundPointForGrid(position);
     const forward = listenerForwardForDirection(facing);
@@ -95,6 +106,7 @@ class WebAudioRuntime implements AudioRuntime {
     setAudioParam(listener.upX, 0, this.graph.context.currentTime);
     setAudioParam(listener.upY, 1, this.graph.context.currentTime);
     setAudioParam(listener.upZ, 0, this.graph.context.currentTime);
+    this.updateAmbientLoopGains();
   }
 
   playCues(cues: readonly SoundCue[]): void {
@@ -201,14 +213,16 @@ class WebAudioRuntime implements AudioRuntime {
 
     const source = graph.context.createBufferSource();
     const gain = graph.context.createGain();
+    const attenuation = cue.position === undefined ? 1 : this.attenuationFor(cue.position, cue.radius ?? entry.radius);
+    if (attenuation <= 0) return;
     source.buffer = buffer;
-    setAudioParam(gain.gain, entry.volume * (cue.volume ?? 1), graph.context.currentTime);
+    setAudioParam(gain.gain, entry.volume * (cue.volume ?? 1) * attenuation, graph.context.currentTime);
     source.connect(gain);
 
     let panner: PannerNode | undefined;
     if (cue.position !== undefined) {
       panner = graph.context.createPanner();
-      updatePanner(panner, cue.position, cue.radius ?? entry.radius, graph.context.currentTime);
+      updatePanner(panner, cue.position, graph.context.currentTime);
       gain.connect(panner);
       panner.connect(graph.sfxGain);
     } else {
@@ -284,17 +298,39 @@ class WebAudioRuntime implements AudioRuntime {
     gain.connect(panner);
     panner.connect(graph.ambientGain);
     const loop = { soundId: latest.soundId, source, gain, panner };
-    this.updateAmbientLoop(loop, latest);
+    this.updateAmbientLoop(loop, latest, 0);
     source.start();
     this.ambientLoops.set(latest.entity, loop);
     if (!entry.loop) source.loop = false;
   }
 
-  private updateAmbientLoop(loop: AmbientLoop, snapshot: SoundEmitterSnapshot): void {
+  private updateAmbientLoop(
+    loop: AmbientLoop,
+    snapshot: SoundEmitterSnapshot,
+    rampSeconds = AMBIENT_GAIN_RAMP_SECONDS,
+  ): void {
     const graph = this.ensureGraph();
     const entry = soundCatalogEntry(snapshot.soundId);
-    setAudioParam(loop.gain.gain, entry.volume * snapshot.volume, graph.context.currentTime);
-    updatePanner(loop.panner, snapshot, snapshot.radius, graph.context.currentTime);
+    const attenuation = this.attenuationFor(snapshot, snapshot.radius);
+    rampAudioParam(
+      loop.gain.gain,
+      entry.volume * snapshot.volume * attenuation,
+      graph.context.currentTime,
+      rampSeconds,
+    );
+    updatePanner(loop.panner, snapshot, graph.context.currentTime);
+  }
+
+  private updateAmbientLoopGains(): void {
+    for (const [entity, loop] of this.ambientLoops) {
+      const snapshot = this.ambientSnapshots.get(entity);
+      if (snapshot !== undefined) this.updateAmbientLoop(loop, snapshot);
+    }
+  }
+
+  private attenuationFor(position: GridPoint, radius: number): number {
+    if (this.listenerPosition === undefined) return 1;
+    return soundAttenuationForDistance(gridDistance(this.listenerPosition, position), radius);
   }
 
   private stopAmbientLoop(entity: Entity): void {
@@ -354,16 +390,34 @@ function setAudioParam(param: AudioParam, value: number, now: number): void {
   param.setValueAtTime(value, now);
 }
 
-function updatePanner(panner: PannerNode, position: GridPoint, radius: number, now: number): void {
+function rampAudioParam(param: AudioParam, value: number, now: number, rampSeconds: number): void {
+  param.cancelScheduledValues(now);
+  if (rampSeconds <= 0) {
+    param.setValueAtTime(value, now);
+    return;
+  }
+  param.setValueAtTime(param.value, now);
+  param.linearRampToValueAtTime(value, now + rampSeconds);
+}
+
+function updatePanner(panner: PannerNode, position: GridPoint, now: number): void {
   const point = soundPointForGrid(position);
   panner.panningModel = "HRTF";
-  panner.distanceModel = "linear";
+  panner.distanceModel = "inverse";
   panner.refDistance = 1;
-  panner.maxDistance = Math.max(1, radius);
-  panner.rolloffFactor = 1;
+  panner.maxDistance = 10_000;
+  panner.rolloffFactor = 0;
   setAudioParam(panner.positionX, point.x, now);
   setAudioParam(panner.positionY, point.y, now);
   setAudioParam(panner.positionZ, point.z, now);
+}
+
+function gridDistance(a: GridPoint, b: GridPoint): number {
+  return Math.hypot(a.x - b.x, a.y - b.y);
+}
+
+function copyGridPoint(point: GridPoint): GridPoint {
+  return { x: point.x, y: point.y };
 }
 
 function copySoundEmitter(emitter: SoundEmitterSnapshot): SoundEmitterSnapshot {
