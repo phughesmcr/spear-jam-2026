@@ -64,7 +64,6 @@ export function setupKeyboard(window: Window, receiver: GameCommandReceiver): Di
 function isCommandKey(code: string): code is CommandKey {
   return code in COMMANDS_BY_KEY;
 }
-export { setupPointer };
 
 export function setupInput(
   window: Window,
