@@ -1,5 +1,5 @@
-import { useEffect, useRef } from "preact/hooks";
 import { startGame } from "@/src/entry.ts";
+import { useEffect, useRef } from "preact/hooks";
 
 export default function Game({ seed, startMapName }: { seed: number; startMapName?: string }) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -19,7 +19,7 @@ export default function Game({ seed, startMapName }: { seed: number; startMapNam
         canvas,
         ctx,
         startMapName,
-        window: globalThis.window,
+        host: globalThis.window,
         seed,
       });
     }

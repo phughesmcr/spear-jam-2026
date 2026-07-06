@@ -42,7 +42,7 @@ type AmbientLoop = {
 const AMBIENT_GAIN_RAMP_SECONDS = 0.18;
 
 export function createAudioRuntime(host: Window): AudioRuntime {
-  return new WebAudioRuntime(window);
+  return new WebAudioRuntime(host);
 }
 
 export function soundAttenuationForDistance(distance: number, radius: number): number {
@@ -70,7 +70,7 @@ class WebAudioRuntime implements AudioRuntime {
   private disposed = false;
 
   constructor(host: Window) {
-    this.window = window;
+    this.host = host;
   }
 
   async unlock(): Promise<void> {
@@ -159,7 +159,7 @@ class WebAudioRuntime implements AudioRuntime {
   private ensureGraph(): AudioGraph {
     if (this.graph !== undefined) return this.graph;
 
-    const AudioContext = (this.window as WindowWithAudioContext).AudioContext;
+    const AudioContext = (this.host as WindowWithAudioContext).AudioContext;
     const context = new AudioContext();
     const masterGain = context.createGain();
     const musicGain = context.createGain();
@@ -186,7 +186,7 @@ class WebAudioRuntime implements AudioRuntime {
     }
 
     const entry = soundCatalogEntry(SoundId.MusicMain);
-    const audio = this.window.document.createElement("audio");
+    const audio = this.host.document.createElement("audio");
     audio.src = entry.src;
     audio.loop = true;
     audio.preload = "auto";
@@ -243,7 +243,7 @@ class WebAudioRuntime implements AudioRuntime {
 
     const graph = this.ensureGraph();
     const entry = soundCatalogEntry(soundId);
-    const load = this.window.fetch(entry.src, { signal: this.abortController.signal })
+    const load = this.host.fetch(entry.src, { signal: this.abortController.signal })
       .then((response) => {
         if (!response.ok) throw new Error(`HTTP ${response.status} for ${entry.src}`);
         return response.arrayBuffer();
@@ -352,7 +352,7 @@ class WebAudioRuntime implements AudioRuntime {
     const source = this.enemyIdleSources.get(entity);
     if (source === undefined) return;
     const delay = randomDelayMs(source.minDelayMs, source.maxDelayMs);
-    const timer = this.window.setTimeout(() => {
+    const timer = this.host.setTimeout(() => {
       this.enemyIdleTimers.delete(entity);
       const latest = this.enemyIdleSources.get(entity);
       if (latest === undefined || !this.unlocked) return;
@@ -370,7 +370,7 @@ class WebAudioRuntime implements AudioRuntime {
   private clearEnemyIdleTimer(entity: Entity): void {
     const timer = this.enemyIdleTimers.get(entity);
     if (timer === undefined) return;
-    this.window.clearTimeout(timer);
+    this.host.clearTimeout(timer);
     this.enemyIdleTimers.delete(entity);
   }
 

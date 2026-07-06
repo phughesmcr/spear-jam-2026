@@ -82,7 +82,7 @@ Deno.test("runtime audio world sync clears stale emitters when the session disap
   const audio = new FakeAudioRuntime();
   let session: RuntimeSession | undefined = fakeAudioSession();
   const runtime = createGameRuntimeLoop({
-    window: new FakeWindow() as unknown as Window,
+    host: new FakeWindow() as unknown as Window,
     document: new FakeDocument() as unknown as Document,
     ctx: new FakeContext() as unknown as CanvasRenderingContext2D,
     signal: new AbortController().signal,
@@ -104,7 +104,7 @@ Deno.test("runtime audio world sync clears stale emitters when the session disap
 Deno.test("runtime updateAudioListener uses the current session pose", () => {
   const audio = new FakeAudioRuntime();
   const runtime = createGameRuntimeLoop({
-    window: new FakeWindow() as unknown as Window,
+    host: new FakeWindow() as unknown as Window,
     document: new FakeDocument() as unknown as Document,
     ctx: new FakeContext() as unknown as CanvasRenderingContext2D,
     signal: new AbortController().signal,

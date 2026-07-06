@@ -3,19 +3,19 @@ import { debounce, DisposableListener } from "@/src/utils/helpers.ts";
 export interface GameCanvasSize {
   readonly width: number;
   readonly height: number;
-  readonly scale: number;
+  readonly scale?: number;
 }
 
 export const GAME_WIDTH = 720;
 export const GAME_HEIGHT = 1280;
 export const MAX_DPR = 2;
-export const DEFAULT_GAME_CANVAS_SIZE: GameCanvasSize = { width: GAME_WIDTH, height: GAME_HEIGHT, scale: 1 };
+export const DEFAULT_GAME_CANVAS_SIZE: GameCanvasSize = { width: GAME_WIDTH, height: GAME_HEIGHT };
 
 export function calculateGameCanvasDisplaySize(
   viewportWidth: number,
   viewportHeight: number,
   size: GameCanvasSize,
-): GameCanvasSize {
+): Required<GameCanvasSize> {
   const aspectRatio = size.width / size.height;
   const widthAtFullHeight = viewportHeight * aspectRatio;
   if (widthAtFullHeight <= viewportWidth) {
@@ -41,7 +41,7 @@ export function canvasSizeController(
   onApply?: (size: GameCanvasSize) => void,
 ): Disposable {
   const applyDpi = (): void => {
-    const size = { width: host.innerWidth, height: host.innerHeight, scale: 1 };
+    const size = { width: host.innerWidth, height: host.innerHeight };
     const displaySize = calculateGameCanvasDisplaySize(host.innerWidth, host.innerHeight, size);
     const dpr = Math.min(host.devicePixelRatio ?? 1, MAX_DPR);
     canvas.style.setProperty("--game-aspect-ratio", String(size.width / size.height));
