@@ -22,6 +22,7 @@ import {
 } from "@/src/map/entity_content.ts";
 import { createGameMap, type EntityDef, type GameMap, type LightDef, type SoundDef } from "@/src/map/map.ts";
 import { TERRAIN_CATALOG } from "@/src/map/terrain_palettes.ts";
+import { flagsBlockAttack, flagsBlockMovement, flagsBlockSight, terrainFlags } from "@/src/map/tile_flags.ts";
 import {
   createTilesetRegistry,
   decodeObjectGid,
@@ -226,16 +227,17 @@ function terrainIdFromGid(gid: number, registry: TilesetRegistry, context: strin
   if (terrainKind !== undefined && terrainKind !== catalogTile.kind) {
     throw new Error(`${context}: Property "terrainKind" does not match terrainId ${terrainId}.`);
   }
+  const flags = terrainFlags(catalogTile);
   const blocking = optionalBoolean(properties, "blocking", context);
-  if (blocking !== (catalogTile.kind !== "floor")) {
+  if (blocking !== flagsBlockMovement(flags)) {
     throw new Error(`${context}: Property "blocking" does not match terrainId ${terrainId}.`);
   }
   const blocksSight = optionalBoolean(properties, "blocksSight", context);
-  if (blocksSight !== (catalogTile.kind === "wall")) {
+  if (blocksSight !== flagsBlockSight(flags)) {
     throw new Error(`${context}: Property "blocksSight" does not match terrainId ${terrainId}.`);
   }
   const blocksAttacks = optionalBoolean(properties, "blocksAttacks", context);
-  if (blocksAttacks !== (catalogTile.kind !== "floor")) {
+  if (blocksAttacks !== flagsBlockAttack(flags)) {
     throw new Error(`${context}: Property "blocksAttacks" does not match terrainId ${terrainId}.`);
   }
 

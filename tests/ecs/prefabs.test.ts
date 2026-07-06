@@ -15,6 +15,7 @@ import {
   EnemyArchetypeComponent,
   ExamineTextRef,
   Health,
+  Interactable,
   Item,
   Npc,
   OnTalkEvent,
@@ -73,6 +74,14 @@ Deno.test("a locked door without a key color is rejected", async () => {
   const world = await createWorld();
 
   assertThrows(() => createDoor(world, { x: 1, y: 1, locked: true }), Error, "key color");
+});
+
+Deno.test("doors are interactable structure entities without blocking occupancy", async () => {
+  const world = await createWorld();
+  const door = createDoor(world, { x: 1, y: 1 });
+
+  assertEquals(world.components.entityHas(Interactable, door), true);
+  assertEquals(world.components.entityHas(Blocking, door), false);
 });
 
 Deno.test("prefabs attach authored examine text when provided", async () => {

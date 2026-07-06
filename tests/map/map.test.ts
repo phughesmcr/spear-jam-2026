@@ -13,7 +13,9 @@ import {
   terrainIsBarrier,
   TexturePack,
 } from "@/src/map/map.ts";
+import { baseFlagsAt, copyBaseFlags, dimensions, tileIndex } from "@/src/map/static_grid.ts";
 import { DEFAULT_BARS_TERRAIN_ID, DEFAULT_WALL_TERRAIN_ID } from "@/src/map/terrain_palettes.ts";
+import { flagsBlockAttack, flagsBlockMovement, flagsBlockSight, terrainFlags, TileFlag } from "@/src/map/tile_flags.ts";
 
 Deno.test("createGameMap rejects ragged terrain rows", () => {
   assertThrows(
@@ -72,6 +74,39 @@ Deno.test("terrain helpers expose movement, sight, and attack semantics", () => 
   assertEquals(terrainBlocksSight(barrier), false);
   assertEquals(terrainBlocksAttacks(barrier), true);
   assertEquals(terrainIsBarrier(barrier), true);
+});
+
+Deno.test("tile flags expose floor, wall, barrier, and out-of-bounds physics", () => {
+  const map = createGameMap("Flag Semantics", [[0, DEFAULT_WALL_TERRAIN_ID, DEFAULT_BARS_TERRAIN_ID]], []);
+  const floor = terrainAt(map, 0, 0);
+  const wall = terrainAt(map, 1, 0);
+  const barrier = terrainAt(map, 2, 0);
+  const blocksAll = TileFlag.BlocksMove | TileFlag.BlocksSight | TileFlag.BlocksAttack;
+
+  assertEquals(terrainFlags(floor), 0);
+  assertEquals(terrainFlags(wall), blocksAll);
+  assertEquals(terrainFlags(barrier), TileFlag.BlocksMove | TileFlag.BlocksAttack);
+  assertEquals(terrainFlags(undefined), blocksAll);
+  assertEquals(flagsBlockMovement(terrainFlags(undefined)), true);
+  assertEquals(flagsBlockSight(terrainFlags(undefined)), true);
+  assertEquals(flagsBlockAttack(terrainFlags(undefined)), true);
+});
+
+Deno.test("static grid exposes dimensions, indices, terrain, and base flag copies", () => {
+  const map = createGameMap("Static Grid", [[0, DEFAULT_WALL_TERRAIN_ID, DEFAULT_BARS_TERRAIN_ID]], []);
+
+  assertEquals(dimensions(map), { width: 3, height: 1 });
+  assertEquals(tileIndex(map, 2, 0), 2);
+  assertEquals(tileIndex(map, -1, 0), undefined);
+  assertEquals(baseFlagsAt(map, 0, 0), 0);
+  assertEquals(baseFlagsAt(map, 1, 0), TileFlag.BlocksMove | TileFlag.BlocksSight | TileFlag.BlocksAttack);
+  assertEquals(baseFlagsAt(map, 2, 0), TileFlag.BlocksMove | TileFlag.BlocksAttack);
+  assertEquals(baseFlagsAt(map, 3, 0), undefined);
+
+  const copy = copyBaseFlags(map);
+  copy[1] = 0;
+
+  assertEquals(baseFlagsAt(map, 1, 0), TileFlag.BlocksMove | TileFlag.BlocksSight | TileFlag.BlocksAttack);
 });
 
 Deno.test("createGameMap accepts a custom terrain texture palette", () => {

@@ -11,12 +11,12 @@ export class DisposableListener implements Disposable {
   }
 }
 
-export function debounce<T extends (...args: any[]) => void>(
-  func: T,
+export function debounce<This, Args extends unknown[]>(
+  func: (this: This, ...args: Args) => void,
   delay: number,
-): (...args: Parameters<T>) => void {
+): (this: This, ...args: Args) => void {
   let timeoutId: ReturnType<typeof setTimeout> | undefined;
-  return function (this: any, ...args: Parameters<T>): void {
+  return function (this: This, ...args: Args): void {
     if (timeoutId) clearTimeout(timeoutId);
     timeoutId = setTimeout(() => {
       func.apply(this, args);

@@ -82,7 +82,6 @@ import {
   replaceMapContent,
   restoreCheckpoint,
   spawnMapScopedEntities,
-  tileBlocksSight,
 } from "@/src/ecs/session/lifecycle.ts";
 import { applyEvent, assertUniqueTargets, queueTalkEvent } from "@/src/ecs/session/story_actions.ts";
 
@@ -411,7 +410,7 @@ export class GameSession implements Disposable {
       player: this.playerEntity,
       spatial: this.spatial,
       random: this.random,
-      blocksSight: (x, y) => this.tileBlocksSight(x, y),
+      blocksSight: (x, y) => this.spatial.tileBlocksSight(x, y),
       noises: this.noisesForPlayerAction(actionEvents, action.noise),
       writeDefeatEffect: (effect) => writeDefeatEffect(this.world, effect),
     });
@@ -446,10 +445,6 @@ export class GameSession implements Disposable {
 
   private refreshVisibility(): void {
     refreshVisibility(this.world, this.playerEntity, this.spatial, this.visibility);
-  }
-
-  private tileBlocksSight(x: number, y: number): boolean {
-    return tileBlocksSight(this.world, this.spatial, x, y);
   }
 
   private noisesForPlayerAction(

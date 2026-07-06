@@ -49,6 +49,7 @@ import {
   TEXTURE_PACK_COLUMNS,
   TEXTURE_PACK_ROWS,
 } from "@/src/map/terrain_palettes.ts";
+import { flagsBlockAttack, flagsBlockMovement, flagsBlockSight, terrainFlags } from "@/src/map/tile_flags.ts";
 
 type GeneratedMap = CompiledTiledMap & {
   readonly sourcePath: string;
@@ -400,7 +401,7 @@ function terrainTileset(name: string, image: string, terrain: readonly TerrainTi
         properties: [
           property("terrainId", tile.id),
           property("terrainKind", tile.kind),
-          property("blocking", tile.kind !== "floor"),
+          property("blocking", flagsBlockMovement(terrainFlags(tile))),
           property("label", `${tile.id}: ${texture}`),
           ...terrainTileProperties(tile),
         ],
@@ -487,24 +488,25 @@ function terrainDisplayTexture(tile: TerrainTile): TexturePackRef {
 }
 
 function terrainTileProperties(tile: TerrainTile): readonly TiledProperty[] {
+  const flags = terrainFlags(tile);
   switch (tile.kind) {
     case "floor":
       return [
-        property("blocksSight", false),
-        property("blocksAttacks", false),
+        property("blocksSight", flagsBlockSight(flags)),
+        property("blocksAttacks", flagsBlockAttack(flags)),
         property("floorTexture", tile.floor_texture, "TextureRef"),
         property("ceilingTexture", tile.ceiling_texture, "TextureRef"),
       ];
     case "wall":
       return [
-        property("blocksSight", true),
-        property("blocksAttacks", true),
+        property("blocksSight", flagsBlockSight(flags)),
+        property("blocksAttacks", flagsBlockAttack(flags)),
         property("wallTexture", tile.wall_texture, "TextureRef"),
       ];
     case "barrier":
       return [
-        property("blocksSight", false),
-        property("blocksAttacks", true),
+        property("blocksSight", flagsBlockSight(flags)),
+        property("blocksAttacks", flagsBlockAttack(flags)),
         property("barrierTexture", tile.barrier_texture),
         property("floorTexture", tile.floor_texture, "TextureRef"),
         property("ceilingTexture", tile.ceiling_texture, "TextureRef"),

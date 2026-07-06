@@ -188,8 +188,7 @@ function interactWithDoor(
   // A secret door keeps its `Secret` marker after opening so it stays disguised
   // as a wall (wall texture, no jambs) while it slides, instead of snapping into
   // a regular-looking door. The open state alone drives the reveal animation.
-  world.components.setEntityData(Door, door, { open: 1 });
-  spatial.setBlocking(door, false);
+  spatial.setDoorOpen(door, true);
   return {
     type: "consumeTurn",
     events: [{

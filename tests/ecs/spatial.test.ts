@@ -2,33 +2,61 @@ import { assertEquals, assertThrows } from "@std/assert";
 import { Blocking, Door, Facing, GridPos, Interactable, Item, ItemKind } from "@/src/ecs/components.ts";
 import { SpatialIndex } from "@/src/ecs/spatial.ts";
 import { createWorld } from "@/src/ecs/world.ts";
-import { KeyColor, keyColorCode } from "@/src/map/map.ts";
+import { createGameMap, KeyColor, keyColorCode } from "@/src/map/map.ts";
+import { DEFAULT_BARS_TERRAIN_ID, DEFAULT_WALL_TERRAIN_ID } from "@/src/map/terrain_palettes.ts";
 import { createEntity, flatTestMap } from "@/tests/ecs/helpers.ts";
 
-Deno.test("SpatialIndex indexes blocking entities, items, and faced entities", async () => {
+Deno.test("SpatialIndex indexes blocking, interactable, item, and faced entities", async () => {
   const world = await createWorld();
   const player = createEntity(world);
+  const blocker = createEntity(world);
   const door = createEntity(world);
   const key = createEntity(world);
 
   world.components.addToEntity(GridPos, player, { x: 1, y: 1 });
   world.components.addToEntity(Facing, player, { dir: 1 });
 
-  world.components.addToEntity(GridPos, door, { x: 2, y: 1 });
+  world.components.addToEntity(GridPos, blocker, { x: 2, y: 1 });
+  world.components.addToEntity(Blocking, blocker);
+
+  world.components.addToEntity(GridPos, door, { x: 3, y: 1 });
   world.components.addToEntity(Door, door, { open: 0 });
   world.components.addToEntity(Interactable, door);
-  world.components.addToEntity(Blocking, door);
 
-  world.components.addToEntity(GridPos, key, { x: 3, y: 1 });
+  world.components.addToEntity(GridPos, key, { x: 4, y: 1 });
   world.components.addToEntity(Item, key, { kind: ItemKind.Key, value: keyColorCode(KeyColor.Red) });
   world.refresh();
 
   const spatial = new SpatialIndex(world, TEST_MAP);
 
-  assertEquals(spatial.blockingEntityAt(2, 1), door);
+  assertEquals(spatial.blockingEntityAt(2, 1), blocker);
+  assertEquals(spatial.blockingEntityAt(3, 1), undefined);
   assertEquals(spatial.positionBlocks(2, 1), true);
-  assertEquals(spatial.itemAt(3, 1), key);
-  assertEquals(spatial.facedEntity({ x: 1, y: 1 }, 1), door);
+  assertEquals(spatial.itemAt(4, 1), key);
+  assertEquals(spatial.facedEntity({ x: 1, y: 1 }, 1), blocker);
+  assertEquals(spatial.facedEntity({ x: 2, y: 1 }, 1), door);
+  assertEquals(spatial.facedEntity({ x: 3, y: 1 }, 1), key);
+});
+
+Deno.test("SpatialIndex reads static movement, sight, and attack flags", async () => {
+  const world = await createWorld();
+  const spatial = new SpatialIndex(
+    world,
+    createGameMap("Static Flags", [[0, DEFAULT_WALL_TERRAIN_ID, DEFAULT_BARS_TERRAIN_ID]], []),
+  );
+
+  assertEquals(spatial.tileBlocks(0, 0), false);
+  assertEquals(spatial.tileBlocksSight(0, 0), false);
+  assertEquals(spatial.tileBlocksAttacks(0, 0), false);
+  assertEquals(spatial.tileBlocks(1, 0), true);
+  assertEquals(spatial.tileBlocksSight(1, 0), true);
+  assertEquals(spatial.tileBlocksAttacks(1, 0), true);
+  assertEquals(spatial.tileBlocks(2, 0), true);
+  assertEquals(spatial.tileBlocksSight(2, 0), false);
+  assertEquals(spatial.tileBlocksAttacks(2, 0), true);
+  assertEquals(spatial.tileBlocks(-1, 0), true);
+  assertEquals(spatial.tileBlocksSight(3, 0), true);
+  assertEquals(spatial.tileBlocksAttacks(3, 0), true);
 });
 
 Deno.test("SpatialIndex keeps its index current when entities move or are removed", async () => {
@@ -135,6 +163,29 @@ Deno.test("SpatialIndex rejects moves to tiles outside the map", async () => {
   assertEquals(world.components.getEntityData(GridPos, actor), { x: 1, y: 1 });
 });
 
+Deno.test("SpatialIndex rejects moves to flag-blocked terrain", async () => {
+  const world = await createWorld();
+  const actor = createEntity(world);
+
+  world.components.addToEntity(GridPos, actor, { x: 1, y: 1 });
+  world.components.addToEntity(Blocking, actor);
+  world.refresh();
+
+  const spatial = new SpatialIndex(
+    world,
+    createGameMap("Blocked Terrain", [
+      [0, 0, 0],
+      [0, 0, DEFAULT_WALL_TERRAIN_ID],
+      [0, 0, 0],
+    ], []),
+  );
+
+  assertThrows(() => spatial.moveEntity(actor, { x: 2, y: 1 }), Error, "blocked tile");
+  assertEquals(world.components.getEntityData(GridPos, actor), { x: 1, y: 1 });
+  assertEquals(spatial.blockingEntityAt(1, 1), actor);
+  assertEquals(spatial.blockingEntityAt(2, 1), undefined);
+});
+
 Deno.test("SpatialIndex rejects moves for entities it never indexed", async () => {
   const world = await createWorld();
   const unpositioned = createEntity(world);
@@ -147,21 +198,69 @@ Deno.test("SpatialIndex rejects moves for entities it never indexed", async () =
 
 Deno.test("SpatialIndex updates blocking ownership through the gateway", async () => {
   const world = await createWorld();
-  const door = createEntity(world);
+  const blocker = createEntity(world);
 
-  world.components.addToEntity(GridPos, door, { x: 2, y: 1 });
-  world.components.addToEntity(Blocking, door);
+  world.components.addToEntity(GridPos, blocker, { x: 2, y: 1 });
+  world.components.addToEntity(Blocking, blocker);
   world.refresh();
 
   const spatial = new SpatialIndex(world, TEST_MAP);
 
-  spatial.setBlocking(door, false);
-  assertEquals(world.components.entityHas(Blocking, door), false);
+  spatial.setBlocking(blocker, false);
+  assertEquals(world.components.entityHas(Blocking, blocker), false);
   assertEquals(spatial.blockingEntityAt(2, 1), undefined);
 
-  spatial.setBlocking(door, true);
-  assertEquals(world.components.entityHas(Blocking, door), true);
-  assertEquals(spatial.blockingEntityAt(2, 1), door);
+  spatial.setBlocking(blocker, true);
+  assertEquals(world.components.entityHas(Blocking, blocker), true);
+  assertEquals(spatial.blockingEntityAt(2, 1), blocker);
+});
+
+Deno.test("SpatialIndex initializes closed door runtime flags without blocking occupancy", async () => {
+  const world = await createWorld();
+  const door = createEntity(world);
+
+  world.components.addToEntity(GridPos, door, { x: 2, y: 1 });
+  world.components.addToEntity(Door, door, { open: 0 });
+  world.components.addToEntity(Interactable, door);
+  world.refresh();
+
+  const spatial = new SpatialIndex(world, TEST_MAP);
+
+  assertEquals(spatial.blockingEntityAt(2, 1), undefined);
+  assertEquals(spatial.facedEntity({ x: 1, y: 1 }, 1), door);
+  assertEquals(spatial.tileBlocks(2, 1), true);
+  assertEquals(spatial.tileBlocksSight(2, 1), true);
+  assertEquals(spatial.tileBlocksAttacks(2, 1), true);
+  assertEquals(spatial.positionBlocks(2, 1), true);
+});
+
+Deno.test("SpatialIndex setDoorOpen toggles runtime flags and keeps doors targetable", async () => {
+  const world = await createWorld();
+  const door = createEntity(world);
+
+  world.components.addToEntity(GridPos, door, { x: 2, y: 1 });
+  world.components.addToEntity(Door, door, { open: 0, slide: 5, openMs: 123 });
+  world.components.addToEntity(Interactable, door);
+  world.refresh();
+
+  const spatial = new SpatialIndex(world, TEST_MAP);
+
+  spatial.setDoorOpen(door, true);
+
+  assertEquals(world.components.getEntityData(Door, door), { open: 1, slide: 5, openMs: 123 });
+  assertEquals(spatial.tileBlocks(2, 1), false);
+  assertEquals(spatial.tileBlocksSight(2, 1), false);
+  assertEquals(spatial.tileBlocksAttacks(2, 1), false);
+  assertEquals(spatial.positionBlocks(2, 1), false);
+  assertEquals(spatial.facedEntity({ x: 1, y: 1 }, 1), door);
+
+  spatial.setDoorOpen(door, false);
+
+  assertEquals(world.components.getEntityData(Door, door), { open: 0, slide: 5, openMs: 123 });
+  assertEquals(spatial.tileBlocks(2, 1), true);
+  assertEquals(spatial.tileBlocksSight(2, 1), true);
+  assertEquals(spatial.tileBlocksAttacks(2, 1), true);
+  assertEquals(spatial.facedEntity({ x: 1, y: 1 }, 1), door);
 });
 
 Deno.test("SpatialIndex distance fields route multiple starts around the same blocker", async () => {

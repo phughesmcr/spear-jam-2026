@@ -92,6 +92,7 @@ function phasePathingSpatial(spatial: EnemySpatialAccess): EnemySpatialAccess {
     moveEntity: (entity, to) => spatial.moveEntity(entity, to),
     removeEntity: (entity) => spatial.removeEntity(entity),
     setBlocking: (entity, blocking) => spatial.setBlocking(entity, blocking),
+    setDoorOpen: (entity, open) => spatial.setDoorOpen(entity, open),
     nextStepToward(start, target) {
       const key = `${target.x},${target.y}`;
       let field = fields.get(key);

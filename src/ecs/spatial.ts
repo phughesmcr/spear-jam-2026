@@ -1,15 +1,10 @@
 import type { Entity, World } from "@phughesmcr/miski";
-import { Blocking, GridPos, Item } from "@/src/ecs/components.ts";
+import { Blocking, Door, GridPos, Interactable, Item } from "@/src/ecs/components.ts";
 import { positionedQuery } from "@/src/ecs/queries.ts";
 import { CARDINAL_DELTAS, directionDelta, type GridPoint } from "@/src/grid/direction.ts";
-import {
-  type GameMap,
-  mapDimensions,
-  terrainAt,
-  terrainBlocksAttacks,
-  terrainBlocksMovement,
-  terrainBlocksSight,
-} from "@/src/map/map.ts";
+import type { GameMap } from "@/src/map/map.ts";
+import { copyBaseFlags, dimensions } from "@/src/map/static_grid.ts";
+import { flagsBlockAttack, flagsBlockMovement, flagsBlockSight, TileFlag } from "@/src/map/tile_flags.ts";
 
 export interface SpatialLookup {
   tileBlocks(x: number, y: number): boolean;
@@ -23,6 +18,7 @@ export interface SpatialMutations {
   moveEntity(entity: Entity, to: { readonly x: number; readonly y: number }): void;
   removeEntity(entity: Entity): void;
   setBlocking(entity: Entity, blocking: boolean): void;
+  setDoorOpen(entity: Entity, open: boolean): void;
 }
 
 export interface SpatialDistanceField {
@@ -32,29 +28,34 @@ export interface SpatialDistanceField {
 export type SpatialAccess = SpatialLookup & SpatialMutations;
 const EMPTY_ENTITY = -1;
 const UNREACHABLE = -1;
+const DOOR_BLOCKING_FLAGS = TileFlag.BlocksMove | TileFlag.BlocksSight | TileFlag.BlocksAttack;
 
 /**
  * Map-aware spatial owner for terrain and entity occupancy.
  */
 export class SpatialIndex implements SpatialLookup, SpatialMutations {
   private readonly world: World;
-  private readonly map: GameMap;
   private readonly width: number;
   private readonly height: number;
+  private readonly baseFlags: Uint32Array;
+  private readonly runtimeFlags: Uint32Array;
   private readonly blockingOccupancy: Int32Array;
+  private readonly interactableOccupancy: Int32Array;
   private readonly itemOccupancy: Int32Array;
   private readonly pathQueue: Int32Array;
 
   constructor(world: World, map: GameMap) {
     this.world = world;
-    this.map = map;
 
-    const { width, height } = mapDimensions(map);
+    const { width, height } = dimensions(map);
     this.width = width;
     this.height = height;
 
     const tileCount = width * height;
+    this.baseFlags = copyBaseFlags(map);
+    this.runtimeFlags = new Uint32Array(this.baseFlags);
     this.blockingOccupancy = filledEntityArray(tileCount);
+    this.interactableOccupancy = filledEntityArray(tileCount);
     this.itemOccupancy = filledEntityArray(tileCount);
     this.pathQueue = new Int32Array(tileCount);
 
@@ -62,15 +63,18 @@ export class SpatialIndex implements SpatialLookup, SpatialMutations {
   }
 
   tileBlocks(x: number, y: number): boolean {
-    return terrainBlocksMovement(terrainAt(this.map, x, y));
+    const tile = this.tileIndex(x, y);
+    return tile === undefined || flagsBlockMovement(this.runtimeFlags[tile]!);
   }
 
   tileBlocksSight(x: number, y: number): boolean {
-    return terrainBlocksSight(terrainAt(this.map, x, y));
+    const tile = this.tileIndex(x, y);
+    return tile === undefined || flagsBlockSight(this.runtimeFlags[tile]!);
   }
 
   tileBlocksAttacks(x: number, y: number): boolean {
-    return terrainBlocksAttacks(terrainAt(this.map, x, y));
+    const tile = this.tileIndex(x, y);
+    return tile === undefined || flagsBlockAttack(this.runtimeFlags[tile]!);
   }
 
   blockingEntityAt(x: number, y: number): Entity | undefined {
@@ -93,7 +97,7 @@ export class SpatialIndex implements SpatialLookup, SpatialMutations {
     const delta = directionDelta(dir);
     const x = current.x + delta.dx;
     const y = current.y + delta.dy;
-    return this.blockingEntityAtNoRefresh(x, y) ?? this.itemAtNoRefresh(x, y);
+    return this.blockingEntityAtNoRefresh(x, y) ?? this.interactableAtNoRefresh(x, y) ?? this.itemAtNoRefresh(x, y);
   }
 
   nextStepToward(start: GridPoint, target: GridPoint): GridPoint | undefined {
@@ -158,6 +162,9 @@ export class SpatialIndex implements SpatialLookup, SpatialMutations {
     }
 
     this.refreshOccupancy();
+    if (flagsBlockMovement(this.runtimeFlags[toTile]!)) {
+      throw new Error(`Cannot move entity ${entity} to (${to.x}, ${to.y}): blocked tile.`);
+    }
     if (this.world.components.entityHas(Blocking, entity)) {
       this.assertCanOccupy(this.blockingOccupancy, toTile, entity, "blocking");
     }
@@ -187,8 +194,17 @@ export class SpatialIndex implements SpatialLookup, SpatialMutations {
     }
   }
 
+  setDoorOpen(entity: Entity, open: boolean): void {
+    const state = this.world.components.getEntityData(Door, entity);
+    const tile = this.positionedTileFor(entity);
+    this.world.components.setEntityData(Door, entity, { ...state, open: open ? 1 : 0 });
+    this.setDoorFlags(tile, open);
+  }
+
   private refreshOccupancy(): void {
+    this.runtimeFlags.set(this.baseFlags);
     this.blockingOccupancy.fill(EMPTY_ENTITY);
+    this.interactableOccupancy.fill(EMPTY_ENTITY);
     this.itemOccupancy.fill(EMPTY_ENTITY);
 
     for (const entity of this.world.entities.query(positionedQuery)) {
@@ -203,9 +219,14 @@ export class SpatialIndex implements SpatialLookup, SpatialMutations {
       if (this.world.components.entityHas(Blocking, entity)) {
         this.occupy(this.blockingOccupancy, tile, entity, "blocking");
       }
+      if (this.world.components.entityHas(Interactable, entity)) {
+        this.occupy(this.interactableOccupancy, tile, entity, "interactable");
+      }
       if (this.world.components.entityHas(Item, entity)) {
         this.occupy(this.itemOccupancy, tile, entity, "item");
       }
+      const door = this.world.components.readEntityData(Door, entity);
+      if (door !== undefined) this.setDoorFlags(tile, door.open === 1);
     }
   }
 
@@ -225,6 +246,12 @@ export class SpatialIndex implements SpatialLookup, SpatialMutations {
     const tile = this.tileIndex(x, y);
     if (tile === undefined) return undefined;
     return entityFromOccupancy(this.itemOccupancy[tile]!);
+  }
+
+  private interactableAtNoRefresh(x: number, y: number): Entity | undefined {
+    const tile = this.tileIndex(x, y);
+    if (tile === undefined) return undefined;
+    return entityFromOccupancy(this.interactableOccupancy[tile]!);
   }
 
   private positionBlocksNoRefresh(x: number, y: number): boolean {
@@ -259,6 +286,14 @@ export class SpatialIndex implements SpatialLookup, SpatialMutations {
     const occupant = occupancy[tile]!;
     if (occupant !== EMPTY_ENTITY && occupant !== entity) {
       throw new Error(`Duplicate ${kind} occupancy at (${tile % this.width}, ${Math.floor(tile / this.width)}).`);
+    }
+  }
+
+  private setDoorFlags(tile: number, open: boolean): void {
+    if (open) {
+      this.runtimeFlags[tile] = this.runtimeFlags[tile]! & ~DOOR_BLOCKING_FLAGS;
+    } else {
+      this.runtimeFlags[tile] = this.runtimeFlags[tile]! | DOOR_BLOCKING_FLAGS;
     }
   }
 

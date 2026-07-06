@@ -109,13 +109,13 @@ export function targetMarkerTone(context: PlayerTurnContext): TargetMarkerTone |
 function resolvePlayerMoveAction(context: PlayerTurnContext, directionOffset: number): PlayerActionResolution {
   const delta = directionDelta(playerFacing(context) + directionOffset);
   const current = playerPosition(context);
-  const blocker = context.spatial.blockingEntityAt(current.x + delta.dx, current.y + delta.dy);
+  const faced = context.spatial.facedEntity(current, playerFacing(context) + directionOffset);
   if (
-    blocker !== undefined &&
-    context.world.components.entityHas(Secret, blocker) &&
-    context.world.components.readEntityData(Door, blocker)?.open === 0
+    faced !== undefined &&
+    context.world.components.entityHas(Secret, faced) &&
+    context.world.components.readEntityData(Door, faced)?.open === 0
   ) {
-    return resolvePlayerInteraction(context, blocker, "open");
+    return resolvePlayerInteraction(context, faced, "open");
   }
 
   const next = { x: current.x + delta.dx, y: current.y + delta.dy };

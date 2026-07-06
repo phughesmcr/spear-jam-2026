@@ -7,9 +7,11 @@ import {
   Blocking,
   Defense,
   DisplayNameComponent,
+  Door,
   Facing,
   GridPos,
   Health,
+  Interactable,
   Player as PlayerTag,
 } from "@/src/ecs/components.ts";
 import type { AttackSchema } from "@/src/ecs/components.ts";
@@ -144,6 +146,37 @@ Deno.test("attackTargets stops line attacks at attack-blocking terrain", async (
   );
 
   assertEquals(targets, []);
+});
+
+Deno.test("attackTargets stops line attacks at closed door runtime flags", async () => {
+  const world = await createWorld();
+  const attacker = createEntity(world);
+  const door = createEntity(world);
+  const target = createEntity(world);
+
+  world.components.addToEntity(GridPos, attacker, { x: 1, y: 1 });
+  world.components.addToEntity(Facing, attacker, { dir: 1 });
+  world.components.addToEntity(GridPos, door, { x: 2, y: 1 });
+  world.components.addToEntity(Door, door, { open: 0 });
+  world.components.addToEntity(Interactable, door);
+  world.components.addToEntity(GridPos, target, { x: 3, y: 1 });
+  world.components.addToEntity(Blocking, target);
+  world.refresh();
+
+  const spatial = new SpatialIndex(world, flatTestMap(5, 3));
+
+  assertEquals(spatial.blockingEntityAt(2, 1), undefined);
+  assertEquals(
+    attackTargets(world, attacker, { ...BASE_ATTACK, range: 3 }, spatial, (entity) => entity === target),
+    [],
+  );
+
+  spatial.setDoorOpen(door, true);
+
+  assertEquals(
+    attackTargets(world, attacker, { ...BASE_ATTACK, range: 3 }, spatial, (entity) => entity === target),
+    [target],
+  );
 });
 
 Deno.test("attackTargets can hit all cardinal adjacent targets without facing", async () => {

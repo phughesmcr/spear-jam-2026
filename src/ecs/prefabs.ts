@@ -256,7 +256,6 @@ export function createDoor(world: World, prefab: DoorPrefab): Entity {
       [Drawable, { kind: DrawableKind.Door, layer: DrawableLayer.Structure }],
       [Door, { open: 0, slide: doorSlideCode(prefab.slide), openMs: prefab.openMs ?? 0 }],
       [Interactable],
-      [Blocking],
     ] as const,
   );
   if (prefab.examineTextId !== undefined) {

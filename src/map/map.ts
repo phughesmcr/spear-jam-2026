@@ -5,7 +5,9 @@ import {
   KeyColor as ContentKeyColor,
   type KeyColor as KeyColorType,
 } from "@/src/map/entity_content.ts";
+import { dimensions, terrainAt as staticTerrainAt } from "@/src/map/static_grid.ts";
 import { SKY_CEILING_TEXTURE, TERRAIN_CATALOG } from "@/src/map/terrain_palettes.ts";
+import { flagsBlockAttack, flagsBlockMovement, flagsBlockSight, terrainFlags } from "@/src/map/tile_flags.ts";
 
 export const KeyColor = ContentKeyColor;
 export { DECORATION_KINDS };
@@ -168,72 +170,23 @@ export type GameMapOptions = {
 };
 
 export function mapDimensions(map: GameMap): MapDimensions {
-  return {
-    width: map.terrain.tiles[0]?.length ?? 0,
-    height: map.terrain.tiles.length,
-  };
-}
-
-/** Decoded palette lookup per map, so terrain reads avoid a linear palette scan. */
-const TERRAIN_GRIDS = new WeakMap<GameMap, readonly TerrainTile[]>();
-
-function terrainGrid(map: GameMap): readonly TerrainTile[] {
-  const existing = TERRAIN_GRIDS.get(map);
-  if (existing !== undefined) return existing;
-
-  const width = mapDimensions(map).width;
-  const paletteById = terrainPaletteById(map);
-  const grid: TerrainTile[] = [];
-  for (let y = 0; y < map.terrain.tiles.length; y++) {
-    const row = map.terrain.tiles[y]!;
-    if (row.length !== width) {
-      throw new Error(
-        `Map "${map.name}" terrain must be rectangular: row ${y} has ${row.length} tiles, expected ${width}.`,
-      );
-    }
-
-    for (let x = 0; x < row.length; x++) {
-      const tileId = row[x]!;
-      const terrain = paletteById.get(tileId);
-      if (terrain === undefined) {
-        throw new Error(`Map "${map.name}" terrain tile ${tileId} at (${x},${y}) is missing from its palette.`);
-      }
-      grid.push(terrain);
-    }
-  }
-
-  TERRAIN_GRIDS.set(map, grid);
-  return grid;
-}
-
-function terrainPaletteById(map: GameMap): ReadonlyMap<number, TerrainTile> {
-  const paletteById = new Map<number, TerrainTile>();
-  for (const entry of map.terrain.palette) {
-    if (paletteById.has(entry.id)) {
-      throw new Error(`Map "${map.name}" terrain palette has duplicate tile id ${entry.id}.`);
-    }
-    paletteById.set(entry.id, entry);
-  }
-  return paletteById;
+  return dimensions(map);
 }
 
 export function terrainAt(map: GameMap, x: number, y: number): TerrainTile | undefined {
-  const { width, height } = mapDimensions(map);
-  if (!Number.isInteger(x) || !Number.isInteger(y)) return undefined;
-  if (x < 0 || y < 0 || x >= width || y >= height) return undefined;
-  return terrainGrid(map)[y * width + x];
+  return staticTerrainAt(map, x, y);
 }
 
 export function terrainBlocksMovement(tile: TerrainTile | undefined): boolean {
-  return tile === undefined || tile.kind === "wall" || tile.kind === "barrier";
+  return flagsBlockMovement(terrainFlags(tile));
 }
 
 export function terrainBlocksSight(tile: TerrainTile | undefined): boolean {
-  return tile === undefined || tile.kind === "wall";
+  return flagsBlockSight(terrainFlags(tile));
 }
 
 export function terrainBlocksAttacks(tile: TerrainTile | undefined): boolean {
-  return tile === undefined || tile.kind === "wall" || tile.kind === "barrier";
+  return flagsBlockAttack(terrainFlags(tile));
 }
 
 export function terrainIsBarrier(tile: TerrainTile | undefined): tile is BarrierTile {
@@ -266,6 +219,6 @@ export function createGameMap(
     },
     entities,
   };
-  terrainGrid(map);
+  staticTerrainAt(map, 0, 0);
   return map;
 }

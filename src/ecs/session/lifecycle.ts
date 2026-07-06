@@ -1,5 +1,5 @@
 import type { Entity, World } from "@phughesmcr/miski";
-import { Door, Facing, GridPos } from "@/src/ecs/components.ts";
+import { Facing, GridPos } from "@/src/ecs/components.ts";
 import {
   capturePlayerProgressionCheckpoint,
   type PlayerProgressionCheckpoint,
@@ -69,16 +69,8 @@ export function refreshVisibility(
   visibility.revealFrom(position, {
     radius: PLAYER_VISIBILITY_RADIUS,
     facing: normalizeDirection(facing.dir),
-    blocksSight: (x, y) => tileBlocksSight(world, spatial, x, y),
+    blocksSight: (x, y) => spatial.tileBlocksSight(x, y),
   });
-}
-
-export function tileBlocksSight(world: World, spatial: SpatialIndex, x: number, y: number): boolean {
-  if (spatial.tileBlocksSight(x, y)) return true;
-
-  const blockingEntity = spatial.blockingEntityAt(x, y);
-  if (blockingEntity === undefined) return false;
-  return world.components.readEntityData(Door, blockingEntity)?.open === 0;
 }
 
 export function playerSpawnFor(map: GameMap): PlayerPrefab {
