@@ -258,6 +258,7 @@ export function buildScaffoldMap(options: NewMapOptions): TiledMap {
         y: 0,
       },
       {
+        class: "light_layer",
         draworder: "topdown",
         id: 3,
         name: "lights",

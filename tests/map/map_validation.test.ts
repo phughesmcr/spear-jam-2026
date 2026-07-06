@@ -241,6 +241,26 @@ Deno.test("map validation accepts doorway-like barrier terrain and rejects ambig
   );
 });
 
+Deno.test("map validation ignores blocking actors that are cleared during play", () => {
+  // Enemies move and can be defeated, and NPCs are relocated by story events, so a
+  // blocking actor sitting in a corridor must not make the path count as unreachable.
+  assertEquals(
+    validateGameMaps([
+      createGameMap("Actor Corridor", [
+        [0, DEFAULT_WALL_TERRAIN_ID, 0],
+        [0, 0, 0],
+        [0, DEFAULT_WALL_TERRAIN_ID, 0],
+      ], [
+        { prefab: "player", x: 0, y: 1, dir: 1 },
+        { prefab: "npc", x: 1, y: 1, dir: 1, displayName: "john" },
+        { prefab: "uplinkCode", x: 0, y: 0 },
+        { prefab: "uplinkTerminal", x: 2, y: 1, goto: VICTORY_GOTO },
+      ]),
+    ]),
+    [],
+  );
+});
+
 Deno.test("map validation requires a terminal to be reachable after collecting code and keys", () => {
   assertEquals(
     validateGameMaps([

@@ -178,6 +178,7 @@ export const PROPERTY_TYPES: readonly TiledPropertyType[] = [
   classPropertyType(21, "terrain_layer", "#ff334155", true, ["layer"], []),
   classPropertyType(22, "object_layer", "#ffa855f7", false, ["layer"], []),
   classPropertyType(23, "sound_layer", "#ff14b8a6", false, ["layer"], []),
+  classPropertyType(24, "light_layer", "#fffbbf24", false, ["layer"], []),
   classPropertyType(30, "player", "#ff22d3ee", false, ["object"], [
     classMember("prefab", "string", "player", "Prefab"),
     classMember("facing", "string", "north", "Facing"),
@@ -229,6 +230,12 @@ export const PROPERTY_TYPES: readonly TiledPropertyType[] = [
     classMember("soundId", "string", "ambientHum", "SoundId"),
     classMember("radius", "int", 5),
     classMember("volume", "float", 1),
+  ]),
+  classPropertyType(41, "light", "#fffbbf24", false, ["object"], [
+    classMember("color", "string", "#ffffff"),
+    classMember("radius", "int", 5),
+    classMember("flickerAmount", "float", 0),
+    classMember("flickerSpeed", "float", 1),
   ]),
 ];
 

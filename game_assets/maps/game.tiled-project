@@ -389,6 +389,17 @@
       ]
     },
     {
+      "color": "#fffbbf24",
+      "drawFill": false,
+      "id": 24,
+      "members": [],
+      "name": "light_layer",
+      "type": "class",
+      "useAs": [
+        "layer"
+      ]
+    },
+    {
       "color": "#ff22d3ee",
       "drawFill": false,
       "id": 30,
@@ -688,6 +699,38 @@
         }
       ],
       "name": "sound",
+      "type": "class",
+      "useAs": [
+        "object"
+      ]
+    },
+    {
+      "color": "#fffbbf24",
+      "drawFill": false,
+      "id": 41,
+      "members": [
+        {
+          "name": "color",
+          "type": "string",
+          "value": "#ffffff"
+        },
+        {
+          "name": "radius",
+          "type": "int",
+          "value": 5
+        },
+        {
+          "name": "flickerAmount",
+          "type": "float",
+          "value": 0
+        },
+        {
+          "name": "flickerSpeed",
+          "type": "float",
+          "value": 1
+        }
+      ],
+      "name": "light",
       "type": "class",
       "useAs": [
         "object"

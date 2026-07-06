@@ -90,7 +90,13 @@ Deno.test("generatedTiledProjectSource includes one-click play and automapping",
     automappingRulesFile: string;
     commands: readonly { readonly command: string; readonly executable: string; readonly arguments: string }[];
     folders: readonly string[];
-    propertyTypes: readonly { readonly name: string; readonly type: string; readonly values?: readonly string[] }[];
+    propertyTypes: readonly {
+      readonly name: string;
+      readonly type: string;
+      readonly values?: readonly string[];
+      readonly useAs?: readonly string[];
+      readonly members?: readonly { readonly name: string }[];
+    }[];
   };
 
   assertEquals(project.automappingRulesFile, "automap/rules.txt");
@@ -102,6 +108,20 @@ Deno.test("generatedTiledProjectSource includes one-click play and automapping",
     ),
   );
   assertEquals(project.propertyTypes.find((type) => type.name === "SoundId")?.values, AMBIENT_SOUND_IDS);
+
+  const lightLayer = project.propertyTypes.find((type) => type.name === "light_layer");
+  assertEquals(lightLayer?.type, "class");
+  assertEquals(lightLayer?.useAs, ["layer"]);
+
+  const lightObject = project.propertyTypes.find((type) => type.name === "light");
+  assertEquals(lightObject?.type, "class");
+  assertEquals(lightObject?.useAs, ["object"]);
+  assertEquals(lightObject?.members?.map((member) => member.name), [
+    "color",
+    "radius",
+    "flickerAmount",
+    "flickerSpeed",
+  ]);
 });
 
 Deno.test("generatedAutomappingSources includes reset and wall variant rules", () => {

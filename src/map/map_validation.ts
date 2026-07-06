@@ -215,6 +215,10 @@ function reachabilityIndexes(map: GameMap): ReachabilityIndexes {
         }
         break;
       }
+      // Blocking actors are intentionally excluded: the player vacates its spawn,
+      // enemies move and can be defeated, and NPCs are relocated by story events
+      // (e.g. talking to John fires a moveEntity action). None form a permanent
+      // barrier, so modelling them as impassable would reject completable maps.
       case "enemy":
       case "npc":
       case "item":
