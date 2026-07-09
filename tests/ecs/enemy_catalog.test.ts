@@ -1,4 +1,3 @@
-import { assertEquals, assertThrows } from "@std/assert";
 import {
   DEFAULT_ENEMY_SENSES,
   EnemyArchetype,
@@ -6,6 +5,7 @@ import {
   enemyCatalogEntry,
 } from "@/src/ecs/enemy_catalog.ts";
 import { DisplayName } from "@/src/game/names.ts";
+import { assertEquals, assertThrows } from "@std/assert";
 
 Deno.test("enemyArchetypeForCode validates persisted enemy archetype values", () => {
   assertEquals(enemyArchetypeForCode(EnemyArchetype.MeleeDog), EnemyArchetype.MeleeDog);
@@ -19,6 +19,17 @@ Deno.test("enemy catalog owns default display names", () => {
 });
 
 Deno.test("enemy catalog owns default senses", () => {
-  assertEquals(enemyCatalogEntry(EnemyArchetype.MeleeDog).senses, DEFAULT_ENEMY_SENSES);
-  assertEquals(enemyCatalogEntry(EnemyArchetype.Gunslinger).senses, DEFAULT_ENEMY_SENSES);
+  assertEquals(DEFAULT_ENEMY_SENSES, { sightRadius: 5, hearingRadius: 7 });
+  assertEquals(enemyCatalogEntry(EnemyArchetype.MeleeDog).senses, {
+    sightRadius: 4,
+    hearingRadius: 7,
+  });
+  assertEquals(enemyCatalogEntry(EnemyArchetype.Gunslinger).senses, {
+    sightRadius: 5,
+    hearingRadius: 6,
+  });
+  assertEquals(enemyCatalogEntry(EnemyArchetype.SystemSentinel).senses, {
+    sightRadius: 1,
+    hearingRadius: 1,
+  });
 });

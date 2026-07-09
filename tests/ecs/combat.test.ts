@@ -39,7 +39,7 @@ Deno.test("player weapon specs expose metadata and attack fields from one combat
   assertEquals(playerWeaponSpec(1), {
     ...BASE_ATTACK,
     label: "Bit Shifter",
-    noiseRadius: 4,
+    noiseRadius: 2,
     maxDamage: 3,
     attackBonus: 4,
   });
@@ -47,7 +47,7 @@ Deno.test("player weapon specs expose metadata and attack fields from one combat
     ...BASE_ATTACK,
     label: "Pulse Pistol",
     ammo: "pistol",
-    noiseRadius: 8,
+    noiseRadius: 6,
     minDamage: 2,
     maxDamage: 4,
     range: 4,
@@ -57,7 +57,7 @@ Deno.test("player weapon specs expose metadata and attack fields from one combat
     ...BASE_ATTACK,
     label: "Current Cannon",
     ammo: "cannon",
-    noiseRadius: 8,
+    noiseRadius: 6,
     minDamage: 3,
     maxDamage: 8,
     range: 6,

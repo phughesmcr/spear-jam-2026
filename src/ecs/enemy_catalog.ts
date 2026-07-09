@@ -47,8 +47,8 @@ export type EnemySenses = {
 };
 
 export const DEFAULT_ENEMY_SENSES: EnemySenses = {
-  sightRadius: 6,
-  hearingRadius: 8,
+  sightRadius: 5,
+  hearingRadius: 7,
 };
 
 export type EnemyCatalogEntry = {
@@ -90,14 +90,14 @@ export const ENEMY_CATALOG = {
     },
     behavior: {
       alert: { type: "advance", steps: 2, attackAfterMove: true },
-      investigate: { type: "move", steps: 2 },
+      investigate: { type: "move", steps: 1 },
     },
-    senses: { ...DEFAULT_ENEMY_SENSES },
+    senses: { ...DEFAULT_ENEMY_SENSES, sightRadius: 4 },
     idleSound: DEFAULT_ENEMY_IDLE_SOUND,
   },
   [EnemyArchetype.Gunslinger]: {
     displayName: DisplayName.GigabitGunslinger,
-    health: 3,
+    health: 4,
     hitDc: 10,
     damage: 1,
     attack: {
@@ -108,12 +108,12 @@ export const ENEMY_CATALOG = {
       alert: { type: "skirmish", retreatRange: 1, advanceSteps: 1 },
       investigate: { type: "move", steps: 1 },
     },
-    senses: { ...DEFAULT_ENEMY_SENSES },
+    senses: { ...DEFAULT_ENEMY_SENSES, hearingRadius: 6 },
     idleSound: DEFAULT_ENEMY_IDLE_SOUND,
   },
   [EnemyArchetype.NetworkNeophyte]: {
     displayName: DisplayName.NetworkNeophyte,
-    health: 4,
+    health: 6,
     hitDc: 10,
     damage: 1,
     attack: {
@@ -121,7 +121,7 @@ export const ENEMY_CATALOG = {
       range: 3,
     },
     behavior: {
-      alert: { type: "skirmish", retreatRange: 1, advanceSteps: 1 },
+      alert: { type: "skirmish", retreatRange: 2, advanceSteps: 1 },
       investigate: { type: "move", steps: 1 },
     },
     senses: { ...DEFAULT_ENEMY_SENSES },
@@ -129,7 +129,7 @@ export const ENEMY_CATALOG = {
   },
   [EnemyArchetype.SystemSentinel]: {
     displayName: DisplayName.SystemSentinel,
-    health: 7,
+    health: 10,
     hitDc: 10,
     damage: 2,
     attack: {
@@ -140,12 +140,12 @@ export const ENEMY_CATALOG = {
       alert: { type: "hold" },
       investigate: { type: "watch" },
     },
-    senses: { ...DEFAULT_ENEMY_SENSES },
+    senses: { sightRadius: 1, hearingRadius: 1 },
     idleSound: DEFAULT_ENEMY_IDLE_SOUND,
   },
   [EnemyArchetype.AgenticAcolyte]: {
     displayName: DisplayName.AgenticAcolyte,
-    health: 4,
+    health: 6,
     hitDc: 10,
     damage: 2,
     attack: {

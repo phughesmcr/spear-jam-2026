@@ -205,7 +205,7 @@ Deno.test("enemy actor turns investigate heard noises instead of omniscient play
   assertEquals(events, []);
 });
 
-Deno.test("melee dogs investigate noise with a two-step pounce", async () => {
+Deno.test("melee dogs investigate noise with a one-step pounce", async () => {
   const world = await createWorld();
   const playerEntity = spawnPlayer(world, {
     x: 5,
@@ -225,7 +225,7 @@ Deno.test("melee dogs investigate noise with a two-step pounce", async () => {
 
   const events = runEnemyPhase(world, playerEntity, flatTestMap(7, 3), [{ x: 3, y: 1, radius: 3 }]);
 
-  assertEquals(world.components.getEntityData(GridPos, dog), { x: 3, y: 1 });
+  assertEquals(world.components.getEntityData(GridPos, dog), { x: 2, y: 1 });
   assertEquals(world.components.getEntityData(Facing, dog), { dir: Direction.East });
   assertEquals(events, []);
 });
@@ -248,7 +248,7 @@ Deno.test("system sentinels investigate noise by watching without moving", async
   });
   world.refresh();
 
-  const events = runEnemyPhase(world, playerEntity, flatTestMap(7, 3), [{ x: 3, y: 1, radius: 3 }]);
+  const events = runEnemyPhase(world, playerEntity, flatTestMap(7, 3), [{ x: 2, y: 1, radius: 3 }]);
 
   assertEquals(world.components.getEntityData(GridPos, sentinel), { x: 1, y: 1 });
   assertEquals(world.components.getEntityData(Facing, sentinel), { dir: Direction.East });
@@ -273,7 +273,7 @@ Deno.test("system sentinels face the dominant axis when watching a noise", async
   });
   world.refresh();
 
-  const events = runEnemyPhase(world, playerEntity, flatTestMap(4, 6), [{ x: 2, y: 4, radius: 5 }]);
+  const events = runEnemyPhase(world, playerEntity, flatTestMap(4, 6), [{ x: 1, y: 2, radius: 5 }]);
 
   assertEquals(world.components.getEntityData(GridPos, sentinel), { x: 1, y: 1 });
   assertEquals(world.components.getEntityData(Facing, sentinel), { dir: Direction.South });

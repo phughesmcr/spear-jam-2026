@@ -8,8 +8,8 @@ export type PlayerWeaponSpec = AttackDef & {
   readonly noiseRadius: number;
 };
 
-const MELEE_ATTACK_NOISE_RADIUS = 4;
-const RANGED_ATTACK_NOISE_RADIUS = 8;
+const MELEE_ATTACK_NOISE_RADIUS = 2;
+const RANGED_ATTACK_NOISE_RADIUS = 6;
 
 const PLAYER_WEAPON_SPECS: Readonly<Record<CommandSlot, PlayerWeaponSpec>> = {
   1: {

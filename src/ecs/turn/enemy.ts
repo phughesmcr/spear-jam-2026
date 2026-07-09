@@ -1,4 +1,3 @@
-import type { Entity } from "@phughesmcr/miski";
 import {
   AwarenessState,
   enemyArchetypeFor,
@@ -19,8 +18,9 @@ import { type ActorIntent, playerPosition, resolveIntent, type TurnContext } fro
 import type { GameEvent } from "@/src/game/events.ts";
 import { type BlocksSight, canHearNoise, canSeePoint, type NoiseStimulus } from "@/src/game/perception.ts";
 import type { CardinalDirection, GridPoint } from "@/src/grid/direction.ts";
+import type { Entity } from "@phughesmcr/miski";
 
-const MAX_INVESTIGATION_TURNS = 6;
+const MAX_INVESTIGATION_TURNS = 5;
 
 export type EnemyTurnContext = TurnContext & {
   readonly noises?: readonly NoiseStimulus[];
