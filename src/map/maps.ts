@@ -1,8 +1,9 @@
 import { z } from "zod";
 import { ENTITY_SCHEMA } from "@/src/map/entity_content.ts";
-import { createGameMap, type GameMap } from "@/src/map/map.ts";
+import { createGameMap, type GameMap, VICTORY_GOTO } from "@/src/map/map.ts";
 import compiledMapsData from "@/src/map/compiled_maps.json" with { type: "json" };
 import { validateGameMaps } from "@/src/map/map_validation.ts";
+import { createCodeRegistry } from "@/src/utils/code_registry.ts";
 
 export type LoadedGameMaps = {
   readonly startMapName: string;
@@ -39,6 +40,23 @@ export const START_MAP_NAME = LOADED_GAME_MAPS.startMapName;
 export const GAME_MAPS = LOADED_GAME_MAPS.gameMaps;
 
 const MAPS: ReadonlyMap<string, GameMap> = new Map(GAME_MAPS.map((map) => [map.name, map]));
+
+/** Victory first, then campaign maps in load order — codes are 1-based and append-only. */
+const TERMINAL_DESTINATION_REGISTRY = createCodeRegistry("terminal destination", [
+  VICTORY_GOTO,
+  ...GAME_MAPS.map((map) => map.name),
+]);
+
+export function terminalDestinationCode(goto: string): number {
+  if (!TERMINAL_DESTINATION_REGISTRY.has(goto)) {
+    throw new Error(`Unknown terminal destination "${goto}".`);
+  }
+  return TERMINAL_DESTINATION_REGISTRY.encode(goto);
+}
+
+export function terminalDestinationForCode(code: number): string {
+  return TERMINAL_DESTINATION_REGISTRY.decode(code);
+}
 
 export function getMap(name: string): GameMap {
   const map = MAPS.get(name);

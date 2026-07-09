@@ -9,6 +9,12 @@ import {
   KNOWN_STORY_TARGET_IDS,
   type SoundId as KnownSoundId,
 } from "@/src/content/known_ids.ts";
+import {
+  ATTACK_FACING_REQUIREMENT_AUTHORING_KEYS,
+  ATTACK_PATTERN_AUTHORING_KEYS,
+  ATTACK_TARGET_MODE_AUTHORING_KEYS,
+  type AuthoringAttackDef,
+} from "@/src/game/attack.ts";
 import { lowerFirst } from "@/src/utils/strings.ts";
 
 export const KeyColor = {
@@ -21,35 +27,8 @@ export type KeyColor = (typeof KeyColor)[keyof typeof KeyColor];
 export type DoorSlide = "north" | "east" | "south" | "west" | "up" | "down";
 export const DOOR_SLIDES = ["north", "east", "south", "west", "up", "down"] as const satisfies readonly DoorSlide[];
 
-export const AttackFacingRequirement = {
-  Required: "required",
-  None: "none",
-} as const;
-export type AttackFacingRequirement = (typeof AttackFacingRequirement)[keyof typeof AttackFacingRequirement];
-
-export const AttackPattern = {
-  Line: "line",
-  Adjacent: "adjacent",
-} as const;
-export type AttackPattern = (typeof AttackPattern)[keyof typeof AttackPattern];
-
-export const AttackTargetMode = {
-  First: "first",
-  All: "all",
-} as const;
-export type AttackTargetMode = (typeof AttackTargetMode)[keyof typeof AttackTargetMode];
-
-export type AttackDef = {
-  readonly minDamage: number;
-  readonly maxDamage: number;
-  readonly range: number;
-  readonly requiresFacing: AttackFacingRequirement;
-  readonly attackBonus: number;
-  readonly critThreshold: number;
-  readonly critMultiplier: number;
-  readonly pattern: AttackPattern;
-  readonly targets: AttackTargetMode;
-};
+/** Authoring-side attack override; runtime codes live in {@link "@/src/game/attack.ts"}. */
+export type AttackDef = AuthoringAttackDef;
 
 export type DisplayName = string;
 export type DialogueTreeId = string;
@@ -90,18 +69,12 @@ const SOUND_ID_SCHEMA = z.enum(AMBIENT_SOUND_IDS) satisfies z.ZodType<SoundId>;
 const EXAMINE_TEXT_ID_SCHEMA = stringEnumSchema<ExamineTextId>(KNOWN_EXAMINE_TEXT_IDS, "examineTextId");
 const ITEM_KIND_SCHEMA = z.enum(ITEM_KINDS) satisfies z.ZodType<ItemKind>;
 const DECORATION_KIND_SCHEMA = z.enum(DECORATION_KINDS) satisfies z.ZodType<DecorationKind>;
-const ATTACK_FACING_REQUIREMENT_SCHEMA = z.enum([
-  AttackFacingRequirement.Required,
-  AttackFacingRequirement.None,
-]) satisfies z.ZodType<AttackFacingRequirement>;
-const ATTACK_PATTERN_SCHEMA = z.enum([
-  AttackPattern.Line,
-  AttackPattern.Adjacent,
-]) satisfies z.ZodType<AttackPattern>;
-const ATTACK_TARGET_MODE_SCHEMA = z.enum([
-  AttackTargetMode.First,
-  AttackTargetMode.All,
-]) satisfies z.ZodType<AttackTargetMode>;
+const ATTACK_FACING_REQUIREMENT_SCHEMA = stringEnumSchema(
+  ATTACK_FACING_REQUIREMENT_AUTHORING_KEYS,
+  "requiresFacing",
+);
+const ATTACK_PATTERN_SCHEMA = stringEnumSchema(ATTACK_PATTERN_AUTHORING_KEYS, "pattern");
+const ATTACK_TARGET_MODE_SCHEMA = stringEnumSchema(ATTACK_TARGET_MODE_AUTHORING_KEYS, "targets");
 
 const ATTACK_SCHEMA = z.object({
   minDamage: UINT8_SCHEMA.min(1).optional(),
@@ -113,7 +86,7 @@ const ATTACK_SCHEMA = z.object({
   critMultiplier: UINT8_SCHEMA.min(1).optional(),
   pattern: ATTACK_PATTERN_SCHEMA.optional(),
   targets: ATTACK_TARGET_MODE_SCHEMA.optional(),
-}).strict() satisfies z.ZodType<Partial<AttackDef>>;
+}).strict() satisfies z.ZodType<AttackDef>;
 
 const BASE_ENTITY_SCHEMA = {
   x: NON_NEGATIVE_INTEGER_SCHEMA,

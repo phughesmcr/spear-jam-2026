@@ -9,7 +9,8 @@ import { type EnemyIdleSoundSource, type SoundEmitterSnapshot, SoundId } from "@
 import { storyEventCode, StoryEventId, StoryFlag, storyTargetCode, StoryTargetId } from "@/src/game/story.ts";
 import { Direction } from "@/src/grid/direction.ts";
 import type { EntityDef, GameMap } from "@/src/map/map.ts";
-import { createGameMap, KeyColor, terminalDestinationCode, VICTORY_GOTO } from "@/src/map/map.ts";
+import { createGameMap, KeyColor, VICTORY_GOTO } from "@/src/map/map.ts";
+import { terminalDestinationCode } from "@/src/map/maps.ts";
 import { DEFAULT_BARS_TERRAIN_ID, DEFAULT_WALL_TERRAIN_ID } from "@/src/map/terrain_palettes.ts";
 import { flatTestMap } from "@/tests/ecs/helpers.ts";
 import { assert, assertEquals, assertRejects } from "@std/assert";
@@ -437,7 +438,7 @@ Deno.test("activating an uplink terminal completes the level and clears transien
         health: 1,
       },
       { prefab: "uplinkCode", x: 2, y: 1 },
-      { prefab: "uplinkTerminal", x: 3, y: 1, goto: "Next Map" },
+      { prefab: "uplinkTerminal", x: 3, y: 1, goto: "Data Conduit" },
     ]),
     sequenceRandom([0.999, 0]),
   );
@@ -455,7 +456,7 @@ Deno.test("activating an uplink terminal completes the level and clears transien
 
     assertEquals(eventTypes(result), ["uplinkTerminalActivated", "xpGained"]);
     if (result.type !== "mapChange") throw new Error(`Expected map change result, got ${result.type}.`);
-    assertEquals(result.mapChange, { goto: "Next Map" });
+    assertEquals(result.mapChange, { goto: "Data Conduit" });
     assertEquals(session.getPlayerStatus().hasUplinkCode, false);
     assertEquals(session.getPlayerStatus().heldKeys, []);
     assertEquals(session.getPlayerStatus().progress, {
@@ -553,10 +554,10 @@ Deno.test("normal map loads clear old metadata components and write new map meta
       onTalkEvent: storyEventCode(StoryEventId.JohnSpoken),
     }]);
 
-    session.loadMap(testMap([{ prefab: "uplinkTerminal", x: 2, y: 1, goto: "Next Map" }]));
+    session.loadMap(testMap([{ prefab: "uplinkTerminal", x: 2, y: 1, goto: "Data Conduit" }]));
 
     assertEquals(session.getMapScopedMetadata(), [{
-      terminalDestination: terminalDestinationCode("Next Map"),
+      terminalDestination: terminalDestinationCode("Data Conduit"),
     }]);
   } finally {
     session[Symbol.dispose]();

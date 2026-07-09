@@ -19,7 +19,7 @@ Deno.test("interactWithEntity applies default verbs for doors, NPCs, and termina
     displayName: DisplayName.John,
     dialogueTreeId: DialogueTreeId.JohnIntro,
   });
-  const terminal = createUplinkTerminal(world, { x: 3, y: 1, goto: "Next Map" });
+  const terminal = createUplinkTerminal(world, { x: 3, y: 1, goto: "Data Conduit" });
   const generic = createEntity(world);
   world.components.addToEntity(GridPos, generic, { x: 4, y: 1 });
   world.components.addToEntity(Interactable, generic);

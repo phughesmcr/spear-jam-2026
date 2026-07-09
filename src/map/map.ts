@@ -104,22 +104,6 @@ export function keyColorForCode(code: number): KeyColorType {
 
 /** Sentinel `goto` for exits that end the game in victory instead of loading a map. */
 export const VICTORY_GOTO = "victory";
-const VICTORY_DESTINATION_CODE = 0;
-
-export function terminalDestinationCode(goto: string): number {
-  if (goto === VICTORY_GOTO) return VICTORY_DESTINATION_CODE;
-
-  return stableContentCode(goto);
-}
-
-function stableContentCode(value: string): number {
-  let hash = 0x811c9dc5;
-  for (let index = 0; index < value.length; index++) {
-    hash ^= value.charCodeAt(index);
-    hash = Math.imul(hash, 0x01000193) >>> 0;
-  }
-  return hash === VICTORY_DESTINATION_CODE ? 1 : hash;
-}
 
 /**
  * Which way a door slides open. Horizontal directions must lie along the

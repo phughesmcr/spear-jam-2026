@@ -7,7 +7,11 @@ import {
   KNOWN_STORY_EVENT_IDS,
   KNOWN_STORY_TARGET_IDS,
 } from "@/src/content/known_ids.ts";
-import { AttackPattern } from "@/src/game/attack.ts";
+import {
+  ATTACK_FACING_REQUIREMENT_AUTHORING_KEYS,
+  ATTACK_PATTERN_AUTHORING_KEYS,
+  ATTACK_TARGET_MODE_AUTHORING_KEYS,
+} from "@/src/game/attack.ts";
 import type { TiledObject, TiledProperty, TiledTilesetReference } from "@/src/map/authoring/tiled_types.ts";
 import {
   DECORATION_KINDS,
@@ -24,7 +28,6 @@ import {
   TEXTURE_PACK_ROWS,
   TEXTURE_TERRAIN_COUNT,
 } from "@/src/map/terrain_palettes.ts";
-import { lowerFirst } from "@/src/utils/strings.ts";
 
 export const MAPS_DIR = "game_assets/maps";
 export const TEMPLATE_DIR = `${MAPS_DIR}/templates`;
@@ -166,9 +169,9 @@ export const PROPERTY_TYPES: readonly TiledPropertyType[] = [
     "EnemyArchetype",
     ENEMY_ARCHETYPE_AUTHORING_KEYS,
   ),
-  enumPropertyType(11, "AttackPattern", authoringKeys(AttackPattern)),
-  enumPropertyType(12, "AttackTargets", ["first", "all"]),
-  enumPropertyType(13, "AttackRequiresFacing", ["required", "none"]),
+  enumPropertyType(11, "AttackPattern", ATTACK_PATTERN_AUTHORING_KEYS),
+  enumPropertyType(12, "AttackTargets", ATTACK_TARGET_MODE_AUTHORING_KEYS),
+  enumPropertyType(13, "AttackRequiresFacing", ATTACK_FACING_REQUIREMENT_AUTHORING_KEYS),
   enumPropertyType(14, "TextureRef", TEXTURE_REFS),
   enumPropertyType(15, "DecorationKind", DECORATION_KINDS),
   enumPropertyType(16, "StoryTargetId", KNOWN_STORY_TARGET_IDS),
@@ -514,10 +517,6 @@ function propertyTypeForValue(value: TiledProperty["value"]): "bool" | "int" | "
   if (typeof value === "boolean") return "bool";
   if (typeof value === "number" && Number.isInteger(value)) return "int";
   return "string";
-}
-
-function authoringKeys(source: Readonly<Record<string, unknown>>): readonly string[] {
-  return Object.keys(source).map(lowerFirst);
 }
 
 function snakeCase(value: string): string {

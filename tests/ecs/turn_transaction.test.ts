@@ -17,6 +17,12 @@ import { applyItemPickupToPlayer } from "@/src/ecs/progression.ts";
 import { SpatialIndex } from "@/src/ecs/spatial.ts";
 import { runTurnTransaction } from "@/src/ecs/turn/transaction.ts";
 import { createWorld } from "@/src/ecs/world.ts";
+import {
+  attackFacingRequirementAuthoringKey,
+  attackPatternAuthoringKey,
+  attackTargetModeAuthoringKey,
+  type AuthoringAttackDef,
+} from "@/src/game/attack.ts";
 import type { PlayerCommand } from "@/src/game/commands.ts";
 import { DisplayName } from "@/src/game/names.ts";
 import { Direction } from "@/src/grid/direction.ts";
@@ -239,27 +245,15 @@ function spawnEnemy(world: World, opts: SpawnEnemyOptions): Entity {
   return entity;
 }
 
-function attackPrefabFor(attack: Partial<AttackSchema>): NonNullable<Parameters<typeof createEnemy>[1]["attack"]> {
+function attackPrefabFor(attack: Partial<AttackSchema>): AuthoringAttackDef {
   return {
     ...attack,
     requiresFacing: attack.requiresFacing === undefined ?
       undefined :
-      attackFacingRequirementForPrefab(attack.requiresFacing),
-    pattern: attack.pattern === undefined ? undefined : attackPatternForPrefab(attack.pattern),
-    targets: attack.targets === undefined ? undefined : attackTargetForPrefab(attack.targets),
+      attackFacingRequirementAuthoringKey(attack.requiresFacing),
+    pattern: attack.pattern === undefined ? undefined : attackPatternAuthoringKey(attack.pattern),
+    targets: attack.targets === undefined ? undefined : attackTargetModeAuthoringKey(attack.targets),
   };
-}
-
-function attackFacingRequirementForPrefab(requirement: AttackFacingRequirement): "required" | "none" {
-  return requirement === AttackFacingRequirement.Required ? "required" : "none";
-}
-
-function attackPatternForPrefab(pattern: AttackPattern): "line" | "adjacent" {
-  return pattern === AttackPattern.Line ? "line" : "adjacent";
-}
-
-function attackTargetForPrefab(target: AttackTargetMode): "first" | "all" {
-  return target === AttackTargetMode.First ? "first" : "all";
 }
 
 const MELEE_ATTACK: AttackSchema = {

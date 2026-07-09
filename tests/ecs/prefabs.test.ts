@@ -39,7 +39,7 @@ import { examineTextCode } from "@/src/game/examine_content.ts";
 import { DisplayName, displayNameCode } from "@/src/game/names.ts";
 import { SoundId, soundIdCode } from "@/src/game/sound.ts";
 import { storyEventCode, StoryEventId, storyTargetCode, StoryTargetId } from "@/src/game/story.ts";
-import { terminalDestinationCode } from "@/src/map/map.ts";
+import { terminalDestinationCode } from "@/src/map/maps.ts";
 import { assertEquals, assertThrows } from "@std/assert";
 
 Deno.test("neutral NPCs and enemies share display names without sharing NPC identity", async () => {
@@ -103,7 +103,7 @@ Deno.test("prefabs attach authored examine text when provided", async () => {
   const terminal = createUplinkTerminal(world, {
     x: 4,
     y: 1,
-    goto: "Next Map",
+    goto: "Data Conduit",
     examineTextId: ExamineTextId.BootSectorUplinkTerminal,
   });
 
@@ -124,7 +124,7 @@ Deno.test("prefabs attach story and terminal metadata components", async () => {
     storyId: StoryTargetId.John,
     onTalkEvent: StoryEventId.JohnSpoken,
   });
-  const terminal = createUplinkTerminal(world, { x: 2, y: 1, goto: "Next Map" });
+  const terminal = createUplinkTerminal(world, { x: 2, y: 1, goto: "Data Conduit" });
 
   assertEquals(world.components.getEntityData(DisplayNameComponent, npc), {
     displayName: displayNameCode(DisplayName.John),
@@ -136,7 +136,7 @@ Deno.test("prefabs attach story and terminal metadata components", async () => {
     onTalkEvent: storyEventCode(StoryEventId.JohnSpoken),
   });
   assertEquals(world.components.getEntityData(TerminalDestination, terminal), {
-    destination: terminalDestinationCode("Next Map"),
+    destination: terminalDestinationCode("Data Conduit"),
   });
 });
 

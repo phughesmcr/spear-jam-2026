@@ -71,7 +71,8 @@ import type { StoryEventId, StoryFlag } from "@/src/game/story.ts";
 import type { TileVisibility, VisibilityMap } from "@/src/game/visibility.ts";
 import { playerWeaponSpec } from "@/src/game/weapons.ts";
 import { normalizeDirection } from "@/src/grid/direction.ts";
-import { type EntityDef, type GameMap, VICTORY_GOTO } from "@/src/map/map.ts";
+import { type GameMap, VICTORY_GOTO } from "@/src/map/map.ts";
+import { terminalDestinationForCode } from "@/src/map/maps.ts";
 import type { Entity, World } from "@phughesmcr/miski";
 
 const UNCHANGED_PLAYER_COMMAND: PlayerCommandResult = Object.freeze({
@@ -327,7 +328,7 @@ export class GameSession implements Disposable {
     if (destinationCode === undefined) {
       throw new Error(`Uplink terminal ${terminal} is missing a map destination.`);
     }
-    const goto = this.destinationForTerminal(terminal);
+    const goto = terminalDestinationForCode(destinationCode);
 
     const levelCompleteEvents = completePlayerLevel(this.world, this.playerEntity, events);
     clearTransientPlayerState(this.world, this.playerEntity);
@@ -340,21 +341,6 @@ export class GameSession implements Disposable {
       events: levelCompleteEvents,
       mapChange: { goto },
     };
-  }
-
-  private destinationForTerminal(terminal: Entity): string {
-    const position = this.world.components.readEntityData(GridPos, terminal);
-    if (position === undefined) throw new Error(`Uplink terminal ${terminal} is missing a grid position.`);
-
-    const terminalDef = this.currentMap.entities.find((
-      entity,
-    ): entity is Extract<EntityDef, { readonly prefab: "uplinkTerminal" }> =>
-      entity.prefab === "uplinkTerminal" && entity.x === position.x && entity.y === position.y
-    );
-    if (terminalDef === undefined) {
-      throw new Error(`Uplink terminal ${terminal} at (${position.x}, ${position.y}) has no authored destination.`);
-    }
-    return terminalDef.goto;
   }
 
   private commitTurnTransaction(

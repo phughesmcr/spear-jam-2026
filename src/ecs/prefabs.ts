@@ -68,16 +68,7 @@ import {
   DialogueTreeId,
   type DialogueTreeId as DialogueTreeIdType,
 } from "@/src/dialogue/dialogue.ts";
-import {
-  type AttackDef as GameAttackDef,
-  AttackFacingRequirement,
-  type AttackFacingRequirement as AttackFacingRequirementType,
-  AttackPattern,
-  type AttackPattern as AttackPatternType,
-  AttackTargetMode,
-  type AttackTargetMode as AttackTargetModeType,
-  DEFAULT_ATTACK,
-} from "@/src/game/attack.ts";
+import { attackDefFromAuthoring, DEFAULT_ATTACK } from "@/src/game/attack.ts";
 import { examineTextCode, ExamineTextId, type ExamineTextId as ExamineTextIdType } from "@/src/game/examine_content.ts";
 import { DisplayName, type DisplayName as DisplayNameType, displayNameCode } from "@/src/game/names.ts";
 import { soundIdCode } from "@/src/game/sound.ts";
@@ -96,11 +87,11 @@ import {
   type NpcDef,
   type PlayerDef,
   type SoundDef,
-  terminalDestinationCode,
   type UplinkCodeDef,
   type UplinkTerminalDef,
   type WeaponPickupDef,
 } from "@/src/map/map.ts";
+import { terminalDestinationCode } from "@/src/map/maps.ts";
 import { coerceKnownString as knownString, coerceLookup as lookup } from "@/src/utils/strings.ts";
 
 const DEFAULT_PLAYER_HIT_DC = 10;
@@ -116,18 +107,6 @@ const DECORATION_KINDS = {
   ceilingLight: DecorationKind.CeilingLight,
   ceilingWires: DecorationKind.CeilingWires,
 } as const satisfies Readonly<Record<string, DecorationKind>>;
-const ATTACK_FACING_REQUIREMENTS = {
-  required: AttackFacingRequirement.Required,
-  none: AttackFacingRequirement.None,
-} as const satisfies Readonly<Record<string, AttackFacingRequirementType>>;
-const ATTACK_PATTERNS = {
-  line: AttackPattern.Line,
-  adjacent: AttackPattern.Adjacent,
-} as const satisfies Readonly<Record<string, AttackPatternType>>;
-const ATTACK_TARGETS = {
-  first: AttackTargetMode.First,
-  all: AttackTargetMode.All,
-} as const satisfies Readonly<Record<string, AttackTargetModeType>>;
 type PositionedPrefab = {
   readonly x: number;
   readonly y: number;
@@ -473,30 +452,8 @@ function colorChannels(color: string): readonly [number, number, number] {
   ] as const;
 }
 
-function attackForPrefab(attack: EnemyPrefab["attack"] | undefined): Partial<GameAttackDef> {
-  if (attack === undefined) return {};
-  const spec: Partial<GameAttackDef> = {};
-  addAttackNumber(spec, attack, "minDamage");
-  addAttackNumber(spec, attack, "maxDamage");
-  addAttackNumber(spec, attack, "range");
-  addAttackNumber(spec, attack, "attackBonus");
-  addAttackNumber(spec, attack, "critThreshold");
-  addAttackNumber(spec, attack, "critMultiplier");
-  if (attack.requiresFacing !== undefined) {
-    spec.requiresFacing = lookup(ATTACK_FACING_REQUIREMENTS, attack.requiresFacing, "attack facing requirement");
-  }
-  if (attack.pattern !== undefined) spec.pattern = lookup(ATTACK_PATTERNS, attack.pattern, "attack pattern");
-  if (attack.targets !== undefined) spec.targets = lookup(ATTACK_TARGETS, attack.targets, "attack target mode");
-  return spec;
-}
-
-function addAttackNumber<K extends keyof GameAttackDef>(
-  spec: Partial<GameAttackDef>,
-  attack: EnemyPrefab["attack"],
-  key: K,
-): void {
-  const value = attack?.[key];
-  if (typeof value === "number") spec[key] = value as GameAttackDef[K];
+function attackForPrefab(attack: EnemyPrefab["attack"] | undefined): Partial<AttackSchema> {
+  return attackDefFromAuthoring(attack);
 }
 
 function displayNameForPrefab(displayName: string): DisplayNameType {

@@ -29,10 +29,12 @@ import {
 } from "@/src/map/authoring/properties.ts";
 import type { TiledLayer, TiledMap, TiledObject, TiledTemplate } from "@/src/map/authoring/tiled_types.ts";
 import {
-  type AttackDef,
-  AttackFacingRequirement,
-  AttackPattern,
-  AttackTargetMode,
+  ATTACK_FACING_REQUIREMENT_AUTHORING_KEYS,
+  ATTACK_PATTERN_AUTHORING_KEYS,
+  ATTACK_TARGET_MODE_AUTHORING_KEYS,
+  type AuthoringAttackDef,
+} from "@/src/game/attack.ts";
+import {
   DECORATION_KINDS,
   type DecorationKind,
   DOOR_SLIDES,
@@ -858,8 +860,8 @@ function optionalBooleanField(properties: PropertyMap, name: string, context: st
 function optionalAttack(
   properties: PropertyMap,
   context: string,
-): { readonly attack?: Partial<AttackDef> } {
-  const attack: Partial<Mutable<AttackDef>> = {};
+): { readonly attack?: AuthoringAttackDef } {
+  const attack: Mutable<AuthoringAttackDef> = {};
   addAttackInteger(attack, properties, "attackMinDamage", "minDamage", context);
   addAttackInteger(attack, properties, "attackMaxDamage", "maxDamage", context);
   addAttackInteger(attack, properties, "attackRange", "range", context);
@@ -870,7 +872,7 @@ function optionalAttack(
   const requiresFacing = optionalString(properties, "attackRequiresFacing", context);
   if (requiresFacing !== undefined) {
     attack.requiresFacing = knownString(
-      Object.values(AttackFacingRequirement),
+      ATTACK_FACING_REQUIREMENT_AUTHORING_KEYS,
       requiresFacing,
       "attack facing requirement",
       `${context} property "attackRequiresFacing"`,
@@ -880,7 +882,7 @@ function optionalAttack(
   const pattern = optionalString(properties, "attackPattern", context);
   if (pattern !== undefined) {
     attack.pattern = knownString(
-      Object.values(AttackPattern),
+      ATTACK_PATTERN_AUTHORING_KEYS,
       pattern,
       "attack pattern",
       `${context} property "attackPattern"`,
@@ -890,7 +892,7 @@ function optionalAttack(
   const targets = optionalString(properties, "attackTargets", context);
   if (targets !== undefined) {
     attack.targets = knownString(
-      Object.values(AttackTargetMode),
+      ATTACK_TARGET_MODE_AUTHORING_KEYS,
       targets,
       "attack target mode",
       `${context} property "attackTargets"`,
@@ -900,8 +902,8 @@ function optionalAttack(
   return Object.keys(attack).length === 0 ? {} : { attack };
 }
 
-function addAttackInteger<K extends keyof AttackDef>(
-  attack: Partial<Mutable<AttackDef>>,
+function addAttackInteger<K extends keyof AuthoringAttackDef>(
+  attack: Mutable<AuthoringAttackDef>,
   properties: PropertyMap,
   propertyName: string,
   attackName: K,
@@ -909,7 +911,7 @@ function addAttackInteger<K extends keyof AttackDef>(
 ): void {
   const value = optionalInteger(properties, propertyName, context);
   if (value !== undefined) {
-    attack[attackName] = value as AttackDef[K];
+    attack[attackName] = value as AuthoringAttackDef[K];
   }
 }
 

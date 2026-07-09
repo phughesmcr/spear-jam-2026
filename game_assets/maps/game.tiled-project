@@ -215,8 +215,8 @@
       "storageType": "string",
       "type": "enum",
       "values": [
-        "required",
-        "none"
+        "none",
+        "required"
       ],
       "valuesAsFlags": false
     },

@@ -1,7 +1,6 @@
 import type { Entity, World } from "@phughesmcr/miski";
 import {
   Attack,
-  AttackFacingRequirement,
   AttackPattern,
   type AttackSchema,
   AttackTargetMode,
@@ -165,8 +164,8 @@ export function resolveAttack(attack: AttackSchema, hitDc: number, random: Rando
 }
 
 export function entityAttack(world: World, entity: Entity): AttackSchema | undefined {
-  const attack = world.components.readEntityData(Attack, entity);
-  return attack === undefined ? undefined : toAttackSchema(attack);
+  // Typed-array storage yields plain numbers; spawn writes only AttackDef codes.
+  return world.components.readEntityData(Attack, entity) as AttackSchema | undefined;
 }
 
 export function attackTargets(
@@ -260,45 +259,6 @@ function rollDie(sides: number, random: RandomSource): number {
 
 function randomInt(min: number, max: number, random: RandomSource): number {
   return Math.floor(random() * (max - min + 1)) + min;
-}
-
-function toAttackSchema(attack: Record<keyof AttackSchema, number>): AttackSchema {
-  return {
-    ...attack,
-    requiresFacing: toAttackFacingRequirement(attack.requiresFacing),
-    pattern: toAttackPattern(attack.pattern),
-    targets: toAttackTargetMode(attack.targets),
-  };
-}
-
-function toAttackFacingRequirement(value: number): AttackFacingRequirement {
-  switch (value) {
-    case AttackFacingRequirement.None:
-    case AttackFacingRequirement.Required:
-      return value;
-    default:
-      throw new Error(`Unknown attack facing requirement: ${value}`);
-  }
-}
-
-function toAttackPattern(value: number): AttackPattern {
-  switch (value) {
-    case AttackPattern.Line:
-    case AttackPattern.Adjacent:
-      return value;
-    default:
-      throw new Error(`Unknown attack pattern: ${value}`);
-  }
-}
-
-function toAttackTargetMode(value: number): AttackTargetMode {
-  switch (value) {
-    case AttackTargetMode.First:
-    case AttackTargetMode.All:
-      return value;
-    default:
-      throw new Error(`Unknown attack target mode: ${value}`);
-  }
 }
 
 function entityName(world: World, entity: Entity): string {
