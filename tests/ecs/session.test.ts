@@ -400,13 +400,13 @@ Deno.test("consumed player actions run enemy phase and visibility refresh", asyn
       { prefab: "door", x: 2, y: 1 },
       {
         prefab: "enemy",
-        x: 4,
+        x: 5,
         y: 1,
         dir: Direction.West,
         displayName: DisplayName.NetworkNeophyte,
         archetype: "networkNeophyte",
       },
-    ], 6),
+    ], 7),
     () => 0,
   );
   try {
@@ -417,8 +417,8 @@ Deno.test("consumed player actions run enemy phase and visibility refresh", asyn
     });
 
     assertEquals(eventTypes(result), ["doorOpened"]);
-    assertEquals(enemies, [{ x: 3, y: 1 }]);
-    assertEquals(session.getVisibility().isVisible(3, 1), true);
+    assertEquals(enemies, [{ x: 4, y: 1 }]);
+    assertEquals(session.getVisibility().isVisible(4, 1), true);
   } finally {
     session[Symbol.dispose]();
   }
@@ -729,26 +729,26 @@ Deno.test("moving enemies expose short-lived ECS walk animation state", async ()
     const session = await createGameSession(
       testMap([{
         prefab: "enemy",
-        x: 4,
+        x: 5,
         y: 1,
         dir: Direction.West,
         displayName: DisplayName.NetworkNeophyte,
         archetype: "networkNeophyte",
-      }], 6),
+      }], 7),
       sequenceRandom([]),
     );
     try {
       const result = session.handlePlayerCommand({ type: "wait" });
       assertEquals(eventTypes(result), []);
 
-      assertEquals(actorAt(sessionDrawables(session), 3, 1)?.animation, {
+      assertEquals(actorAt(sessionDrawables(session), 4, 1)?.animation, {
         kind: SpriteAnimationKind.Walk,
         startedAtMs: 100,
         durationMs: SPRITE_WALK_MS,
       });
 
       assertEquals(session.tick(100 + SPRITE_WALK_MS), { needsFrame: false });
-      assertEquals(actorAt(sessionDrawables(session), 3, 1)?.animation, undefined);
+      assertEquals(actorAt(sessionDrawables(session), 4, 1)?.animation, undefined);
     } finally {
       session[Symbol.dispose]();
     }

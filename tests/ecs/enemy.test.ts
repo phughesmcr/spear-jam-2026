@@ -438,7 +438,7 @@ Deno.test("gunslingers back away when adjacent", async () => {
   assertEquals(events, []);
 });
 
-Deno.test("network neophytes use standard one-step pursuit", async () => {
+Deno.test("network neophytes skirmish: advance when out of melee range", async () => {
   const world = await createWorld();
   const playerEntity = spawnPlayer(world, {
     x: 4,

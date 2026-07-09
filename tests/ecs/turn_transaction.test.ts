@@ -1,6 +1,5 @@
-import { assertEquals } from "@std/assert";
-import type { Entity, World } from "@phughesmcr/miski";
 import { enemyArchetypeAuthoringKey } from "@/src/content/enemies.ts";
+import type { AttackSchema, HealthSchema } from "@/src/ecs/components.ts";
 import {
   AttackFacingRequirement,
   AttackPattern,
@@ -12,7 +11,6 @@ import {
   IDLE_AWARENESS,
   TurnTaker,
 } from "@/src/ecs/components.ts";
-import type { AttackSchema, HealthSchema } from "@/src/ecs/components.ts";
 import { EnemyArchetype } from "@/src/ecs/enemy_catalog.ts";
 import { createEnemy, createNpc, createPlayer } from "@/src/ecs/prefabs.ts";
 import { applyItemPickupToPlayer } from "@/src/ecs/progression.ts";
@@ -24,6 +22,8 @@ import { DisplayName } from "@/src/game/names.ts";
 import { Direction } from "@/src/grid/direction.ts";
 import type { GameMap } from "@/src/map/map.ts";
 import { flatTestMap } from "@/tests/ecs/helpers.ts";
+import type { Entity, World } from "@phughesmcr/miski";
+import { assertEquals } from "@std/assert";
 
 Deno.test("consumed player action commits before enemies decide", async () => {
   const world = await createWorld();
@@ -153,7 +153,7 @@ Deno.test("enemy phase stops immediately after player defeat", async () => {
     y: 1,
     dir: Direction.East,
     displayName: DisplayName.DigitalDog,
-    archetype: EnemyArchetype.NetworkNeophyte,
+    archetype: EnemyArchetype.MeleeDog,
     attack: MELEE_ATTACK,
   });
   const later = spawnEnemy(world, {

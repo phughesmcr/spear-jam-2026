@@ -1,5 +1,5 @@
-import { assertEquals } from "@std/assert";
-import type { Entity, World } from "@phughesmcr/miski";
+import { attackEntity, attackTargets, resolveAttack } from "@/src/ecs/combat.ts";
+import type { AttackSchema } from "@/src/ecs/components.ts";
 import {
   AttackFacingRequirement,
   AttackPattern,
@@ -14,14 +14,14 @@ import {
   Interactable,
   Player as PlayerTag,
 } from "@/src/ecs/components.ts";
-import type { AttackSchema } from "@/src/ecs/components.ts";
-import { attackEntity, attackTargets, resolveAttack } from "@/src/ecs/combat.ts";
+import type { SpatialLookup } from "@/src/ecs/spatial.ts";
+import { SpatialIndex } from "@/src/ecs/spatial.ts";
+import { createWorld } from "@/src/ecs/world.ts";
 import { DisplayName, displayNameCode } from "@/src/game/names.ts";
 import { playerWeaponSpec } from "@/src/game/weapons.ts";
-import { SpatialIndex } from "@/src/ecs/spatial.ts";
-import type { SpatialLookup } from "@/src/ecs/spatial.ts";
-import { createWorld } from "@/src/ecs/world.ts";
 import { createEntity, flatTestMap } from "@/tests/ecs/helpers.ts";
+import type { Entity, World } from "@phughesmcr/miski";
+import { assertEquals } from "@std/assert";
 
 const BASE_ATTACK: AttackSchema = {
   minDamage: 1,
@@ -40,7 +40,7 @@ Deno.test("player weapon specs expose metadata and attack fields from one combat
     ...BASE_ATTACK,
     label: "Bit Shifter",
     noiseRadius: 4,
-    maxDamage: 2,
+    maxDamage: 3,
     attackBonus: 4,
   });
   assertEquals(playerWeaponSpec(2), {
@@ -49,8 +49,8 @@ Deno.test("player weapon specs expose metadata and attack fields from one combat
     ammo: "pistol",
     noiseRadius: 8,
     minDamage: 2,
-    maxDamage: 3,
-    range: 2,
+    maxDamage: 4,
+    range: 4,
     attackBonus: 2,
   });
   assertEquals(playerWeaponSpec(3), {
@@ -58,8 +58,8 @@ Deno.test("player weapon specs expose metadata and attack fields from one combat
     label: "Current Cannon",
     ammo: "cannon",
     noiseRadius: 8,
-    minDamage: 2,
-    maxDamage: 4,
+    minDamage: 3,
+    maxDamage: 8,
     range: 6,
     attackBonus: 1,
   });

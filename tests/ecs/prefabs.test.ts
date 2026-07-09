@@ -1,5 +1,4 @@
-import { assertEquals, assertThrows } from "@std/assert";
-import { DialogueTreeId } from "@/src/dialogue/dialogue.ts";
+import { dialogueTreeCode, DialogueTreeId } from "@/src/dialogue/dialogue.ts";
 import {
   Attack,
   AttackFacingRequirement,
@@ -26,12 +25,6 @@ import {
   TerminalDestination,
 } from "@/src/ecs/components.ts";
 import { EnemyArchetype } from "@/src/ecs/enemy_catalog.ts";
-import { dialogueTreeCode } from "@/src/dialogue/dialogue.ts";
-import { ExamineTextId } from "@/src/game/examine.ts";
-import { examineTextCode } from "@/src/game/examine_content.ts";
-import { DisplayName, displayNameCode } from "@/src/game/names.ts";
-import { SoundId, soundIdCode } from "@/src/game/sound.ts";
-import { storyEventCode, StoryEventId, storyTargetCode, StoryTargetId } from "@/src/game/story.ts";
 import {
   createDecoration,
   createDoor,
@@ -41,7 +34,13 @@ import {
   createUplinkTerminal,
 } from "@/src/ecs/prefabs.ts";
 import { createWorld } from "@/src/ecs/world.ts";
+import { ExamineTextId } from "@/src/game/examine.ts";
+import { examineTextCode } from "@/src/game/examine_content.ts";
+import { DisplayName, displayNameCode } from "@/src/game/names.ts";
+import { SoundId, soundIdCode } from "@/src/game/sound.ts";
+import { storyEventCode, StoryEventId, storyTargetCode, StoryTargetId } from "@/src/game/story.ts";
 import { terminalDestinationCode } from "@/src/map/map.ts";
+import { assertEquals, assertThrows } from "@std/assert";
 
 Deno.test("neutral NPCs and enemies share display names without sharing NPC identity", async () => {
   const world = await createWorld();
@@ -201,10 +200,10 @@ Deno.test("enemy archetypes apply top-down tuning defaults", async () => {
       archetype: "gunslinger",
       displayName: DisplayName.GigabitGunslinger,
       code: EnemyArchetype.Gunslinger,
-      health: 2,
+      health: 3,
       hitDc: 10,
       damage: 1,
-      range: 4,
+      range: 3,
       pattern: AttackPattern.Line,
       requiresFacing: AttackFacingRequirement.Required,
     },
@@ -212,10 +211,10 @@ Deno.test("enemy archetypes apply top-down tuning defaults", async () => {
       archetype: "networkNeophyte",
       displayName: DisplayName.NetworkNeophyte,
       code: EnemyArchetype.NetworkNeophyte,
-      health: 3,
+      health: 4,
       hitDc: 10,
       damage: 1,
-      range: 1,
+      range: 3,
       pattern: AttackPattern.Line,
       requiresFacing: AttackFacingRequirement.Required,
     },
