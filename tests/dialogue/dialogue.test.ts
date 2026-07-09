@@ -1,5 +1,5 @@
-import { assertEquals, assertThrows } from "@std/assert";
 import { DialogueTreeId, dialogueTreeNode, dialogueTreeStart, validateDialogueTrees } from "@/src/dialogue/dialogue.ts";
+import { assertEquals, assertThrows } from "@std/assert";
 
 Deno.test("dialogueTreeStart returns the authored start node", () => {
   const start = dialogueTreeStart(DialogueTreeId.JohnIntro);
@@ -21,6 +21,25 @@ Deno.test("dialogueTreeNode follows choice links within a tree", () => {
   assertEquals(
     dialogueTreeNode("john_intro", "briefing").text,
     "The uplink is down. Find the code and get to the terminal.",
+  );
+});
+
+Deno.test("johnNexus dialogue covers the Nexus briefing path", () => {
+  const start = dialogueTreeStart(DialogueTreeId.JohnNexus);
+
+  assertEquals(start.treeKey, "john_nexus");
+  assertEquals(start.node.choices[0]?.next, "nexus");
+  assertEquals(
+    dialogueTreeNode("john_nexus", "nexus").text,
+    "Travel through the Uplink Terminal on this level. It leads to The Nexus — that's where you'll find the Spear of Destiny.",
+  );
+  assertEquals(
+    dialogueTreeNode("john_nexus", "core").text,
+    "Then go to The Mainframe Core. Upload the Spear's power and force a system reboot.",
+  );
+  assertEquals(
+    dialogueTreeNode("john_nexus", "warning").text,
+    "Be wary of the core's stone sentinel guards. Stay sharp.",
   );
 });
 

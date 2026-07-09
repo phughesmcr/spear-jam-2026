@@ -42,5 +42,37 @@
         ]
       }
     }
+  },
+  "john_nexus": {
+    "start": "greet",
+    "nodes": {
+      "greet": {
+        "text": "Our paths cross again. Listen close — the next stretch is the hard part.",
+        "choices": [
+          { "label": "WHAT'S THE PLAN?", "next": "nexus" },
+          { "label": "BYE!" }
+        ]
+      },
+      "nexus": {
+        "text": "Travel through the Uplink Terminal on this level. It leads to The Nexus — that's where you'll find the Spear of Destiny.",
+        "choices": [
+          { "label": "AND THEN?", "next": "core" },
+          { "label": "GOT IT." }
+        ]
+      },
+      "core": {
+        "text": "Then go to The Mainframe Core. Upload the Spear's power and force a system reboot.",
+        "choices": [
+          { "label": "ANYTHING ELSE?", "next": "warning" },
+          { "label": "UNDERSTOOD." }
+        ]
+      },
+      "warning": {
+        "text": "Be wary of the core's stone sentinel guards. Stay sharp.",
+        "choices": [
+          { "label": "WILL DO." }
+        ]
+      }
+    }
   }
 }

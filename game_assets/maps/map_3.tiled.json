@@ -1028,6 +1028,44 @@
                  "width":16,
                  "x":224,
                  "y":176
+                }, 
+                {
+                 "gid":142,
+                 "height":16,
+                 "id":48,
+                 "name":"npc_john",
+                 "opacity":1,
+                 "properties":[
+                        {
+                         "name":"dialogueTreeId",
+                         "propertytype":"DialogueTreeId",
+                         "type":"string",
+                         "value":"johnNexus"
+                        },
+                        {
+                         "name":"displayName",
+                         "propertytype":"DisplayName",
+                         "type":"string",
+                         "value":"john"
+                        },
+                        {
+                         "name":"facing",
+                         "propertytype":"Facing",
+                         "type":"string",
+                         "value":"north"
+                        },
+                        {
+                         "name":"prefab",
+                         "propertytype":"Prefab",
+                         "type":"string",
+                         "value":"npc"
+                        }],
+                 "rotation":0,
+                 "type":"npc",
+                 "visible":true,
+                 "width":16,
+                 "x":64,
+                 "y":192
                 }],
          "opacity":1,
          "type":"objectgroup",
@@ -1234,7 +1272,7 @@
          "y":0
         }],
  "nextlayerid":4,
- "nextobjectid":48,
+ "nextobjectid":49,
  "orientation":"orthogonal",
  "properties":[
         {

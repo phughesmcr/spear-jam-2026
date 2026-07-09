@@ -4,19 +4,19 @@
  "layers":[
         {
          "data":[102, 102, 102, 102, 102, 102, 102, 102, 102, 102, 102, 102, 102, 102, 102, 102, 102, 102, 102,
-            102, 102, 102, 102, 102, 102, 102, 58, 54, 56, 58, 54, 102, 102, 102, 102, 102, 102, 102,
-            102, 102, 102, 102, 102, 102, 102, 54, 56, 58, 54, 56, 102, 102, 102, 102, 102, 102, 102,
-            102, 102, 102, 102, 102, 102, 102, 102, 102, 56, 102, 102, 102, 102, 102, 102, 102, 102, 102,
-            102, 58, 54, 56, 58, 54, 56, 58, 54, 56, 58, 54, 56, 58, 54, 56, 58, 54, 102,
-            102, 102, 102, 58, 102, 102, 102, 102, 102, 54, 102, 102, 102, 102, 102, 56, 102, 102, 102,
-            102, 58, 54, 56, 58, 54, 102, 56, 58, 54, 56, 58, 102, 54, 56, 58, 54, 56, 102,
-            102, 54, 56, 58, 54, 56, 102, 58, 102, 54, 102, 56, 102, 58, 54, 56, 58, 54, 102,
-            102, 56, 58, 54, 56, 58, 102, 54, 56, 17, 54, 56, 102, 56, 58, 54, 56, 58, 102,
-            102, 102, 102, 56, 102, 102, 102, 102, 102, 17, 102, 102, 102, 102, 102, 54, 102, 102, 102,
-            102, 54, 56, 58, 54, 56, 58, 54, 56, 58, 54, 56, 58, 54, 56, 58, 54, 56, 102,
-            102, 102, 102, 102, 102, 36, 102, 102, 102, 17, 102, 102, 102, 102, 58, 102, 102, 102, 102,
-            102, 102, 58, 54, 56, 58, 54, 102, 17, 17, 17, 102, 56, 58, 54, 56, 58, 102, 102,
-            102, 102, 54, 56, 58, 54, 56, 102, 17, 17, 17, 102, 58, 54, 56, 58, 54, 102, 102,
+            102, 102, 102, 102, 102, 102, 102, 54, 54, 54, 54, 54, 102, 102, 102, 102, 102, 102, 102,
+            102, 102, 102, 102, 102, 102, 102, 54, 54, 54, 54, 54, 102, 102, 102, 102, 102, 102, 102,
+            102, 102, 102, 102, 102, 102, 102, 102, 102, 54, 102, 102, 102, 102, 102, 102, 102, 102, 102,
+            102, 54, 54, 54, 54, 54, 54, 54, 54, 54, 54, 54, 54, 54, 54, 54, 54, 54, 102,
+            102, 102, 102, 54, 102, 102, 102, 102, 102, 54, 102, 102, 102, 102, 102, 54, 102, 102, 102,
+            102, 54, 54, 54, 54, 54, 102, 54, 54, 54, 54, 54, 102, 54, 54, 54, 54, 54, 102,
+            102, 54, 54, 119, 54, 54, 102, 54, 107, 54, 107, 54, 102, 54, 54, 119, 54, 54, 102,
+            102, 54, 54, 54, 54, 54, 102, 54, 54, 54, 54, 54, 102, 54, 54, 54, 54, 54, 102,
+            102, 102, 102, 54, 102, 102, 102, 102, 102, 54, 102, 102, 102, 102, 102, 54, 102, 102, 102,
+            102, 54, 54, 54, 54, 54, 54, 54, 54, 54, 54, 54, 54, 54, 54, 54, 54, 54, 102,
+            102, 102, 102, 102, 102, 54, 102, 102, 102, 54, 102, 102, 102, 102, 54, 102, 102, 102, 102,
+            102, 102, 54, 54, 54, 54, 54, 102, 54, 54, 54, 102, 54, 54, 54, 54, 54, 102, 102,
+            102, 102, 54, 54, 54, 54, 54, 102, 54, 54, 54, 102, 54, 54, 54, 54, 54, 102, 102,
             102, 102, 102, 102, 102, 102, 102, 102, 102, 102, 102, 102, 102, 102, 102, 102, 102, 102, 102],
          "height":15,
          "id":1,
@@ -89,6 +89,37 @@
                  "width":16,
                  "x":128,
                  "y":224
+                }, 
+                {
+                 "gid":149,
+                 "height":16,
+                 "id":51,
+                 "name":"item_2",
+                 "opacity":1,
+                 "properties":[
+                        {
+                         "name":"amount",
+                         "type":"int",
+                         "value":4
+                        }, 
+                        {
+                         "name":"item",
+                         "propertytype":"ItemKind",
+                         "type":"string",
+                         "value":"PistolAmmo"
+                        }, 
+                        {
+                         "name":"prefab",
+                         "propertytype":"Prefab",
+                         "type":"string",
+                         "value":"item"
+                        }],
+                 "rotation":0,
+                 "type":"item",
+                 "visible":true,
+                 "width":16,
+                 "x":80,
+                 "y":144
                 }, 
                 {
                  "gid":149,
@@ -585,7 +616,8 @@
                  "width":16,
                  "x":32,
                  "y":224
-                }, 
+                },
+            
                 {
                  "gid":143,
                  "height":16,
@@ -621,10 +653,9 @@
                  "type":"enemy",
                  "visible":true,
                  "width":16,
-                 "x":48,
-                 "y":128
-                },
-            
+                 "x":16,
+                 "y":144
+                }, 
                 {
                  "gid":143,
                  "height":16,
@@ -787,7 +818,7 @@
                  "type":"enemy",
                  "visible":true,
                  "width":16,
-                 "x":176,
+                 "x":208,
                  "y":112
                 }, 
                 {
@@ -894,8 +925,8 @@
                  "type":"enemy",
                  "visible":true,
                  "width":16,
-                 "x":240,
-                 "y":128
+                 "x":144,
+                 "y":48
                 }, 
                 {
                  "gid":143,
@@ -1107,6 +1138,82 @@
                  "y":80
                 }, 
                 {
+                 "gid":143,
+                 "height":16,
+                 "id":47,
+                 "name":"enemy_33",
+                 "opacity":1,
+                 "properties":[
+                        {
+                         "name":"archetype",
+                         "propertytype":"EnemyArchetype",
+                         "type":"string",
+                         "value":"SystemSentinel"
+                        }, 
+                        {
+                         "name":"displayName",
+                         "propertytype":"DisplayName",
+                         "type":"string",
+                         "value":"SystemSentinel"
+                        }, 
+                        {
+                         "name":"facing",
+                         "propertytype":"Facing",
+                         "type":"string",
+                         "value":"south"
+                        }, 
+                        {
+                         "name":"prefab",
+                         "propertytype":"Prefab",
+                         "type":"string",
+                         "value":"enemy"
+                        }],
+                 "rotation":0,
+                 "type":"enemy",
+                 "visible":true,
+                 "width":16,
+                 "x":240,
+                 "y":80
+                }, 
+                {
+                 "gid":143,
+                 "height":16,
+                 "id":46,
+                 "name":"enemy_33",
+                 "opacity":1,
+                 "properties":[
+                        {
+                         "name":"archetype",
+                         "propertytype":"EnemyArchetype",
+                         "type":"string",
+                         "value":"SystemSentinel"
+                        }, 
+                        {
+                         "name":"displayName",
+                         "propertytype":"DisplayName",
+                         "type":"string",
+                         "value":"SystemSentinel"
+                        }, 
+                        {
+                         "name":"facing",
+                         "propertytype":"Facing",
+                         "type":"string",
+                         "value":"south"
+                        }, 
+                        {
+                         "name":"prefab",
+                         "propertytype":"Prefab",
+                         "type":"string",
+                         "value":"enemy"
+                        }],
+                 "rotation":0,
+                 "type":"enemy",
+                 "visible":true,
+                 "width":16,
+                 "x":48,
+                 "y":80
+                }, 
+                {
                  "gid":149,
                  "height":16,
                  "id":34,
@@ -1167,7 +1274,8 @@
                  "width":16,
                  "x":208,
                  "y":80
-                }, 
+                },
+            
                 {
                  "gid":144,
                  "height":16,
@@ -1223,6 +1331,199 @@
                  "width":16,
                  "x":144,
                  "y":32
+                }, 
+                {
+                 "gid":150,
+                 "height":16,
+                 "id":52,
+                 "name":"",
+                 "opacity":1,
+                 "properties":[
+                        {
+                         "name":"decoration",
+                         "propertytype":"DecorationKind",
+                         "type":"string",
+                         "value":"ceilingWires"
+                        }],
+                 "rotation":0,
+                 "type":"",
+                 "visible":true,
+                 "width":16,
+                 "x":176,
+                 "y":128
+                }, 
+                {
+                 "gid":150,
+                 "height":16,
+                 "id":53,
+                 "name":"",
+                 "opacity":1,
+                 "properties":[
+                        {
+                         "name":"decoration",
+                         "propertytype":"DecorationKind",
+                         "type":"string",
+                         "value":"ceilingWires"
+                        }],
+                 "rotation":0,
+                 "type":"",
+                 "visible":true,
+                 "width":16,
+                 "x":128,
+                 "y":112
+                }, 
+                {
+                 "gid":150,
+                 "height":16,
+                 "id":54,
+                 "name":"",
+                 "opacity":1,
+                 "properties":[
+                        {
+                         "name":"decoration",
+                         "propertytype":"DecorationKind",
+                         "type":"string",
+                         "value":"ceilingWires"
+                        }],
+                 "rotation":0,
+                 "type":"",
+                 "visible":true,
+                 "width":16,
+                 "x":96,
+                 "y":176
+                }, 
+                {
+                 "gid":150,
+                 "height":16,
+                 "id":55,
+                 "name":"",
+                 "opacity":1,
+                 "properties":[
+                        {
+                         "name":"decoration",
+                         "propertytype":"DecorationKind",
+                         "type":"string",
+                         "value":"ceilingWires"
+                        }],
+                 "rotation":0,
+                 "type":"",
+                 "visible":true,
+                 "width":16,
+                 "x":192,
+                 "y":176
+                }, 
+                {
+                 "gid":150,
+                 "height":16,
+                 "id":56,
+                 "name":"",
+                 "opacity":1,
+                 "properties":[
+                        {
+                         "name":"decoration",
+                         "propertytype":"DecorationKind",
+                         "type":"string",
+                         "value":"ceilingLight"
+                        }],
+                 "rotation":0,
+                 "type":"",
+                 "visible":true,
+                 "width":16,
+                 "x":48,
+                 "y":144
+                }, 
+                {
+                 "gid":150,
+                 "height":16,
+                 "id":57,
+                 "name":"",
+                 "opacity":1,
+                 "properties":[
+                        {
+                         "name":"decoration",
+                         "propertytype":"DecorationKind",
+                         "type":"string",
+                         "value":"ceilingLight"
+                        }],
+                 "rotation":0,
+                 "type":"",
+                 "visible":true,
+                 "width":16,
+                 "x":112,
+                 "y":80
+                }, 
+                {
+                 "gid":150,
+                 "height":16,
+                 "id":58,
+                 "name":"",
+                 "opacity":1,
+                 "properties":[
+                        {
+                         "name":"decoration",
+                         "propertytype":"DecorationKind",
+                         "type":"string",
+                         "value":"ceilingLight"
+                        }],
+                 "rotation":0,
+                 "type":"",
+                 "visible":true,
+                 "width":16,
+                 "x":176,
+                 "y":80
+                }, 
+                {
+                 "gid":150,
+                 "height":16,
+                 "id":59,
+                 "name":"",
+                 "opacity":1,
+                 "properties":[
+                        {
+                         "name":"decoration",
+                         "propertytype":"DecorationKind",
+                         "type":"string",
+                         "value":"ceilingLight"
+                        }],
+                 "rotation":0,
+                 "type":"",
+                 "visible":true,
+                 "width":16,
+                 "x":240,
+                 "y":144
+                }, 
+                {
+                 "gid":150,
+                 "height":16,
+                 "id":60,
+                 "name":"",
+                 "opacity":1,
+                 "properties":[
+                        {
+                         "name":"decoration",
+                         "propertytype":"DecorationKind",
+                         "type":"string",
+                         "value":"ceilingHook"
+                        }],
+                 "rotation":0,
+                 "type":"",
+                 "visible":true,
+                 "width":16,
+                 "x":64,
+                 "y":208
+                }, 
+                {
+                 "gid":150,
+                 "height":16,
+                 "id":61,
+                 "name":"",
+                 "opacity":1,
+                 "rotation":0,
+                 "type":"",
+                 "visible":true,
+                 "width":16,
+                 "x":192,
+                 "y":208
                 }],
          "opacity":1,
          "type":"objectgroup",
@@ -1245,7 +1546,7 @@
                         {
                          "name":"color",
                          "type":"string",
-                         "value":"#f0fff0"
+                         "value":"#0f0f0f"
                         }, 
                         {
                          "name":"flickerAmount",
@@ -1261,8 +1562,8 @@
                  "type":"",
                  "visible":true,
                  "width":16,
-                 "x":144,
-                 "y":160
+                 "x":176,
+                 "y":80
                 }, 
                 {
                  "gid":151,
@@ -1274,65 +1575,7 @@
                         {
                          "name":"color",
                          "type":"string",
-                         "value":"#f0fff0"
-                        }, 
-                        {
-                         "name":"flickerAmount",
-                         "type":"float",
-                         "value":0.3
-                        }, 
-                        {
-                         "name":"radius",
-                         "type":"int",
-                         "value":3
-                        }],
-                 "rotation":0,
-                 "type":"",
-                 "visible":true,
-                 "width":16,
-                 "x":80,
-                 "y":176
-                }, 
-                {
-                 "gid":151,
-                 "height":16,
-                 "id":42,
-                 "name":"",
-                 "opacity":1,
-                 "properties":[
-                        {
-                         "name":"color",
-                         "type":"string",
-                         "value":"#f0fff0"
-                        }, 
-                        {
-                         "name":"flickerAmount",
-                         "type":"float",
-                         "value":0.3
-                        }, 
-                        {
-                         "name":"radius",
-                         "type":"int",
-                         "value":3
-                        }],
-                 "rotation":0,
-                 "type":"",
-                 "visible":true,
-                 "width":16,
-                 "x":224,
-                 "y":176
-                }, 
-                {
-                 "gid":151,
-                 "height":16,
-                 "id":43,
-                 "name":"",
-                 "opacity":1,
-                 "properties":[
-                        {
-                         "name":"color",
-                         "type":"string",
-                         "value":"#f0fff0"
+                         "value":"#00ff00"
                         }, 
                         {
                          "name":"flickerAmount",
@@ -1349,19 +1592,19 @@
                  "visible":true,
                  "width":16,
                  "x":48,
-                 "y":96
+                 "y":144
                 }, 
                 {
                  "gid":151,
                  "height":16,
-                 "id":44,
+                 "id":42,
                  "name":"",
                  "opacity":1,
                  "properties":[
                         {
                          "name":"color",
                          "type":"string",
-                         "value":"#f0fff0"
+                         "value":"#0000ff"
                         }, 
                         {
                          "name":"flickerAmount",
@@ -1378,7 +1621,65 @@
                  "visible":true,
                  "width":16,
                  "x":240,
-                 "y":96
+                 "y":144
+                }, 
+                {
+                 "gid":151,
+                 "height":16,
+                 "id":43,
+                 "name":"",
+                 "opacity":1,
+                 "properties":[
+                        {
+                         "name":"color",
+                         "type":"string",
+                         "value":"#00ff00"
+                        }, 
+                        {
+                         "name":"flickerAmount",
+                         "type":"float",
+                         "value":0.3
+                        }, 
+                        {
+                         "name":"radius",
+                         "type":"int",
+                         "value":3
+                        }],
+                 "rotation":0,
+                 "type":"",
+                 "visible":true,
+                 "width":16,
+                 "x":48,
+                 "y":112
+                }, 
+                {
+                 "gid":151,
+                 "height":16,
+                 "id":44,
+                 "name":"",
+                 "opacity":1,
+                 "properties":[
+                        {
+                         "name":"color",
+                         "type":"string",
+                         "value":"#0000ff"
+                        }, 
+                        {
+                         "name":"flickerAmount",
+                         "type":"float",
+                         "value":0.3
+                        }, 
+                        {
+                         "name":"radius",
+                         "type":"int",
+                         "value":3
+                        }],
+                 "rotation":0,
+                 "type":"",
+                 "visible":true,
+                 "width":16,
+                 "x":240,
+                 "y":112
                 }, 
                 {
                  "gid":151,
@@ -1406,13 +1707,76 @@
                  "type":"",
                  "visible":true,
                  "width":16,
-                 "x":160,
+                 "x":144,
                  "y":32
                 }, 
                 {
                  "gid":151,
                  "height":16,
                  "id":39,
+                 "name":"",
+                 "opacity":1,
+                 "properties":[
+                        {
+                         "name":"color",
+                         "type":"string",
+                         "value":"#f0f0f0"
+                        }, 
+                        {
+                         "name":"flickerAmount",
+                         "type":"float",
+                         "value":0.3
+                        }, 
+                        {
+                         "name":"radius",
+                         "type":"int",
+                         "value":3
+                        }],
+                 "rotation":0,
+                 "type":"",
+                 "visible":true,
+                 "width":16,
+                 "x":112,
+                 "y":80
+                }, 
+                {
+                 "gid":151,
+                 "height":16,
+                 "id":48,
+                 "name":"",
+                 "opacity":1,
+                 "properties":[
+                        {
+                         "name":"color",
+                         "type":"string",
+                         "value":"#ff0000"
+                        }, 
+                        {
+                         "name":"flickerAmount",
+                         "type":"float",
+                         "value":0.6
+                        }, 
+                        {
+                         "name":"flickerSpeed",
+                         "type":"float",
+                         "value":0.4
+                        }, 
+                        {
+                         "name":"radius",
+                         "type":"int",
+                         "value":3
+                        }],
+                 "rotation":0,
+                 "type":"",
+                 "visible":true,
+                 "width":16,
+                 "x":144,
+                 "y":128
+                }, 
+                {
+                 "gid":151,
+                 "height":16,
+                 "id":49,
                  "name":"",
                  "opacity":1,
                  "properties":[
@@ -1435,8 +1799,37 @@
                  "type":"",
                  "visible":true,
                  "width":16,
-                 "x":112,
-                 "y":112
+                 "x":48,
+                 "y":224
+                }, 
+                {
+                 "gid":151,
+                 "height":16,
+                 "id":50,
+                 "name":"",
+                 "opacity":1,
+                 "properties":[
+                        {
+                         "name":"color",
+                         "type":"string",
+                         "value":"#f0fff0"
+                        }, 
+                        {
+                         "name":"flickerAmount",
+                         "type":"float",
+                         "value":0.3
+                        }, 
+                        {
+                         "name":"radius",
+                         "type":"int",
+                         "value":3
+                        }],
+                 "rotation":0,
+                 "type":"",
+                 "visible":true,
+                 "width":16,
+                 "x":208,
+                 "y":224
                 }],
          "opacity":1,
          "type":"objectgroup",
@@ -1445,7 +1838,7 @@
          "y":0
         }],
  "nextlayerid":4,
- "nextobjectid":46,
+ "nextobjectid":62,
  "orientation":"orthogonal",
  "properties":[
         {
