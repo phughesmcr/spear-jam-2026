@@ -1,10 +1,5 @@
 import { dialogueTreeNode } from "@/src/dialogue/dialogue.ts";
-import {
-  type AudioChannel,
-  type AudioSettings,
-  DEFAULT_AUDIO_SETTINGS,
-  withAudioVolume,
-} from "@/src/game/audio_settings.ts";
+import { type AudioSettings, DEFAULT_AUDIO_SETTINGS, withAudioVolume } from "@/src/game/audio_settings.ts";
 import {
   type GameCommand,
   isPlayerCommand,
@@ -14,6 +9,12 @@ import {
 import { hasNextIntermissionPage, type IntermissionMode, isMessageRevealed } from "@/src/game/intermission.ts";
 import { CONTINUE_INTERMISSION_PROMPT, INTRO_INTERMISSION } from "@/src/game/intro.ts";
 import { consumeGameEvents, createPresentationState, type PresentationState } from "@/src/game/presentation.ts";
+import {
+  clampInteractiveFps,
+  DEFAULT_INTERACTIVE_FPS,
+  interactiveFpsFromUnit,
+  type SettingsSliderId,
+} from "@/src/game/render_settings.ts";
 import type { GameMode, TitleHoverButton, VerbMenuTarget, ViewMode } from "@/src/game/state.ts";
 import { openVerbMenu, verbMenuCommand, verbPointer } from "@/src/game/verb_menu_transition.ts";
 import type { Entity } from "@phughesmcr/miski";
@@ -40,6 +41,7 @@ export type GameModel = {
   readonly mode: GameMode;
   readonly viewMode: ViewMode;
   readonly audio: AudioSettings;
+  readonly interactiveFps: number;
   readonly lastVerbIndex: number;
   readonly verbPointerDownTarget?: VerbMenuTarget;
   readonly dialoguePointerDownSlot?: number;
@@ -73,7 +75,7 @@ export type GameTransitionEvent =
   | {
     readonly type: "settingsPointer";
     readonly phase: SettingsPointerPhase;
-    readonly slider?: AudioChannel;
+    readonly slider?: SettingsSliderId;
     readonly volume?: number;
   }
   | {
@@ -98,6 +100,7 @@ export function createGameModel(startMapName: string, options: GameModelOptions 
     mode: { type: "loading" },
     viewMode: "firstPerson",
     audio: DEFAULT_AUDIO_SETTINGS,
+    interactiveFps: DEFAULT_INTERACTIVE_FPS,
     lastVerbIndex: 0,
   };
 }
@@ -271,7 +274,7 @@ function settingsCommand(model: GameModel, mode: SettingsMode, command: GameComm
 function settingsPointer(
   model: GameModel,
   phase: SettingsPointerPhase,
-  slider: AudioChannel | undefined,
+  slider: SettingsSliderId | undefined,
   volume: number | undefined,
 ): GameTransition {
   const mode = model.mode;
@@ -280,19 +283,12 @@ function settingsPointer(
   switch (phase) {
     case "down": {
       if (slider === undefined || volume === undefined) return done(model);
-      const audio = withAudioVolume(model.audio, slider, volume);
-      return done({
-        ...model,
-        audio,
-        mode: { type: "settings", returnIntent: mode.returnIntent, dragging: slider },
-      }, [{ type: "applyAudioVolumes" }, { type: "render" }]);
+      return applySettingsSlider(model, mode, slider, volume, true);
     }
     case "move": {
       const dragging = mode.dragging;
       if (dragging === undefined || volume === undefined) return done(model);
-      const audio = withAudioVolume(model.audio, dragging, volume);
-      if (audio === model.audio) return done(model);
-      return done({ ...model, audio }, [{ type: "applyAudioVolumes" }, { type: "render" }]);
+      return applySettingsSlider(model, mode, dragging, volume, false);
     }
     case "up":
     case "cancel":
@@ -303,6 +299,40 @@ function settingsPointer(
       });
     default: {
       const _exhaustive: never = phase;
+      return _exhaustive;
+    }
+  }
+}
+
+function applySettingsSlider(
+  model: GameModel,
+  mode: SettingsMode,
+  slider: SettingsSliderId,
+  unit: number,
+  startDrag: boolean,
+): GameTransition {
+  switch (slider) {
+    case "music":
+    case "sound": {
+      const audio = withAudioVolume(model.audio, slider, unit);
+      if (!startDrag && audio === model.audio) return done(model);
+      return done({
+        ...model,
+        audio,
+        mode: startDrag ? { type: "settings", returnIntent: mode.returnIntent, dragging: slider } : model.mode,
+      }, [{ type: "applyAudioVolumes" }, { type: "render" }]);
+    }
+    case "fps": {
+      const interactiveFps = interactiveFpsFromUnit(unit);
+      if (!startDrag && interactiveFps === model.interactiveFps) return done(model);
+      return done({
+        ...model,
+        interactiveFps: clampInteractiveFps(interactiveFps),
+        mode: startDrag ? { type: "settings", returnIntent: mode.returnIntent, dragging: "fps" } : model.mode,
+      }, [{ type: "render" }]);
+    }
+    default: {
+      const _exhaustive: never = slider;
       return _exhaustive;
     }
   }

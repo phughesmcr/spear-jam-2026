@@ -60,8 +60,10 @@ Deno.test("routePointerInput maps settings back-button pointer up to wait", () =
 
 Deno.test("routePointerInput maps settings slider drag to settingsPointer events", () => {
   const model = modelWithMode({ type: "settings", returnIntent: "start" });
-  const [music, sound] = settingsSliderRects(CANVAS_SIZE);
-  if (music === undefined || sound === undefined) throw new Error("expected settings sliders");
+  const [music, sound, fps] = settingsSliderRects(CANVAS_SIZE);
+  if (music === undefined || sound === undefined || fps === undefined) {
+    throw new Error("expected settings sliders");
+  }
 
   assertEquals(routePointerInput(model, CANVAS_SIZE, pointer(centerOf(music, { phase: "down" }))), {
     type: "transition",
@@ -114,6 +116,16 @@ Deno.test("routePointerInput maps settings slider drag to settingsPointer events
       type: "settingsPointer",
       phase: "down",
       slider: "sound",
+      volume: 0.5,
+    },
+  });
+
+  assertEquals(routePointerInput(model, CANVAS_SIZE, pointer(centerOf(fps, { phase: "down" }))), {
+    type: "transition",
+    event: {
+      type: "settingsPointer",
+      phase: "down",
+      slider: "fps",
       volume: 0.5,
     },
   });

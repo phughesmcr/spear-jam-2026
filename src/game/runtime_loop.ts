@@ -1,6 +1,12 @@
 import { type AudioRuntime, createAudioRuntime } from "@/src/audio/audio_runtime.ts";
 import type { AudioSettings } from "@/src/game/audio_settings.ts";
 import { presentationView } from "@/src/game/presentation.ts";
+import {
+  AMBIENT_FPS,
+  clampInteractiveFps,
+  DEFAULT_INTERACTIVE_FPS,
+  frameMsForFps,
+} from "@/src/game/render_settings.ts";
 import type { RuntimeSession } from "@/src/game/session_ports.ts";
 import type { EnemyIdleSoundSource, SoundCue, SoundEmitterSnapshot } from "@/src/game/sound.ts";
 import type { GameModel } from "@/src/game/transition.ts";
@@ -8,10 +14,8 @@ import { DEFAULT_GAME_CANVAS_SIZE, type GameCanvasSize } from "@/src/render/canv
 import { createFirstPersonRenderer, type FirstPersonRenderer } from "@/src/render/first_person.ts";
 import { preloadGameAssets, renderGameFrame } from "@/src/render/game.ts";
 
-/** Cap interactive animation (pose/doors/enemies) below display refresh. */
-const TARGET_FRAME_MS = 1000 / 35;
 /** Cap ambient-only animation (sky/bob/flicker) to match light rebuild rate. */
-const AMBIENT_FRAME_MS = 1000 / 12;
+const AMBIENT_FRAME_MS = frameMsForFps(AMBIENT_FPS);
 
 export type GameRuntimeLoopSpec = {
   readonly host: Window;
@@ -60,10 +64,11 @@ class RuntimeLoop implements GameRuntimeLoop {
   private lastRenderMs = Number.NEGATIVE_INFINITY;
   private wantsFrame = false;
   private ambientOnly = false;
+  private interactiveFrameMs = frameMsForFps(DEFAULT_INTERACTIVE_FPS);
   private readonly runAnimationFrame = (nowMs: number): void => {
     this.animationFrameId = undefined;
     const elapsed = nowMs - this.lastRenderMs;
-    const budgetMs = this.ambientOnly ? AMBIENT_FRAME_MS : TARGET_FRAME_MS;
+    const budgetMs = this.ambientOnly ? AMBIENT_FRAME_MS : this.interactiveFrameMs;
     // Skip work until the frame budget elapses. Negative elapsed means the
     // RAF clock and renderNow()'s performance.now() disagree (tests) — render.
     if (elapsed >= 0 && elapsed < budgetMs) {
@@ -154,6 +159,7 @@ class RuntimeLoop implements GameRuntimeLoop {
     if (!this.started || this.spec.signal.aborted) return;
 
     const model = this.spec.getModel();
+    this.interactiveFrameMs = frameMsForFps(clampInteractiveFps(model.interactiveFps));
     const session = this.spec.getSession();
     const tickResult = tickSession(session, model.mode.type, nowMs);
     this.updateAudioListenerFor(session);
@@ -166,6 +172,7 @@ class RuntimeLoop implements GameRuntimeLoop {
       presentation,
       viewMode: model.viewMode,
       audio: model.audio,
+      interactiveFps: model.interactiveFps,
       firstPersonRenderer: this.firstPersonRenderer,
       nowMs,
       onAssetLoad: this.renderLoadedAssets,

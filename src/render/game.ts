@@ -1,5 +1,6 @@
 import { type AudioSettings, DEFAULT_AUDIO_SETTINGS } from "@/src/game/audio_settings.ts";
 import type { PresentationView } from "@/src/game/presentation.ts";
+import { DEFAULT_INTERACTIVE_FPS } from "@/src/game/render_settings.ts";
 import type { FrameRenderSession } from "@/src/game/session_ports.ts";
 import type { GameMode, ViewMode } from "@/src/game/state.ts";
 import { playerWeaponSpec } from "@/src/game/weapons.ts";
@@ -48,6 +49,7 @@ export type FrameProps = {
   readonly presentation?: PresentationView;
   readonly viewMode?: ViewMode;
   readonly audio?: AudioSettings;
+  readonly interactiveFps?: number;
   readonly firstPersonRenderer?: FirstPersonRenderer;
   readonly nowMs?: number;
   readonly onAssetLoad?: () => void;
@@ -96,6 +98,7 @@ export function renderGameFrame({
   presentation = EMPTY_PRESENTATION,
   viewMode = "firstPerson",
   audio = DEFAULT_AUDIO_SETTINGS,
+  interactiveFps = DEFAULT_INTERACTIVE_FPS,
   firstPersonRenderer,
   nowMs = 0,
   onAssetLoad,
@@ -155,7 +158,7 @@ export function renderGameFrame({
       renderTitle(ctx, canvasSize, mode.intent, nowMs, onAssetLoad, mode.hoverButton);
       return { needsFrame: true };
     case "settings":
-      renderSettings(ctx, canvasSize, audio, nowMs);
+      renderSettings(ctx, canvasSize, { audio, interactiveFps }, nowMs);
       return { needsFrame: true };
     case "loading":
       renderOverlay(ctx, canvasSize, "LOADING");

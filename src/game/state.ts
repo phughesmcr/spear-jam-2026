@@ -85,7 +85,7 @@ export type GameMode =
   | {
     readonly type: "settings";
     readonly returnIntent: TitleIntent;
-    readonly dragging?: "music" | "sound";
+    readonly dragging?: "music" | "sound" | "fps";
   }
   | { readonly type: "victory" }
   | { readonly type: "defeat" }

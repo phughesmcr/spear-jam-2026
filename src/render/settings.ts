@@ -1,4 +1,5 @@
-import type { AudioChannel, AudioSettings } from "@/src/game/audio_settings.ts";
+import type { AudioSettings } from "@/src/game/audio_settings.ts";
+import { clampInteractiveFps, type SettingsSliderId, unitFromInteractiveFps } from "@/src/game/render_settings.ts";
 import type { GameCanvasSize } from "@/src/render/canvas.ts";
 import { monoFont } from "@/src/render/text.ts";
 import { drawTitleButton, type TitleButtonRect, type TitlePoint } from "@/src/render/title.ts";
@@ -23,9 +24,7 @@ const SLIDER_WIDTH_MAX = 320;
 const SLIDER_TRACK_HEIGHT = 8;
 const SLIDER_THUMB_RADIUS = 10;
 const SLIDER_HIT_HEIGHT = 36;
-const SLIDER_GAP_RATIO = 0.09;
-
-export type SettingsSliderId = AudioChannel;
+const SLIDER_GAP_RATIO = 0.075;
 
 export type SettingsSliderRect = {
   readonly id: SettingsSliderId;
@@ -33,6 +32,11 @@ export type SettingsSliderRect = {
   readonly y: number;
   readonly width: number;
   readonly height: number;
+};
+
+export type SettingsView = {
+  readonly audio: AudioSettings;
+  readonly interactiveFps: number;
 };
 
 export function settingsBackButtonRect(canvasSize: GameCanvasSize): TitleButtonRect {
@@ -46,7 +50,7 @@ export function settingsBackButtonRect(canvasSize: GameCanvasSize): TitleButtonR
   );
   return {
     x: Math.round((canvasSize.width - width) / 2),
-    y: Math.round(canvasSize.height * 0.78 - height / 2),
+    y: Math.round(canvasSize.height * 0.84 - height / 2),
     width,
     height,
   };
@@ -64,10 +68,11 @@ export function settingsSliderRects(canvasSize: GameCanvasSize): readonly Settin
   );
   const x = Math.round((canvasSize.width - width) / 2);
   const gap = Math.round(canvasSize.height * SLIDER_GAP_RATIO);
-  const musicY = Math.round(canvasSize.height * 0.38 - SLIDER_HIT_HEIGHT / 2);
+  const musicY = Math.round(canvasSize.height * 0.32 - SLIDER_HIT_HEIGHT / 2);
   return [
     { id: "music", x, y: musicY, width, height: SLIDER_HIT_HEIGHT },
     { id: "sound", x, y: musicY + gap + SLIDER_HIT_HEIGHT, width, height: SLIDER_HIT_HEIGHT },
+    { id: "fps", x, y: musicY + 2 * (gap + SLIDER_HIT_HEIGHT), width, height: SLIDER_HIT_HEIGHT },
   ];
 }
 
@@ -81,7 +86,7 @@ export function settingsSliderAt(
   return undefined;
 }
 
-export function settingsSliderVolume(
+export function settingsSliderUnit(
   canvasSize: GameCanvasSize,
   sliderId: SettingsSliderId,
   point: TitlePoint,
@@ -94,7 +99,7 @@ export function settingsSliderVolume(
 export function renderSettings(
   ctx: CanvasRenderingContext2D,
   canvasSize: GameCanvasSize,
-  audio: AudioSettings,
+  settings: SettingsView,
   nowMs = 0,
 ): void {
   const backButton = settingsBackButtonRect(canvasSize);
@@ -111,37 +116,36 @@ export function renderSettings(
   ctx.textAlign = "center";
   ctx.textBaseline = "middle";
   ctx.fillStyle = SETTINGS_TITLE_COLOR;
-  ctx.fillText("SETTINGS", centerX, Math.round(canvasSize.height * 0.22));
+  ctx.fillText("SETTINGS", centerX, Math.round(canvasSize.height * 0.18));
 
   for (const slider of sliders) {
-    const volume = slider.id === "music" ? audio.musicVolume : audio.soundVolume;
-    drawVolumeSlider(ctx, slider, sliderLabel(slider.id), volume, bodySize);
+    drawSettingsSlider(ctx, slider, settings, bodySize);
   }
 
   drawTitleButton(ctx, backButton, BACK_BUTTON_LABEL, nowMs);
   ctx.restore();
 }
 
-function drawVolumeSlider(
+function drawSettingsSlider(
   ctx: CanvasRenderingContext2D,
   rect: SettingsSliderRect,
-  label: string,
-  volume: number,
+  settings: SettingsView,
   bodySize: number,
 ): void {
+  const unit = sliderUnit(rect.id, settings);
   const trackY = rect.y + Math.round(rect.height / 2);
-  const fillWidth = Math.round(rect.width * volume);
+  const fillWidth = Math.round(rect.width * unit);
   const thumbX = rect.x + fillWidth;
 
   ctx.textAlign = "left";
   ctx.textBaseline = "bottom";
   ctx.font = monoFont(600, bodySize);
   ctx.fillStyle = SETTINGS_LABEL_COLOR;
-  ctx.fillText(label, rect.x, rect.y + 2);
+  ctx.fillText(sliderLabel(rect.id), rect.x, rect.y + 2);
 
   ctx.textAlign = "right";
   ctx.fillStyle = SETTINGS_VALUE_COLOR;
-  ctx.fillText(`${Math.round(volume * 100)}%`, rect.x + rect.width, rect.y + 2);
+  ctx.fillText(sliderValueLabel(rect.id, settings), rect.x + rect.width, rect.y + 2);
 
   ctx.fillStyle = SLIDER_TRACK_COLOR;
   roundRect(ctx, rect.x, trackY - SLIDER_TRACK_HEIGHT / 2, rect.width, SLIDER_TRACK_HEIGHT, 4);
@@ -159,12 +163,44 @@ function drawVolumeSlider(
   ctx.fill();
 }
 
+function sliderUnit(id: SettingsSliderId, settings: SettingsView): number {
+  switch (id) {
+    case "music":
+      return settings.audio.musicVolume;
+    case "sound":
+      return settings.audio.soundVolume;
+    case "fps":
+      return unitFromInteractiveFps(settings.interactiveFps);
+    default: {
+      const _exhaustive: never = id;
+      return _exhaustive;
+    }
+  }
+}
+
+function sliderValueLabel(id: SettingsSliderId, settings: SettingsView): string {
+  switch (id) {
+    case "music":
+      return `${Math.round(settings.audio.musicVolume * 100)}%`;
+    case "sound":
+      return `${Math.round(settings.audio.soundVolume * 100)}%`;
+    case "fps":
+      return `${clampInteractiveFps(settings.interactiveFps)}`;
+    default: {
+      const _exhaustive: never = id;
+      return _exhaustive;
+    }
+  }
+}
+
 function sliderLabel(id: SettingsSliderId): string {
   switch (id) {
     case "music":
       return "MUSIC";
     case "sound":
       return "SOUND";
+    case "fps":
+      return "FPS";
     default: {
       const _exhaustive: never = id;
       return _exhaustive;

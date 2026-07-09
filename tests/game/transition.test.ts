@@ -180,6 +180,34 @@ Deno.test("settings pointer drag updates music and sound volumes", () => {
   });
 });
 
+Deno.test("settings pointer drag updates interactive fps", () => {
+  const startTitle = transition(createGameModel("Level 1", { showTitle: true }), { type: "start" }).model;
+  const settings = transition(startTitle, { type: "gameCommand", command: { type: "settings" } }).model;
+
+  const fpsDown = transition(settings, {
+    type: "settingsPointer",
+    phase: "down",
+    slider: "fps",
+    volume: 0,
+  });
+  assertEquals(fpsDown.model.interactiveFps, 12);
+  assertEquals(fpsDown.model.mode, {
+    type: "settings",
+    returnIntent: "start",
+    dragging: "fps",
+  });
+  assertEquals(fpsDown.effects, [{ type: "render" }]);
+
+  const fpsMove = transition(fpsDown.model, {
+    type: "settingsPointer",
+    phase: "move",
+    slider: "fps",
+    volume: 1,
+  });
+  assertEquals(fpsMove.model.interactiveFps, 60);
+  assertEquals(fpsMove.effects, [{ type: "render" }]);
+});
+
 Deno.test("transition can start with an intro intermission before loading the first map", () => {
   let result = transition(createGameModel("Level 1", { showIntro: true }), { type: "start", nowMs: 1000 });
   let mode = result.model.mode;

@@ -57,7 +57,7 @@ Deno.test("runtime RAF callback clears the pending frame before requesting anoth
   runtime[Symbol.dispose]();
 });
 
-Deno.test("runtime RAF skips work until the 35 fps budget elapses", () => {
+Deno.test("runtime RAF skips work until the interactive fps budget elapses", () => {
   const window = new FakeWindow();
   let updateCount = 0;
   const nowMs = 1_000;
@@ -92,6 +92,51 @@ Deno.test("runtime RAF skips work until the 35 fps budget elapses", () => {
 
     // Past the ~28.6 ms budget — render again.
     window.runFrame(2, nowMs + 40);
+    assertEquals(updateCount, 2);
+    runtime[Symbol.dispose]();
+  } finally {
+    Object.defineProperty(performance, "now", {
+      configurable: true,
+      value: originalNow,
+    });
+  }
+});
+
+Deno.test("runtime RAF uses the model interactiveFps for the interactive budget", () => {
+  const window = new FakeWindow();
+  let updateCount = 0;
+  const nowMs = 1_000;
+  const originalNow = performance.now.bind(performance);
+  Object.defineProperty(performance, "now", {
+    configurable: true,
+    value: () => nowMs,
+  });
+
+  try {
+    const runtime = createGameRuntimeLoop({
+      host: window as unknown as Window,
+      document: new FakeDocument() as unknown as Document,
+      ctx: new FakeContext() as unknown as CanvasRenderingContext2D,
+      signal: new AbortController().signal,
+      getModel: () => {
+        updateCount++;
+        return { ...modelNeedingFrame(), interactiveFps: 12 };
+      },
+      getSession: () => undefined,
+      dependencies: { audio: new FakeAudioRuntime(), firstPersonRenderer: fakeFirstPersonRenderer() },
+    });
+
+    runtime.start();
+    runtime.renderNow();
+    assertEquals(updateCount, 1);
+
+    // Still inside the 12 fps (~83 ms) budget — reschedule without rendering.
+    window.runFrame(1, nowMs + 40);
+    assertEquals(updateCount, 1);
+    assertEquals(window.requestedFrameIds, [1, 2]);
+
+    // Past the 12 fps budget — render again.
+    window.runFrame(2, nowMs + 90);
     assertEquals(updateCount, 2);
     runtime[Symbol.dispose]();
   } finally {

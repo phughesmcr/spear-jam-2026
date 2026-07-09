@@ -3,7 +3,7 @@ import type { GameModel, GameTransitionEvent } from "@/src/game/transition.ts";
 import type { CanvasPointerInput } from "@/src/input/pointer.ts";
 import type { GameCanvasSize } from "@/src/render/canvas.ts";
 import { dialogueOptionSlotAt } from "@/src/render/dialogue.ts";
-import { settingsBackButtonHit, settingsSliderAt, settingsSliderVolume } from "@/src/render/settings.ts";
+import { settingsBackButtonHit, settingsSliderAt, settingsSliderUnit } from "@/src/render/settings.ts";
 import { titleHoverButtonAt, titleSettingsButtonHit, titleStartButtonHit } from "@/src/render/title.ts";
 import { verbMenuTargetAt } from "@/src/render/verb_menu.ts";
 
@@ -101,7 +101,7 @@ function settingsPointer(
   const slider = settingsSliderAt(canvasSize, input);
   const dragging = mode.dragging;
   const activeSlider = dragging ?? slider;
-  const volume = activeSlider === undefined ? undefined : settingsSliderVolume(canvasSize, activeSlider, input);
+  const volume = activeSlider === undefined ? undefined : settingsSliderUnit(canvasSize, activeSlider, input);
 
   switch (input.phase) {
     case "down":
