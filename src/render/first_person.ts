@@ -56,6 +56,9 @@ import {
   startNudgeTween,
 } from "@/src/render/tween.ts";
 
+/** Set true to draw the color-coded target reticle again. */
+const SHOW_TARGET_RETICLE = false;
+
 export interface FirstPersonRenderSession {
   getMap(): GameMap;
   forEachDrawable(visit: DrawableEntityVisitor): void;
@@ -230,6 +233,6 @@ function renderFirstPersonView(
     healthBarMaxDistance,
   );
 
-  if (targetTone !== undefined) drawTargetHighlight(ctx, rect, targetTone);
+  if (SHOW_TARGET_RETICLE && targetTone !== undefined) drawTargetHighlight(ctx, rect, targetTone);
   return { needsFrame, ambientOnly: needsFrame && !interactive, cameraAngle: state.poseSample.angle };
 }
