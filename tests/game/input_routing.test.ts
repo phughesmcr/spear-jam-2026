@@ -3,7 +3,8 @@ import { createGameModel, type GameModel, transition } from "@/src/game/transiti
 import type { CanvasPointerInput } from "@/src/input/pointer.ts";
 import { DEFAULT_GAME_CANVAS_SIZE } from "@/src/render/canvas.ts";
 import { dialogueLayout } from "@/src/render/dialogue.ts";
-import { titleStartButtonRect } from "@/src/render/title.ts";
+import { settingsBackButtonRect } from "@/src/render/settings.ts";
+import { titleSettingsButtonRect, titleStartButtonRect } from "@/src/render/title.ts";
 import { verbMenuButtonRects } from "@/src/render/verb_menu.ts";
 import { assertEquals } from "@std/assert";
 
@@ -16,6 +17,27 @@ const BASE_POINTER = {
   pointerType: "mouse",
   button: 0,
 } as const satisfies CanvasPointerInput;
+
+Deno.test("routePointerInput maps title settings-button pointer up to settings", () => {
+  const model = modelWithMode({ type: "title", intent: "start" });
+  const button = titleSettingsButtonRect(CANVAS_SIZE);
+
+  assertEquals(routePointerInput(model, CANVAS_SIZE, pointer(centerOf(button, { phase: "up" }))), {
+    type: "command",
+    command: { type: "settings" },
+  });
+});
+
+Deno.test("routePointerInput maps settings back-button pointer up to wait", () => {
+  const model = modelWithMode({ type: "settings", returnIntent: "start" });
+  const button = settingsBackButtonRect(CANVAS_SIZE);
+
+  assertEquals(routePointerInput(model, CANVAS_SIZE, pointer(centerOf(button, { phase: "up" }))), {
+    type: "command",
+    command: { type: "wait" },
+  });
+  assertEquals(routePointerInput(model, CANVAS_SIZE, pointer({ phase: "up", x: 0, y: 0 })), { type: "none" });
+});
 
 Deno.test("routePointerInput maps title start-button pointer up to wait", () => {
   const model = modelWithMode({ type: "title", intent: "start" });

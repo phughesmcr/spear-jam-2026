@@ -14,6 +14,7 @@ import type { Entity } from "@phughesmcr/miski";
 
 type DialogueMode = Extract<GameMode, { readonly type: "dialogue" }>;
 type HelpMode = Extract<GameMode, { readonly type: "help" }>;
+type SettingsMode = Extract<GameMode, { readonly type: "settings" }>;
 
 export type GameModelOptions = {
   readonly showIntro?: boolean;
@@ -133,6 +134,7 @@ function mapLoaded(model: GameModel, mapName: string): GameTransition {
 function gameCommand(model: GameModel, command: GameCommand, nowMs: number): GameTransition {
   const mode = model.mode;
   if (mode.type === "title") return titleCommand(model, command, nowMs);
+  if (mode.type === "settings") return settingsCommand(model, mode, command);
   if (mode.type === "intermission") return intermissionCommand(model, mode, command, nowMs);
   if (mode.type === "dialogue") return dialogueCommand(model, mode, command);
   if (mode.type === "help") return helpCommand(model, mode, command);
@@ -150,6 +152,8 @@ function gameCommand(model: GameModel, command: GameCommand, nowMs: number): Gam
       return done(openVerbMenu(model), [{ type: "render" }]);
     case "menu":
       return toggleMenu(model);
+    case "settings":
+      return done(model);
     case "pause":
       return togglePause(model);
     case "toggleView":
@@ -165,9 +169,38 @@ function titleCommand(model: GameModel, command: GameCommand, nowMs: number): Ga
     if (mode.intent === "resume") return closeTitleMenu(model);
     return done(model);
   }
+  if (command.type === "settings") {
+    return done({
+      ...model,
+      mode: { type: "settings", returnIntent: mode.intent },
+    }, [{ type: "render" }]);
+  }
   if (command.type !== "wait") return done(model);
   if (mode.intent === "resume") return closeTitleMenu(model);
   return beginGame(model, nowMs);
+}
+
+function settingsCommand(model: GameModel, mode: SettingsMode, command: GameCommand): GameTransition {
+  switch (command.type) {
+    case "wait":
+    case "action":
+    case "menu":
+    case "settings":
+      return done({
+        ...model,
+        mode: { type: "title", intent: mode.returnIntent },
+      }, [{ type: "render" }]);
+    case "move":
+    case "turn":
+    case "interact":
+    case "examine":
+    case "attack":
+    case "smartAction":
+    case "selectWeapon":
+    case "pause":
+    case "toggleView":
+      return done(model);
+  }
 }
 
 function closeTitleMenu(model: GameModel): GameTransition {
@@ -225,6 +258,7 @@ function helpCommand(model: GameModel, mode: HelpMode, command: GameCommand): Ga
     case "selectWeapon":
     case "pause":
     case "toggleView":
+    case "settings":
       return done(model);
   }
 }

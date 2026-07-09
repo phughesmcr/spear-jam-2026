@@ -21,6 +21,7 @@ export type GameCommand =
   | PlayerCommand
   | { readonly type: "action" }
   | { readonly type: "menu" }
+  | { readonly type: "settings" }
   | { readonly type: "pause" }
   | { readonly type: "toggleView" };
 
@@ -84,6 +85,7 @@ export function isPlayerCommand(command: GameCommand): command is PlayerCommand 
       return true;
     case "action":
     case "menu":
+    case "settings":
     case "pause":
     case "toggleView":
       return false;

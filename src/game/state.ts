@@ -81,6 +81,7 @@ export type GameMode =
     readonly revealStartedAtMs: number;
     readonly revealed: boolean;
   }
+  | { readonly type: "settings"; readonly returnIntent: TitleIntent }
   | { readonly type: "victory" }
   | { readonly type: "defeat" }
   | { readonly type: "error"; readonly message: string };

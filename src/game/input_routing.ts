@@ -3,7 +3,8 @@ import type { GameModel, GameTransitionEvent } from "@/src/game/transition.ts";
 import type { CanvasPointerInput } from "@/src/input/pointer.ts";
 import type { GameCanvasSize } from "@/src/render/canvas.ts";
 import { dialogueOptionSlotAt } from "@/src/render/dialogue.ts";
-import { titleStartButtonHit } from "@/src/render/title.ts";
+import { titleSettingsButtonHit, titleStartButtonHit } from "@/src/render/title.ts";
+import { settingsBackButtonHit } from "@/src/render/settings.ts";
 import { verbMenuTargetAt } from "@/src/render/verb_menu.ts";
 
 export type PointerTransitionEvent = Extract<
@@ -23,6 +24,7 @@ export function routePointerInput(
 ): PointerInputRoute {
   const mode = model.mode;
   if (mode.type === "title") return titlePointer(canvasSize, input);
+  if (mode.type === "settings") return settingsPointer(canvasSize, input);
   if (mode.type === "intermission") return waitOnPointerUp(input);
   if (mode.type === "victory" || mode.type === "defeat") return waitOnPointerUp(input);
 
@@ -63,6 +65,15 @@ function waitOnPointerUp(input: CanvasPointerInput): PointerInputRoute {
 
 function titlePointer(canvasSize: GameCanvasSize, input: CanvasPointerInput): PointerInputRoute {
   if (input.phase !== "up") return { type: "none" };
+  if (titleSettingsButtonHit(canvasSize, input)) {
+    return { type: "command", command: { type: "settings" } };
+  }
   if (!titleStartButtonHit(canvasSize, input)) return { type: "none" };
+  return { type: "command", command: { type: "wait" } };
+}
+
+function settingsPointer(canvasSize: GameCanvasSize, input: CanvasPointerInput): PointerInputRoute {
+  if (input.phase !== "up") return { type: "none" };
+  if (!settingsBackButtonHit(canvasSize, input)) return { type: "none" };
   return { type: "command", command: { type: "wait" } };
 }

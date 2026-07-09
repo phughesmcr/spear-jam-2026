@@ -28,6 +28,8 @@ const BUTTON_LABELS = {
   start: "START GAME",
   resume: "RESUME GAME",
 } as const satisfies Record<TitleIntent, string>;
+const SETTINGS_BUTTON_LABEL = "SETTINGS";
+const BUTTON_GAP_RATIO = 0.18;
 const BUTTON_WIDTH_RATIO = 0.46;
 const BUTTON_WIDTH_MIN = 180;
 const BUTTON_WIDTH_MAX = 300;
@@ -44,6 +46,19 @@ export async function preloadTitleAssets(document: Document, onAssetLoad?: () =>
 }
 
 export function titleStartButtonRect(canvasSize: GameCanvasSize): TitleButtonRect {
+  return titleButtonRect(canvasSize);
+}
+
+export function titleSettingsButtonRect(canvasSize: GameCanvasSize): TitleButtonRect {
+  const start = titleStartButtonRect(canvasSize);
+  const gap = Math.round(start.height * BUTTON_GAP_RATIO);
+  return {
+    ...start,
+    y: start.y - gap - start.height,
+  };
+}
+
+function titleButtonRect(canvasSize: GameCanvasSize): TitleButtonRect {
   const width = Math.min(
     BUTTON_WIDTH_MAX,
     Math.max(BUTTON_WIDTH_MIN, Math.round(canvasSize.width * BUTTON_WIDTH_RATIO)),
@@ -61,7 +76,14 @@ export function titleStartButtonRect(canvasSize: GameCanvasSize): TitleButtonRec
 }
 
 export function titleStartButtonHit(canvasSize: GameCanvasSize, point: TitlePoint): boolean {
-  const rect = titleStartButtonRect(canvasSize);
+  return titleButtonHit(titleStartButtonRect(canvasSize), point);
+}
+
+export function titleSettingsButtonHit(canvasSize: GameCanvasSize, point: TitlePoint): boolean {
+  return titleButtonHit(titleSettingsButtonRect(canvasSize), point);
+}
+
+function titleButtonHit(rect: TitleButtonRect, point: TitlePoint): boolean {
   return point.x >= rect.x && point.x < rect.x + rect.width && point.y >= rect.y &&
     point.y < rect.y + rect.height;
 }
@@ -73,7 +95,8 @@ export function renderTitle(
   nowMs = 0,
   onAssetLoad?: () => void,
 ): void {
-  const button = titleStartButtonRect(canvasSize);
+  const startButton = titleStartButtonRect(canvasSize);
+  const settingsButton = titleSettingsButtonRect(canvasSize);
   const image = loadedImage(ctx, titleBackgroundAsset, onAssetLoad);
 
   ctx.save();
@@ -88,11 +111,29 @@ export function renderTitle(
     ctx.drawImage(image, rect.x, rect.y, rect.width, rect.height);
   }
 
-  drawStartButton(ctx, button, BUTTON_LABELS[intent], nowMs);
+  drawTitleButton(ctx, settingsButton, SETTINGS_BUTTON_LABEL, nowMs, "secondary");
+  drawTitleButton(ctx, startButton, BUTTON_LABELS[intent], nowMs);
   ctx.restore();
 }
 
-function drawStartButton(
+export type TitleButtonVariant = "primary" | "secondary";
+
+export function drawTitleButton(
+  ctx: CanvasRenderingContext2D,
+  button: TitleButtonRect,
+  label: string,
+  nowMs: number,
+  variant: TitleButtonVariant = "primary",
+): void {
+  if (variant === "secondary") {
+    drawSecondaryTitleButton(ctx, button, label);
+    return;
+  }
+
+  drawPrimaryTitleButton(ctx, button, label, nowMs);
+}
+
+function drawPrimaryTitleButton(
   ctx: CanvasRenderingContext2D,
   button: TitleButtonRect,
   label: string,
@@ -163,6 +204,32 @@ function drawStartButton(
   ctx.fillText(label, centerX, centerY + 0.5);
   ctx.shadowBlur = 0;
   ctx.fillStyle = "#eafff4";
+  ctx.fillText(label, centerX, centerY + 0.5);
+}
+
+function drawSecondaryTitleButton(
+  ctx: CanvasRenderingContext2D,
+  button: TitleButtonRect,
+  label: string,
+): void {
+  const centerX = button.x + button.width / 2;
+  const centerY = button.y + button.height / 2;
+  const fontSize = Math.min(18, Math.max(13, Math.round(button.height * 0.34)));
+  const corner = Math.max(2, Math.round(button.height * 0.12));
+
+  ctx.fillStyle = "rgba(8, 14, 18, 0.55)";
+  roundRect(ctx, button.x, button.y, button.width, button.height, corner);
+  ctx.fill();
+
+  ctx.strokeStyle = "rgba(142, 180, 168, 0.42)";
+  ctx.lineWidth = 1;
+  roundRect(ctx, button.x + 0.5, button.y + 0.5, button.width - 1, button.height - 1, corner);
+  ctx.stroke();
+
+  ctx.font = monoFont(400, fontSize);
+  ctx.textAlign = "center";
+  ctx.textBaseline = "middle";
+  ctx.fillStyle = "rgba(168, 196, 184, 0.88)";
   ctx.fillText(label, centerX, centerY + 0.5);
 }
 

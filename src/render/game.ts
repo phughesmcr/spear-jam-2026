@@ -17,6 +17,7 @@ import { renderIntermission } from "@/src/render/intermission.ts";
 import { renderMap } from "@/src/render/map.ts";
 import { renderMessageLog } from "@/src/render/messages.ts";
 import { monoFont } from "@/src/render/text.ts";
+import { renderSettings } from "@/src/render/settings.ts";
 import { preloadTitleAssets, renderTitle } from "@/src/render/title.ts";
 import { preloadVerbMenuAssets, renderVerbMenu } from "@/src/render/verb_menu.ts";
 import { preloadWeaponHudAssets, renderWeaponHud } from "@/src/render/weapon_hud.ts";
@@ -149,6 +150,9 @@ export function renderGameFrame({
   switch (mode.type) {
     case "title":
       renderTitle(ctx, canvasSize, mode.intent, nowMs, onAssetLoad);
+      return { needsFrame: true };
+    case "settings":
+      renderSettings(ctx, canvasSize, nowMs);
       return { needsFrame: true };
     case "loading":
       renderOverlay(ctx, canvasSize, "LOADING");

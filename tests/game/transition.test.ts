@@ -62,6 +62,28 @@ Deno.test("escape opens the title menu while playing and resume closes it", () =
   assertEquals(escaped.effects, [{ type: "render" }]);
 });
 
+Deno.test("title settings opens settings and back restores the same title intent", () => {
+  const startTitle = transition(createGameModel("Level 1", { showTitle: true }), { type: "start" }).model;
+  const opened = transition(startTitle, { type: "gameCommand", command: { type: "settings" } });
+  assertEquals(opened.model.mode, { type: "settings", returnIntent: "start" });
+  assertEquals(opened.effects, [{ type: "render" }]);
+
+  const closed = transition(opened.model, { type: "gameCommand", command: { type: "wait" } });
+  assertEquals(closed.model.mode, { type: "title", intent: "start" });
+  assertEquals(closed.effects, [{ type: "render" }]);
+
+  const playing = transition(createGameModel("Level 1"), {
+    type: "mapLoaded",
+    mapName: "Level 1",
+  }).model;
+  const resumeTitle = transition(playing, { type: "gameCommand", command: { type: "menu" } }).model;
+  const openedFromResume = transition(resumeTitle, { type: "gameCommand", command: { type: "settings" } });
+  assertEquals(openedFromResume.model.mode, { type: "settings", returnIntent: "resume" });
+
+  const closedFromResume = transition(openedFromResume.model, { type: "gameCommand", command: { type: "menu" } });
+  assertEquals(closedFromResume.model.mode, { type: "title", intent: "resume" });
+});
+
 Deno.test("transition can start with an intro intermission before loading the first map", () => {
   let result = transition(createGameModel("Level 1", { showIntro: true }), { type: "start", nowMs: 1000 });
   let mode = result.model.mode;

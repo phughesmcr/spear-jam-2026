@@ -45,6 +45,7 @@ export function verbMenuCommand(model: GameModel, mode: VerbMenuMode, command: G
     case "selectWeapon":
     case "pause":
     case "toggleView":
+    case "settings":
       return done(model);
   }
 }
