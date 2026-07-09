@@ -394,7 +394,7 @@ Deno.test("first-person renderer requests the authored sky texture", () => {
   });
 });
 
-Deno.test("first-person rendering does not keep RAF alive for scrolling sky ceilings", () => {
+Deno.test("first-person rendering requests another frame for scrolling sky ceilings", () => {
   withFakeOffscreenCanvas((): void => {
     const map = createGameMap(
       "Scrolling Sky",
@@ -423,11 +423,11 @@ Deno.test("first-person rendering does not keep RAF alive for scrolling sky ceil
       () => {},
     );
 
-    assertEquals(result.needsFrame, false);
+    assertEquals(result.needsFrame, true);
   });
 });
 
-Deno.test("first-person rendering updates flickering lights without perpetual frames", () => {
+Deno.test("first-person rendering updates flickering lights and requests another frame", () => {
   withFakeOffscreenCanvas((): void => {
     const map = createGameMap(
       "Flicker",
@@ -469,7 +469,7 @@ Deno.test("first-person rendering updates flickering lights without perpetual fr
     renderer.render(ctx, { x: 0, y: 0, width: 64, height: 64 }, session, 250);
 
     assertNotEquals(scene.lightRed[1 * 3 + 2], firstAdjacentLight);
-    assertEquals(result.needsFrame, false);
+    assertEquals(result.needsFrame, true);
   });
 });
 
@@ -1016,6 +1016,6 @@ Deno.test("first-person rendering bobs pickup item sprites vertically", () => {
 
     assertEquals(scene.spriteCount, 1);
     assertAlmostEquals(scene.spriteElevation[0]!, 0.055, 1e-6);
-    assertEquals(result.needsFrame, false);
+    assertEquals(result.needsFrame, true);
   });
 });

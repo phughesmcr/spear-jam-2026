@@ -116,8 +116,7 @@ function addAppearanceSprite(
     appearance.firstPersonScale,
     appearance.firstPersonElevation + (appearance.itemBob ? itemElevation(nowMs) : 0),
   );
-  // Bob is applied above when a frame runs; it does not schedule frames.
-  return false;
+  return appearance.itemBob;
 }
 
 function enemySprite(baseSlot: number, dir: number, cameraDir: CardinalDirection, row: number): number {

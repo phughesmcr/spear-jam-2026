@@ -17,6 +17,7 @@ import {
 import {
   addThinWall,
   createScene,
+  type RaycastAtlas,
   type RaycastScene,
   THIN_AXIS_X,
   THIN_AXIS_Y,
@@ -47,6 +48,15 @@ export type FirstPersonSceneState = FirstPersonAssetState & {
 const LIGHT_FULL_BRIGHT = 255;
 const LIGHT_AMBIENT = 96;
 const DEFAULT_FLICKER_SPEED = 8;
+
+export function sceneHasSkyCeiling(scene: RaycastScene, atlas: RaycastAtlas): boolean {
+  if (atlas.skyPlane === undefined) return false;
+  const skyId = atlas.skyPlane + 1;
+  for (let index = 0; index < scene.ceilings.length; index++) {
+    if (scene.ceilings[index] === skyId) return true;
+  }
+  return false;
+}
 
 export function sceneForMapForState(state: FirstPersonSceneState, map: GameMap): RaycastScene {
   const cached = state.sceneByMap.get(map);
@@ -100,8 +110,9 @@ export function updateSceneLights(
   scene: RaycastScene,
   session: LightProvider,
   nowMs: number,
-): void {
+): boolean {
   let foundLight = false;
+  let animating = false;
   session.forEachLight((light): void => {
     if (light.radius <= 0) return;
     if (!foundLight) {
@@ -115,6 +126,7 @@ export function updateSceneLights(
     const intensity = flickerAmount > 0 ?
       flickerIntensity(light.x, light.y, flickerAmount, light.flickerSpeed, nowMs) :
       1;
+    animating ||= flickerAmount > 0;
 
     const minX = Math.max(0, light.x - light.radius);
     const maxX = Math.min(scene.mapWidth - 1, light.x + light.radius);
@@ -139,6 +151,8 @@ export function updateSceneLights(
     scene.lightGreen.fill(LIGHT_FULL_BRIGHT);
     scene.lightBlue.fill(LIGHT_FULL_BRIGHT);
   }
+
+  return animating;
 }
 
 function flickerIntensity(

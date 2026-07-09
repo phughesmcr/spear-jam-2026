@@ -32,6 +32,7 @@ import { addDrawable, drawTargetHighlight } from "@/src/render/first_person_draw
 import {
   addTerrainBarriers,
   sceneForMapForState,
+  sceneHasSkyCeiling,
   type TerrainBarrier,
   updateSceneLights,
 } from "@/src/render/first_person_scene.ts";
@@ -166,7 +167,7 @@ function renderFirstPersonView(
   bakeLoadedAssets(state, ctx, onAssetLoad);
   clearSceneDynamic(scene);
   addTerrainBarriers(state, scene);
-  updateSceneLights(scene, session, nowMs);
+  const lightsAnimating = updateSceneLights(scene, session, nowMs);
 
   // Two passes over the drawables: the camera pose must be known before
   // enemies pick a directional sprite.
@@ -201,9 +202,9 @@ function renderFirstPersonView(
 
   samplePoseTween(state.poseTween, nowMs, state.poseSample);
   sampleNudgeTween(state.nudgeTween, nowMs, state.nudgeSample);
-  // Sky scroll, item bob, and torch flicker are time-based cosmetics applied
-  // whenever a frame runs; they must not keep RAF alive while the pose is idle.
-  const needsFrame = !state.poseSample.settled || !state.nudgeSample.settled || spritesAnimating;
+  const skyAnimating = sceneHasSkyCeiling(scene, state.atlas);
+  const needsFrame = !state.poseSample.settled || !state.nudgeSample.settled || spritesAnimating ||
+    lightsAnimating || skyAnimating;
 
   state.view.render(
     ctx,
