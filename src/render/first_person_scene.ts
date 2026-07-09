@@ -48,6 +48,17 @@ export type FirstPersonSceneState = FirstPersonAssetState & {
 const LIGHT_FULL_BRIGHT = 255;
 const LIGHT_AMBIENT = 96;
 const DEFAULT_FLICKER_SPEED = 8;
+/** Rebuild flickering lightmaps at ~12 Hz; static light sets still update on change. */
+const LIGHT_REBUILD_INTERVAL_MS = 1000 / 12;
+
+export type LightUpdateThrottle = {
+  lastRebuildMs: number;
+  lastSignature: number;
+};
+
+export function createLightUpdateThrottle(): LightUpdateThrottle {
+  return { lastRebuildMs: Number.NEGATIVE_INFINITY, lastSignature: 0 };
+}
 
 export function sceneHasSkyCeiling(scene: RaycastScene, atlas: RaycastAtlas): boolean {
   if (atlas.skyPlane === undefined) return false;
@@ -110,9 +121,27 @@ export function updateSceneLights(
   scene: RaycastScene,
   session: LightProvider,
   nowMs: number,
+  throttle: LightUpdateThrottle,
 ): boolean {
-  let foundLight = false;
+  let signature = 0;
+  let lightCount = 0;
   let animating = false;
+  session.forEachLight((light): void => {
+    if (light.radius <= 0) return;
+    lightCount++;
+    signature = Math.imul(signature, 31) + light.entity + light.x * 17 + light.y * 13 + light.radius;
+    animating ||= light.flickerAmount > 0;
+  });
+  signature ^= lightCount;
+
+  const elapsed = nowMs - throttle.lastRebuildMs;
+  const due = !(elapsed >= 0 && elapsed < LIGHT_REBUILD_INTERVAL_MS);
+  if (!due && signature === throttle.lastSignature) return animating;
+
+  throttle.lastRebuildMs = nowMs;
+  throttle.lastSignature = signature;
+
+  let foundLight = false;
   session.forEachLight((light): void => {
     if (light.radius <= 0) return;
     if (!foundLight) {
@@ -126,7 +155,6 @@ export function updateSceneLights(
     const intensity = flickerAmount > 0 ?
       flickerIntensity(light.x, light.y, flickerAmount, light.flickerSpeed, nowMs) :
       1;
-    animating ||= flickerAmount > 0;
 
     const minX = Math.max(0, light.x - light.radius);
     const maxX = Math.min(scene.mapWidth - 1, light.x + light.radius);

@@ -31,6 +31,7 @@ import {
 import { addDrawable, drawTargetHighlight } from "@/src/render/first_person_drawables.ts";
 import {
   addTerrainBarriers,
+  createLightUpdateThrottle,
   sceneForMapForState,
   sceneHasSkyCeiling,
   type TerrainBarrier,
@@ -105,6 +106,7 @@ function createFirstPersonRendererState() {
     doorTweens: new Map<DrawableEntity["entity"], ScalarTween>(),
     doorSample: { value: 0, settled: true } satisfies ScalarSample,
     poseInitialized: false,
+    lightThrottle: createLightUpdateThrottle(),
   };
 }
 
@@ -139,6 +141,7 @@ function resetFirstPersonRendererState(state: FirstPersonRendererState): void {
   state.nudgeTween.active = false;
   state.spriteTweens.clear();
   state.doorTweens.clear();
+  state.lightThrottle = createLightUpdateThrottle();
 }
 
 /**
@@ -167,7 +170,7 @@ function renderFirstPersonView(
   bakeLoadedAssets(state, ctx, onAssetLoad);
   clearSceneDynamic(scene);
   addTerrainBarriers(state, scene);
-  const lightsAnimating = updateSceneLights(scene, session, nowMs);
+  const lightsAnimating = updateSceneLights(scene, session, nowMs, state.lightThrottle);
 
   // Two passes over the drawables: the camera pose must be known before
   // enemies pick a directional sprite.

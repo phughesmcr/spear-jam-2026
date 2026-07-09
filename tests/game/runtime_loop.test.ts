@@ -57,6 +57,51 @@ Deno.test("runtime RAF callback clears the pending frame before requesting anoth
   runtime[Symbol.dispose]();
 });
 
+Deno.test("runtime RAF skips work until the 35 fps budget elapses", () => {
+  const window = new FakeWindow();
+  let updateCount = 0;
+  let nowMs = 1_000;
+  const originalNow = performance.now.bind(performance);
+  Object.defineProperty(performance, "now", {
+    configurable: true,
+    value: () => nowMs,
+  });
+
+  try {
+    const runtime = createGameRuntimeLoop({
+      host: window as unknown as Window,
+      document: new FakeDocument() as unknown as Document,
+      ctx: new FakeContext() as unknown as CanvasRenderingContext2D,
+      signal: new AbortController().signal,
+      getModel: () => {
+        updateCount++;
+        return modelNeedingFrame();
+      },
+      getSession: () => undefined,
+      dependencies: { audio: new FakeAudioRuntime(), firstPersonRenderer: fakeFirstPersonRenderer() },
+    });
+
+    runtime.start();
+    runtime.renderNow();
+    assertEquals(updateCount, 1);
+
+    // First scheduled RAF is too soon after renderNow — reschedule without rendering.
+    window.runFrame(1, nowMs + 1);
+    assertEquals(updateCount, 1);
+    assertEquals(window.requestedFrameIds, [1, 2]);
+
+    // Past the ~28.6 ms budget — render again.
+    window.runFrame(2, nowMs + 40);
+    assertEquals(updateCount, 2);
+    runtime[Symbol.dispose]();
+  } finally {
+    Object.defineProperty(performance, "now", {
+      configurable: true,
+      value: originalNow,
+    });
+  }
+});
+
 Deno.test("runtime dispose cancels pending RAF and disposes audio", () => {
   const window = new FakeWindow();
   const audio = new FakeAudioRuntime();

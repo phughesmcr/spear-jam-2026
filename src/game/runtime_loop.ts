@@ -7,6 +7,9 @@ import { DEFAULT_GAME_CANVAS_SIZE, type GameCanvasSize } from "@/src/render/canv
 import { createFirstPersonRenderer, type FirstPersonRenderer } from "@/src/render/first_person.ts";
 import { preloadGameAssets, renderGameFrame } from "@/src/render/game.ts";
 
+/** Cap continuous animation (sky/bob/flicker) below display refresh. */
+const TARGET_FRAME_MS = 1000 / 35;
+
 export type GameRuntimeLoopSpec = {
   readonly host: Window;
   readonly document: Document;
@@ -50,8 +53,17 @@ class RuntimeLoop implements GameRuntimeLoop {
   private currentCanvasSize: GameCanvasSize = DEFAULT_GAME_CANVAS_SIZE;
   private started = false;
   private animationFrameId?: number;
+  private lastRenderMs = Number.NEGATIVE_INFINITY;
+  private wantsFrame = false;
   private readonly runAnimationFrame = (nowMs: number): void => {
     this.animationFrameId = undefined;
+    const elapsed = nowMs - this.lastRenderMs;
+    // Skip work until the 35 fps budget elapses. Negative elapsed means the
+    // RAF clock and renderNow()'s performance.now() disagree (tests) — render.
+    if (elapsed >= 0 && elapsed < TARGET_FRAME_MS) {
+      if (this.wantsFrame) this.requestNextFrame();
+      return;
+    }
     this.updateAndRender(nowMs);
   };
   private readonly renderLoadedAssets = (): void => {
@@ -147,7 +159,9 @@ class RuntimeLoop implements GameRuntimeLoop {
       nowMs,
       onAssetLoad: this.renderLoadedAssets,
     });
-    this.setFrameNeeded(tickResult.needsFrame || presentation.needsFrame || renderResult.needsFrame);
+    this.lastRenderMs = nowMs;
+    this.wantsFrame = tickResult.needsFrame || presentation.needsFrame || renderResult.needsFrame;
+    this.setFrameNeeded(this.wantsFrame);
   }
 
   private updateAudioListenerFor(session: RuntimeSession | undefined): void {

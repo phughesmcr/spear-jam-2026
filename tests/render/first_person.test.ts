@@ -477,6 +477,9 @@ Deno.test("first-person rendering updates flickering lights and requests another
     const scene = renderer.sceneForMap(map);
     const firstAdjacentLight = scene.lightRed[1 * 3 + 2]!;
 
+    renderer.render(ctx, { x: 0, y: 0, width: 64, height: 64 }, session, 16);
+    assertEquals(scene.lightRed[1 * 3 + 2], firstAdjacentLight);
+
     renderer.render(ctx, { x: 0, y: 0, width: 64, height: 64 }, session, 250);
 
     assertNotEquals(scene.lightRed[1 * 3 + 2], firstAdjacentLight);
