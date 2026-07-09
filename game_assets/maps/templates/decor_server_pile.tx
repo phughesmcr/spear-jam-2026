@@ -5,7 +5,7 @@
     "source": "../entity_markers.tsj"
   },
   "object": {
-    "gid": 9,
+    "gid": 10,
     "height": 16,
     "name": "Server pile",
     "properties": [

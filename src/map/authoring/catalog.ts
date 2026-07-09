@@ -8,6 +8,7 @@ import {
   KNOWN_STORY_TARGET_IDS,
 } from "@/src/content/known_ids.ts";
 import { AttackPattern } from "@/src/game/attack.ts";
+import type { TiledObject, TiledProperty, TiledTilesetReference } from "@/src/map/authoring/tiled_types.ts";
 import {
   DECORATION_KINDS,
   type EntityPrefab,
@@ -23,7 +24,6 @@ import {
   TEXTURE_PACK_ROWS,
   TEXTURE_TERRAIN_COUNT,
 } from "@/src/map/terrain_palettes.ts";
-import type { TiledObject, TiledProperty, TiledTilesetReference } from "@/src/map/authoring/tiled_types.ts";
 import { lowerFirst } from "@/src/utils/strings.ts";
 
 export const MAPS_DIR = "game_assets/maps";
@@ -86,15 +86,14 @@ export const ENTITY_MARKER_TYPES = [
   "uplinkTerminal",
   "weaponPickup",
   "item",
+  "decoration",
+  "light",
+  "sound",
 ] as const satisfies readonly EntityPrefab[];
 
 export type EntityMarkerType = (typeof ENTITY_MARKER_TYPES)[number];
 
-const PREFAB_AUTHORING_VALUES = [
-  ...ENTITY_MARKER_TYPES,
-  "decoration",
-  "sound",
-] as const satisfies readonly EntityPrefab[];
+const PREFAB_AUTHORING_VALUES = ENTITY_MARKER_TYPES;
 
 export type TiledProjectCommand = {
   readonly command: string;
@@ -231,11 +230,13 @@ export const PROPERTY_TYPES: readonly TiledPropertyType[] = [
     classMember("decoration", "string", "serverPile", "DecorationKind"),
   ]),
   classPropertyType(40, "sound", "#ff14b8a6", false, ["object"], [
+    classMember("prefab", "string", "sound", "Prefab"),
     classMember("soundId", "string", "ambientHum", "SoundId"),
     classMember("radius", "int", 5),
     classMember("volume", "float", 1),
   ]),
   classPropertyType(41, "light", "#fffbbf24", false, ["object"], [
+    classMember("prefab", "string", "light", "Prefab"),
     classMember("color", "string", "#ffffff"),
     classMember("radius", "int", 5),
     classMember("flickerAmount", "float", 0),
@@ -325,6 +326,21 @@ export const TEMPLATE_DEFINITIONS: readonly TemplateDefinition[] = [
     property("amount", 3),
   ]),
   ...decorationTemplateDefinitions(),
+  templateDefinition("light.tx", "light", "light", "Light", [
+    property("prefab", "light", "Prefab"),
+    property("color", "#ffffff"),
+    property("radius", 5),
+  ]),
+  templateDefinition("sound_ambient_hum.tx", "sound", "sound", "Ambient hum", [
+    property("prefab", "sound", "Prefab"),
+    property("soundId", "ambientHum", "SoundId"),
+    property("radius", 5),
+  ]),
+  templateDefinition("sound_ambient_light_buzz.tx", "sound", "sound", "Ambient light buzz", [
+    property("prefab", "sound", "Prefab"),
+    property("soundId", "ambientLightBuzz", "SoundId"),
+    property("radius", 5),
+  ]),
 ];
 
 export function floorTilesetPath(): string {
@@ -488,7 +504,7 @@ function decorationTemplateDefinitions(): readonly TemplateDefinition[] {
 }
 
 function decorationTemplateDefinition(decoration: string, name: string): TemplateDefinition {
-  return templateDefinition(`decor_${snakeCase(decoration)}.tx`, "item", "decoration", name, [
+  return templateDefinition(`decor_${snakeCase(decoration)}.tx`, "decoration", "decoration", name, [
     property("prefab", "decoration", "Prefab"),
     property("decoration", decoration, "DecorationKind"),
   ]);

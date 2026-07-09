@@ -9,26 +9,6 @@ import {
   storyTargetIdFor,
 } from "@/src/content/known_ids.ts";
 import {
-  type AttackDef,
-  AttackFacingRequirement,
-  AttackPattern,
-  AttackTargetMode,
-  DECORATION_KINDS,
-  type DecorationKind,
-  DOOR_SLIDES,
-  ENTITY_AUTHORING_PROPERTY_NAMES,
-  ENTITY_SCHEMA,
-  type EntityPrefab,
-  ITEM_KINDS,
-  type ItemKind,
-  KeyColor,
-  mapEntityPrefab,
-  PREFAB_AUTHORING_PROPERTY_NAMES,
-} from "@/src/map/entity_content.ts";
-import { createGameMap, type EntityDef, type GameMap, type LightDef, type SoundDef } from "@/src/map/map.ts";
-import { TERRAIN_CATALOG } from "@/src/map/terrain_palettes.ts";
-import { flagsBlockAttack, flagsBlockMovement, flagsBlockSight, terrainFlags } from "@/src/map/tile_flags.ts";
-import {
   createTilesetRegistry,
   decodeObjectGid,
   decodeTerrainGid,
@@ -48,6 +28,26 @@ import {
   validatePropertyNames,
 } from "@/src/map/authoring/properties.ts";
 import type { TiledLayer, TiledMap, TiledObject, TiledTemplate } from "@/src/map/authoring/tiled_types.ts";
+import {
+  type AttackDef,
+  AttackFacingRequirement,
+  AttackPattern,
+  AttackTargetMode,
+  DECORATION_KINDS,
+  type DecorationKind,
+  DOOR_SLIDES,
+  ENTITY_AUTHORING_PROPERTY_NAMES,
+  ENTITY_SCHEMA,
+  type EntityPrefab,
+  ITEM_KINDS,
+  type ItemKind,
+  KeyColor,
+  mapEntityPrefab,
+  PREFAB_AUTHORING_PROPERTY_NAMES,
+} from "@/src/map/entity_content.ts";
+import { createGameMap, type EntityDef, type GameMap, type LightDef, type SoundDef } from "@/src/map/map.ts";
+import { TERRAIN_CATALOG } from "@/src/map/terrain_palettes.ts";
+import { flagsBlockAttack, flagsBlockMovement, flagsBlockSight, terrainFlags } from "@/src/map/tile_flags.ts";
 import { coerceKnownString as knownString, coerceLookup as lookup } from "@/src/utils/strings.ts";
 
 export type CompileTiledMapOptions = {
@@ -124,8 +124,8 @@ export function compileTiledMap(source: TiledMap, options: CompileTiledMapOption
   const terrain = compileTerrain(source, layers.terrain, registry);
   const entities = [
     ...compileEntities(source, layers.objects, registry, options),
-    ...compileLights(source, layers.lights),
-    ...compileSounds(source, layers.sounds),
+    ...compileLights(source, layers.lights, registry, options),
+    ...compileSounds(source, layers.sounds, registry, options),
   ];
 
   return {
@@ -288,30 +288,48 @@ function compileEntities(
   return (layer.objects ?? []).map((object, index) => compileEntity(source, object, index, registry, options));
 }
 
-function compileLights(source: TiledMap, layer: TiledLayer | undefined): readonly LightDef[] {
+function compileLights(
+  source: TiledMap,
+  layer: TiledLayer | undefined,
+  registry: TilesetRegistry,
+  options: CompileTiledMapOptions,
+): readonly LightDef[] {
   if (layer === undefined) return [];
-  return (layer.objects ?? []).map((object, index) => compileLight(source, object, index));
+  return (layer.objects ?? []).map((object, index) => compileLight(source, object, index, registry, options));
 }
 
-function compileSounds(source: TiledMap, layer: TiledLayer | undefined): readonly SoundDef[] {
+function compileSounds(
+  source: TiledMap,
+  layer: TiledLayer | undefined,
+  registry: TilesetRegistry,
+  options: CompileTiledMapOptions,
+): readonly SoundDef[] {
   if (layer === undefined) return [];
-  return (layer.objects ?? []).map((object, index) => compileSound(source, object, index));
+  return (layer.objects ?? []).map((object, index) => compileSound(source, object, index, registry, options));
 }
 
-function compileLight(source: TiledMap, object: TiledObject, index: number): LightDef {
+function compileLight(
+  source: TiledMap,
+  object: TiledObject,
+  index: number,
+  registry: TilesetRegistry,
+  options: CompileTiledMapOptions,
+): LightDef {
   const context = objectContext(object, index);
-  validateObjectAuthoringState(object, context);
-  const properties = readProperties(object.properties, LIGHT_PROPERTY_NAMES, context);
-  const position = objectGridPosition(object, source.tilewidth, source.tileheight, context);
-  return compileLightEntity(position, properties, context);
+  const resolved = resolveDedicatedLayerObject(source, object, context, registry, options, "light");
+  return compileLightEntity({ x: resolved.x, y: resolved.y }, resolved.properties, context);
 }
 
-function compileSound(source: TiledMap, object: TiledObject, index: number): SoundDef {
+function compileSound(
+  source: TiledMap,
+  object: TiledObject,
+  index: number,
+  registry: TilesetRegistry,
+  options: CompileTiledMapOptions,
+): SoundDef {
   const context = objectContext(object, index);
-  validateObjectAuthoringState(object, context);
-  const properties = readProperties(object.properties, SOUND_PROPERTY_NAMES, context);
-  const position = objectGridPosition(object, source.tilewidth, source.tileheight, context);
-  return compileSoundEntity(position, properties, context);
+  const resolved = resolveDedicatedLayerObject(source, object, context, registry, options, "sound");
+  return compileSoundEntity({ x: resolved.x, y: resolved.y }, resolved.properties, context);
 }
 
 function compileEntity(
@@ -406,6 +424,10 @@ function compileEntity(
         decoration: requiredDecorationKind(resolved.properties, context),
       };
       break;
+    default: {
+      const _exhaustive: never = prefab;
+      throw new Error(`${context}: Unexpected prefab "${_exhaustive}".`);
+    }
   }
   return parseEntity(entity, context);
 }
@@ -471,10 +493,58 @@ function resolveObject(
   const markerProperties = propertiesFromMarker(resolvedObject, markerRegistry, context);
   const templateProperties = propertiesFromObjectSource(template?.object, context);
   const objectProperties = propertiesFromObjectSource(object, context);
-  const properties = mergeProperties(markerProperties, templateProperties, objectProperties);
+  const properties = mergeProperties(
+    usableMarkerProperties(markerProperties, templateProperties, objectProperties, context),
+    templateProperties,
+    objectProperties,
+  );
   const position = objectGridPosition(resolvedObject, source.tilewidth, source.tileheight, context);
 
   return { ...position, properties };
+}
+
+function usableMarkerProperties(
+  markerProperties: PropertyMap,
+  templateProperties: PropertyMap,
+  objectProperties: PropertyMap,
+  context: string,
+): PropertyMap {
+  const markerPrefab = optionalString(markerProperties, "prefab", context);
+  if (markerPrefab === undefined) return markerProperties;
+
+  const overridePrefab = optionalString(objectProperties, "prefab", context) ??
+    optionalString(templateProperties, "prefab", context);
+  if (overridePrefab === undefined) return markerProperties;
+  if (mapEntityPrefab(overridePrefab, context) === mapEntityPrefab(markerPrefab, context)) {
+    return markerProperties;
+  }
+  // Object/template overrode the marker's prefab (e.g. decoration authored on a key tile).
+  // Drop marker defaults so they cannot leak onto the final prefab.
+  return new Map();
+}
+
+function resolveDedicatedLayerObject(
+  source: TiledMap,
+  object: TiledObject,
+  context: string,
+  registry: TilesetRegistry,
+  options: CompileTiledMapOptions,
+  prefab: "light" | "sound",
+): ResolvedObject {
+  const resolved = resolveObject(source, object, context, registry, options);
+  const authoredPrefab = optionalString(resolved.properties, "prefab", context);
+  if (authoredPrefab !== undefined && mapEntityPrefab(authoredPrefab, context) !== prefab) {
+    throw new Error(`${context}: ${prefab} layer objects must use the "${prefab}" prefab.`);
+  }
+
+  const properties = new Map(resolved.properties);
+  properties.delete("prefab");
+  validatePropertyNames(
+    properties,
+    prefab === "light" ? LIGHT_PROPERTY_NAMES : SOUND_PROPERTY_NAMES,
+    context,
+  );
+  return { x: resolved.x, y: resolved.y, properties };
 }
 
 function resolveTemplate(

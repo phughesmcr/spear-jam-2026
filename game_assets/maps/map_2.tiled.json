@@ -1,822 +1,1101 @@
-{
-  "compressionlevel": -1,
-  "height": 13,
-  "infinite": false,
-  "layers": [
-    {
-      "data": [
-        81,
-        83,
-        90,
-        81,
-        83,
-        90,
-        81,
-        83,
-        90,
-        81,
-        83,
-        90,
-        81,
-        83,
-        81,
-        83,
-        28,
-        26,
-        29,
-        28,
-        26,
-        29,
-        28,
-        26,
-        29,
-        28,
-        26,
-        29,
-        28,
-        90,
-        81,
-        26,
-        29,
-        83,
-        26,
-        29,
-        28,
-        90,
-        26,
-        29,
-        28,
-        81,
-        26,
-        29,
-        81,
-        90,
-        28,
-        83,
-        90,
-        81,
-        83,
-        90,
-        81,
-        83,
-        90,
-        81,
-        83,
-        90,
-        26,
-        83,
-        81,
-        29,
-        28,
-        26,
-        29,
-        28,
-        83,
-        90,
-        81,
-        29,
-        28,
-        26,
-        29,
-        28,
-        90,
-        83,
-        28,
-        26,
-        29,
-        28,
-        26,
-        90,
-        81,
-        83,
-        28,
-        26,
-        29,
-        28,
-        26,
-        81,
-        81,
-        26,
-        29,
-        28,
-        26,
-        29,
-        81,
-        83,
-        90,
-        26,
-        29,
-        28,
-        26,
-        29,
-        83,
-        90,
-        81,
-        83,
-        28,
-        90,
-        81,
-        83,
-        90,
-        81,
-        83,
-        90,
-        29,
-        81,
-        83,
-        90,
-        81,
-        26,
-        29,
-        28,
-        26,
-        29,
-        28,
-        26,
-        29,
-        28,
-        26,
-        29,
-        28,
-        26,
-        81,
-        83,
-        90,
-        29,
-        81,
-        83,
-        90,
-        28,
-        81,
-        83,
-        90,
-        81,
-        83,
-        26,
-        90,
-        81,
-        81,
-        28,
-        26,
-        29,
-        90,
-        28,
-        26,
-        29,
-        28,
-        83,
-        26,
-        29,
-        28,
-        26,
-        90,
-        90,
-        29,
-        28,
-        26,
-        81,
-        29,
-        28,
-        26,
-        29,
-        90,
-        28,
-        26,
-        29,
-        28,
-        83,
-        81,
-        90,
-        81,
-        83,
-        81,
-        90,
-        81,
-        83,
-        81,
-        90,
-        81,
-        83,
-        81,
-        90,
-        81
-      ],
-      "height": 13,
-      "id": 1,
-      "name": "terrain",
-      "opacity": 1,
-      "type": "tilelayer",
-      "visible": true,
-      "width": 15,
-      "x": 0,
-      "y": 0
-    },
-    {
-      "draworder": "topdown",
-      "id": 2,
-      "name": "objects",
-      "objects": [
+{ "compressionlevel":-1,
+ "height":13,
+ "infinite":false,
+ "layers":[
         {
-          "gid": 123,
-          "height": 16,
-          "id": 1,
-          "name": "player_1",
-          "rotation": 0,
-          "type": "player",
-          "visible": true,
-          "width": 16,
-          "x": 32,
-          "y": 192,
-          "properties": [
-            {
-              "name": "prefab",
-              "propertytype": "Prefab",
-              "type": "string",
-              "value": "player"
-            },
-            {
-              "name": "facing",
-              "propertytype": "Facing",
-              "type": "string",
-              "value": "north"
-            }
-          ]
-        },
+         "data":[95, 95, 95, 95, 95, 95, 95, 95, 95, 95, 95, 95, 95, 95, 95,
+            95, 4, 4, 25, 4, 4, 4, 4, 4, 4, 4, 25, 25, 4, 95,
+            95, 4, 4, 95, 4, 4, 4, 95, 4, 4, 4, 95, 4, 4, 95,
+            95, 6, 95, 95, 95, 95, 95, 95, 95, 95, 95, 95, 95, 6, 95,
+            95, 6, 6, 6, 6, 6, 95, 95, 95, 6, 6, 6, 6, 6, 95,
+            95, 6, 6, 25, 6, 6, 95, 95, 95, 6, 6, 25, 6, 6, 95,
+            95, 6, 6, 6, 6, 6, 95, 95, 95, 6, 6, 6, 6, 6, 95,
+            95, 95, 95, 6, 95, 95, 95, 95, 95, 95, 95, 6, 95, 95, 95,
+            95, 4, 25, 4, 25, 4, 25, 4, 25, 4, 25, 4, 25, 4, 95,
+            95, 95, 5, 95, 95, 95, 5, 95, 95, 95, 95, 95, 5, 95, 95,
+            95, 5, 5, 5, 95, 5, 5, 5, 5, 95, 5, 5, 5, 5, 95,
+            95, 5, 5, 5, 95, 5, 5, 5, 5, 95, 5, 5, 5, 5, 95,
+            95, 95, 95, 95, 95, 95, 95, 95, 95, 95, 95, 95, 95, 95, 95],
+         "height":13,
+         "id":1,
+         "name":"terrain",
+         "opacity":1,
+         "type":"tilelayer",
+         "visible":true,
+         "width":15,
+         "x":0,
+         "y":0
+        }, 
         {
-          "gid": 125,
-          "height": 16,
-          "id": 2,
-          "name": "enemy_2",
-          "rotation": 0,
-          "type": "enemy",
-          "visible": true,
-          "width": 16,
-          "x": 192,
-          "y": 32,
-          "properties": [
-            {
-              "name": "prefab",
-              "propertytype": "Prefab",
-              "type": "string",
-              "value": "enemy"
-            },
-            {
-              "name": "facing",
-              "propertytype": "Facing",
-              "type": "string",
-              "value": "west"
-            },
-            {
-              "name": "displayName",
-              "propertytype": "DisplayName",
-              "type": "string",
-              "value": "GigabitGunslinger"
-            },
-            {
-              "name": "archetype",
-              "propertytype": "EnemyArchetype",
-              "type": "string",
-              "value": "Gunslinger"
-            }
-          ]
-        },
+         "draworder":"topdown",
+         "id":2,
+         "name":"objects",
+         "objects":[
+                {
+                 "gid":141,
+                 "height":16,
+                 "id":1,
+                 "name":"player_1",
+                 "opacity":1,
+                 "properties":[
+                        {
+                         "name":"facing",
+                         "propertytype":"Facing",
+                         "type":"string",
+                         "value":"north"
+                        }, 
+                        {
+                         "name":"prefab",
+                         "propertytype":"Prefab",
+                         "type":"string",
+                         "value":"player"
+                        }],
+                 "rotation":0,
+                 "type":"player",
+                 "visible":true,
+                 "width":16,
+                 "x":32,
+                 "y":192
+                }, 
+                {
+                 "gid":143,
+                 "height":16,
+                 "id":2,
+                 "name":"enemy_2",
+                 "opacity":1,
+                 "properties":[
+                        {
+                         "name":"archetype",
+                         "propertytype":"EnemyArchetype",
+                         "type":"string",
+                         "value":"Gunslinger"
+                        }, 
+                        {
+                         "name":"displayName",
+                         "propertytype":"DisplayName",
+                         "type":"string",
+                         "value":"gigabitGunslinger"
+                        }, 
+                        {
+                         "name":"facing",
+                         "propertytype":"Facing",
+                         "type":"string",
+                         "value":"west"
+                        }, 
+                        {
+                         "name":"prefab",
+                         "propertytype":"Prefab",
+                         "type":"string",
+                         "value":"enemy"
+                        }],
+                 "rotation":0,
+                 "type":"enemy",
+                 "visible":true,
+                 "width":16,
+                 "x":192,
+                 "y":32
+                }, 
+                {
+                 "gid":149,
+                 "height":16,
+                 "id":3,
+                 "name":"item_3",
+                 "opacity":1,
+                 "properties":[
+                        {
+                         "name":"amount",
+                         "type":"int",
+                         "value":4
+                        }, 
+                        {
+                         "name":"item",
+                         "propertytype":"ItemKind",
+                         "type":"string",
+                         "value":"PistolAmmo"
+                        }, 
+                        {
+                         "name":"prefab",
+                         "propertytype":"Prefab",
+                         "type":"string",
+                         "value":"item"
+                        }],
+                 "rotation":0,
+                 "type":"item",
+                 "visible":true,
+                 "width":16,
+                 "x":16,
+                 "y":32
+                }, 
+                {
+                 "gid":143,
+                 "height":16,
+                 "id":4,
+                 "name":"enemy_4",
+                 "opacity":1,
+                 "properties":[
+                        {
+                         "name":"archetype",
+                         "propertytype":"EnemyArchetype",
+                         "type":"string",
+                         "value":"MeleeDog"
+                        }, 
+                        {
+                         "name":"displayName",
+                         "propertytype":"DisplayName",
+                         "type":"string",
+                         "value":"digitalDog"
+                        }, 
+                        {
+                         "name":"facing",
+                         "propertytype":"Facing",
+                         "type":"string",
+                         "value":"south"
+                        }, 
+                        {
+                         "name":"prefab",
+                         "propertytype":"Prefab",
+                         "type":"string",
+                         "value":"enemy"
+                        }],
+                 "rotation":0,
+                 "type":"enemy",
+                 "visible":true,
+                 "width":16,
+                 "x":32,
+                 "y":96
+                }, 
+                {
+                 "gid":145,
+                 "height":16,
+                 "id":5,
+                 "name":"key_5",
+                 "opacity":1,
+                 "properties":[
+                        {
+                         "name":"color",
+                         "propertytype":"KeyColor",
+                         "type":"string",
+                         "value":"blue"
+                        }, 
+                        {
+                         "name":"prefab",
+                         "propertytype":"Prefab",
+                         "type":"string",
+                         "value":"key"
+                        }],
+                 "rotation":0,
+                 "type":"key",
+                 "visible":true,
+                 "width":16,
+                 "x":16,
+                 "y":80
+                }, 
+                {
+                 "gid":149,
+                 "height":16,
+                 "id":6,
+                 "name":"item_6",
+                 "opacity":1,
+                 "properties":[
+                        {
+                         "name":"amount",
+                         "type":"int",
+                         "value":4
+                        }, 
+                        {
+                         "name":"item",
+                         "propertytype":"ItemKind",
+                         "type":"string",
+                         "value":"HealthPatch"
+                        }, 
+                        {
+                         "name":"prefab",
+                         "propertytype":"Prefab",
+                         "type":"string",
+                         "value":"item"
+                        }],
+                 "rotation":0,
+                 "type":"item",
+                 "visible":true,
+                 "width":16,
+                 "x":16,
+                 "y":112
+                }, 
+                {
+                 "gid":149,
+                 "height":16,
+                 "id":7,
+                 "name":"item_7",
+                 "opacity":1,
+                 "properties":[
+                        {
+                         "name":"amount",
+                         "type":"int",
+                         "value":4
+                        }, 
+                        {
+                         "name":"item",
+                         "propertytype":"ItemKind",
+                         "type":"string",
+                         "value":"PistolAmmo"
+                        }, 
+                        {
+                         "name":"prefab",
+                         "propertytype":"Prefab",
+                         "type":"string",
+                         "value":"item"
+                        }],
+                 "rotation":0,
+                 "type":"item",
+                 "visible":true,
+                 "width":16,
+                 "x":160,
+                 "y":48
+                }, 
+                {
+                 "gid":147,
+                 "height":16,
+                 "id":8,
+                 "name":"uplinkTerminal_8",
+                 "opacity":1,
+                 "properties":[
+                        {
+                         "name":"goto",
+                         "type":"string",
+                         "value":"Firewall"
+                        }, 
+                        {
+                         "name":"prefab",
+                         "propertytype":"Prefab",
+                         "type":"string",
+                         "value":"uplinkTerminal"
+                        }],
+                 "rotation":0,
+                 "type":"uplinkTerminal",
+                 "visible":true,
+                 "width":16,
+                 "x":208,
+                 "y":80
+                }, 
+                {
+                 "gid":143,
+                 "height":16,
+                 "id":9,
+                 "name":"enemy_9",
+                 "opacity":1,
+                 "properties":[
+                        {
+                         "name":"archetype",
+                         "propertytype":"EnemyArchetype",
+                         "type":"string",
+                         "value":"MeleeDog"
+                        }, 
+                        {
+                         "name":"displayName",
+                         "propertytype":"DisplayName",
+                         "type":"string",
+                         "value":"digitalDog"
+                        }, 
+                        {
+                         "name":"facing",
+                         "propertytype":"Facing",
+                         "type":"string",
+                         "value":"west"
+                        }, 
+                        {
+                         "name":"prefab",
+                         "propertytype":"Prefab",
+                         "type":"string",
+                         "value":"enemy"
+                        }],
+                 "rotation":0,
+                 "type":"enemy",
+                 "visible":true,
+                 "width":16,
+                 "x":160,
+                 "y":96
+                }, 
+                {
+                 "gid":149,
+                 "height":16,
+                 "id":10,
+                 "name":"item_10",
+                 "opacity":1,
+                 "properties":[
+                        {
+                         "name":"amount",
+                         "type":"int",
+                         "value":6
+                        }, 
+                        {
+                         "name":"item",
+                         "propertytype":"ItemKind",
+                         "type":"string",
+                         "value":"PistolAmmo"
+                        }, 
+                        {
+                         "name":"prefab",
+                         "propertytype":"Prefab",
+                         "type":"string",
+                         "value":"item"
+                        }],
+                 "rotation":0,
+                 "type":"item",
+                 "visible":true,
+                 "width":16,
+                 "x":208,
+                 "y":112
+                }, 
+                {
+                 "gid":144,
+                 "height":16,
+                 "id":11,
+                 "name":"door_11",
+                 "opacity":1,
+                 "properties":[
+                        {
+                         "name":"prefab",
+                         "propertytype":"Prefab",
+                         "type":"string",
+                         "value":"door"
+                        }],
+                 "rotation":0,
+                 "type":"door",
+                 "visible":true,
+                 "width":16,
+                 "x":96,
+                 "y":160
+                }, 
+                {
+                 "gid":143,
+                 "height":16,
+                 "id":12,
+                 "name":"enemy_12",
+                 "opacity":1,
+                 "properties":[
+                        {
+                         "name":"archetype",
+                         "propertytype":"EnemyArchetype",
+                         "type":"string",
+                         "value":"MeleeDog"
+                        }, 
+                        {
+                         "name":"displayName",
+                         "propertytype":"DisplayName",
+                         "type":"string",
+                         "value":"digitalDog"
+                        }, 
+                        {
+                         "name":"facing",
+                         "propertytype":"Facing",
+                         "type":"string",
+                         "value":"north"
+                        }, 
+                        {
+                         "name":"prefab",
+                         "propertytype":"Prefab",
+                         "type":"string",
+                         "value":"enemy"
+                        }],
+                 "rotation":0,
+                 "type":"enemy",
+                 "visible":true,
+                 "width":16,
+                 "x":128,
+                 "y":176
+                }, 
+                {
+                 "gid":149,
+                 "height":16,
+                 "id":13,
+                 "name":"item_13",
+                 "opacity":1,
+                 "properties":[
+                        {
+                         "name":"amount",
+                         "type":"int",
+                         "value":6
+                        }, 
+                        {
+                         "name":"item",
+                         "propertytype":"ItemKind",
+                         "type":"string",
+                         "value":"PistolAmmo"
+                        }, 
+                        {
+                         "name":"prefab",
+                         "propertytype":"Prefab",
+                         "type":"string",
+                         "value":"item"
+                        }],
+                 "rotation":0,
+                 "type":"item",
+                 "visible":true,
+                 "width":16,
+                 "x":80,
+                 "y":192
+                }, 
+                {
+                 "gid":149,
+                 "height":16,
+                 "id":14,
+                 "name":"item_14",
+                 "opacity":1,
+                 "properties":[
+                        {
+                         "name":"amount",
+                         "type":"int",
+                         "value":3
+                        }, 
+                        {
+                         "name":"item",
+                         "propertytype":"ItemKind",
+                         "type":"string",
+                         "value":"HealthPatch"
+                        }, 
+                        {
+                         "name":"prefab",
+                         "propertytype":"Prefab",
+                         "type":"string",
+                         "value":"item"
+                        }],
+                 "rotation":0,
+                 "type":"item",
+                 "visible":true,
+                 "width":16,
+                 "x":128,
+                 "y":192
+                }, 
+                {
+                 "gid":144,
+                 "height":16,
+                 "id":15,
+                 "name":"door_15",
+                 "opacity":1,
+                 "properties":[
+                        {
+                         "name":"color",
+                         "propertytype":"KeyColor",
+                         "type":"string",
+                         "value":"blue"
+                        }, 
+                        {
+                         "name":"locked",
+                         "type":"bool",
+                         "value":true
+                        }, 
+                        {
+                         "name":"prefab",
+                         "propertytype":"Prefab",
+                         "type":"string",
+                         "value":"door"
+                        }],
+                 "rotation":0,
+                 "type":"door",
+                 "visible":true,
+                 "width":16,
+                 "x":192,
+                 "y":160
+                },
+            
+                {
+                 "gid":143,
+                 "height":16,
+                 "id":16,
+                 "name":"enemy_16",
+                 "opacity":1,
+                 "properties":[
+                        {
+                         "name":"archetype",
+                         "propertytype":"EnemyArchetype",
+                         "type":"string",
+                         "value":"Gunslinger"
+                        }, 
+                        {
+                         "name":"displayName",
+                         "propertytype":"DisplayName",
+                         "type":"string",
+                         "value":"digitalDog"
+                        }, 
+                        {
+                         "name":"facing",
+                         "propertytype":"Facing",
+                         "type":"string",
+                         "value":"east"
+                        }, 
+                        {
+                         "name":"prefab",
+                         "propertytype":"Prefab",
+                         "type":"string",
+                         "value":"enemy"
+                        }],
+                 "rotation":0,
+                 "type":"enemy",
+                 "visible":true,
+                 "width":16,
+                 "x":160,
+                 "y":176
+                }, 
+                {
+                 "gid":146,
+                 "height":16,
+                 "id":17,
+                 "name":"uplinkCode_17",
+                 "opacity":1,
+                 "properties":[
+                        {
+                         "name":"prefab",
+                         "propertytype":"Prefab",
+                         "type":"string",
+                         "value":"uplinkCode"
+                        }],
+                 "rotation":0,
+                 "type":"uplinkCode",
+                 "visible":true,
+                 "width":16,
+                 "x":208,
+                 "y":192
+                }, 
+                {
+                 "gid":149,
+                 "height":16,
+                 "id":18,
+                 "name":"item_18",
+                 "opacity":1,
+                 "properties":[
+                        {
+                         "name":"amount",
+                         "type":"int",
+                         "value":4
+                        }, 
+                        {
+                         "name":"item",
+                         "propertytype":"ItemKind",
+                         "type":"string",
+                         "value":"HealthPatch"
+                        }, 
+                        {
+                         "name":"prefab",
+                         "propertytype":"Prefab",
+                         "type":"string",
+                         "value":"item"
+                        }],
+                 "rotation":0,
+                 "type":"item",
+                 "visible":true,
+                 "width":16,
+                 "x":208,
+                 "y":176
+                }, 
+                {
+                 "gid":150,
+                 "height":16,
+                 "id":34,
+                 "name":"",
+                 "opacity":1,
+                 "properties":[
+                        {
+                         "name":"decoration",
+                         "propertytype":"DecorationKind",
+                         "type":"string",
+                         "value":"ceilingLight"
+                        }],
+                 "rotation":0,
+                 "type":"",
+                 "visible":true,
+                 "width":16,
+                 "x":32,
+                 "y":160
+                }, 
+                {
+                 "gid":150,
+                 "height":16,
+                 "id":35,
+                 "name":"",
+                 "opacity":1,
+                 "properties":[
+                        {
+                         "name":"decoration",
+                         "propertytype":"DecorationKind",
+                         "type":"string",
+                         "value":"ceilingLight"
+                        }],
+                 "rotation":0,
+                 "type":"",
+                 "visible":true,
+                 "width":16,
+                 "x":32,
+                 "y":160
+                }, 
+                {
+                 "gid":150,
+                 "height":16,
+                 "id":36,
+                 "name":"",
+                 "opacity":1,
+                 "properties":[
+                        {
+                         "name":"decoration",
+                         "propertytype":"DecorationKind",
+                         "type":"string",
+                         "value":"ceilingLight"
+                        }],
+                 "rotation":0,
+                 "type":"",
+                 "visible":true,
+                 "width":16,
+                 "x":112,
+                 "y":32
+                }, 
+                {
+                 "gid":150,
+                 "height":16,
+                 "id":37,
+                 "name":"",
+                 "opacity":1,
+                 "properties":[
+                        {
+                         "name":"decoration",
+                         "propertytype":"DecorationKind",
+                         "type":"string",
+                         "value":"ceilingWires"
+                        }],
+                 "rotation":0,
+                 "type":"",
+                 "visible":true,
+                 "width":16,
+                 "x":208,
+                 "y":64
+                }, 
+                {
+                 "gid":150,
+                 "height":16,
+                 "id":38,
+                 "name":"",
+                 "opacity":1,
+                 "properties":[
+                        {
+                         "name":"decoration",
+                         "propertytype":"DecorationKind",
+                         "type":"string",
+                         "value":"ceilingLight"
+                        }],
+                 "rotation":0,
+                 "type":"",
+                 "visible":true,
+                 "width":16,
+                 "x":112,
+                 "y":192
+                }, 
+                {
+                 "gid":150,
+                 "height":16,
+                 "id":39,
+                 "name":"",
+                 "opacity":1,
+                 "properties":[
+                        {
+                         "name":"decoration",
+                         "propertytype":"DecorationKind",
+                         "type":"string",
+                         "value":"ceilingHook"
+                        }],
+                 "rotation":0,
+                 "type":"",
+                 "visible":true,
+                 "width":16,
+                 "x":160,
+                 "y":192
+                }, 
+                {
+                 "gid":150,
+                 "height":16,
+                 "id":40,
+                 "name":"",
+                 "opacity":1,
+                 "properties":[
+                        {
+                         "name":"decoration",
+                         "propertytype":"DecorationKind",
+                         "type":"string",
+                         "value":"ceilingLight"
+                        }],
+                 "rotation":0,
+                 "type":"",
+                 "visible":true,
+                 "width":16,
+                 "x":128,
+                 "y":48
+                }, 
+                {
+                 "gid":148,
+                 "height":16,
+                 "id":41,
+                 "name":"",
+                 "opacity":1,
+                 "properties":[
+                        {
+                         "name":"slot",
+                         "type":"int",
+                         "value":2
+                        }],
+                 "rotation":0,
+                 "type":"",
+                 "visible":true,
+                 "width":16,
+                 "x":80,
+                 "y":32
+                }],
+         "opacity":1,
+         "type":"objectgroup",
+         "visible":true,
+         "x":0,
+         "y":0
+        }, 
         {
-          "gid": 131,
-          "height": 16,
-          "id": 3,
-          "name": "item_3",
-          "rotation": 0,
-          "type": "item",
-          "visible": true,
-          "width": 16,
-          "x": 16,
-          "y": 32,
-          "properties": [
-            {
-              "name": "prefab",
-              "propertytype": "Prefab",
-              "type": "string",
-              "value": "item"
-            },
-            {
-              "name": "item",
-              "propertytype": "ItemKind",
-              "type": "string",
-              "value": "PistolAmmo"
-            },
-            {
-              "name": "amount",
-              "type": "int",
-              "value": 4
-            }
-          ]
-        },
+         "draworder":"topdown",
+         "id":3,
+         "name":"lights",
+         "objects":[
+                {
+                 "height":16,
+                 "id":19,
+                 "name":"spawn_cyan_light",
+                 "opacity":1,
+                 "properties":[
+                        {
+                         "name":"color",
+                         "type":"string",
+                         "value":"#ff0000"
+                        }, 
+                        {
+                         "name":"flickerAmount",
+                         "type":"float",
+                         "value":0.5
+                        }, 
+                        {
+                         "name":"flickerSpeed",
+                         "type":"float",
+                         "value":1
+                        }, 
+                        {
+                         "name":"radius",
+                         "type":"int",
+                         "value":5
+                        }],
+                 "rotation":0,
+                 "type":"",
+                 "visible":true,
+                 "width":16,
+                 "x":48,
+                 "y":16
+                }, 
+                {
+                 "height":16,
+                 "id":30,
+                 "name":"spawn_cyan_light",
+                 "opacity":1,
+                 "properties":[
+                        {
+                         "name":"color",
+                         "type":"string",
+                         "value":"#ff0000"
+                        }, 
+                        {
+                         "name":"flickerAmount",
+                         "type":"float",
+                         "value":0.1
+                        }, 
+                        {
+                         "name":"flickerSpeed",
+                         "type":"float",
+                         "value":0.1
+                        }, 
+                        {
+                         "name":"radius",
+                         "type":"int",
+                         "value":5
+                        }],
+                 "rotation":0,
+                 "type":"",
+                 "visible":true,
+                 "width":16,
+                 "x":48,
+                 "y":80
+                }, 
+                {
+                 "height":16,
+                 "id":31,
+                 "name":"spawn_cyan_light",
+                 "opacity":1,
+                 "properties":[
+                        {
+                         "name":"color",
+                         "type":"string",
+                         "value":"#ff0000"
+                        }, 
+                        {
+                         "name":"flickerAmount",
+                         "type":"float",
+                         "value":0.5
+                        }, 
+                        {
+                         "name":"flickerSpeed",
+                         "type":"float",
+                         "value":1
+                        }, 
+                        {
+                         "name":"radius",
+                         "type":"int",
+                         "value":5
+                        }],
+                 "rotation":0,
+                 "type":"",
+                 "visible":true,
+                 "width":16,
+                 "x":176,
+                 "y":80
+                }, 
+                {
+                 "height":16,
+                 "id":25,
+                 "name":"spawn_cyan_light",
+                 "opacity":1,
+                 "properties":[
+                        {
+                         "name":"color",
+                         "type":"string",
+                         "value":"#ff0000"
+                        }, 
+                        {
+                         "name":"flickerAmount",
+                         "type":"float",
+                         "value":0.1
+                        }, 
+                        {
+                         "name":"flickerSpeed",
+                         "type":"float",
+                         "value":0.1
+                        }, 
+                        {
+                         "name":"radius",
+                         "type":"int",
+                         "value":5
+                        }],
+                 "rotation":0,
+                 "type":"",
+                 "visible":true,
+                 "width":16,
+                 "x":32,
+                 "y":128
+                }, 
+                {
+                 "height":16,
+                 "id":32,
+                 "name":"spawn_cyan_light",
+                 "opacity":1,
+                 "properties":[
+                        {
+                         "name":"color",
+                         "type":"string",
+                         "value":"#ff0000"
+                        }, 
+                        {
+                         "name":"flickerAmount",
+                         "type":"float",
+                         "value":0.1
+                        }, 
+                        {
+                         "name":"flickerSpeed",
+                         "type":"float",
+                         "value":0.1
+                        }, 
+                        {
+                         "name":"radius",
+                         "type":"int",
+                         "value":5
+                        }],
+                 "rotation":0,
+                 "type":"",
+                 "visible":true,
+                 "width":16,
+                 "x":96,
+                 "y":128
+                }, 
+                {
+                 "height":16,
+                 "id":33,
+                 "name":"spawn_cyan_light",
+                 "opacity":1,
+                 "properties":[
+                        {
+                         "name":"color",
+                         "type":"string",
+                         "value":"#ff0000"
+                        }, 
+                        {
+                         "name":"flickerAmount",
+                         "type":"float",
+                         "value":0.1
+                        }, 
+                        {
+                         "name":"flickerSpeed",
+                         "type":"float",
+                         "value":0.1
+                        }, 
+                        {
+                         "name":"radius",
+                         "type":"int",
+                         "value":5
+                        }],
+                 "rotation":0,
+                 "type":"",
+                 "visible":true,
+                 "width":16,
+                 "x":192,
+                 "y":128
+                }, 
+                {
+                 "height":16,
+                 "id":28,
+                 "name":"spawn_cyan_light",
+                 "opacity":1,
+                 "properties":[
+                        {
+                         "name":"color",
+                         "type":"string",
+                         "value":"#00ff00"
+                        }, 
+                        {
+                         "name":"flickerAmount",
+                         "type":"float",
+                         "value":0
+                        }, 
+                        {
+                         "name":"flickerSpeed",
+                         "type":"float",
+                         "value":1
+                        }, 
+                        {
+                         "name":"radius",
+                         "type":"int",
+                         "value":5
+                        }],
+                 "rotation":0,
+                 "type":"",
+                 "visible":true,
+                 "width":16,
+                 "x":96,
+                 "y":176
+                }, 
+                {
+                 "height":16,
+                 "id":29,
+                 "name":"spawn_cyan_light",
+                 "opacity":1,
+                 "properties":[
+                        {
+                         "name":"color",
+                         "type":"string",
+                         "value":"#0000ff"
+                        }, 
+                        {
+                         "name":"flickerAmount",
+                         "type":"float",
+                         "value":0
+                        }, 
+                        {
+                         "name":"flickerSpeed",
+                         "type":"float",
+                         "value":0.1
+                        }, 
+                        {
+                         "name":"radius",
+                         "type":"int",
+                         "value":5
+                        }],
+                 "rotation":0,
+                 "type":"",
+                 "visible":true,
+                 "width":16,
+                 "x":192,
+                 "y":176
+                }, 
+                {
+                 "height":16,
+                 "id":24,
+                 "name":"spawn_cyan_light",
+                 "opacity":1,
+                 "properties":[
+                        {
+                         "name":"color",
+                         "type":"string",
+                         "value":"#ff0000"
+                        }, 
+                        {
+                         "name":"flickerAmount",
+                         "type":"float",
+                         "value":0.5
+                        }, 
+                        {
+                         "name":"flickerSpeed",
+                         "type":"float",
+                         "value":1
+                        }, 
+                        {
+                         "name":"radius",
+                         "type":"int",
+                         "value":5
+                        }],
+                 "rotation":0,
+                 "type":"",
+                 "visible":true,
+                 "width":16,
+                 "x":176,
+                 "y":16
+                }],
+         "opacity":1,
+         "type":"objectgroup",
+         "visible":true,
+         "x":0,
+         "y":0
+        }],
+ "nextlayerid":5,
+ "nextobjectid":42,
+ "orientation":"orthogonal",
+ "properties":[
         {
-          "gid": 125,
-          "height": 16,
-          "id": 4,
-          "name": "enemy_4",
-          "rotation": 0,
-          "type": "enemy",
-          "visible": true,
-          "width": 16,
-          "x": 32,
-          "y": 96,
-          "properties": [
-            {
-              "name": "prefab",
-              "propertytype": "Prefab",
-              "type": "string",
-              "value": "enemy"
-            },
-            {
-              "name": "facing",
-              "propertytype": "Facing",
-              "type": "string",
-              "value": "south"
-            },
-            {
-              "name": "displayName",
-              "propertytype": "DisplayName",
-              "type": "string",
-              "value": "DigitalDog"
-            },
-            {
-              "name": "archetype",
-              "propertytype": "EnemyArchetype",
-              "type": "string",
-              "value": "MeleeDog"
-            }
-          ]
-        },
+         "name":"campaignOrder",
+         "type":"int",
+         "value":2
+        }, 
         {
-          "gid": 127,
-          "height": 16,
-          "id": 5,
-          "name": "key_5",
-          "rotation": 0,
-          "type": "key",
-          "visible": true,
-          "width": 16,
-          "x": 16,
-          "y": 80,
-          "properties": [
-            {
-              "name": "prefab",
-              "propertytype": "Prefab",
-              "type": "string",
-              "value": "key"
-            },
-            {
-              "name": "color",
-              "propertytype": "KeyColor",
-              "type": "string",
-              "value": "blue"
-            }
-          ]
-        },
+         "name":"name",
+         "type":"string",
+         "value":"Data Conduit"
+        }],
+ "renderorder":"right-down",
+ "tiledversion":"1.12.2",
+ "tileheight":16,
+ "tilesets":[
         {
-          "gid": 131,
-          "height": 16,
-          "id": 6,
-          "name": "item_6",
-          "rotation": 0,
-          "type": "item",
-          "visible": true,
-          "width": 16,
-          "x": 16,
-          "y": 112,
-          "properties": [
-            {
-              "name": "prefab",
-              "propertytype": "Prefab",
-              "type": "string",
-              "value": "item"
-            },
-            {
-              "name": "item",
-              "propertytype": "ItemKind",
-              "type": "string",
-              "value": "HealthPatch"
-            },
-            {
-              "name": "amount",
-              "type": "int",
-              "value": 4
-            }
-          ]
-        },
+         "firstgid":1,
+         "source":"terrain\/floors.tsj"
+        }, 
         {
-          "gid": 131,
-          "height": 16,
-          "id": 7,
-          "name": "item_7",
-          "rotation": 0,
-          "type": "item",
-          "visible": true,
-          "width": 16,
-          "x": 64,
-          "y": 112,
-          "properties": [
-            {
-              "name": "prefab",
-              "propertytype": "Prefab",
-              "type": "string",
-              "value": "item"
-            },
-            {
-              "name": "item",
-              "propertytype": "ItemKind",
-              "type": "string",
-              "value": "PistolAmmo"
-            },
-            {
-              "name": "amount",
-              "type": "int",
-              "value": 4
-            }
-          ]
-        },
+         "firstgid":61,
+         "source":"terrain\/walls.tsj"
+        }, 
         {
-          "gid": 129,
-          "height": 16,
-          "id": 8,
-          "name": "uplinkTerminal_8",
-          "rotation": 0,
-          "type": "uplinkTerminal",
-          "visible": true,
-          "width": 16,
-          "x": 208,
-          "y": 80,
-          "properties": [
-            {
-              "name": "prefab",
-              "propertytype": "Prefab",
-              "type": "string",
-              "value": "uplinkTerminal"
-            },
-            {
-              "name": "goto",
-              "type": "string",
-              "value": "Firewall"
-            }
-          ]
-        },
+         "firstgid":121,
+         "source":"terrain\/barriers.tsj"
+        }, 
         {
-          "gid": 125,
-          "height": 16,
-          "id": 9,
-          "name": "enemy_9",
-          "rotation": 0,
-          "type": "enemy",
-          "visible": true,
-          "width": 16,
-          "x": 160,
-          "y": 96,
-          "properties": [
-            {
-              "name": "prefab",
-              "propertytype": "Prefab",
-              "type": "string",
-              "value": "enemy"
-            },
-            {
-              "name": "facing",
-              "propertytype": "Facing",
-              "type": "string",
-              "value": "west"
-            },
-            {
-              "name": "displayName",
-              "propertytype": "DisplayName",
-              "type": "string",
-              "value": "DigitalDog"
-            },
-            {
-              "name": "archetype",
-              "propertytype": "EnemyArchetype",
-              "type": "string",
-              "value": "MeleeDog"
-            }
-          ]
-        },
-        {
-          "gid": 131,
-          "height": 16,
-          "id": 10,
-          "name": "item_10",
-          "rotation": 0,
-          "type": "item",
-          "visible": true,
-          "width": 16,
-          "x": 208,
-          "y": 112,
-          "properties": [
-            {
-              "name": "prefab",
-              "propertytype": "Prefab",
-              "type": "string",
-              "value": "item"
-            },
-            {
-              "name": "item",
-              "propertytype": "ItemKind",
-              "type": "string",
-              "value": "PistolAmmo"
-            },
-            {
-              "name": "amount",
-              "type": "int",
-              "value": 6
-            }
-          ]
-        },
-        {
-          "gid": 126,
-          "height": 16,
-          "id": 11,
-          "name": "door_11",
-          "rotation": 0,
-          "type": "door",
-          "visible": true,
-          "width": 16,
-          "x": 96,
-          "y": 160,
-          "properties": [
-            {
-              "name": "prefab",
-              "propertytype": "Prefab",
-              "type": "string",
-              "value": "door"
-            }
-          ]
-        },
-        {
-          "gid": 125,
-          "height": 16,
-          "id": 12,
-          "name": "enemy_12",
-          "rotation": 0,
-          "type": "enemy",
-          "visible": true,
-          "width": 16,
-          "x": 112,
-          "y": 176,
-          "properties": [
-            {
-              "name": "prefab",
-              "propertytype": "Prefab",
-              "type": "string",
-              "value": "enemy"
-            },
-            {
-              "name": "facing",
-              "propertytype": "Facing",
-              "type": "string",
-              "value": "north"
-            },
-            {
-              "name": "displayName",
-              "propertytype": "DisplayName",
-              "type": "string",
-              "value": "DigitalDog"
-            },
-            {
-              "name": "archetype",
-              "propertytype": "EnemyArchetype",
-              "type": "string",
-              "value": "MeleeDog"
-            }
-          ]
-        },
-        {
-          "gid": 131,
-          "height": 16,
-          "id": 13,
-          "name": "item_13",
-          "rotation": 0,
-          "type": "item",
-          "visible": true,
-          "width": 16,
-          "x": 80,
-          "y": 192,
-          "properties": [
-            {
-              "name": "prefab",
-              "propertytype": "Prefab",
-              "type": "string",
-              "value": "item"
-            },
-            {
-              "name": "item",
-              "propertytype": "ItemKind",
-              "type": "string",
-              "value": "PistolAmmo"
-            },
-            {
-              "name": "amount",
-              "type": "int",
-              "value": 6
-            }
-          ]
-        },
-        {
-          "gid": 131,
-          "height": 16,
-          "id": 14,
-          "name": "item_14",
-          "rotation": 0,
-          "type": "item",
-          "visible": true,
-          "width": 16,
-          "x": 128,
-          "y": 192,
-          "properties": [
-            {
-              "name": "prefab",
-              "propertytype": "Prefab",
-              "type": "string",
-              "value": "item"
-            },
-            {
-              "name": "item",
-              "propertytype": "ItemKind",
-              "type": "string",
-              "value": "HealthPatch"
-            },
-            {
-              "name": "amount",
-              "type": "int",
-              "value": 3
-            }
-          ]
-        },
-        {
-          "gid": 126,
-          "height": 16,
-          "id": 15,
-          "name": "door_15",
-          "rotation": 0,
-          "type": "door",
-          "visible": true,
-          "width": 16,
-          "x": 192,
-          "y": 160,
-          "properties": [
-            {
-              "name": "prefab",
-              "propertytype": "Prefab",
-              "type": "string",
-              "value": "door"
-            },
-            {
-              "name": "locked",
-              "type": "bool",
-              "value": true
-            },
-            {
-              "name": "color",
-              "propertytype": "KeyColor",
-              "type": "string",
-              "value": "blue"
-            }
-          ]
-        },
-        {
-          "gid": 125,
-          "height": 16,
-          "id": 16,
-          "name": "enemy_16",
-          "rotation": 0,
-          "type": "enemy",
-          "visible": true,
-          "width": 16,
-          "x": 160,
-          "y": 176,
-          "properties": [
-            {
-              "name": "prefab",
-              "propertytype": "Prefab",
-              "type": "string",
-              "value": "enemy"
-            },
-            {
-              "name": "facing",
-              "propertytype": "Facing",
-              "type": "string",
-              "value": "east"
-            },
-            {
-              "name": "displayName",
-              "propertytype": "DisplayName",
-              "type": "string",
-              "value": "GigabitGunslinger"
-            },
-            {
-              "name": "archetype",
-              "propertytype": "EnemyArchetype",
-              "type": "string",
-              "value": "Gunslinger"
-            }
-          ]
-        },
-        {
-          "gid": 128,
-          "height": 16,
-          "id": 17,
-          "name": "uplinkCode_17",
-          "rotation": 0,
-          "type": "uplinkCode",
-          "visible": true,
-          "width": 16,
-          "x": 208,
-          "y": 192,
-          "properties": [
-            {
-              "name": "prefab",
-              "propertytype": "Prefab",
-              "type": "string",
-              "value": "uplinkCode"
-            }
-          ]
-        },
-        {
-          "gid": 131,
-          "height": 16,
-          "id": 18,
-          "name": "item_18",
-          "rotation": 0,
-          "type": "item",
-          "visible": true,
-          "width": 16,
-          "x": 208,
-          "y": 176,
-          "properties": [
-            {
-              "name": "prefab",
-              "propertytype": "Prefab",
-              "type": "string",
-              "value": "item"
-            },
-            {
-              "name": "item",
-              "propertytype": "ItemKind",
-              "type": "string",
-              "value": "HealthPatch"
-            },
-            {
-              "name": "amount",
-              "type": "int",
-              "value": 4
-            }
-          ]
-        }
-      ],
-      "opacity": 1,
-      "type": "objectgroup",
-      "visible": true,
-      "x": 0,
-      "y": 0
-    }
-  ],
-  "nextlayerid": 3,
-  "nextobjectid": 19,
-  "orientation": "orthogonal",
-  "properties": [
-    {
-      "name": "name",
-      "type": "string",
-      "value": "Data Conduit"
-    },
-    {
-      "name": "campaignOrder",
-      "type": "int",
-      "value": 2
-    }
-  ],
-  "renderorder": "right-down",
-  "tiledversion": "1.11.2",
-  "tileheight": 16,
-  "tilesets": [
-    {
-      "firstgid": 1,
-      "source": "terrain/floors.tsj"
-    },
-    {
-      "firstgid": 61,
-      "source": "terrain/walls.tsj"
-    },
-    {
-      "firstgid": 121,
-      "source": "terrain/barriers.tsj"
-    },
-    {
-      "firstgid": 123,
-      "source": "entity_markers.tsj"
-    }
-  ],
-  "tilewidth": 16,
-  "type": "map",
-  "version": "1.10",
-  "width": 15
+         "firstgid":141,
+         "source":"entity_markers.tsj"
+        }],
+ "tilewidth":16,
+ "type":"map",
+ "version":"1.10",
+ "width":15
 }

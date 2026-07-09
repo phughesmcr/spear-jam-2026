@@ -1,4 +1,3 @@
-import { assertEquals, assertThrows } from "@std/assert";
 import { DialogueTreeId } from "@/src/dialogue/dialogue.ts";
 import { ExamineTextId } from "@/src/game/examine_content.ts";
 import { DisplayName } from "@/src/game/names.ts";
@@ -8,6 +7,7 @@ import { compileTiledMap } from "@/src/map/authoring/compile.ts";
 import type { TiledMap, TiledObject, TiledProperty, TiledTemplate } from "@/src/map/authoring/tiled_types.ts";
 import { KeyColor, VICTORY_GOTO } from "@/src/map/map.ts";
 import { DEFAULT_BARS_TERRAIN_ID, DEFAULT_WALL_TERRAIN_ID, TERRAIN_CATALOG } from "@/src/map/terrain_palettes.ts";
+import { assertEquals, assertThrows } from "@std/assert";
 
 const TILE_SIZE = 16;
 const TERRAIN_FIRST_GID = 17;
@@ -660,6 +660,97 @@ Deno.test("compileTiledMap compiles optional colored lights", () => {
   ]);
 });
 
+Deno.test("compileTiledMap compiles lights from marker tiles", () => {
+  const compiled = compileTiledMap(
+    tiledMap({
+      width: 3,
+      height: 3,
+      lightObjects: [
+        object({
+          gid: MARKER_FIRST_GID + 10,
+          x: TILE_SIZE,
+          y: TILE_SIZE * 2,
+          width: TILE_SIZE,
+          height: TILE_SIZE,
+          properties: [
+            property("color", "#88aaff"),
+            property("radius", 4),
+          ],
+        }),
+      ],
+    }),
+    compileOptions({
+      tilesets: {
+        "markers.tsj": {
+          name: "markers",
+          tilecount: 12,
+          tiles: [
+            {
+              id: 10,
+              type: "light",
+              properties: [property("prefab", "light")],
+            },
+          ],
+        },
+      },
+    }),
+  );
+
+  assertEquals(compiled.gameMap.entities, [
+    { prefab: "light", x: 1, y: 1, color: "#88aaff", radius: 4 },
+  ]);
+});
+
+Deno.test("compileTiledMap compiles sounds from templates", () => {
+  const compiled = compileTiledMap(
+    tiledMap({
+      width: 3,
+      height: 3,
+      soundObjects: [
+        object({
+          template: "templates/sound_ambient_hum.tx",
+          x: TILE_SIZE,
+          y: TILE_SIZE * 2,
+        }),
+      ],
+    }),
+    compileOptions({
+      templates: {
+        "templates/sound_ambient_hum.tx": template({
+          object: object({
+            gid: MARKER_FIRST_GID + 11,
+            x: 0,
+            y: TILE_SIZE,
+            type: "sound",
+            properties: [
+              property("prefab", "sound"),
+              property("soundId", SoundId.AmbientHum),
+              property("radius", 5),
+            ],
+          }),
+        }),
+      },
+      tilesets: {
+        "markers.tsj": {
+          name: "markers",
+          tilecount: 12,
+          tiles: [
+            {
+              id: 11,
+              type: "sound",
+              properties: [property("prefab", "sound")],
+            },
+          ],
+        },
+      },
+    }),
+  );
+
+  assertEquals(compiled.gameMap.entities, [
+    { prefab: "sound", x: 1, y: 1, soundId: SoundId.AmbientHum, radius: 5 },
+  ]);
+});
+
 Deno.test("compileTiledMap rejects lights on the objects layer", () => {
   assertThrows(
     () =>
@@ -806,12 +897,23 @@ type TiledMapOverrides = {
 type CompileOptionOverrides = {
   readonly sourcePath?: string;
   readonly templates?: Readonly<Record<string, TiledTemplate>>;
+  readonly tilesets?: Readonly<
+    Record<string, {
+      readonly name: string;
+      readonly tilecount: number;
+      readonly tiles: readonly {
+        readonly id: number;
+        readonly type?: string;
+        readonly properties?: readonly TiledProperty[];
+      }[];
+    }>
+  >;
 };
 
 function compileOptions(overrides: CompileOptionOverrides = {}) {
   return {
     ...overrides,
-    tilesets: {
+    tilesets: overrides.tilesets ?? {
       "markers.tsj": {
         name: "markers",
         tilecount: 8,

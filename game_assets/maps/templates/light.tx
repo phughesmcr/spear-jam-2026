@@ -5,25 +5,29 @@
     "source": "../entity_markers.tsj"
   },
   "object": {
-    "gid": 10,
+    "gid": 11,
     "height": 16,
-    "name": "Ceiling light",
+    "name": "Light",
     "properties": [
       {
         "name": "prefab",
         "propertytype": "Prefab",
         "type": "string",
-        "value": "decoration"
+        "value": "light"
       },
       {
-        "name": "decoration",
-        "propertytype": "DecorationKind",
+        "name": "color",
         "type": "string",
-        "value": "ceilingLight"
+        "value": "#ffffff"
+      },
+      {
+        "name": "radius",
+        "type": "int",
+        "value": 5
       }
     ],
     "rotation": 0,
-    "type": "decoration",
+    "type": "light",
     "visible": true,
     "width": 16,
     "x": 0,

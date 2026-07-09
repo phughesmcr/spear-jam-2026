@@ -1,4 +1,3 @@
-import { assert, assertEquals } from "@std/assert";
 import {
   buildScaffoldMap,
   generatedAutomappingSources,
@@ -10,6 +9,7 @@ import {
   startMapUrlPath,
 } from "@/scripts/maps.ts";
 import { AMBIENT_SOUND_IDS } from "@/src/game/sound.ts";
+import { assert, assertEquals } from "@std/assert";
 
 Deno.test("buildScaffoldMap creates a bordered Tiled map ready for authoring", () => {
   const map = buildScaffoldMap({
@@ -79,6 +79,8 @@ Deno.test("generatedTemplateSources includes all mapper-facing templates", () =>
       "game_assets/maps/templates/uplink_terminal_victory.tx",
       "game_assets/maps/templates/item_cannon_ammo.tx",
       "game_assets/maps/templates/decor_ceiling_light.tx",
+      "game_assets/maps/templates/light.tx",
+      "game_assets/maps/templates/sound_ambient_hum.tx",
     ]
   ) {
     assert(templates[path] !== undefined, `${path} should be generated.`);
@@ -117,6 +119,7 @@ Deno.test("generatedTiledProjectSource includes one-click play and automapping",
   assertEquals(lightObject?.type, "class");
   assertEquals(lightObject?.useAs, ["object"]);
   assertEquals(lightObject?.members?.map((member) => member.name), [
+    "prefab",
     "color",
     "radius",
     "flickerAmount",

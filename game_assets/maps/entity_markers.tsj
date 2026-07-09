@@ -1,12 +1,12 @@
 {
-  "columns": 9,
+  "columns": 12,
   "image": "entity_markers.png",
   "imageheight": 16,
-  "imagewidth": 144,
+  "imagewidth": 192,
   "margin": 0,
   "name": "entity_markers",
   "spacing": 0,
-  "tilecount": 9,
+  "tilecount": 12,
   "tiledversion": "1.11.2",
   "tileheight": 16,
   "tiles": [
@@ -19,6 +19,12 @@
           "propertytype": "Prefab",
           "type": "string",
           "value": "player"
+        },
+        {
+          "name": "facing",
+          "propertytype": "Facing",
+          "type": "string",
+          "value": "north"
         }
       ]
     },
@@ -31,6 +37,18 @@
           "propertytype": "Prefab",
           "type": "string",
           "value": "npc"
+        },
+        {
+          "name": "facing",
+          "propertytype": "Facing",
+          "type": "string",
+          "value": "north"
+        },
+        {
+          "name": "displayName",
+          "propertytype": "DisplayName",
+          "type": "string",
+          "value": "john"
         }
       ]
     },
@@ -43,6 +61,18 @@
           "propertytype": "Prefab",
           "type": "string",
           "value": "enemy"
+        },
+        {
+          "name": "facing",
+          "propertytype": "Facing",
+          "type": "string",
+          "value": "north"
+        },
+        {
+          "name": "archetype",
+          "propertytype": "EnemyArchetype",
+          "type": "string",
+          "value": "meleeDog"
         }
       ]
     },
@@ -67,6 +97,12 @@
           "propertytype": "Prefab",
           "type": "string",
           "value": "key"
+        },
+        {
+          "name": "color",
+          "propertytype": "KeyColor",
+          "type": "string",
+          "value": "red"
         }
       ]
     },
@@ -91,6 +127,11 @@
           "propertytype": "Prefab",
           "type": "string",
           "value": "uplinkTerminal"
+        },
+        {
+          "name": "goto",
+          "type": "string",
+          "value": "victory"
         }
       ]
     },
@@ -103,6 +144,11 @@
           "propertytype": "Prefab",
           "type": "string",
           "value": "weaponPickup"
+        },
+        {
+          "name": "slot",
+          "type": "int",
+          "value": 2
         }
       ]
     },
@@ -115,6 +161,80 @@
           "propertytype": "Prefab",
           "type": "string",
           "value": "item"
+        },
+        {
+          "name": "item",
+          "propertytype": "ItemKind",
+          "type": "string",
+          "value": "healthPatch"
+        },
+        {
+          "name": "amount",
+          "type": "int",
+          "value": 1
+        }
+      ]
+    },
+    {
+      "id": 9,
+      "type": "decoration",
+      "properties": [
+        {
+          "name": "prefab",
+          "propertytype": "Prefab",
+          "type": "string",
+          "value": "decoration"
+        },
+        {
+          "name": "decoration",
+          "propertytype": "DecorationKind",
+          "type": "string",
+          "value": "serverPile"
+        }
+      ]
+    },
+    {
+      "id": 10,
+      "type": "light",
+      "properties": [
+        {
+          "name": "prefab",
+          "propertytype": "Prefab",
+          "type": "string",
+          "value": "light"
+        },
+        {
+          "name": "color",
+          "type": "string",
+          "value": "#ffffff"
+        },
+        {
+          "name": "radius",
+          "type": "int",
+          "value": 5
+        }
+      ]
+    },
+    {
+      "id": 11,
+      "type": "sound",
+      "properties": [
+        {
+          "name": "prefab",
+          "propertytype": "Prefab",
+          "type": "string",
+          "value": "sound"
+        },
+        {
+          "name": "soundId",
+          "propertytype": "SoundId",
+          "type": "string",
+          "value": "ambientHum"
+        },
+        {
+          "name": "radius",
+          "type": "int",
+          "value": 5
         }
       ]
     }

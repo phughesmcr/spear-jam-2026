@@ -1,5 +1,4 @@
-import { compileTiledMap } from "@/src/map/authoring/compile.ts";
-import type { CompiledTiledMap } from "@/src/map/authoring/compile.ts";
+import type { TiledProjectCommand } from "@/src/map/authoring/catalog.ts";
 import {
   AUTHORING_TILE_SIZE,
   AUTOMAP_DIR,
@@ -13,6 +12,7 @@ import {
   ENTITY_MARKERS_IMAGE,
   ENTITY_MARKERS_TILESET,
   entityMarkersTilesetReference,
+  type EntityMarkerType,
   FLOOR_TILESET_FIRST_GID,
   floorTilesetImagePath,
   floorTilesetPath,
@@ -37,10 +37,11 @@ import {
   wallTilesetPath,
   wallTilesetReference,
 } from "@/src/map/authoring/catalog.ts";
-import type { TiledProjectCommand } from "@/src/map/authoring/catalog.ts";
+import type { CompiledTiledMap } from "@/src/map/authoring/compile.ts";
+import { compileTiledMap } from "@/src/map/authoring/compile.ts";
 import type { TiledMap, TiledProperty, TiledTemplate, TiledTileset } from "@/src/map/authoring/tiled_types.ts";
-import { BarrierTexture } from "@/src/map/map.ts";
 import type { EntityDef, TerrainTile, TexturePackRef } from "@/src/map/map.ts";
+import { BarrierTexture, VICTORY_GOTO } from "@/src/map/map.ts";
 import { validateGameMaps } from "@/src/map/map_validation.ts";
 import {
   isTexturePackRef,
@@ -155,6 +156,7 @@ async function playCurrentMap(args: readonly string[]): Promise<void> {
 async function syncAuthoring(): Promise<void> {
   await Deno.writeTextFile(TILED_PROJECT_PATH, generatedTiledProjectSource());
   await Deno.writeTextFile(`${MAPS_DIR}/${ENTITY_MARKERS_TILESET}`, generatedEntityMarkersTilesetSource());
+  await Deno.writeFile(`${MAPS_DIR}/${ENTITY_MARKERS_IMAGE}`, generatedEntityMarkersImage());
 
   await Deno.mkdir(TEMPLATE_DIR, { recursive: true });
   const expectedPaths = new Set<string>();
@@ -351,12 +353,90 @@ export function generatedEntityMarkersTilesetSource(): string {
     tiles: ENTITY_MARKER_TYPES.map((type, id) => ({
       id,
       type,
-      properties: [property("prefab", type, "Prefab")],
+      properties: entityMarkerTileProperties(type),
     })),
     tilewidth: AUTHORING_TILE_SIZE,
     type: "tileset",
     version: "1.10",
   });
+}
+
+export function generatedEntityMarkersImage(): Uint8Array {
+  const width = AUTHORING_TILE_SIZE * ENTITY_MARKER_TYPES.length;
+  const height = AUTHORING_TILE_SIZE;
+  const pixels = new Uint8Array(width * height * 4);
+  for (let index = 0; index < ENTITY_MARKER_TYPES.length; index++) {
+    drawEntityMarker(pixels, width, index, ENTITY_MARKER_TYPES[index]!);
+  }
+  return encodePng(width, height, pixels);
+}
+
+function entityMarkerTileProperties(type: EntityMarkerType): readonly TiledProperty[] {
+  switch (type) {
+    case "player":
+      return [
+        property("prefab", type, "Prefab"),
+        property("facing", "north", "Facing"),
+      ];
+    case "npc":
+      return [
+        property("prefab", type, "Prefab"),
+        property("facing", "north", "Facing"),
+        property("displayName", "john", "DisplayName"),
+      ];
+    case "enemy":
+      return [
+        property("prefab", type, "Prefab"),
+        property("facing", "north", "Facing"),
+        property("archetype", "meleeDog", "EnemyArchetype"),
+      ];
+    case "door":
+      return [property("prefab", type, "Prefab")];
+    case "key":
+      return [
+        property("prefab", type, "Prefab"),
+        property("color", "red", "KeyColor"),
+      ];
+    case "uplinkCode":
+      return [property("prefab", type, "Prefab")];
+    case "uplinkTerminal":
+      return [
+        property("prefab", type, "Prefab"),
+        property("goto", VICTORY_GOTO),
+      ];
+    case "weaponPickup":
+      return [
+        property("prefab", type, "Prefab"),
+        property("slot", 2),
+      ];
+    case "item":
+      return [
+        property("prefab", type, "Prefab"),
+        property("item", "healthPatch", "ItemKind"),
+        property("amount", 1),
+      ];
+    case "decoration":
+      return [
+        property("prefab", type, "Prefab"),
+        property("decoration", "serverPile", "DecorationKind"),
+      ];
+    case "light":
+      return [
+        property("prefab", type, "Prefab"),
+        property("color", "#ffffff"),
+        property("radius", 5),
+      ];
+    case "sound":
+      return [
+        property("prefab", type, "Prefab"),
+        property("soundId", "ambientHum", "SoundId"),
+        property("radius", 5),
+      ];
+    default: {
+      const _exhaustive: never = type;
+      throw new Error(`Unhandled entity marker type "${_exhaustive}".`);
+    }
+  }
 }
 
 export function generatedTemplateSources(): Readonly<Record<string, string>> {
@@ -557,6 +637,266 @@ function drawTileBorder(
     setPixel(target, targetWidth, left + offset, top + AUTHORING_TILE_SIZE - 1, color);
     setPixel(target, targetWidth, left, top + offset, color);
     setPixel(target, targetWidth, left + AUTHORING_TILE_SIZE - 1, top + offset, color);
+  }
+}
+
+const MARKER_BACKGROUND: readonly [number, number, number, number] = [28, 30, 34, 255];
+
+const MARKER_COLORS: Readonly<Record<EntityMarkerType, readonly [number, number, number, number]>> = {
+  player: [52, 211, 255, 255],
+  npc: [239, 68, 68, 255],
+  enemy: [245, 158, 11, 255],
+  door: [146, 91, 49, 255],
+  key: [250, 204, 21, 255],
+  uplinkCode: [202, 138, 4, 255],
+  uplinkTerminal: [34, 197, 94, 255],
+  weaponPickup: [168, 85, 247, 255],
+  item: [59, 130, 246, 255],
+  decoration: [100, 116, 139, 255],
+  light: [251, 191, 36, 255],
+  sound: [20, 184, 166, 255],
+};
+
+function drawEntityMarker(
+  target: Uint8Array,
+  targetWidth: number,
+  tileIndex: number,
+  type: EntityMarkerType,
+): void {
+  const left = tileIndex * AUTHORING_TILE_SIZE;
+  fillRect(target, targetWidth, left, 0, AUTHORING_TILE_SIZE, AUTHORING_TILE_SIZE, MARKER_BACKGROUND);
+  drawTileBorder(target, targetWidth, tileIndex, ENTITY_MARKER_TYPES.length, MARKER_COLORS[type]);
+  const accent = MARKER_COLORS[type];
+  switch (type) {
+    case "player":
+      drawMarkerGlyph(target, targetWidth, left, [
+        ".......##.......",
+        "......####......",
+        ".....######.....",
+        "....########....",
+        ".......##.......",
+        ".......##.......",
+        "......####......",
+        ".....######.....",
+        "....########....",
+        "...##########...",
+        ".......##.......",
+        ".......##.......",
+      ], accent);
+      break;
+    case "npc":
+      drawMarkerGlyph(target, targetWidth, left, [
+        "......####......",
+        ".....######.....",
+        ".....######.....",
+        "......####......",
+        ".......##.......",
+        ".....######.....",
+        "....########....",
+        "...##########...",
+        "......####......",
+        "......####......",
+        ".....######.....",
+        "....##....##....",
+      ], accent);
+      break;
+    case "enemy":
+      drawMarkerGlyph(target, targetWidth, left, [
+        "....##....##....",
+        "...####..####...",
+        "..##############",
+        "..##..####..##..",
+        "..##############",
+        "...############.",
+        "....##########..",
+        ".....########...",
+        "......######....",
+        ".......####.....",
+        "........##......",
+        ".......####.....",
+      ], accent);
+      break;
+    case "door":
+      drawMarkerGlyph(target, targetWidth, left, [
+        "...##########...",
+        "...##......##...",
+        "...##......##...",
+        "...##......##...",
+        "...##....#.##...",
+        "...##......##...",
+        "...##......##...",
+        "...##......##...",
+        "...##......##...",
+        "...##......##...",
+        "...##......##...",
+        "...##########...",
+      ], accent);
+      break;
+    case "key":
+      drawMarkerGlyph(target, targetWidth, left, [
+        "......####......",
+        ".....######.....",
+        ".....######.....",
+        "......####......",
+        ".......##.......",
+        ".......##.......",
+        ".......####.....",
+        ".......##.......",
+        ".......####.....",
+        ".......##.......",
+        ".......##.......",
+        ".......##.......",
+      ], accent);
+      break;
+    case "uplinkCode":
+      drawMarkerGlyph(target, targetWidth, left, [
+        "....##########..",
+        "...##........##.",
+        "...##..####..##.",
+        "...##.##..##.##.",
+        "...##.##..##.##.",
+        "...##..####..##.",
+        "...##........##.",
+        "....##########..",
+        "......####......",
+        "......####......",
+        "......####......",
+        "......####......",
+      ], accent);
+      break;
+    case "uplinkTerminal":
+      drawMarkerGlyph(target, targetWidth, left, [
+        "...############.",
+        "...##........##.",
+        "...##..####..##.",
+        "...##..####..##.",
+        "...##........##.",
+        "...##..####..##.",
+        "...##........##.",
+        "...############.",
+        "......####......",
+        "......####......",
+        "....########....",
+        "...##########...",
+      ], accent);
+      break;
+    case "weaponPickup":
+      drawMarkerGlyph(target, targetWidth, left, [
+        "..............##",
+        ".............##.",
+        "............##..",
+        "...........##...",
+        "..........##....",
+        ".........##.....",
+        "........##......",
+        ".......##.......",
+        "......##........",
+        ".....##.........",
+        "....##..........",
+        "...##...........",
+      ], accent);
+      break;
+    case "item":
+      drawMarkerGlyph(target, targetWidth, left, [
+        "......####......",
+        ".....######.....",
+        "....########....",
+        "...##########...",
+        "...##......##...",
+        "...##......##...",
+        "...##......##...",
+        "...##......##...",
+        "...##########...",
+        "....########....",
+        ".....######.....",
+        "......####......",
+      ], accent);
+      break;
+    case "decoration":
+      drawMarkerGlyph(target, targetWidth, left, [
+        "....##########..",
+        "...############.",
+        "...##..##..##...",
+        "...##..##..##...",
+        "...############.",
+        "...##..##..##...",
+        "...##..##..##...",
+        "...############.",
+        "....##########..",
+        "......####......",
+        "......####......",
+        "....########....",
+      ], accent);
+      break;
+    case "light":
+      drawMarkerGlyph(target, targetWidth, left, [
+        ".......##.......",
+        "......####......",
+        ".....#.####.....",
+        "....########....",
+        "...##########...",
+        "...##########...",
+        "....########....",
+        ".....######.....",
+        "......####......",
+        ".......##.......",
+        "......####......",
+        ".....######.....",
+      ], accent);
+      break;
+    case "sound":
+      drawMarkerGlyph(target, targetWidth, left, [
+        "....##..........",
+        "...####.........",
+        "..######...##...",
+        ".########..###..",
+        ".########...###.",
+        ".########...###.",
+        ".########...###.",
+        ".########..###..",
+        "..######...##...",
+        "...####.........",
+        "....##..........",
+        "................",
+      ], accent);
+      break;
+    default: {
+      const _exhaustive: never = type;
+      throw new Error(`Unhandled entity marker type "${_exhaustive}".`);
+    }
+  }
+}
+
+function drawMarkerGlyph(
+  target: Uint8Array,
+  targetWidth: number,
+  left: number,
+  rows: readonly string[],
+  color: readonly [number, number, number, number],
+): void {
+  const top = Math.floor((AUTHORING_TILE_SIZE - rows.length) / 2);
+  for (let row = 0; row < rows.length; row++) {
+    const line = rows[row]!;
+    for (let column = 0; column < line.length; column++) {
+      if (line[column] !== "#") continue;
+      setPixel(target, targetWidth, left + column, top + row, color);
+    }
+  }
+}
+
+function fillRect(
+  target: Uint8Array,
+  targetWidth: number,
+  left: number,
+  top: number,
+  width: number,
+  height: number,
+  color: readonly [number, number, number, number],
+): void {
+  for (let y = 0; y < height; y++) {
+    for (let x = 0; x < width; x++) {
+      setPixel(target, targetWidth, left + x, top + y, color);
+    }
   }
 }
 
@@ -818,6 +1158,7 @@ async function generatedAuthoringIssues(): Promise<string[]> {
   const issues: string[] = [];
   await checkGeneratedText(TILED_PROJECT_PATH, generatedTiledProjectSource(), issues);
   await checkGeneratedText(`${MAPS_DIR}/${ENTITY_MARKERS_TILESET}`, generatedEntityMarkersTilesetSource(), issues);
+  await checkGeneratedBytes(`${MAPS_DIR}/${ENTITY_MARKERS_IMAGE}`, generatedEntityMarkersImage(), issues);
 
   const expectedAutomap = generatedAutomappingSources();
   for (const [path, source] of Object.entries(expectedAutomap)) {

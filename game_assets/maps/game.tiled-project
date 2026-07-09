@@ -78,6 +78,7 @@
         "weaponPickup",
         "item",
         "decoration",
+        "light",
         "sound"
       ],
       "valuesAsFlags": false
@@ -682,6 +683,12 @@
       "id": 40,
       "members": [
         {
+          "name": "prefab",
+          "propertyType": "Prefab",
+          "type": "string",
+          "value": "sound"
+        },
+        {
           "name": "soundId",
           "propertyType": "SoundId",
           "type": "string",
@@ -709,6 +716,12 @@
       "drawFill": false,
       "id": 41,
       "members": [
+        {
+          "name": "prefab",
+          "propertyType": "Prefab",
+          "type": "string",
+          "value": "light"
+        },
         {
           "name": "color",
           "type": "string",

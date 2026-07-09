@@ -5,25 +5,30 @@
     "source": "../entity_markers.tsj"
   },
   "object": {
-    "gid": 10,
+    "gid": 12,
     "height": 16,
-    "name": "Ceiling light",
+    "name": "Ambient light buzz",
     "properties": [
       {
         "name": "prefab",
         "propertytype": "Prefab",
         "type": "string",
-        "value": "decoration"
+        "value": "sound"
       },
       {
-        "name": "decoration",
-        "propertytype": "DecorationKind",
+        "name": "soundId",
+        "propertytype": "SoundId",
         "type": "string",
-        "value": "ceilingLight"
+        "value": "ambientLightBuzz"
+      },
+      {
+        "name": "radius",
+        "type": "int",
+        "value": 5
       }
     ],
     "rotation": 0,
-    "type": "decoration",
+    "type": "sound",
     "visible": true,
     "width": 16,
     "x": 0,
