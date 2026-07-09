@@ -152,15 +152,11 @@ function spriteManagedAssets(): readonly ManagedAsset[] {
       continue;
     }
 
-    assets.push(
-      managedAsset(asset.src, [
-        {
-          layer: "sprites",
-          slot,
-          ...(asset.frame === undefined ? {} : { frame: asset.frame }),
-        },
-      ]),
-    );
+    const frame = asset.frame === undefined ? {} : { frame: asset.frame };
+    assets.push(managedAsset(asset.src, [{ layer: "sprites", slot, ...frame }]));
+    if (asset.lightmapSrc !== undefined) {
+      assets.push(managedAsset(asset.lightmapSrc, [{ layer: "spriteLightmaps", slot, ...frame }]));
+    }
   }
   return assets;
 }

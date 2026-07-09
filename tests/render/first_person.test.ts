@@ -29,12 +29,21 @@ const ENEMY_SHEET_COLUMNS = 4;
 const ROW_WALK = 1;
 const ROW_ATTACK = 2;
 const ROW_DEATH = 3;
-const ENEMY_LIGHTMAP_ASSETS = [
+const SPRITE_LIGHTMAP_ASSETS = [
   "/assets/game/sprites/digital_dog_lightmap.png",
   "/assets/game/sprites/gigabit_gun_slinger_lightmap.png",
   "/assets/game/sprites/network_neophyte_lightmap.png",
   "/assets/game/sprites/system_sentinel_lightmap.png",
   "/assets/game/sprites/agentic_acolyte_lightmap.png",
+  "/assets/game/sprites/john_lightmap.png",
+  "/assets/game/sprites/uplink_terminal_lightmap.png",
+  "/assets/game/sprites/health_lightmap.png",
+  "/assets/game/sprites/key_lightmap.png",
+  "/assets/game/sprites/weapon_2_lightmap.png",
+  "/assets/game/sprites/weapon_3_lightmap.png",
+  "/assets/game/sprites/uplink_code_lightmap.png",
+  "/assets/game/sprites/pistol_ammo_lightmap.png",
+  "/assets/game/sprites/cannon_ammo_lightmap.png",
 ] as const;
 const SKY_TEXTURE_ASSET = "/assets/game/textures/sky.png";
 
@@ -335,10 +344,10 @@ Deno.test("sceneForMap builds static scenes for authored textured maps", () => {
   }
 });
 
-Deno.test("first-person renderer requests lightmap assets for every enemy sheet", () => {
+Deno.test("first-person renderer requests lightmap assets for every lit sprite", () => {
   withFakeOffscreenCanvas((): void => {
     const map = createGameMap(
-      "Enemy Lightmaps",
+      "Sprite Lightmaps",
       [
         [2, 2, 2],
         [2, 1, 2],
@@ -362,7 +371,7 @@ Deno.test("first-person renderer requests lightmap assets for every enemy sheet"
     );
 
     const imageSources = (ctx.canvas.ownerDocument as unknown as FakeDocument).images.map((image) => image.src);
-    for (const lightmapAsset of ENEMY_LIGHTMAP_ASSETS) {
+    for (const lightmapAsset of SPRITE_LIGHTMAP_ASSETS) {
       assert(
         imageSources.some((src) => src.includes(lightmapAsset)),
         `${lightmapAsset} should be requested.`,
