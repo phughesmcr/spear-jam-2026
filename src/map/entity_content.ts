@@ -1,4 +1,3 @@
-import { z } from "zod";
 import {
   AMBIENT_SOUND_IDS,
   ENEMY_ARCHETYPE_AUTHORING_KEYS,
@@ -15,7 +14,8 @@ import {
   ATTACK_TARGET_MODE_AUTHORING_KEYS,
   type AuthoringAttackDef,
 } from "@/src/game/attack.ts";
-import { lowerFirst } from "@/src/utils/strings.ts";
+import { coerceLookup, lowerFirst } from "@/src/utils/strings.ts";
+import { z } from "zod";
 
 export const KeyColor = {
   Red: "red",
@@ -54,27 +54,30 @@ const INT8_SCHEMA = INTEGER_SCHEMA.min(-128).max(127);
 const UINT16_SCHEMA = INTEGER_SCHEMA.min(0).max(65535);
 const NON_NEGATIVE_INTEGER_SCHEMA = INTEGER_SCHEMA.nonnegative();
 const DIRECTION_SCHEMA = INTEGER_SCHEMA.min(0).max(3);
-const KEY_COLOR_SCHEMA = z.enum([KeyColor.Red, KeyColor.Blue, KeyColor.Yellow]) satisfies z.ZodType<KeyColor>;
-const DOOR_SLIDE_SCHEMA = z.enum(DOOR_SLIDES);
+const KEY_COLOR_SCHEMA = stringEnumSchema<KeyColor>(
+  [KeyColor.Red, KeyColor.Blue, KeyColor.Yellow],
+  "key color",
+);
+const DOOR_SLIDE_SCHEMA = stringEnumSchema<(typeof DOOR_SLIDES)[number]>(DOOR_SLIDES, "door slide");
 const LIGHT_COLOR_SCHEMA = z.string().regex(/^#[0-9a-fA-F]{6}$/);
-const DISPLAY_NAME_SCHEMA = stringEnumSchema<DisplayName>(KNOWN_DISPLAY_NAMES, "displayName");
-const STORY_TARGET_ID_SCHEMA = stringEnumSchema<StoryTargetId>(KNOWN_STORY_TARGET_IDS, "storyId");
-const STORY_EVENT_ID_SCHEMA = stringEnumSchema<StoryEventId>(KNOWN_STORY_EVENT_IDS, "onTalkEvent");
-const DIALOGUE_TREE_ID_SCHEMA = stringEnumSchema<DialogueTreeId>(KNOWN_DIALOGUE_TREE_IDS, "dialogueTreeId");
+const DISPLAY_NAME_SCHEMA = stringEnumSchema<DisplayName>(KNOWN_DISPLAY_NAMES, "display name");
+const STORY_TARGET_ID_SCHEMA = stringEnumSchema<StoryTargetId>(KNOWN_STORY_TARGET_IDS, "story target");
+const STORY_EVENT_ID_SCHEMA = stringEnumSchema<StoryEventId>(KNOWN_STORY_EVENT_IDS, "story event");
+const DIALOGUE_TREE_ID_SCHEMA = stringEnumSchema<DialogueTreeId>(KNOWN_DIALOGUE_TREE_IDS, "dialogue tree");
 const ENEMY_ARCHETYPE_SCHEMA = stringEnumSchema<EnemyArchetype>(
   ENEMY_ARCHETYPE_AUTHORING_KEYS,
-  "archetype",
+  "enemy archetype",
 );
-const SOUND_ID_SCHEMA = z.enum(AMBIENT_SOUND_IDS) satisfies z.ZodType<SoundId>;
-const EXAMINE_TEXT_ID_SCHEMA = stringEnumSchema<ExamineTextId>(KNOWN_EXAMINE_TEXT_IDS, "examineTextId");
-const ITEM_KIND_SCHEMA = z.enum(ITEM_KINDS) satisfies z.ZodType<ItemKind>;
-const DECORATION_KIND_SCHEMA = z.enum(DECORATION_KINDS) satisfies z.ZodType<DecorationKind>;
+const SOUND_ID_SCHEMA = stringEnumSchema<SoundId>(AMBIENT_SOUND_IDS, "ambient sound id");
+const EXAMINE_TEXT_ID_SCHEMA = stringEnumSchema<ExamineTextId>(KNOWN_EXAMINE_TEXT_IDS, "examine text");
+const ITEM_KIND_SCHEMA = stringEnumSchema<ItemKind>(ITEM_KINDS, "item kind");
+const DECORATION_KIND_SCHEMA = stringEnumSchema<DecorationKind>(DECORATION_KINDS, "decoration kind");
 const ATTACK_FACING_REQUIREMENT_SCHEMA = stringEnumSchema(
   ATTACK_FACING_REQUIREMENT_AUTHORING_KEYS,
-  "requiresFacing",
+  "attack facing requirement",
 );
-const ATTACK_PATTERN_SCHEMA = stringEnumSchema(ATTACK_PATTERN_AUTHORING_KEYS, "pattern");
-const ATTACK_TARGET_MODE_SCHEMA = stringEnumSchema(ATTACK_TARGET_MODE_AUTHORING_KEYS, "targets");
+const ATTACK_PATTERN_SCHEMA = stringEnumSchema(ATTACK_PATTERN_AUTHORING_KEYS, "attack pattern");
+const ATTACK_TARGET_MODE_SCHEMA = stringEnumSchema(ATTACK_TARGET_MODE_AUTHORING_KEYS, "attack target mode");
 
 const ATTACK_SCHEMA = z.object({
   minDamage: UINT8_SCHEMA.min(1).optional(),
@@ -214,7 +217,7 @@ export type DecorationDef = EntityDefFor<"decoration">;
 export type LightDef = EntityDefFor<"light">;
 export type SoundDef = EntityDefFor<"sound">;
 
-const ENTITY_PREFABS = ENTITY_DEFINITIONS.map((definition) => definition.prefab) as readonly EntityPrefab[];
+export const ENTITY_PREFABS = ENTITY_DEFINITIONS.map((definition) => definition.prefab) as readonly EntityPrefab[];
 export const ENTITY_AUTHORING_PROPERTY_NAMES: ReadonlySet<string> = propertySet(
   ENTITY_DEFINITIONS.flatMap((definition) => definition.authoringProperties),
 );
@@ -224,6 +227,28 @@ export const PREFAB_AUTHORING_PROPERTY_NAMES = Object.fromEntries(
 
 const ENTITY_PREFAB_SET = new Set<string>(ENTITY_PREFABS);
 
+const DIRECTIONS: Readonly<Record<string, number>> = {
+  north: 0,
+  east: 1,
+  south: 2,
+  west: 3,
+};
+
+/** Tiled flat attack_* properties → nested {@link AuthoringAttackDef} field names. */
+const ATTACK_PROPERTY_MAP = {
+  attackMinDamage: "minDamage",
+  attackMaxDamage: "maxDamage",
+  attackRange: "range",
+  attackRequiresFacing: "requiresFacing",
+  attackBonus: "attackBonus",
+  attackCritThreshold: "critThreshold",
+  attackCritMultiplier: "critMultiplier",
+  attackPattern: "pattern",
+  attackTargets: "targets",
+} as const;
+
+const DIALOGUE_TREE_NONE = "none";
+
 export function mapEntityPrefab(value: string, context: string): EntityPrefab {
   if (isEntityPrefab(value)) return value;
 
@@ -231,6 +256,64 @@ export function mapEntityPrefab(value: string, context: string): EntityPrefab {
   if (isEntityPrefab(lowered)) return lowered;
 
   throw new Error(`${context}: Unknown prefab "${value}".`);
+}
+
+/**
+ * Reshape Tiled property bags into the shape {@link ENTITY_SCHEMA} expects
+ * (aliases, attack nesting, sentinels). Validation stays in Zod.
+ */
+export function normalizeAuthoringProperties(
+  prefab: EntityPrefab,
+  properties: ReadonlyMap<string, unknown>,
+  context: string,
+): Record<string, unknown> {
+  const raw: Record<string, unknown> = {};
+  for (const [name, value] of properties) {
+    if (name === "prefab" || name === "x" || name === "y") continue;
+    raw[name] = value;
+  }
+
+  if (raw.dir === undefined && raw.facing !== undefined) raw.dir = raw.facing;
+  delete raw.facing;
+  if (typeof raw.dir === "string") {
+    raw.dir = coerceLookup(DIRECTIONS, raw.dir, "direction", `${context} property "dir"`);
+  }
+
+  const attack: Record<string, unknown> = {};
+  for (const [from, to] of Object.entries(ATTACK_PROPERTY_MAP)) {
+    if (raw[from] === undefined) continue;
+    attack[to] = raw[from];
+    delete raw[from];
+  }
+  if (Object.keys(attack).length > 0) raw.attack = attack;
+
+  if (raw.dialogueTreeId === DIALOGUE_TREE_NONE) delete raw.dialogueTreeId;
+
+  if (prefab === "light" && typeof raw.color === "string") {
+    raw.color = raw.color.toLowerCase();
+  }
+
+  if (prefab === "door" && raw.locked === true && raw.color === undefined) {
+    throw new Error(`${context}: Locked door is missing key color.`);
+  }
+
+  return raw;
+}
+
+/** Build an unparsed entity object for {@link ENTITY_SCHEMA}. */
+export function entityFromAuthoring(
+  prefab: EntityPrefab,
+  x: number,
+  y: number,
+  properties: ReadonlyMap<string, unknown>,
+  context: string,
+): Record<string, unknown> {
+  return {
+    prefab,
+    x,
+    y,
+    ...normalizeAuthoringProperties(prefab, properties, context),
+  };
 }
 
 function entityDefinition<Name extends string, Shape extends z.ZodRawShape>(
@@ -257,9 +340,15 @@ function propertySet(properties: readonly string[]): ReadonlySet<string> {
   return new Set(properties);
 }
 
-function stringEnumSchema<T extends string>(values: readonly T[], name: string): z.ZodType<T> {
-  const allowed = new Set<string>(values);
-  return z.custom<T>((value) => typeof value === "string" && allowed.has(value), {
-    message: `${name} must be one of ${values.join(", ")}`,
+/** Accepts the canonical id or its PascalCase form (`John` → `john`), matching prior knownString coerce. */
+function stringEnumSchema<T extends string>(values: readonly T[], kind: string): z.ZodType<T> {
+  return z.string().transform((value, ctx): T => {
+    const mapped = values.find((candidate) => candidate === value || candidate === lowerFirst(value));
+    if (mapped !== undefined) return mapped;
+    ctx.addIssue({
+      code: "custom",
+      message: `Unknown ${kind} "${value}".`,
+    });
+    return z.NEVER;
   });
 }

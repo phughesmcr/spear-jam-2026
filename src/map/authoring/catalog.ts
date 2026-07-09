@@ -13,14 +13,8 @@ import {
   ATTACK_TARGET_MODE_AUTHORING_KEYS,
 } from "@/src/game/attack.ts";
 import type { TiledObject, TiledProperty, TiledTilesetReference } from "@/src/map/authoring/tiled_types.ts";
-import {
-  DECORATION_KINDS,
-  type EntityPrefab,
-  KeyColor,
-  SKY_CEILING_TEXTURE,
-  TexturePack,
-  VICTORY_GOTO,
-} from "@/src/map/map.ts";
+import { ENTITY_PREFABS, type EntityPrefab } from "@/src/map/entity_content.ts";
+import { DECORATION_KINDS, KeyColor, SKY_CEILING_TEXTURE, TexturePack, VICTORY_GOTO } from "@/src/map/map.ts";
 import {
   BARRIER_TERRAIN_COUNT,
   TERRAIN_CATALOG_TILE_COLUMNS,
@@ -79,22 +73,8 @@ export const TEXTURE_REFS: readonly string[] = [
   ),
 ];
 
-export const ENTITY_MARKER_TYPES = [
-  "player",
-  "npc",
-  "enemy",
-  "door",
-  "key",
-  "uplinkCode",
-  "uplinkTerminal",
-  "weaponPickup",
-  "item",
-  "decoration",
-  "light",
-  "sound",
-] as const satisfies readonly EntityPrefab[];
-
-export type EntityMarkerType = (typeof ENTITY_MARKER_TYPES)[number];
+export const ENTITY_MARKER_TYPES = ENTITY_PREFABS;
+export type EntityMarkerType = EntityPrefab;
 
 const PREFAB_AUTHORING_VALUES = ENTITY_MARKER_TYPES;
 

@@ -1,14 +1,4 @@
 import {
-  AMBIENT_SOUND_IDS,
-  type AmbientSoundId,
-  ENEMY_ARCHETYPE_AUTHORING_KEYS,
-  KNOWN_DIALOGUE_TREE_IDS,
-  KNOWN_DISPLAY_NAMES,
-  KNOWN_EXAMINE_TEXT_IDS,
-  storyEventIdFor,
-  storyTargetIdFor,
-} from "@/src/content/known_ids.ts";
-import {
   createTilesetRegistry,
   decodeObjectGid,
   decodeTerrainGid,
@@ -18,8 +8,6 @@ import {
 import {
   mergeProperties,
   optionalBoolean,
-  optionalInteger,
-  optionalNumber,
   optionalString,
   type PropertyMap,
   readProperties,
@@ -29,28 +17,16 @@ import {
 } from "@/src/map/authoring/properties.ts";
 import type { TiledLayer, TiledMap, TiledObject, TiledTemplate } from "@/src/map/authoring/tiled_types.ts";
 import {
-  ATTACK_FACING_REQUIREMENT_AUTHORING_KEYS,
-  ATTACK_PATTERN_AUTHORING_KEYS,
-  ATTACK_TARGET_MODE_AUTHORING_KEYS,
-  type AuthoringAttackDef,
-} from "@/src/game/attack.ts";
-import {
-  DECORATION_KINDS,
-  type DecorationKind,
-  DOOR_SLIDES,
   ENTITY_AUTHORING_PROPERTY_NAMES,
   ENTITY_SCHEMA,
+  entityFromAuthoring,
   type EntityPrefab,
-  ITEM_KINDS,
-  type ItemKind,
-  KeyColor,
   mapEntityPrefab,
   PREFAB_AUTHORING_PROPERTY_NAMES,
 } from "@/src/map/entity_content.ts";
 import { createGameMap, type EntityDef, type GameMap, type LightDef, type SoundDef } from "@/src/map/map.ts";
 import { TERRAIN_CATALOG } from "@/src/map/terrain_palettes.ts";
 import { flagsBlockAttack, flagsBlockMovement, flagsBlockSight, terrainFlags } from "@/src/map/tile_flags.ts";
-import { coerceKnownString as knownString, coerceLookup as lookup } from "@/src/utils/strings.ts";
 
 export type CompileTiledMapOptions = {
   readonly sourcePath?: string;
@@ -84,10 +60,6 @@ type ResolvedTemplate = {
   readonly registry: TilesetRegistry;
 };
 
-type Mutable<T> = {
-  -readonly [K in keyof T]: T[K];
-};
-
 const NO_PROPERTY_NAMES: ReadonlySet<string> = new Set();
 const MAP_PROPERTY_NAMES: ReadonlySet<string> = new Set(["name", "campaignOrder"]);
 // Lights and sounds live on dedicated layers, so their authored objects carry no "prefab"
@@ -95,12 +67,6 @@ const MAP_PROPERTY_NAMES: ReadonlySet<string> = new Set(["name", "campaignOrder"
 // rather than restating them, so schema changes cannot drift from the compiler.
 const LIGHT_PROPERTY_NAMES: ReadonlySet<string> = authoredFieldNames("light");
 const SOUND_PROPERTY_NAMES: ReadonlySet<string> = authoredFieldNames("sound");
-const DIRECTIONS: Readonly<Record<string, number>> = {
-  north: 0,
-  east: 1,
-  south: 2,
-  west: 3,
-};
 const TERRAIN_PROPERTY_NAMES: ReadonlySet<string> = new Set([
   "terrainId",
   "terrainKind",
@@ -351,87 +317,7 @@ function compileEntity(
     throw new Error(`${context}: Sound objects must be authored on the dedicated "sounds" layer.`);
   }
   validatePropertyNames(resolved.properties, PREFAB_AUTHORING_PROPERTY_NAMES[prefab], context);
-
-  let entity: EntityDef;
-  switch (prefab) {
-    case "player":
-      entity = {
-        prefab: "player",
-        x: resolved.x,
-        y: resolved.y,
-        dir: requiredDirection(resolved.properties, context),
-      };
-      break;
-    case "npc":
-      entity = {
-        prefab: "npc",
-        x: resolved.x,
-        y: resolved.y,
-        dir: requiredDirection(resolved.properties, context),
-        displayName: requiredDisplayName(resolved.properties, context),
-        ...optionalDialogueTreeId(resolved.properties, context),
-        ...optionalExamineTextId(resolved.properties, context),
-        ...optionalStoryTargetId(resolved.properties, context),
-        ...optionalOnTalkEvent(resolved.properties, context),
-      };
-      break;
-    case "enemy":
-      entity = compileEnemy(resolved, context);
-      break;
-    case "door":
-      entity = compileDoor(resolved, context);
-      break;
-    case "key":
-      entity = {
-        prefab: "key",
-        x: resolved.x,
-        y: resolved.y,
-        color: requiredKeyColor(resolved.properties, context),
-      };
-      break;
-    case "uplinkCode":
-      entity = { prefab: "uplinkCode", x: resolved.x, y: resolved.y };
-      break;
-    case "uplinkTerminal":
-      entity = {
-        prefab: "uplinkTerminal",
-        x: resolved.x,
-        y: resolved.y,
-        goto: requiredString(resolved.properties, "goto", context),
-        ...optionalExamineTextId(resolved.properties, context),
-      };
-      break;
-    case "weaponPickup":
-      entity = {
-        prefab: "weaponPickup",
-        x: resolved.x,
-        y: resolved.y,
-        slot: requiredWeaponSlot(resolved.properties, context),
-      };
-      break;
-    case "item":
-      entity = {
-        prefab: "item",
-        x: resolved.x,
-        y: resolved.y,
-        item: requiredItemKind(resolved.properties, context),
-        amount: requiredInteger(resolved.properties, "amount", context),
-      };
-      break;
-    case "decoration":
-      entity = {
-        prefab: "decoration",
-        x: resolved.x,
-        y: resolved.y,
-        decoration: requiredDecorationKind(resolved.properties, context),
-      };
-      break;
-    default: {
-      const _exhaustive: never = prefab;
-      throw new Error(`${context}: Unexpected prefab "${_exhaustive}".`);
-    }
-  }
-  return parseEntity(entity, context);
+  return parseEntity(entityFromAuthoring(prefab, resolved.x, resolved.y, resolved.properties, context), context);
 }
 
 function compileLightEntity(
@@ -439,17 +325,7 @@ function compileLightEntity(
   properties: PropertyMap,
   context: string,
 ): LightDef {
-  const radius = requiredInteger(properties, "radius", context);
-  if (radius <= 0) throw new Error(`${context}: Property "radius" must be positive.`);
-
-  return parseEntity({
-    prefab: "light",
-    ...position,
-    color: requiredLightColor(properties, context),
-    radius,
-    ...optionalLightNumberField(properties, "flickerAmount", context),
-    ...optionalLightNumberField(properties, "flickerSpeed", context),
-  }, context) as LightDef;
+  return parseEntity(entityFromAuthoring("light", position.x, position.y, properties, context), context) as LightDef;
 }
 
 function compileSoundEntity(
@@ -457,19 +333,10 @@ function compileSoundEntity(
   properties: PropertyMap,
   context: string,
 ): SoundDef {
-  const radius = requiredInteger(properties, "radius", context);
-  if (radius <= 0) throw new Error(`${context}: Property "radius" must be positive.`);
-
-  return parseEntity({
-    prefab: "sound",
-    ...position,
-    soundId: requiredSoundId(properties, context),
-    radius,
-    ...optionalSoundVolume(properties, context),
-  }, context) as SoundDef;
+  return parseEntity(entityFromAuthoring("sound", position.x, position.y, properties, context), context) as SoundDef;
 }
 
-function parseEntity(entity: EntityDef, context: string): EntityDef {
+function parseEntity(entity: Record<string, unknown>, context: string): EntityDef {
   const parsed = ENTITY_SCHEMA.safeParse(entity);
   if (parsed.success) return parsed.data;
 
@@ -641,280 +508,6 @@ function validateObjectAuthoringState(object: TiledObject, context: string): voi
   if (object.text !== undefined) throw new Error(`${context}: text objects are unsupported.`);
 }
 
-function compileEnemy(resolved: ResolvedObject, context: string): EntityDef {
-  return {
-    prefab: "enemy",
-    x: resolved.x,
-    y: resolved.y,
-    dir: requiredDirection(resolved.properties, context),
-    ...optionalDisplayName(resolved.properties, context),
-    ...optionalEnemyArchetype(resolved.properties, context),
-    ...optionalNumberField(resolved.properties, "health", context),
-    ...optionalNumberField(resolved.properties, "hitDc", context),
-    ...optionalNumberField(resolved.properties, "damage", context),
-    ...optionalAttack(resolved.properties, context),
-    ...optionalExamineTextId(resolved.properties, context),
-  };
-}
-
-function compileDoor(resolved: ResolvedObject, context: string): EntityDef {
-  const locked = optionalBoolean(resolved.properties, "locked", context);
-  const color = optionalKeyColor(resolved.properties, context);
-  if (locked === true && color === undefined) throw new Error(`${context}: Locked door is missing key color.`);
-  return {
-    prefab: "door",
-    x: resolved.x,
-    y: resolved.y,
-    ...optionalBooleanField(resolved.properties, "locked", context),
-    ...(color === undefined ? {} : { color }),
-    ...optionalDoorSlide(resolved.properties, context),
-    ...optionalNumberField(resolved.properties, "openMs", context),
-    ...optionalBooleanField(resolved.properties, "secret", context),
-    ...optionalExamineTextId(resolved.properties, context),
-  };
-}
-
-function requiredDirection(properties: PropertyMap, context: string): number {
-  const value = optionalString(properties, "dir", context) ?? optionalString(properties, "facing", context);
-  if (value === undefined) throw new Error(`${context}: Missing required property "dir" or "facing".`);
-  return lookup(DIRECTIONS, value, "direction", `${context} property "dir"`);
-}
-
-function requiredDisplayName(properties: PropertyMap, context: string): string {
-  return knownString(
-    KNOWN_DISPLAY_NAMES,
-    requiredString(properties, "displayName", context),
-    "display name",
-    `${context} property "displayName"`,
-  );
-}
-
-function optionalDisplayName(
-  properties: PropertyMap,
-  context: string,
-): { readonly displayName?: string } {
-  const value = optionalString(properties, "displayName", context);
-  return value === undefined ? {} : {
-    displayName: knownString(KNOWN_DISPLAY_NAMES, value, "display name", `${context} property "displayName"`),
-  };
-}
-
-function requiredKeyColor(properties: PropertyMap, context: string): KeyColor {
-  return knownString(
-    Object.values(KeyColor),
-    requiredString(properties, "color", context),
-    "key color",
-    `${context} property "color"`,
-  );
-}
-
-function optionalKeyColor(properties: PropertyMap, context: string): KeyColor | undefined {
-  const value = optionalString(properties, "color", context);
-  return value === undefined ?
-    undefined :
-    knownString(Object.values(KeyColor), value, "key color", `${context} property "color"`);
-}
-
-function requiredItemKind(properties: PropertyMap, context: string): ItemKind {
-  return knownString(
-    ITEM_KINDS,
-    requiredString(properties, "item", context),
-    "item kind",
-    `${context} property "item"`,
-  );
-}
-
-function requiredDecorationKind(properties: PropertyMap, context: string): DecorationKind {
-  return knownString(
-    DECORATION_KINDS,
-    requiredString(properties, "decoration", context),
-    "decoration kind",
-    `${context} property "decoration"`,
-  );
-}
-
-function requiredSoundId(properties: PropertyMap, context: string): AmbientSoundId {
-  return knownString(
-    AMBIENT_SOUND_IDS,
-    requiredString(properties, "soundId", context),
-    "ambient sound id",
-    `${context} property "soundId"`,
-  );
-}
-
-function requiredWeaponSlot(properties: PropertyMap, context: string): 2 | 3 {
-  const slot = requiredInteger(properties, "slot", context);
-  if (slot !== 2 && slot !== 3) throw new Error(`${context}: Property "slot" must be 2 or 3.`);
-  return slot;
-}
-
-function optionalDialogueTreeId(
-  properties: PropertyMap,
-  context: string,
-): { readonly dialogueTreeId?: string } {
-  const value = optionalString(properties, "dialogueTreeId", context);
-  if (value === undefined) return {};
-
-  const dialogueTreeId = optionalKnownString(
-    [...KNOWN_DIALOGUE_TREE_IDS, "none"],
-    value,
-    "dialogue tree",
-    `${context} property "dialogueTreeId"`,
-  );
-  return dialogueTreeId === undefined ? {} : { dialogueTreeId };
-}
-
-function optionalStoryTargetId(
-  properties: PropertyMap,
-  context: string,
-): { readonly storyId?: string } {
-  const value = optionalString(properties, "storyId", context);
-  return value === undefined ? {} : { storyId: storyTargetIdFor(value, `${context} property "storyId"`) };
-}
-
-function optionalOnTalkEvent(
-  properties: PropertyMap,
-  context: string,
-): { readonly onTalkEvent?: string } {
-  const value = optionalString(properties, "onTalkEvent", context);
-  return value === undefined ? {} : { onTalkEvent: storyEventIdFor(value, `${context} property "onTalkEvent"`) };
-}
-
-function optionalExamineTextId(
-  properties: PropertyMap,
-  context: string,
-): { readonly examineTextId?: string } {
-  const value = optionalString(properties, "examineTextId", context);
-  return value === undefined ? {} : {
-    examineTextId: knownString(
-      KNOWN_EXAMINE_TEXT_IDS,
-      value,
-      "examine text",
-      `${context} property "examineTextId"`,
-    ),
-  };
-}
-
-function optionalEnemyArchetype(
-  properties: PropertyMap,
-  context: string,
-): { readonly archetype?: string } {
-  const value = optionalString(properties, "archetype", context);
-  return value === undefined ? {} : {
-    archetype: knownString(
-      ENEMY_ARCHETYPE_AUTHORING_KEYS,
-      value,
-      "enemy archetype",
-      `${context} property "archetype"`,
-    ),
-  };
-}
-
-function optionalDoorSlide(
-  properties: PropertyMap,
-  context: string,
-): { readonly slide?: (typeof DOOR_SLIDES)[number] } {
-  const value = optionalString(properties, "slide", context);
-  return value === undefined ?
-    {} :
-    { slide: knownString(DOOR_SLIDES, value, "door slide", `${context} property "slide"`) };
-}
-
-function optionalNumberField(properties: PropertyMap, name: string, context: string): Record<string, number> {
-  const value = optionalInteger(properties, name, context);
-  return value === undefined ? {} : { [name]: value };
-}
-
-function requiredLightColor(properties: PropertyMap, context: string): `#${string}` {
-  const value = requiredString(properties, "color", context);
-  if (!/^#[0-9a-fA-F]{6}$/.test(value)) {
-    throw new Error(`${context}: Property "color" must be a #rrggbb hex color.`);
-  }
-  return value.toLowerCase() as `#${string}`;
-}
-
-function optionalLightNumberField(properties: PropertyMap, name: string, context: string): Record<string, number> {
-  const value = optionalNumber(properties, name, context);
-  if (value === undefined) return {};
-  if (name === "flickerAmount" && (value < 0 || value > 1)) {
-    throw new Error(`${context}: Property "flickerAmount" must be between 0 and 1.`);
-  }
-  if (name === "flickerSpeed" && value <= 0) {
-    throw new Error(`${context}: Property "flickerSpeed" must be positive.`);
-  }
-  return { [name]: value };
-}
-
-function optionalSoundVolume(properties: PropertyMap, context: string): { readonly volume?: number } {
-  const value = optionalNumber(properties, "volume", context);
-  if (value === undefined) return {};
-  if (value < 0 || value > 1) throw new Error(`${context}: Property "volume" must be between 0 and 1.`);
-  return { volume: value };
-}
-
-function optionalBooleanField(properties: PropertyMap, name: string, context: string): Record<string, boolean> {
-  const value = optionalBoolean(properties, name, context);
-  return value === undefined ? {} : { [name]: value };
-}
-
-function optionalAttack(
-  properties: PropertyMap,
-  context: string,
-): { readonly attack?: AuthoringAttackDef } {
-  const attack: Mutable<AuthoringAttackDef> = {};
-  addAttackInteger(attack, properties, "attackMinDamage", "minDamage", context);
-  addAttackInteger(attack, properties, "attackMaxDamage", "maxDamage", context);
-  addAttackInteger(attack, properties, "attackRange", "range", context);
-  addAttackInteger(attack, properties, "attackBonus", "attackBonus", context);
-  addAttackInteger(attack, properties, "attackCritThreshold", "critThreshold", context);
-  addAttackInteger(attack, properties, "attackCritMultiplier", "critMultiplier", context);
-
-  const requiresFacing = optionalString(properties, "attackRequiresFacing", context);
-  if (requiresFacing !== undefined) {
-    attack.requiresFacing = knownString(
-      ATTACK_FACING_REQUIREMENT_AUTHORING_KEYS,
-      requiresFacing,
-      "attack facing requirement",
-      `${context} property "attackRequiresFacing"`,
-    );
-  }
-
-  const pattern = optionalString(properties, "attackPattern", context);
-  if (pattern !== undefined) {
-    attack.pattern = knownString(
-      ATTACK_PATTERN_AUTHORING_KEYS,
-      pattern,
-      "attack pattern",
-      `${context} property "attackPattern"`,
-    );
-  }
-
-  const targets = optionalString(properties, "attackTargets", context);
-  if (targets !== undefined) {
-    attack.targets = knownString(
-      ATTACK_TARGET_MODE_AUTHORING_KEYS,
-      targets,
-      "attack target mode",
-      `${context} property "attackTargets"`,
-    );
-  }
-
-  return Object.keys(attack).length === 0 ? {} : { attack };
-}
-
-function addAttackInteger<K extends keyof AuthoringAttackDef>(
-  attack: Mutable<AuthoringAttackDef>,
-  properties: PropertyMap,
-  propertyName: string,
-  attackName: K,
-  context: string,
-): void {
-  const value = optionalInteger(properties, propertyName, context);
-  if (value !== undefined) {
-    attack[attackName] = value as AuthoringAttackDef[K];
-  }
-}
-
 function authoredFieldNames(prefab: EntityPrefab): ReadonlySet<string> {
   const names = new Set(PREFAB_AUTHORING_PROPERTY_NAMES[prefab]);
   names.delete("prefab");
@@ -938,16 +531,6 @@ function aligned(value: number, cellSize: number): boolean {
 
 function positiveInteger(value: number): boolean {
   return Number.isInteger(value) && value > 0;
-}
-
-function optionalKnownString<T extends string>(
-  values: readonly T[],
-  value: string,
-  kind: string,
-  context: string,
-): Exclude<T, "none"> | undefined {
-  const mapped = knownString(values, value, kind, context);
-  return mapped === "none" ? undefined : mapped as Exclude<T, "none">;
 }
 
 function resolveTemplatePath(sourcePath: string | undefined, templatePath: string): string {

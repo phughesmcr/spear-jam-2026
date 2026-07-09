@@ -880,7 +880,7 @@ Deno.test("compileTiledMap validates sound ids and volume", () => {
         compileOptions(),
       ),
     Error,
-    'Property "volume" must be between 0 and 1.',
+    "Too big: expected number to be <=1",
   );
 });
 
