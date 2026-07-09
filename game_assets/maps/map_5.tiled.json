@@ -57,7 +57,7 @@
                  "visible":true,
                  "width":16,
                  "x":144,
-                 "y":208
+                 "y":224
                 }, 
                 {
                  "gid":149,
@@ -156,7 +156,7 @@
                  "type":"enemy",
                  "visible":true,
                  "width":16,
-                 "x":32,
+                 "x":48,
                  "y":176
                 }, 
                 {
@@ -434,8 +434,8 @@
                  "type":"weaponPickup",
                  "visible":true,
                  "width":16,
-                 "x":144,
-                 "y":224
+                 "x":128,
+                 "y":208
                 }, 
                 {
                  "gid":148,
@@ -749,8 +749,8 @@
                  "type":"enemy",
                  "visible":true,
                  "width":16,
-                 "x":128,
-                 "y":112
+                 "x":112,
+                 "y":128
                 }, 
                 {
                  "gid":143,
@@ -787,8 +787,8 @@
                  "type":"enemy",
                  "visible":true,
                  "width":16,
-                 "x":144,
-                 "y":128
+                 "x":176,
+                 "y":112
                 }, 
                 {
                  "gid":143,
