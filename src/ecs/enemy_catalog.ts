@@ -41,6 +41,16 @@ export const DEFAULT_ENEMY_BEHAVIOR_POLICY: EnemyBehaviorPolicy = {
   investigate: { type: "move", steps: 1 },
 };
 
+export type EnemySenses = {
+  readonly sightRadius: number;
+  readonly hearingRadius: number;
+};
+
+export const DEFAULT_ENEMY_SENSES: EnemySenses = {
+  sightRadius: 6,
+  hearingRadius: 8,
+};
+
 export type EnemyCatalogEntry = {
   readonly displayName: DisplayName;
   readonly health: number;
@@ -48,6 +58,7 @@ export type EnemyCatalogEntry = {
   readonly damage: number;
   readonly attack: Readonly<Partial<AttackDef>>;
   readonly behavior: EnemyBehaviorPolicy;
+  readonly senses: EnemySenses;
   readonly idleSound: EnemyIdleSoundProfile;
 };
 
@@ -79,8 +90,9 @@ export const ENEMY_CATALOG = {
     },
     behavior: {
       alert: { type: "advance", steps: 2, attackAfterMove: true },
-      investigate: { type: "move", steps: 1 },
+      investigate: { type: "move", steps: 2 },
     },
+    senses: { ...DEFAULT_ENEMY_SENSES },
     idleSound: DEFAULT_ENEMY_IDLE_SOUND,
   },
   [EnemyArchetype.Gunslinger]: {
@@ -96,6 +108,7 @@ export const ENEMY_CATALOG = {
       alert: { type: "skirmish", retreatRange: 1, advanceSteps: 1 },
       investigate: { type: "move", steps: 1 },
     },
+    senses: { ...DEFAULT_ENEMY_SENSES },
     idleSound: DEFAULT_ENEMY_IDLE_SOUND,
   },
   [EnemyArchetype.NetworkNeophyte]: {
@@ -111,6 +124,7 @@ export const ENEMY_CATALOG = {
       alert: { type: "skirmish", retreatRange: 1, advanceSteps: 1 },
       investigate: { type: "move", steps: 1 },
     },
+    senses: { ...DEFAULT_ENEMY_SENSES },
     idleSound: DEFAULT_ENEMY_IDLE_SOUND,
   },
   [EnemyArchetype.SystemSentinel]: {
@@ -123,9 +137,10 @@ export const ENEMY_CATALOG = {
       range: 1,
     },
     behavior: {
-      alert: { type: "advance", steps: 1, attackAfterMove: false },
+      alert: { type: "hold" },
       investigate: { type: "watch" },
     },
+    senses: { ...DEFAULT_ENEMY_SENSES },
     idleSound: DEFAULT_ENEMY_IDLE_SOUND,
   },
   [EnemyArchetype.AgenticAcolyte]: {
@@ -144,6 +159,7 @@ export const ENEMY_CATALOG = {
       alert: { type: "advance", steps: 1, attackAfterMove: true },
       investigate: { type: "move", steps: 1 },
     },
+    senses: { ...DEFAULT_ENEMY_SENSES },
     idleSound: DEFAULT_ENEMY_IDLE_SOUND,
   },
 } as const satisfies Readonly<Record<EnemyArchetypeType, EnemyCatalogEntry>>;

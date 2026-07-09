@@ -1,6 +1,5 @@
-import { assertEquals } from "@std/assert";
-import type { Entity, World } from "@phughesmcr/miski";
 import { enemyArchetypeAuthoringKey } from "@/src/content/enemies.ts";
+import type { AttackSchema, HealthSchema } from "@/src/ecs/components.ts";
 import {
   AttackFacingRequirement,
   AttackPattern,
@@ -14,20 +13,21 @@ import {
   IDLE_AWARENESS,
   TurnTaker,
 } from "@/src/ecs/components.ts";
-import type { AttackSchema, HealthSchema } from "@/src/ecs/components.ts";
-import { EnemyArchetype } from "@/src/ecs/enemy_catalog.ts";
+import { ENEMY_CATALOG, EnemyArchetype } from "@/src/ecs/enemy_catalog.ts";
 import { createEnemy, createPlayer } from "@/src/ecs/prefabs.ts";
 import { enemyTurnQuery } from "@/src/ecs/queries.ts";
 import { SpatialIndex } from "@/src/ecs/spatial.ts";
 import { isPlayerDefeated, runEnemyActorTurn } from "@/src/ecs/turn/enemy.ts";
 import { createWorld } from "@/src/ecs/world.ts";
 import type { GameEvent } from "@/src/game/events.ts";
-import type { NoiseStimulus } from "@/src/game/perception.ts";
 import { DisplayName } from "@/src/game/names.ts";
+import type { NoiseStimulus } from "@/src/game/perception.ts";
 import { Direction } from "@/src/grid/direction.ts";
 import { createGameMap } from "@/src/map/map.ts";
 import { DEFAULT_BARS_TERRAIN_ID } from "@/src/map/terrain_palettes.ts";
 import { createEntity, flatTestMap } from "@/tests/ecs/helpers.ts";
+import type { Entity, World } from "@phughesmcr/miski";
+import { assertEquals } from "@std/assert";
 
 Deno.test("enemy actor turns move enemies without an attack component", async () => {
   const world = await createWorld();
@@ -108,6 +108,76 @@ Deno.test("enemy actor turns leave unaware enemies idle", async () => {
   assertEquals(world.components.getEntityData(GridPos, enemy), { x: 1, y: 1 });
   assertEquals(world.components.getEntityData(Facing, enemy), { dir: Direction.West });
   assertEquals(events, []);
+});
+
+Deno.test("enemy sight radius from the catalog gates alert pursuit", async () => {
+  const catalogEntry = ENEMY_CATALOG[EnemyArchetype.NetworkNeophyte] as {
+    senses: { sightRadius: number; hearingRadius: number };
+  };
+  const previousSenses = catalogEntry.senses;
+  catalogEntry.senses = { ...previousSenses, sightRadius: 2 };
+
+  try {
+    const world = await createWorld();
+    const playerEntity = spawnPlayer(world, {
+      x: 4,
+      y: 1,
+      dir: Direction.West,
+      health: { current: 5, max: 5 },
+    });
+    const enemy = spawnEnemy(world, {
+      x: 1,
+      y: 1,
+      dir: Direction.East,
+      displayName: DisplayName.NetworkNeophyte,
+      attack: MELEE_ATTACK,
+      archetype: EnemyArchetype.NetworkNeophyte,
+    });
+    world.refresh();
+
+    const events = runEnemyPhase(world, playerEntity, flatTestMap(6, 3));
+
+    assertEquals(world.components.getEntityData(GridPos, enemy), { x: 1, y: 1 });
+    assertEquals(world.components.getEntityData(Facing, enemy), { dir: Direction.East });
+    assertEquals(events, []);
+  } finally {
+    catalogEntry.senses = previousSenses;
+  }
+});
+
+Deno.test("enemy hearing radius from the catalog gates noise investigation", async () => {
+  const catalogEntry = ENEMY_CATALOG[EnemyArchetype.NetworkNeophyte] as {
+    senses: { sightRadius: number; hearingRadius: number };
+  };
+  const previousSenses = catalogEntry.senses;
+  catalogEntry.senses = { ...previousSenses, hearingRadius: 1 };
+
+  try {
+    const world = await createWorld();
+    const playerEntity = spawnPlayer(world, {
+      x: 5,
+      y: 1,
+      dir: Direction.West,
+      health: { current: 5, max: 5 },
+    });
+    const enemy = spawnEnemy(world, {
+      x: 1,
+      y: 1,
+      dir: Direction.West,
+      displayName: DisplayName.NetworkNeophyte,
+      attack: MELEE_ATTACK,
+      archetype: EnemyArchetype.NetworkNeophyte,
+    });
+    world.refresh();
+
+    const events = runEnemyPhase(world, playerEntity, flatTestMap(7, 3), [{ x: 3, y: 1, radius: 5 }]);
+
+    assertEquals(world.components.getEntityData(GridPos, enemy), { x: 1, y: 1 });
+    assertEquals(world.components.getEntityData(Facing, enemy), { dir: Direction.West });
+    assertEquals(events, []);
+  } finally {
+    catalogEntry.senses = previousSenses;
+  }
 });
 
 Deno.test("enemy actor turns investigate heard noises instead of omniscient player position", async () => {
@@ -304,7 +374,7 @@ Deno.test("enemy actor turns stop the enemy phase after player defeat", async ()
     dir: Direction.East,
     displayName: DisplayName.DigitalDog,
     attack: MELEE_ATTACK,
-    archetype: EnemyArchetype.NetworkNeophyte,
+    archetype: EnemyArchetype.MeleeDog,
   });
   const laterEnemy = spawnEnemy(world, {
     x: 4,

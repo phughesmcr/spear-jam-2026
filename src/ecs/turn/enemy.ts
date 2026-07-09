@@ -8,13 +8,18 @@ import {
   Health,
   IDLE_AWARENESS,
 } from "@/src/ecs/components.ts";
-import { DEFAULT_ENEMY_BEHAVIOR_POLICY, type EnemyBehaviorPolicy, enemyCatalogEntry } from "@/src/ecs/enemy_catalog.ts";
+import {
+  DEFAULT_ENEMY_BEHAVIOR_POLICY,
+  DEFAULT_ENEMY_SENSES,
+  type EnemyBehaviorPolicy,
+  enemyCatalogEntry,
+  type EnemySenses,
+} from "@/src/ecs/enemy_catalog.ts";
 import { type ActorIntent, playerPosition, resolveIntent, type TurnContext } from "@/src/ecs/turn/actions.ts";
 import type { GameEvent } from "@/src/game/events.ts";
 import { type BlocksSight, canHearNoise, canSeePoint, type NoiseStimulus } from "@/src/game/perception.ts";
 import type { CardinalDirection, GridPoint } from "@/src/grid/direction.ts";
 
-const DEFAULT_ENEMY_SIGHT_RADIUS = 6;
 const MAX_INVESTIGATION_TURNS = 6;
 
 export type EnemyTurnContext = TurnContext & {
@@ -172,6 +177,11 @@ function enemyBehaviorPolicyFor(context: EnemyTurnContext, enemy: Entity): Enemy
   return archetype === undefined ? DEFAULT_ENEMY_BEHAVIOR_POLICY : enemyCatalogEntry(archetype).behavior;
 }
 
+function enemySensesFor(context: EnemyTurnContext, enemy: Entity): EnemySenses {
+  const archetype = enemyArchetypeFor(context.world, enemy);
+  return archetype === undefined ? DEFAULT_ENEMY_SENSES : enemyCatalogEntry(archetype).senses;
+}
+
 function distanceToPlayer(context: EnemyTurnContext, enemy: Entity): number {
   const enemyPosition = entityPosition(context, enemy);
   const target = playerPosition(context);
@@ -183,10 +193,11 @@ function updateEnemyAwareness(context: EnemyTurnContext, enemy: Entity): Awarene
   const target = playerPosition(context);
   const facing = context.world.components.getEntityData(Facing, enemy).dir as CardinalDirection;
   const blocksSight = context.blocksSight ?? ((x, y) => context.spatial.tileBlocksSight(x, y));
+  const senses = enemySensesFor(context, enemy);
 
   if (
     canSeePoint(position, target, {
-      radius: DEFAULT_ENEMY_SIGHT_RADIUS,
+      radius: senses.sightRadius,
       facing,
       blocksSight,
     })
@@ -201,7 +212,7 @@ function updateEnemyAwareness(context: EnemyTurnContext, enemy: Entity): Awarene
     return { state: AwarenessState.Alert, position: target };
   }
 
-  const heardNoise = nearestHeardNoise(position, context.noises ?? []);
+  const heardNoise = nearestHeardNoise(position, context.noises ?? [], senses.hearingRadius);
   if (heardNoise !== undefined) {
     const awareness = {
       state: AwarenessState.Investigating,
@@ -236,7 +247,11 @@ function entityPosition(context: EnemyTurnContext, enemy: Entity): GridPoint {
   return context.world.components.getEntityData(GridPos, enemy);
 }
 
-function nearestHeardNoise(position: GridPoint, noises: readonly NoiseStimulus[]): NoiseStimulus | undefined {
+function nearestHeardNoise(
+  position: GridPoint,
+  noises: readonly NoiseStimulus[],
+  hearingRadius: number,
+): NoiseStimulus | undefined {
   let nearest:
     | {
       readonly noise: NoiseStimulus;
@@ -245,7 +260,8 @@ function nearestHeardNoise(position: GridPoint, noises: readonly NoiseStimulus[]
     | undefined;
 
   for (const noise of noises) {
-    if (!canHearNoise(position, noise)) continue;
+    const audibleRadius = Math.min(noise.radius, hearingRadius);
+    if (!canHearNoise(position, { x: noise.x, y: noise.y, radius: audibleRadius })) continue;
 
     const distance = Math.abs(position.x - noise.x) + Math.abs(position.y - noise.y);
     if (nearest === undefined || distance < nearest.distance) {
