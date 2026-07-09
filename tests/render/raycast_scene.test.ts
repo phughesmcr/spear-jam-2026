@@ -25,6 +25,7 @@ const WALL = 0;
 const DOOR = 1;
 const GRATE = 2;
 const CURRENT_SIDE_WALL = 3;
+const JAMB = 4;
 const FLOOR = 0;
 const CEILING = 1;
 const CURRENT_FLOOR = 2;
@@ -48,6 +49,7 @@ function testAtlas(): RaycastAtlas {
       bakeSolidTexture(200, 0, 200),
       bakeTexture(grateSource, { transpose: true }),
       bakeSolidTexture(0, 200, 200),
+      bakeSolidTexture(120, 120, 80),
     ],
     planes: [
       bakeSolidTexture(0, 200, 0),
@@ -59,6 +61,7 @@ function testAtlas(): RaycastAtlas {
     ],
     skyPlane: SKY,
     skyFarPlane: SKY_FAR,
+    jambWall: JAMB,
     sprites: [bakeSolidTexture(200, 200, 0)],
     spriteLightmaps: [],
   };
@@ -464,7 +467,7 @@ Deno.test("sinking sliding solid walls draw the front slab over the wall behind"
   assertEquals(pixel(frame, CENTER, CENTER + (CENTER >> 2)), texel(atlas, "walls", DOOR, 0));
 });
 
-Deno.test("renderFrame uses the door texture for flanking jamb faces", () => {
+Deno.test("renderFrame uses the jamb texture for flanking jamb faces", () => {
   const atlas = testAtlas();
   const scene = corridorScene();
   addThinWall(scene, 2, 1, DOOR, THIN_AXIS_X);
@@ -472,7 +475,7 @@ Deno.test("renderFrame uses the door texture for flanking jamb faces", () => {
 
   renderFrame(frame, scene, atlas, CAMERA);
 
-  assertEquals(pixel(frame, 0, CENTER), texel(atlas, "walls", DOOR, 1));
+  assertEquals(pixel(frame, 0, CENTER), texel(atlas, "walls", JAMB, 1));
 });
 
 Deno.test("renderFrame keeps the wall beyond a door cell on its wall texture", () => {

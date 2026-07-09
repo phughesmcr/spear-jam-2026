@@ -8,8 +8,8 @@
  * (shade banding, mip selection, per-channel lighting) shared by every pass.
  */
 
-import { SHADE_BANDS, TRANSPARENT_TEXEL } from "@/src/render/raycast/textures.ts";
 import type { BakedTexture } from "@/src/render/raycast/textures.ts";
+import { SHADE_BANDS, TRANSPARENT_TEXEL } from "@/src/render/raycast/textures.ts";
 
 /** Thin wall plane at `cellX + 0.5`, crossed by rays travelling along x. */
 export const THIN_AXIS_X = 0;
@@ -98,6 +98,11 @@ export type RaycastAtlas = {
   readonly skyPlane?: number;
   /** Optional second sky layer sampled behind `skyPlane` with weaker parallax. */
   readonly skyFarPlane?: number;
+  /**
+   * Wall texture id for door jamb faces (solid walls flanking an opaque thin
+   * wall). When unset, jambs reuse the thin wall's own texture.
+   */
+  readonly jambWall?: number;
   /** Column-major (transposed) sprite textures. */
   readonly sprites: BakedTexture[];
   /** Column-major sprite emissive masks, indexed by sprite texture id. */

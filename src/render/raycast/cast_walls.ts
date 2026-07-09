@@ -284,8 +284,11 @@ function jambTextureFromPreviousCell(
   const thinSide = scene.thinAxis[thinIndex]! === THIN_AXIS_Y ? 1 : 0;
   if (side === thinSide) return undefined;
 
-  const texture = atlas.walls[scene.thinTex[thinIndex]!];
-  return texture?.opaque === true ? texture : undefined;
+  const thinTexture = atlas.walls[scene.thinTex[thinIndex]!];
+  if (thinTexture?.opaque !== true) return undefined;
+
+  if (atlas.jambWall === undefined) return thinTexture;
+  return atlas.walls[atlas.jambWall];
 }
 
 /** Draw one textured vertical strip from a column-major texture. */

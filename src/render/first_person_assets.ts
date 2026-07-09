@@ -83,7 +83,8 @@ const BARRIER_TEX_BY_TEXTURE: Readonly<Record<BarrierTextureType, number>> = {
   [BarrierTexture.Bars]: 5,
   [BarrierTexture.Glass]: 6,
 };
-const FIRST_PACK_WALL_TEX = 7;
+const JAMB_TEX = 7;
+const FIRST_PACK_WALL_TEX = 8;
 
 const FLOOR_TEX = 0;
 const CEILING_TEX = 1;
@@ -95,8 +96,7 @@ const FIRST_PACK_PLANE_TEX = 4;
 export const ENEMY_SHEET_COLUMNS = 4;
 const ENEMY_SHEET_SLOTS = 16;
 
-/** Tints are relative to mid-grey so the wall texture keeps its detail. */
-const DOOR_TINT: readonly [number, number, number] = [1.2, 0.83, 0.45];
+/** Tints for locked doors — relative to the door texture's mid tones. */
 const DOOR_TINTS_BY_COLOR: Readonly<Record<KeyColor, readonly [number, number, number]>> = {
   [KeyColor.Red]: [1.55, 0.55, 0.5],
   [KeyColor.Blue]: [0.6, 1.05, 1.85],
@@ -172,10 +172,15 @@ export function createAssetCatalog(): AssetCatalog {
   const managedAssets: readonly ManagedAsset[] = [
     managedAsset(new URL("../../assets/game/textures/wall.png", import.meta.url).href, [
       { layer: "walls", slot: WALL_TEX },
-      { layer: "walls", slot: DOOR_TEX, tint: DOOR_TINT },
+    ]),
+    managedAsset(new URL("../../assets/game/textures/door.png", import.meta.url).href, [
+      { layer: "walls", slot: DOOR_TEX },
       { layer: "walls", slot: DOOR_TEX_BY_COLOR[KeyColor.Red], tint: DOOR_TINTS_BY_COLOR[KeyColor.Red] },
       { layer: "walls", slot: DOOR_TEX_BY_COLOR[KeyColor.Blue], tint: DOOR_TINTS_BY_COLOR[KeyColor.Blue] },
       { layer: "walls", slot: DOOR_TEX_BY_COLOR[KeyColor.Yellow], tint: DOOR_TINTS_BY_COLOR[KeyColor.Yellow] },
+    ]),
+    managedAsset(new URL("../../assets/game/textures/jamb.png", import.meta.url).href, [
+      { layer: "walls", slot: JAMB_TEX },
     ]),
     managedAsset(new URL("../../assets/game/textures/floor.png", import.meta.url).href, [
       { layer: "planes", slot: FLOOR_TEX },
@@ -223,6 +228,7 @@ export function buildAtlas(): RaycastAtlas {
   walls[DOOR_TEX_BY_COLOR[KeyColor.Yellow]] = bakeSolidTexture(244, 211, 94);
   walls[BARRIER_TEX_BY_TEXTURE[BarrierTexture.Bars]] = bakeBarrier(BarrierTexture.Bars);
   walls[BARRIER_TEX_BY_TEXTURE[BarrierTexture.Glass]] = bakeBarrier(BarrierTexture.Glass);
+  walls[JAMB_TEX] = bakeSolidTexture(70, 72, 58);
 
   const planes: BakedTexture[] = [];
   planes[FLOOR_TEX] = bakeSolidTexture(35, 40, 50);
@@ -243,7 +249,15 @@ export function buildAtlas(): RaycastAtlas {
     sprites[slot] = bakeOrb(color);
   }
 
-  return { walls, planes, skyPlane: SKY_TEX, skyFarPlane: SKY_FAR_TEX, sprites, spriteLightmaps };
+  return {
+    walls,
+    planes,
+    skyPlane: SKY_TEX,
+    skyFarPlane: SKY_FAR_TEX,
+    jambWall: JAMB_TEX,
+    sprites,
+    spriteLightmaps,
+  };
 }
 
 function fillEnemyFallback(sprites: BakedTexture[], baseSlot: number, color: string): void {
