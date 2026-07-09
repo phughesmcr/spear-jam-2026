@@ -1,3 +1,4 @@
+import { spriteAppearance } from "@/src/content/sprites.ts";
 import {
   type ActorDrawableEntity,
   type DrawableEntity,
@@ -5,7 +6,6 @@ import {
   type SpriteDrawableEntity,
   SpriteId,
 } from "@/src/ecs/drawables.ts";
-import { spriteAppearance } from "@/src/content/sprites.ts";
 import type { FrameRenderSession } from "@/src/game/session_ports.ts";
 import { directionDelta } from "@/src/grid/direction.ts";
 import { KeyColor, type KeyColor as KeyColorType } from "@/src/map/map.ts";
@@ -103,6 +103,10 @@ function renderSpriteDrawable(
     case "key":
       renderKey(ctx, drawable.x, drawable.y, appearance.topDownColor, metrics);
       return;
+    case "none":
+      return;
+    case "player":
+      return;
     case "terminal":
       renderUplinkTerminal(ctx, drawable.x, drawable.y, appearance.topDownColor, metrics);
       return;
@@ -112,6 +116,10 @@ function renderSpriteDrawable(
     case "weapon":
       renderWeaponPickup(ctx, drawable.x, drawable.y, appearance.topDownColor, appearance.topDownSymbol ?? "", metrics);
       return;
+    default: {
+      const _exhaustive: never = appearance.topDownShape;
+      return _exhaustive;
+    }
   }
 }
 

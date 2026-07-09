@@ -10,7 +10,7 @@ import { EnemyArchetype, type EnemyArchetype as EnemyArchetypeType } from "@/src
 import { DisplayName } from "@/src/game/names.ts";
 import { KeyColor, type KeyColor as KeyColorType, keyColorForCode } from "@/src/map/map.ts";
 
-type TopDownShape = "actor" | "badge" | "corpse" | "key" | "player" | "terminal" | "uplinkCode" | "weapon";
+type TopDownShape = "actor" | "badge" | "corpse" | "key" | "none" | "player" | "terminal" | "uplinkCode" | "weapon";
 type SpriteSourceFrame = readonly [number, number, number, number];
 type SpriteAsset = {
   readonly src: string;
@@ -108,30 +108,24 @@ const SPRITE_APPEARANCES: Readonly<Record<SpriteIdType, SpriteAppearance>> = {
   }),
   [SpriteId.PistolAmmo]: itemAppearance(91, "badge", "#38bdf8", PISTOL_AMMO, PISTOL_AMMO_LIGHT, "P"),
   [SpriteId.CannonAmmo]: itemAppearance(92, "badge", "#f97316", CANNON_AMMO, CANNON_AMMO_LIGHT, "C"),
-  [SpriteId.DecorServerPile]: decorationAppearance(93, SCALE_DECOR_LARGE, 0, "#64748b", "S", DECOR_SERVER_PILE),
-  [SpriteId.DecorCyborg]: decorationAppearance(94, SCALE_DECOR_TALL, 0, "#94a3b8", "C", DECOR_CYBORG),
+  [SpriteId.DecorServerPile]: decorationAppearance(93, SCALE_DECOR_LARGE, 0, DECOR_SERVER_PILE),
+  [SpriteId.DecorCyborg]: decorationAppearance(94, SCALE_DECOR_TALL, 0, DECOR_CYBORG),
   [SpriteId.DecorCeilingHook]: decorationAppearance(
     95,
     SCALE_DECOR_CEILING_LONG,
     ELEVATION_CEILING_LONG,
-    "#9f7a5d",
-    "H",
     DECOR_CEILING_HOOK,
   ),
   [SpriteId.DecorCeilingLight]: decorationAppearance(
     96,
     SCALE_DECOR_CEILING_LIGHT,
     ELEVATION_CEILING_LIGHT,
-    "#facc15",
-    "L",
     DECOR_CEILING_LIGHT,
   ),
   [SpriteId.DecorCeilingWires]: decorationAppearance(
     97,
     SCALE_DECOR_CEILING_LONG,
     ELEVATION_CEILING_LONG,
-    "#64748b",
-    "W",
     DECOR_CEILING_WIRES,
   ),
 };
@@ -270,13 +264,10 @@ function decorationAppearance(
   firstPersonSlot: number,
   firstPersonScale: number,
   firstPersonElevation: number,
-  topDownColor: string,
-  topDownSymbol: string,
   src: string,
 ): SpriteAppearance {
-  return appearance(firstPersonSlot, firstPersonScale, "badge", topDownColor, {
+  return appearance(firstPersonSlot, firstPersonScale, "none", "#000000", {
     asset: spriteAsset(src),
     firstPersonElevation,
-    topDownSymbol,
   });
 }
