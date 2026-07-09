@@ -17,7 +17,7 @@ Deno.test("runtime renderNow cancels a pending RAF before rendering immediately"
   const audio = new FakeAudioRuntime();
   let model = modelNeedingFrame();
   const runtime = createGameRuntimeLoop({
-    host: Window as unknown as Window,
+    host: window as unknown as Window,
     document: new FakeDocument() as unknown as Document,
     ctx: new FakeContext() as unknown as CanvasRenderingContext2D,
     signal: new AbortController().signal,
@@ -39,7 +39,7 @@ Deno.test("runtime renderNow cancels a pending RAF before rendering immediately"
 Deno.test("runtime RAF callback clears the pending frame before requesting another", () => {
   const window = new FakeWindow();
   const runtime = createGameRuntimeLoop({
-    host: Window as unknown as Window,
+    host: window as unknown as Window,
     document: new FakeDocument() as unknown as Document,
     ctx: new FakeContext() as unknown as CanvasRenderingContext2D,
     signal: new AbortController().signal,
@@ -61,7 +61,7 @@ Deno.test("runtime dispose cancels pending RAF and disposes audio", () => {
   const window = new FakeWindow();
   const audio = new FakeAudioRuntime();
   const runtime = createGameRuntimeLoop({
-    host: Window as unknown as Window,
+    host: window as unknown as Window,
     document: new FakeDocument() as unknown as Document,
     ctx: new FakeContext() as unknown as CanvasRenderingContext2D,
     signal: new AbortController().signal,
