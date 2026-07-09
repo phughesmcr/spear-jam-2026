@@ -1,12 +1,18 @@
 import {
   AMBIENT_SOUND_IDS,
+  type DialogueTreeId,
+  type DisplayName,
   ENEMY_ARCHETYPE_AUTHORING_KEYS,
+  type EnemyArchetypeAuthoringKey,
+  type ExamineTextId,
   KNOWN_DIALOGUE_TREE_IDS,
   KNOWN_DISPLAY_NAMES,
   KNOWN_EXAMINE_TEXT_IDS,
   KNOWN_STORY_EVENT_IDS,
   KNOWN_STORY_TARGET_IDS,
   type SoundId as KnownSoundId,
+  type StoryEventId,
+  type StoryTargetId,
 } from "@/src/content/known_ids.ts";
 import {
   ATTACK_FACING_REQUIREMENT_AUTHORING_KEYS,
@@ -30,14 +36,12 @@ export const DOOR_SLIDES = ["north", "east", "south", "west", "up", "down"] as c
 /** Authoring-side attack override; runtime codes live in {@link "@/src/game/attack.ts"}. */
 export type AttackDef = AuthoringAttackDef;
 
-export type DisplayName = string;
-export type DialogueTreeId = string;
-export type ExamineTextId = string;
-export type StoryEventId = string;
-export type StoryTargetId = string;
-export type EnemyArchetype = string;
+export type { DialogueTreeId, DisplayName, ExamineTextId, StoryEventId, StoryTargetId };
+/** Authoring enemy archetype key; runtime numeric codes live in {@link "@/src/content/enemies.ts"}. */
+export type EnemyArchetype = EnemyArchetypeAuthoringKey;
 export type SoundId = KnownSoundId;
 export const ITEM_KINDS = ["healthPatch", "pistolAmmo", "cannonAmmo"] as const;
+/** Authoring pickup kind strings; runtime ECS codes live in {@link "@/src/content/items.ts"}. */
 export type ItemKind = (typeof ITEM_KINDS)[number];
 export const DECORATION_KINDS = [
   "serverPile",

@@ -1,5 +1,4 @@
 import { createCodeRegistry } from "@/src/utils/code_registry.ts";
-import { lowerFirst } from "@/src/utils/strings.ts";
 
 export const EnemyArchetype = {
   MeleeDog: 1,
@@ -28,19 +27,21 @@ const ENEMY_ARCHETYPE_AUTHORING_KEYS_BY_CODE = {
   [EnemyArchetype.AgenticAcolyte]: "agenticAcolyte",
 } as const satisfies Readonly<Record<EnemyArchetype, string>>;
 
-export const ENEMY_ARCHETYPE_AUTHORING_KEYS = ENEMY_ARCHETYPE_CODES.map(enemyArchetypeAuthoringKey);
+export type EnemyArchetypeAuthoringKey = (typeof ENEMY_ARCHETYPE_AUTHORING_KEYS_BY_CODE)[EnemyArchetype];
+
+export const ENEMY_ARCHETYPE_AUTHORING_KEYS = ENEMY_ARCHETYPE_CODES.map(
+  enemyArchetypeAuthoringKey,
+) as readonly EnemyArchetypeAuthoringKey[];
 
 // Authoring keys are ordered by archetype, so each key's registry code equals its archetype value.
 const ENEMY_ARCHETYPE_REGISTRY = createCodeRegistry("enemy archetype", ENEMY_ARCHETYPE_AUTHORING_KEYS);
 
-export function enemyArchetypeAuthoringKey(archetype: EnemyArchetype): string {
+export function enemyArchetypeAuthoringKey(archetype: EnemyArchetype): EnemyArchetypeAuthoringKey {
   return ENEMY_ARCHETYPE_AUTHORING_KEYS_BY_CODE[archetype];
 }
 
-export function enemyArchetypeForAuthoringKey(authoringKey: string): EnemyArchetype {
-  const key = ENEMY_ARCHETYPE_REGISTRY.has(authoringKey) ? authoringKey : lowerFirst(authoringKey);
-  if (!ENEMY_ARCHETYPE_REGISTRY.has(key)) throw new Error(`Unknown enemy archetype "${authoringKey}".`);
-  return ENEMY_ARCHETYPE_REGISTRY.encode(key) as EnemyArchetype;
+export function enemyArchetypeForAuthoringKey(authoringKey: EnemyArchetypeAuthoringKey): EnemyArchetype {
+  return ENEMY_ARCHETYPE_REGISTRY.encode(authoringKey) as EnemyArchetype;
 }
 
 export function enemyArchetypeForCode(archetype: number): EnemyArchetype {

@@ -1,4 +1,3 @@
-import type { Entity, World } from "@phughesmcr/miski";
 import { enemyArchetypeForAuthoringKey } from "@/src/content/enemies.ts";
 import { ItemKind } from "@/src/content/items.ts";
 import { SpriteId } from "@/src/content/sprite_ids.ts";
@@ -8,6 +7,7 @@ import {
   spriteIdForEnemyArchetype,
   spriteIdForItem,
 } from "@/src/content/sprites.ts";
+import { dialogueTreeCode } from "@/src/dialogue/dialogue.ts";
 import {
   Attack,
   type AttackSchema,
@@ -51,28 +51,18 @@ import {
   UplinkTerminal,
 } from "@/src/ecs/components.ts";
 import { DrawableKind } from "@/src/ecs/drawable_kind.ts";
-import {
-  DEFAULT_ENEMY_ARCHETYPE,
-  type EnemyArchetype as EnemyArchetypeType,
-  type EnemyCatalogEntry,
-  enemyCatalogEntry,
-} from "@/src/ecs/enemy_catalog.ts";
+import { DEFAULT_ENEMY_ARCHETYPE, type EnemyCatalogEntry, enemyCatalogEntry } from "@/src/ecs/enemy_catalog.ts";
 import {
   DEFAULT_PLAYER_EQUIPMENT,
   DEFAULT_PLAYER_HEALTH,
   DEFAULT_PLAYER_INVENTORY,
   DEFAULT_PLAYER_PROGRESS,
 } from "@/src/ecs/progression.ts";
-import {
-  dialogueTreeCode,
-  DialogueTreeId,
-  type DialogueTreeId as DialogueTreeIdType,
-} from "@/src/dialogue/dialogue.ts";
 import { attackDefFromAuthoring, DEFAULT_ATTACK } from "@/src/game/attack.ts";
-import { examineTextCode, ExamineTextId, type ExamineTextId as ExamineTextIdType } from "@/src/game/examine_content.ts";
-import { DisplayName, type DisplayName as DisplayNameType, displayNameCode } from "@/src/game/names.ts";
+import { examineTextCode } from "@/src/game/examine_content.ts";
+import { displayNameCode } from "@/src/game/names.ts";
 import { soundIdCode } from "@/src/game/sound.ts";
-import { storyEventCode, storyEventIdFor, storyTargetCode, storyTargetIdFor } from "@/src/game/story.ts";
+import { storyEventCode, storyTargetCode } from "@/src/game/story.ts";
 import { normalizeDirection } from "@/src/grid/direction.ts";
 import {
   type DecorationDef,
@@ -81,6 +71,7 @@ import {
   type EnemyDef,
   type EntityDef,
   type ItemDef,
+  type ItemKind as AuthoringItemKind,
   keyColorCode,
   type KeyDef,
   type LightDef,
@@ -92,14 +83,14 @@ import {
   type WeaponPickupDef,
 } from "@/src/map/map.ts";
 import { terminalDestinationCode } from "@/src/map/maps.ts";
-import { coerceKnownString as knownString, coerceLookup as lookup } from "@/src/utils/strings.ts";
+import type { Entity, World } from "@phughesmcr/miski";
 
 const DEFAULT_PLAYER_HIT_DC = 10;
-const ITEM_KINDS = {
+const AUTHORING_ITEM_KINDS = {
   healthPatch: ItemKind.HealthPatch,
   pistolAmmo: ItemKind.PistolAmmo,
   cannonAmmo: ItemKind.CannonAmmo,
-} as const satisfies Readonly<Record<string, ItemKind>>;
+} as const satisfies Readonly<Record<AuthoringItemKind, ItemKind>>;
 type PositionedPrefab = {
   readonly x: number;
   readonly y: number;
@@ -134,13 +125,12 @@ export function createPlayer(world: World, prefab: PlayerPrefab): Entity {
 export type NpcPrefab = Omit<NpcDef, "prefab">;
 
 export function createNpc(world: World, prefab: NpcPrefab): Entity {
-  const displayName = displayNameForPrefab(prefab.displayName);
   const entity = createGridActor(
     world,
     prefab,
     DrawableKind.Actor,
     DrawableLayer.Npc,
-    spriteIdForDisplayName(displayName),
+    spriteIdForDisplayName(prefab.displayName),
   );
   world.components.addBundle(
     entity,
@@ -149,25 +139,25 @@ export function createNpc(world: World, prefab: NpcPrefab): Entity {
       [Interactable],
     ] as const,
   );
-  world.components.addToEntity(DisplayNameComponent, entity, { displayName: displayNameCode(displayName) });
+  world.components.addToEntity(DisplayNameComponent, entity, { displayName: displayNameCode(prefab.displayName) });
   if (prefab.dialogueTreeId !== undefined) {
     world.components.addToEntity(DialogueTreeRef, entity, {
-      dialogueTreeId: dialogueTreeCode(dialogueTreeIdForPrefab(prefab.dialogueTreeId)),
+      dialogueTreeId: dialogueTreeCode(prefab.dialogueTreeId),
     });
   }
   if (prefab.examineTextId !== undefined) {
     world.components.addToEntity(ExamineTextRef, entity, {
-      examineTextId: examineTextCode(examineTextIdForPrefab(prefab.examineTextId)),
+      examineTextId: examineTextCode(prefab.examineTextId),
     });
   }
   if (prefab.storyId !== undefined) {
     world.components.addToEntity(StoryTarget, entity, {
-      storyId: storyTargetCode(storyTargetIdFor(prefab.storyId, "npc storyId")),
+      storyId: storyTargetCode(prefab.storyId),
     });
   }
   if (prefab.onTalkEvent !== undefined) {
     world.components.addToEntity(OnTalkEvent, entity, {
-      onTalkEvent: storyEventCode(storyEventIdFor(prefab.onTalkEvent, "npc onTalkEvent")),
+      onTalkEvent: storyEventCode(prefab.onTalkEvent),
     });
   }
   return entity;
@@ -176,11 +166,13 @@ export function createNpc(world: World, prefab: NpcPrefab): Entity {
 export type EnemyPrefab = Omit<EnemyDef, "prefab">;
 
 export function createEnemy(world: World, prefab: EnemyPrefab): Entity {
-  const archetype = enemyArchetypeForPrefab(prefab.archetype);
+  const archetype = prefab.archetype === undefined ?
+    DEFAULT_ENEMY_ARCHETYPE :
+    enemyArchetypeForAuthoringKey(prefab.archetype);
   const catalog = enemyCatalogEntry(archetype);
   const health = prefab.health ?? catalog.health;
   const hitDc = prefab.hitDc ?? catalog.hitDc;
-  const displayName = prefab.displayName === undefined ? catalog.displayName : displayNameForPrefab(prefab.displayName);
+  const displayName = prefab.displayName ?? catalog.displayName;
   const entity = createGridActor(
     world,
     prefab,
@@ -203,7 +195,7 @@ export function createEnemy(world: World, prefab: EnemyPrefab): Entity {
   world.components.addToEntity(DisplayNameComponent, entity, { displayName: displayNameCode(displayName) });
   if (prefab.examineTextId !== undefined) {
     world.components.addToEntity(ExamineTextRef, entity, {
-      examineTextId: examineTextCode(examineTextIdForPrefab(prefab.examineTextId)),
+      examineTextId: examineTextCode(prefab.examineTextId),
     });
   }
   return entity;
@@ -216,7 +208,7 @@ function createAttackSpec(prefab: EnemyPrefab, catalog: EnemyCatalogEntry): Atta
     ...catalog.attack,
     minDamage: fixedDamage,
     maxDamage: fixedDamage,
-    ...attackForPrefab(prefab.attack),
+    ...attackDefFromAuthoring(prefab.attack),
   };
 }
 
@@ -237,7 +229,7 @@ export function createDoor(world: World, prefab: DoorPrefab): Entity {
   );
   if (prefab.examineTextId !== undefined) {
     world.components.addToEntity(ExamineTextRef, entity, {
-      examineTextId: examineTextCode(examineTextIdForPrefab(prefab.examineTextId)),
+      examineTextId: examineTextCode(prefab.examineTextId),
     });
   }
   if (prefab.locked === true && prefab.color !== undefined) {
@@ -277,7 +269,7 @@ export function createUplinkTerminal(world: World, prefab: UplinkTerminalPrefab)
   world.components.addToEntity(TerminalDestination, entity, { destination: terminalDestinationCode(prefab.goto) });
   if (prefab.examineTextId !== undefined) {
     world.components.addToEntity(ExamineTextRef, entity, {
-      examineTextId: examineTextCode(examineTextIdForPrefab(prefab.examineTextId)),
+      examineTextId: examineTextCode(prefab.examineTextId),
     });
   }
   return entity;
@@ -292,7 +284,7 @@ export function createWeaponPickup(world: World, prefab: WeaponPickupPrefab): En
 export type ItemPrefab = Omit<ItemDef, "prefab">;
 
 export function createItem(world: World, prefab: ItemPrefab): Entity {
-  return createPickup(world, prefab, itemKindForPrefab(prefab.item), prefab.amount);
+  return createPickup(world, prefab, AUTHORING_ITEM_KINDS[prefab.item], prefab.amount);
 }
 
 export type DecorationPrefab = Omit<DecorationDef, "prefab">;
@@ -339,10 +331,6 @@ export function createSound(world: World, prefab: SoundPrefab): Entity {
       }],
     ] as const,
   );
-}
-
-function enemyArchetypeForPrefab(archetype: string | undefined): EnemyArchetypeType {
-  return archetype === undefined ? DEFAULT_ENEMY_ARCHETYPE : enemyArchetypeForAuthoringKey(archetype);
 }
 
 function createPickup(world: World, prefab: PositionedPrefab, item: ItemKind, value: number): Entity {
@@ -442,24 +430,4 @@ function colorChannels(color: string): readonly [number, number, number] {
     Number.parseInt(color.slice(3, 5), 16),
     Number.parseInt(color.slice(5, 7), 16),
   ] as const;
-}
-
-function attackForPrefab(attack: EnemyPrefab["attack"] | undefined): Partial<AttackSchema> {
-  return attackDefFromAuthoring(attack);
-}
-
-function displayNameForPrefab(displayName: string): DisplayNameType {
-  return knownString(Object.values(DisplayName), displayName, "display name");
-}
-
-function dialogueTreeIdForPrefab(dialogueTreeId: string): DialogueTreeIdType {
-  return knownString(Object.values(DialogueTreeId), dialogueTreeId, "dialogue tree");
-}
-
-function examineTextIdForPrefab(examineTextId: string): ExamineTextIdType {
-  return knownString(Object.values(ExamineTextId), examineTextId, "examine text");
-}
-
-function itemKindForPrefab(item: string): ItemKind {
-  return lookup(ITEM_KINDS, item, "item kind");
 }
