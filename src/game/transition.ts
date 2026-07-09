@@ -8,6 +8,7 @@ import {
 } from "@/src/game/commands.ts";
 import { hasNextIntermissionPage, type IntermissionMode, isMessageRevealed } from "@/src/game/intermission.ts";
 import { CONTINUE_INTERMISSION_PROMPT, INTRO_INTERMISSION } from "@/src/game/intro.ts";
+import { dispatchCommand, done, pointerGesture } from "@/src/game/mode_handlers.ts";
 import { consumeGameEvents, createPresentationState, type PresentationState } from "@/src/game/presentation.ts";
 import {
   clampInteractiveFps,
@@ -17,20 +18,19 @@ import {
 } from "@/src/game/render_settings.ts";
 import type { GameMode, TitleHoverButton, VerbMenuTarget, ViewMode } from "@/src/game/state.ts";
 import { openVerbMenu, verbMenuCommand, verbPointer } from "@/src/game/verb_menu_transition.ts";
+import type { PointerPhase } from "@/src/input/pointer.ts";
 import type { Entity } from "@phughesmcr/miski";
 
 type DialogueMode = Extract<GameMode, { readonly type: "dialogue" }>;
 type HelpMode = Extract<GameMode, { readonly type: "help" }>;
 type SettingsMode = Extract<GameMode, { readonly type: "settings" }>;
 type TitleMode = Extract<GameMode, { readonly type: "title" }>;
+type ModeCommandHandler = (model: GameModel, command: GameCommand, nowMs: number) => GameTransition;
 
 export type GameModelOptions = {
   readonly showIntro?: boolean;
   readonly showTitle?: boolean;
 };
-
-export type VerbPointerPhase = "move" | "down" | "up" | "cancel";
-export type DialoguePointerPhase = VerbPointerPhase;
 
 export type GameModel = {
   readonly startMapName: string;
@@ -57,24 +57,21 @@ export type GameEffect =
   | { readonly type: "resetRun"; readonly mapName: string }
   | { readonly type: "runPlayerCommand"; readonly command: PlayerCommand };
 
-export type SettingsPointerPhase = VerbPointerPhase;
-export type TitlePointerPhase = VerbPointerPhase;
-
 export type GameTransitionEvent =
   | { readonly type: "start"; readonly nowMs?: number }
   | { readonly type: "mapLoaded"; readonly mapName: string }
   | { readonly type: "loadFailed"; readonly message: string }
   | { readonly type: "gameCommand"; readonly command: GameCommand; readonly nowMs?: number }
-  | { readonly type: "verbPointer"; readonly phase: VerbPointerPhase; readonly target?: VerbMenuTarget }
-  | { readonly type: "dialoguePointer"; readonly phase: DialoguePointerPhase; readonly optionSlot?: number }
+  | { readonly type: "verbPointer"; readonly phase: PointerPhase; readonly target?: VerbMenuTarget }
+  | { readonly type: "dialoguePointer"; readonly phase: PointerPhase; readonly optionSlot?: number }
   | {
     readonly type: "titlePointer";
-    readonly phase: TitlePointerPhase;
+    readonly phase: PointerPhase;
     readonly hoverButton?: TitleHoverButton;
   }
   | {
     readonly type: "settingsPointer";
-    readonly phase: SettingsPointerPhase;
+    readonly phase: PointerPhase;
     readonly slider?: SettingsSliderId;
     readonly volume?: number;
   }
@@ -88,6 +85,37 @@ export type GameTransitionEvent =
 export type GameTransition = {
   readonly model: GameModel;
   readonly effects: readonly GameEffect[];
+};
+
+/** Per-mode command policy. Modes omitted here ignore commands via {@link done}. */
+const MODE_COMMANDS: { readonly [K in GameMode["type"]]?: ModeCommandHandler } = {
+  title: titleCommand,
+  settings: (model, command) => {
+    const mode = model.mode;
+    return mode.type === "settings" ? settingsCommand(model, mode, command) : done(model);
+  },
+  intermission: (model, command, nowMs) => {
+    const mode = model.mode;
+    return mode.type === "intermission" ? intermissionCommand(model, mode, command, nowMs) : done(model);
+  },
+  dialogue: (model, command) => {
+    const mode = model.mode;
+    return mode.type === "dialogue" ? dialogueCommand(model, mode, command) : done(model);
+  },
+  help: (model, command) => {
+    const mode = model.mode;
+    return mode.type === "help" ? helpCommand(model, mode, command) : done(model);
+  },
+  verbMenu: (model, command) => {
+    const mode = model.mode;
+    return mode.type === "verbMenu" ? verbMenuCommand(model, mode, command) : done(model);
+  },
+  victory: (model, command) => outcomeCommand(model, "victory", command),
+  defeat: (model, command) => outcomeCommand(model, "defeat", command),
+  playing: playingCommand,
+  paused: overlayCommand,
+  loading: overlayCommand,
+  error: overlayCommand,
 };
 
 export function createGameModel(startMapName: string, options: GameModelOptions = {}): GameModel {
@@ -165,74 +193,57 @@ function mapLoaded(model: GameModel, mapName: string): GameTransition {
 }
 
 function gameCommand(model: GameModel, command: GameCommand, nowMs: number): GameTransition {
-  const mode = model.mode;
-  if (mode.type === "title") return titleCommand(model, command, nowMs);
-  if (mode.type === "settings") return settingsCommand(model, mode, command);
-  if (mode.type === "intermission") return intermissionCommand(model, mode, command, nowMs);
-  if (mode.type === "dialogue") return dialogueCommand(model, mode, command);
-  if (mode.type === "help") return helpCommand(model, mode, command);
-  if (mode.type === "verbMenu") return verbMenuCommand(model, mode, command);
-  if (mode.type === "victory" || mode.type === "defeat") return outcomeCommand(model, mode.type, command);
+  const handler = MODE_COMMANDS[model.mode.type];
+  return handler === undefined ? done(model) : handler(model, command, nowMs);
+}
 
-  if (isPlayerCommand(command)) {
-    if (mode.type !== "playing") return done(model);
-    return done(model, [{ type: "runPlayerCommand", command }]);
-  }
+function playingCommand(model: GameModel, command: GameCommand, _nowMs: number): GameTransition {
+  if (isPlayerCommand(command)) return done(model, [{ type: "runPlayerCommand", command }]);
+  return dispatchCommand(model, command, {
+    action: () => done(openVerbMenu(model), [{ type: "render" }]),
+    menu: () => toggleMenu(model),
+    pause: () => togglePause(model),
+    toggleView: () => toggleView(model),
+  });
+}
 
-  switch (command.type) {
-    case "action":
-      if (model.mode.type !== "playing") return done(model);
-      return done(openVerbMenu(model), [{ type: "render" }]);
-    case "menu":
-      return toggleMenu(model);
-    case "settings":
-      return done(model);
-    case "pause":
-      return togglePause(model);
-    case "toggleView":
-      return toggleView(model);
-  }
+function overlayCommand(model: GameModel, command: GameCommand, _nowMs: number): GameTransition {
+  return dispatchCommand(model, command, {
+    menu: () => toggleMenu(model),
+    pause: () => togglePause(model),
+    toggleView: () => toggleView(model),
+  });
 }
 
 function titleCommand(model: GameModel, command: GameCommand, nowMs: number): GameTransition {
   const mode = model.mode;
   if (mode.type !== "title") return done(model);
 
-  if (command.type === "menu") {
-    if (mode.intent === "resume") return closeTitleMenu(model);
-    return done(model);
-  }
-  if (command.type === "settings") {
-    return done({
-      ...model,
-      mode: { type: "settings", returnIntent: mode.intent },
-    }, [{ type: "render" }]);
-  }
-  if (command.type !== "wait") return done(model);
-  if (mode.intent === "resume") return closeTitleMenu(model);
-  return beginGame(model, nowMs);
+  return dispatchCommand(model, command, {
+    menu: () => mode.intent === "resume" ? closeTitleMenu(model) : done(model),
+    settings: () =>
+      done({
+        ...model,
+        mode: { type: "settings", returnIntent: mode.intent },
+      }, [{ type: "render" }]),
+    wait: () => mode.intent === "resume" ? closeTitleMenu(model) : beginGame(model, nowMs),
+  });
 }
 
 function titlePointer(
   model: GameModel,
-  phase: TitlePointerPhase,
+  phase: PointerPhase,
   hoverButton: TitleHoverButton | undefined,
 ): GameTransition {
   const mode = model.mode;
   if (mode.type !== "title") return done(model);
 
-  switch (phase) {
-    case "move":
-      return hoverTitleButton(model, mode, hoverButton);
-    case "down":
-    case "up":
-    case "cancel":
-      return done(model);
-    default: {
-      const _exhaustive: never = phase;
-      return _exhaustive;
-    }
-  }
+  return pointerGesture(model, phase, {
+    move: () => hoverTitleButton(model, mode, hoverButton),
+    down: () => done(model),
+    up: () => done(model),
+    cancel: () => done(model),
+  });
 }
 
 function hoverTitleButton(
@@ -249,59 +260,53 @@ function titleMode(intent: TitleMode["intent"], hoverButton: TitleHoverButton | 
 }
 
 function settingsCommand(model: GameModel, mode: SettingsMode, command: GameCommand): GameTransition {
-  switch (command.type) {
-    case "wait":
-    case "action":
-    case "menu":
-    case "settings":
-      return done({
-        ...model,
-        mode: { type: "title", intent: mode.returnIntent },
-      }, [{ type: "render" }]);
-    case "move":
-    case "turn":
-    case "interact":
-    case "examine":
-    case "attack":
-    case "smartAction":
-    case "selectWeapon":
-    case "pause":
-    case "toggleView":
-      return done(model);
-  }
+  const close = (): GameTransition =>
+    done({
+      ...model,
+      mode: { type: "title", intent: mode.returnIntent },
+    }, [{ type: "render" }]);
+  return dispatchCommand(model, command, {
+    wait: close,
+    action: close,
+    menu: close,
+    settings: close,
+  });
 }
 
 function settingsPointer(
   model: GameModel,
-  phase: SettingsPointerPhase,
+  phase: PointerPhase,
   slider: SettingsSliderId | undefined,
   volume: number | undefined,
 ): GameTransition {
   const mode = model.mode;
   if (mode.type !== "settings") return done(model);
 
-  switch (phase) {
-    case "down": {
+  return pointerGesture(model, phase, {
+    down: () => {
       if (slider === undefined || volume === undefined) return done(model);
       return applySettingsSlider(model, mode, slider, volume, true);
-    }
-    case "move": {
+    },
+    move: () => {
       const dragging = mode.dragging;
       if (dragging === undefined || volume === undefined) return done(model);
       return applySettingsSlider(model, mode, dragging, volume, false);
-    }
-    case "up":
-    case "cancel":
+    },
+    up: () => {
       if (mode.dragging === undefined) return done(model);
       return done({
         ...model,
         mode: { type: "settings", returnIntent: mode.returnIntent },
       });
-    default: {
-      const _exhaustive: never = phase;
-      return _exhaustive;
-    }
-  }
+    },
+    cancel: () => {
+      if (mode.dragging === undefined) return done(model);
+      return done({
+        ...model,
+        mode: { type: "settings", returnIntent: mode.returnIntent },
+      });
+    },
+  });
 }
 
 function applySettingsSlider(
@@ -370,32 +375,23 @@ function intermissionCommand(
 }
 
 function dialogueCommand(model: GameModel, mode: DialogueMode, command: GameCommand): GameTransition {
-  if (command.type === "wait") return selectDialogueChoice(model, mode, 1);
-  if (command.type === "selectWeapon") return selectDialogueChoice(model, mode, command.slot);
-  return done(model);
+  return dispatchCommand(model, command, {
+    wait: () => selectDialogueChoice(model, mode, 1),
+    selectWeapon: (select) => selectDialogueChoice(model, mode, select.slot),
+  });
 }
 
 function helpCommand(model: GameModel, mode: HelpMode, command: GameCommand): GameTransition {
-  switch (command.type) {
-    case "wait":
-    case "action":
-    case "menu":
-      return done({
-        ...model,
-        mode: { type: "verbMenu", selectedIndex: mode.selectedIndex },
-      }, [{ type: "render" }]);
-    case "move":
-    case "turn":
-    case "interact":
-    case "examine":
-    case "attack":
-    case "smartAction":
-    case "selectWeapon":
-    case "pause":
-    case "toggleView":
-    case "settings":
-      return done(model);
-  }
+  const close = (): GameTransition =>
+    done({
+      ...model,
+      mode: { type: "verbMenu", selectedIndex: mode.selectedIndex },
+    }, [{ type: "render" }]);
+  return dispatchCommand(model, command, {
+    wait: close,
+    action: close,
+    menu: close,
+  });
 }
 
 function selectDialogueChoice(model: GameModel, mode: DialogueMode, slot: number): GameTransition {
@@ -439,26 +435,24 @@ function outcomeCommand(
 
 function dialoguePointer(
   model: GameModel,
-  phase: DialoguePointerPhase,
+  phase: PointerPhase,
   optionSlot: number | undefined,
 ): GameTransition {
   const mode = model.mode;
   if (mode.type !== "dialogue") return done(model);
 
-  switch (phase) {
-    case "down":
-      return done({ ...model, dialoguePointerDownSlot: optionSlot });
-    case "up": {
+  return pointerGesture(model, phase, {
+    down: () => done({ ...model, dialoguePointerDownSlot: optionSlot }),
+    up: () => {
       const downSlot = model.dialoguePointerDownSlot;
       const upModel = { ...model, dialoguePointerDownSlot: undefined };
-      if (optionSlot !== undefined && downSlot === optionSlot) return selectDialogueChoice(upModel, mode, optionSlot);
+      if (optionSlot !== undefined && downSlot === optionSlot) {
+        return selectDialogueChoice(upModel, mode, optionSlot);
+      }
       return done(upModel);
-    }
-    case "cancel":
-      return done({ ...model, dialoguePointerDownSlot: undefined });
-    case "move":
-      return done(model);
-  }
+    },
+    cancel: () => done({ ...model, dialoguePointerDownSlot: undefined }),
+  });
 }
 
 function playerCommandResult(
@@ -562,8 +556,4 @@ function enterIntermission(
       revealed: false,
     },
   };
-}
-
-function done(model: GameModel, effects: readonly GameEffect[] = []): GameTransition {
-  return { model, effects };
 }

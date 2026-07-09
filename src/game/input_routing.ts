@@ -1,4 +1,5 @@
 import type { GameCommand } from "@/src/game/commands.ts";
+import type { GameMode } from "@/src/game/state.ts";
 import type { GameModel, GameTransitionEvent } from "@/src/game/transition.ts";
 import type { CanvasPointerInput } from "@/src/input/pointer.ts";
 import type { GameCanvasSize } from "@/src/render/canvas.ts";
@@ -17,18 +18,22 @@ export type PointerInputRoute =
   | { readonly type: "command"; readonly command: GameCommand }
   | { readonly type: "transition"; readonly event: PointerTransitionEvent };
 
-export function routePointerInput(
+type PointerRouter = (
   model: GameModel,
   canvasSize: GameCanvasSize,
   input: CanvasPointerInput,
-): PointerInputRoute {
-  const mode = model.mode;
-  if (mode.type === "title") return titlePointer(canvasSize, input);
-  if (mode.type === "settings") return settingsPointer(model, canvasSize, input);
-  if (mode.type === "intermission") return waitOnPointerUp(input);
-  if (mode.type === "victory" || mode.type === "defeat") return waitOnPointerUp(input);
+) => PointerInputRoute;
 
-  if (mode.type === "dialogue") {
+/** Per-mode pointer routing. Modes omitted here fall through to the verb menu. */
+const MODE_POINTERS: { readonly [K in GameMode["type"]]?: PointerRouter } = {
+  title: (_model, canvasSize, input) => titlePointer(canvasSize, input),
+  settings: settingsPointer,
+  intermission: (_model, _canvasSize, input) => waitOnPointerUp(input),
+  victory: (_model, _canvasSize, input) => waitOnPointerUp(input),
+  defeat: (_model, _canvasSize, input) => waitOnPointerUp(input),
+  dialogue: (model, canvasSize, input) => {
+    const mode = model.mode;
+    if (mode.type !== "dialogue") return { type: "none" };
     return {
       type: "transition",
       event: {
@@ -37,22 +42,24 @@ export function routePointerInput(
         optionSlot: dialogueOptionSlotAt(canvasSize, mode.choices, input),
       },
     };
-  }
+  },
+  help: (_model, _canvasSize, input) => waitOnPointerUp(input),
+  playing: (model, canvasSize, input) => {
+    if (model.viewMode === "topDown") {
+      return input.phase === "up" ? { type: "command", command: { type: "toggleView" } } : { type: "none" };
+    }
+    return verbMenuPointer(canvasSize, input);
+  },
+  verbMenu: (_model, canvasSize, input) => verbMenuPointer(canvasSize, input),
+};
 
-  if (mode.type === "help") return waitOnPointerUp(input);
-
-  if (mode.type === "playing" && model.viewMode === "topDown") {
-    return input.phase === "up" ? { type: "command", command: { type: "toggleView" } } : { type: "none" };
-  }
-
-  return {
-    type: "transition",
-    event: {
-      type: "verbPointer",
-      phase: input.phase,
-      target: verbMenuTargetAt(canvasSize, input),
-    },
-  };
+export function routePointerInput(
+  model: GameModel,
+  canvasSize: GameCanvasSize,
+  input: CanvasPointerInput,
+): PointerInputRoute {
+  const router = MODE_POINTERS[model.mode.type];
+  return router === undefined ? verbMenuPointer(canvasSize, input) : router(model, canvasSize, input);
 }
 
 export function firstPersonTouchGesturesEnabled(model: GameModel): boolean {
@@ -61,6 +68,17 @@ export function firstPersonTouchGesturesEnabled(model: GameModel): boolean {
 
 function waitOnPointerUp(input: CanvasPointerInput): PointerInputRoute {
   return input.phase === "up" ? { type: "command", command: { type: "wait" } } : { type: "none" };
+}
+
+function verbMenuPointer(canvasSize: GameCanvasSize, input: CanvasPointerInput): PointerInputRoute {
+  return {
+    type: "transition",
+    event: {
+      type: "verbPointer",
+      phase: input.phase,
+      target: verbMenuTargetAt(canvasSize, input),
+    },
+  };
 }
 
 function titlePointer(canvasSize: GameCanvasSize, input: CanvasPointerInput): PointerInputRoute {
