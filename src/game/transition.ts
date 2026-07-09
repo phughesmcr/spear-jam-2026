@@ -1,5 +1,11 @@
 import { dialogueTreeNode } from "@/src/dialogue/dialogue.ts";
 import {
+  type AudioChannel,
+  type AudioSettings,
+  DEFAULT_AUDIO_SETTINGS,
+  withAudioVolume,
+} from "@/src/game/audio_settings.ts";
+import {
   type GameCommand,
   isPlayerCommand,
   type PlayerCommand,
@@ -8,13 +14,14 @@ import {
 import { hasNextIntermissionPage, type IntermissionMode, isMessageRevealed } from "@/src/game/intermission.ts";
 import { CONTINUE_INTERMISSION_PROMPT, INTRO_INTERMISSION } from "@/src/game/intro.ts";
 import { consumeGameEvents, createPresentationState, type PresentationState } from "@/src/game/presentation.ts";
-import type { GameMode, VerbMenuTarget, ViewMode } from "@/src/game/state.ts";
+import type { GameMode, TitleHoverButton, VerbMenuTarget, ViewMode } from "@/src/game/state.ts";
 import { openVerbMenu, verbMenuCommand, verbPointer } from "@/src/game/verb_menu_transition.ts";
 import type { Entity } from "@phughesmcr/miski";
 
 type DialogueMode = Extract<GameMode, { readonly type: "dialogue" }>;
 type HelpMode = Extract<GameMode, { readonly type: "help" }>;
 type SettingsMode = Extract<GameMode, { readonly type: "settings" }>;
+type TitleMode = Extract<GameMode, { readonly type: "title" }>;
 
 export type GameModelOptions = {
   readonly showIntro?: boolean;
@@ -32,6 +39,7 @@ export type GameModel = {
   readonly presentation: PresentationState;
   readonly mode: GameMode;
   readonly viewMode: ViewMode;
+  readonly audio: AudioSettings;
   readonly lastVerbIndex: number;
   readonly verbPointerDownTarget?: VerbMenuTarget;
   readonly dialoguePointerDownSlot?: number;
@@ -41,10 +49,14 @@ export type GameEffect =
   | { readonly type: "render" }
   | { readonly type: "closeDialogue" }
   | { readonly type: "ensureInput" }
+  | { readonly type: "applyAudioVolumes" }
   | { readonly type: "loadMap"; readonly mapName: string }
   | { readonly type: "retryMap"; readonly mapName: string }
   | { readonly type: "resetRun"; readonly mapName: string }
   | { readonly type: "runPlayerCommand"; readonly command: PlayerCommand };
+
+export type SettingsPointerPhase = VerbPointerPhase;
+export type TitlePointerPhase = VerbPointerPhase;
 
 export type GameTransitionEvent =
   | { readonly type: "start"; readonly nowMs?: number }
@@ -53,6 +65,17 @@ export type GameTransitionEvent =
   | { readonly type: "gameCommand"; readonly command: GameCommand; readonly nowMs?: number }
   | { readonly type: "verbPointer"; readonly phase: VerbPointerPhase; readonly target?: VerbMenuTarget }
   | { readonly type: "dialoguePointer"; readonly phase: DialoguePointerPhase; readonly optionSlot?: number }
+  | {
+    readonly type: "titlePointer";
+    readonly phase: TitlePointerPhase;
+    readonly hoverButton?: TitleHoverButton;
+  }
+  | {
+    readonly type: "settingsPointer";
+    readonly phase: SettingsPointerPhase;
+    readonly slider?: AudioChannel;
+    readonly volume?: number;
+  }
   | {
     readonly type: "playerCommandResult";
     readonly result: PlayerCommandResult;
@@ -74,6 +97,7 @@ export function createGameModel(startMapName: string, options: GameModelOptions 
     presentation: createPresentationState(),
     mode: { type: "loading" },
     viewMode: "firstPerson",
+    audio: DEFAULT_AUDIO_SETTINGS,
     lastVerbIndex: 0,
   };
 }
@@ -84,6 +108,7 @@ export function transition(model: GameModel, event: GameTransitionEvent): GameTr
       if (model.showTitle) {
         return done({ ...model, mode: { type: "title", intent: "start" } }, [
           { type: "ensureInput" },
+          { type: "applyAudioVolumes" },
           { type: "render" },
         ]);
       }
@@ -98,6 +123,10 @@ export function transition(model: GameModel, event: GameTransitionEvent): GameTr
       return verbPointer(model, event.phase, event.target);
     case "dialoguePointer":
       return dialoguePointer(model, event.phase, event.optionSlot);
+    case "titlePointer":
+      return titlePointer(model, event.phase, event.hoverButton);
+    case "settingsPointer":
+      return settingsPointer(model, event.phase, event.slider, event.volume);
     case "playerCommandResult":
       return playerCommandResult(model, event.result, event.playerEntity, event.nowMs ?? 0);
   }
@@ -113,10 +142,11 @@ function beginGame(model: GameModel, nowMs: number): GameTransition {
         goto: model.startMapName,
         nowMs,
       }),
-      [{ type: "ensureInput" }, { type: "render" }],
+      [{ type: "ensureInput" }, { type: "applyAudioVolumes" }, { type: "render" }],
     );
   }
   return done({ ...model, mode: { type: "loading" } }, [
+    { type: "applyAudioVolumes" },
     { type: "render" },
     { type: "loadMap", mapName: model.startMapName },
   ]);
@@ -180,6 +210,41 @@ function titleCommand(model: GameModel, command: GameCommand, nowMs: number): Ga
   return beginGame(model, nowMs);
 }
 
+function titlePointer(
+  model: GameModel,
+  phase: TitlePointerPhase,
+  hoverButton: TitleHoverButton | undefined,
+): GameTransition {
+  const mode = model.mode;
+  if (mode.type !== "title") return done(model);
+
+  switch (phase) {
+    case "move":
+      return hoverTitleButton(model, mode, hoverButton);
+    case "down":
+    case "up":
+    case "cancel":
+      return done(model);
+    default: {
+      const _exhaustive: never = phase;
+      return _exhaustive;
+    }
+  }
+}
+
+function hoverTitleButton(
+  model: GameModel,
+  mode: TitleMode,
+  hoverButton: TitleHoverButton | undefined,
+): GameTransition {
+  if (mode.hoverButton === hoverButton) return done(model);
+  return done({ ...model, mode: titleMode(mode.intent, hoverButton) }, [{ type: "render" }]);
+}
+
+function titleMode(intent: TitleMode["intent"], hoverButton: TitleHoverButton | undefined): TitleMode {
+  return hoverButton === undefined ? { type: "title", intent } : { type: "title", intent, hoverButton };
+}
+
 function settingsCommand(model: GameModel, mode: SettingsMode, command: GameCommand): GameTransition {
   switch (command.type) {
     case "wait":
@@ -200,6 +265,46 @@ function settingsCommand(model: GameModel, mode: SettingsMode, command: GameComm
     case "pause":
     case "toggleView":
       return done(model);
+  }
+}
+
+function settingsPointer(
+  model: GameModel,
+  phase: SettingsPointerPhase,
+  slider: AudioChannel | undefined,
+  volume: number | undefined,
+): GameTransition {
+  const mode = model.mode;
+  if (mode.type !== "settings") return done(model);
+
+  switch (phase) {
+    case "down": {
+      if (slider === undefined || volume === undefined) return done(model);
+      const audio = withAudioVolume(model.audio, slider, volume);
+      return done({
+        ...model,
+        audio,
+        mode: { type: "settings", returnIntent: mode.returnIntent, dragging: slider },
+      }, [{ type: "applyAudioVolumes" }, { type: "render" }]);
+    }
+    case "move": {
+      const dragging = mode.dragging;
+      if (dragging === undefined || volume === undefined) return done(model);
+      const audio = withAudioVolume(model.audio, dragging, volume);
+      if (audio === model.audio) return done(model);
+      return done({ ...model, audio }, [{ type: "applyAudioVolumes" }, { type: "render" }]);
+    }
+    case "up":
+    case "cancel":
+      if (mode.dragging === undefined) return done(model);
+      return done({
+        ...model,
+        mode: { type: "settings", returnIntent: mode.returnIntent },
+      });
+    default: {
+      const _exhaustive: never = phase;
+      return _exhaustive;
+    }
   }
 }
 

@@ -1,3 +1,4 @@
+import { type AudioSettings, DEFAULT_AUDIO_SETTINGS } from "@/src/game/audio_settings.ts";
 import type { PresentationView } from "@/src/game/presentation.ts";
 import type { FrameRenderSession } from "@/src/game/session_ports.ts";
 import type { GameMode, ViewMode } from "@/src/game/state.ts";
@@ -16,8 +17,8 @@ import { preloadHudAssets, renderFirstPersonHud, renderHud } from "@/src/render/
 import { renderIntermission } from "@/src/render/intermission.ts";
 import { renderMap } from "@/src/render/map.ts";
 import { renderMessageLog } from "@/src/render/messages.ts";
-import { monoFont } from "@/src/render/text.ts";
 import { renderSettings } from "@/src/render/settings.ts";
+import { monoFont } from "@/src/render/text.ts";
 import { preloadTitleAssets, renderTitle } from "@/src/render/title.ts";
 import { preloadVerbMenuAssets, renderVerbMenu } from "@/src/render/verb_menu.ts";
 import { preloadWeaponHudAssets, renderWeaponHud } from "@/src/render/weapon_hud.ts";
@@ -46,6 +47,7 @@ export type FrameProps = {
   readonly mode?: GameMode;
   readonly presentation?: PresentationView;
   readonly viewMode?: ViewMode;
+  readonly audio?: AudioSettings;
   readonly firstPersonRenderer?: FirstPersonRenderer;
   readonly nowMs?: number;
   readonly onAssetLoad?: () => void;
@@ -93,6 +95,7 @@ export function renderGameFrame({
   mode = { type: "loading" },
   presentation = EMPTY_PRESENTATION,
   viewMode = "firstPerson",
+  audio = DEFAULT_AUDIO_SETTINGS,
   firstPersonRenderer,
   nowMs = 0,
   onAssetLoad,
@@ -149,10 +152,10 @@ export function renderGameFrame({
   renderMessageLog(ctx, canvasSize, presentation.messages);
   switch (mode.type) {
     case "title":
-      renderTitle(ctx, canvasSize, mode.intent, nowMs, onAssetLoad);
+      renderTitle(ctx, canvasSize, mode.intent, nowMs, onAssetLoad, mode.hoverButton);
       return { needsFrame: true };
     case "settings":
-      renderSettings(ctx, canvasSize, nowMs);
+      renderSettings(ctx, canvasSize, audio, nowMs);
       return { needsFrame: true };
     case "loading":
       renderOverlay(ctx, canvasSize, "LOADING");

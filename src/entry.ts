@@ -199,6 +199,9 @@ class Game implements Disposable {
         case "ensureInput":
           this.ensureInput();
           break;
+        case "applyAudioVolumes":
+          this.runtime.setAudioVolumes(this.model.audio);
+          break;
         case "loadMap":
         case "retryMap":
         case "resetRun":

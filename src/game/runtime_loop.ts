@@ -1,4 +1,5 @@
 import { type AudioRuntime, createAudioRuntime } from "@/src/audio/audio_runtime.ts";
+import type { AudioSettings } from "@/src/game/audio_settings.ts";
 import { presentationView } from "@/src/game/presentation.ts";
 import type { RuntimeSession } from "@/src/game/session_ports.ts";
 import type { EnemyIdleSoundSource, SoundCue, SoundEmitterSnapshot } from "@/src/game/sound.ts";
@@ -36,6 +37,7 @@ export interface GameRuntimeLoop extends Disposable {
   resetFirstPerson(): void;
   bumpFirstPerson(dx: number, dy: number, nowMs: number): void;
   unlockAudio(): Promise<void>;
+  setAudioVolumes(volumes: AudioSettings): void;
   updateAudioListener(): void;
   playCues(cues: readonly SoundCue[]): void;
   syncAudioWorld(): void;
@@ -115,6 +117,10 @@ class RuntimeLoop implements GameRuntimeLoop {
     return this.audio.unlock();
   }
 
+  setAudioVolumes(volumes: AudioSettings): void {
+    this.audio.setVolumes(volumes);
+  }
+
   updateAudioListener(): void {
     this.updateAudioListenerFor(this.spec.getSession());
   }
@@ -159,6 +165,7 @@ class RuntimeLoop implements GameRuntimeLoop {
       mode: model.mode,
       presentation,
       viewMode: model.viewMode,
+      audio: model.audio,
       firstPersonRenderer: this.firstPersonRenderer,
       nowMs,
       onAssetLoad: this.renderLoadedAssets,

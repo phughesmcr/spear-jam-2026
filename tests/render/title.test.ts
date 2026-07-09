@@ -1,5 +1,10 @@
 import { DEFAULT_GAME_CANVAS_SIZE } from "@/src/render/canvas.ts";
-import { titleSettingsButtonRect, titleStartButtonHit, titleStartButtonRect } from "@/src/render/title.ts";
+import {
+  titleHoverButtonAt,
+  titleSettingsButtonRect,
+  titleStartButtonHit,
+  titleStartButtonRect,
+} from "@/src/render/title.ts";
 import { assertEquals } from "@std/assert";
 
 Deno.test("titleStartButtonRect is centered on the canvas", () => {
@@ -28,4 +33,24 @@ Deno.test("titleStartButtonHit only accepts points inside the start button", () 
     true,
   );
   assertEquals(titleStartButtonHit(DEFAULT_GAME_CANVAS_SIZE, { x: 0, y: 0 }), false);
+});
+
+Deno.test("titleHoverButtonAt maps pointer points to menu buttons", () => {
+  const start = titleStartButtonRect(DEFAULT_GAME_CANVAS_SIZE);
+  const settings = titleSettingsButtonRect(DEFAULT_GAME_CANVAS_SIZE);
+  assertEquals(
+    titleHoverButtonAt(DEFAULT_GAME_CANVAS_SIZE, {
+      x: start.x + start.width / 2,
+      y: start.y + start.height / 2,
+    }),
+    "start",
+  );
+  assertEquals(
+    titleHoverButtonAt(DEFAULT_GAME_CANVAS_SIZE, {
+      x: settings.x + settings.width / 2,
+      y: settings.y + settings.height / 2,
+    }),
+    "settings",
+  );
+  assertEquals(titleHoverButtonAt(DEFAULT_GAME_CANVAS_SIZE, { x: 0, y: 0 }), undefined);
 });

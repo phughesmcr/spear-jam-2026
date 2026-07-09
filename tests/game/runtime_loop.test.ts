@@ -358,6 +358,7 @@ class FakeAudioRuntime implements AudioRuntime {
   cues: readonly SoundCue[] = [];
   musicStarted = false;
   unlocks = 0;
+  volumes?: { readonly musicVolume: number; readonly soundVolume: number };
 
   unlock(): Promise<void> {
     this.unlocks++;
@@ -366,6 +367,10 @@ class FakeAudioRuntime implements AudioRuntime {
 
   startMusic(): void {
     this.musicStarted = true;
+  }
+
+  setVolumes(volumes: { readonly musicVolume: number; readonly soundVolume: number }): void {
+    this.volumes = { ...volumes };
   }
 
   updateListener(position: { readonly x: number; readonly y: number }, facing: number): void {

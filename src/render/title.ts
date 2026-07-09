@@ -1,4 +1,4 @@
-import type { TitleIntent } from "@/src/game/state.ts";
+import type { TitleHoverButton, TitleIntent } from "@/src/game/state.ts";
 import { createImageAsset, loadedImage, preloadImageAsset } from "@/src/render/assets.ts";
 import type { GameCanvasSize } from "@/src/render/canvas.ts";
 import { monoFont } from "@/src/render/text.ts";
@@ -83,6 +83,15 @@ export function titleSettingsButtonHit(canvasSize: GameCanvasSize, point: TitleP
   return titleButtonHit(titleSettingsButtonRect(canvasSize), point);
 }
 
+export function titleHoverButtonAt(
+  canvasSize: GameCanvasSize,
+  point: TitlePoint,
+): TitleHoverButton | undefined {
+  if (titleSettingsButtonHit(canvasSize, point)) return "settings";
+  if (titleStartButtonHit(canvasSize, point)) return "start";
+  return undefined;
+}
+
 function titleButtonHit(rect: TitleButtonRect, point: TitlePoint): boolean {
   return point.x >= rect.x && point.x < rect.x + rect.width && point.y >= rect.y &&
     point.y < rect.y + rect.height;
@@ -94,6 +103,7 @@ export function renderTitle(
   intent: TitleIntent,
   nowMs = 0,
   onAssetLoad?: () => void,
+  hoverButton?: TitleHoverButton,
 ): void {
   const startButton = titleStartButtonRect(canvasSize);
   const settingsButton = titleSettingsButtonRect(canvasSize);
@@ -111,8 +121,8 @@ export function renderTitle(
     ctx.drawImage(image, rect.x, rect.y, rect.width, rect.height);
   }
 
-  drawTitleButton(ctx, settingsButton, SETTINGS_BUTTON_LABEL, nowMs, "secondary");
-  drawTitleButton(ctx, startButton, BUTTON_LABELS[intent], nowMs);
+  drawTitleButton(ctx, settingsButton, SETTINGS_BUTTON_LABEL, nowMs, "secondary", hoverButton === "settings");
+  drawTitleButton(ctx, startButton, BUTTON_LABELS[intent], nowMs, "primary", hoverButton === "start");
   ctx.restore();
 }
 
@@ -124,13 +134,14 @@ export function drawTitleButton(
   label: string,
   nowMs: number,
   variant: TitleButtonVariant = "primary",
+  hovered = false,
 ): void {
   if (variant === "secondary") {
-    drawSecondaryTitleButton(ctx, button, label);
+    drawSecondaryTitleButton(ctx, button, label, hovered);
     return;
   }
 
-  drawPrimaryTitleButton(ctx, button, label, nowMs);
+  drawPrimaryTitleButton(ctx, button, label, nowMs, hovered);
 }
 
 function drawPrimaryTitleButton(
@@ -138,27 +149,29 @@ function drawPrimaryTitleButton(
   button: TitleButtonRect,
   label: string,
   nowMs: number,
+  hovered: boolean,
 ): void {
   const pulse = 0.5 + 0.5 * Math.sin((nowMs / PULSE_MS) * Math.PI * 2);
-  const glow = 0.35 + pulse * 0.55;
+  const hoverBoost = hovered ? 0.55 : 0;
+  const glow = 0.35 + pulse * 0.55 + hoverBoost;
   const centerX = button.x + button.width / 2;
   const centerY = button.y + button.height / 2;
   const fontSize = Math.min(22, Math.max(15, Math.round(button.height * 0.4)));
   const corner = Math.max(2, Math.round(button.height * 0.12));
 
   // Soft outer bloom
-  ctx.shadowColor = `rgba(34, 255, 170, ${0.35 + pulse * 0.45})`;
-  ctx.shadowBlur = 18 + pulse * 22;
-  ctx.fillStyle = `rgba(4, 18, 12, ${0.72 + pulse * 0.1})`;
+  ctx.shadowColor = `rgba(34, 255, 170, ${0.35 + pulse * 0.45 + hoverBoost})`;
+  ctx.shadowBlur = 18 + pulse * 22 + (hovered ? 14 : 0);
+  ctx.fillStyle = `rgba(4, 18, 12, ${0.72 + pulse * 0.1 + hoverBoost * 0.15})`;
   roundRect(ctx, button.x, button.y, button.width, button.height, corner);
   ctx.fill();
 
   // Inner panel
   ctx.shadowBlur = 0;
   const panel = ctx.createLinearGradient(button.x, button.y, button.x, button.y + button.height);
-  panel.addColorStop(0, `rgba(18, 48, 36, ${0.88 + pulse * 0.08})`);
-  panel.addColorStop(0.45, "rgba(6, 20, 14, 0.92)");
-  panel.addColorStop(1, `rgba(10, 36, 24, ${0.9 + pulse * 0.06})`);
+  panel.addColorStop(0, `rgba(18, 48, 36, ${0.88 + pulse * 0.08 + hoverBoost * 0.1})`);
+  panel.addColorStop(0.45, hovered ? "rgba(25, 98, 98, 0.54)" : "rgba(6, 20, 14, 0.92)");
+  panel.addColorStop(1, `rgba(10, 36, 24, ${0.9 + pulse * 0.06 + hoverBoost * 0.08})`);
   ctx.fillStyle = panel;
   roundRect(ctx, button.x + 1, button.y + 1, button.width - 2, button.height - 2, Math.max(1, corner - 1));
   ctx.fill();
@@ -168,7 +181,7 @@ function drawPrimaryTitleButton(
   const scanX = button.x - button.width * 0.25 + scanT * (button.width * 1.5);
   const scan = ctx.createLinearGradient(scanX, 0, scanX + button.width * 0.35, 0);
   scan.addColorStop(0, "rgba(142, 247, 166, 0)");
-  scan.addColorStop(0.5, `rgba(142, 247, 166, ${0.08 + pulse * 0.1})`);
+  scan.addColorStop(0.5, `rgba(142, 247, 166, ${0.08 + pulse * 0.1 + hoverBoost * 0.12})`);
   scan.addColorStop(1, "rgba(142, 247, 166, 0)");
   ctx.save();
   roundRect(ctx, button.x + 2, button.y + 2, button.width - 4, button.height - 4, Math.max(1, corner - 1));
@@ -179,14 +192,14 @@ function drawPrimaryTitleButton(
 
   // Nested neon borders
   ctx.strokeStyle = `rgba(142, 247, 166, ${0.35 + glow * 0.45})`;
-  ctx.lineWidth = 1.5;
-  ctx.shadowColor = `rgba(34, 255, 170, ${0.55 + pulse * 0.35})`;
-  ctx.shadowBlur = 10 + pulse * 14;
+  ctx.lineWidth = hovered ? 2 : 1.5;
+  ctx.shadowColor = `rgba(34, 255, 170, ${0.55 + pulse * 0.35 + hoverBoost})`;
+  ctx.shadowBlur = 10 + pulse * 14 + (hovered ? 10 : 0);
   roundRect(ctx, button.x + 0.5, button.y + 0.5, button.width - 1, button.height - 1, corner);
   ctx.stroke();
 
   ctx.shadowBlur = 0;
-  ctx.strokeStyle = `rgba(56, 255, 196, ${0.55 + pulse * 0.35})`;
+  ctx.strokeStyle = `rgba(56, 255, 196, ${0.55 + pulse * 0.35 + hoverBoost * 0.3})`;
   ctx.lineWidth = 1;
   roundRect(ctx, button.x + 4.5, button.y + 4.5, button.width - 9, button.height - 9, Math.max(1, corner - 2));
   ctx.stroke();
@@ -198,8 +211,8 @@ function drawPrimaryTitleButton(
   ctx.font = monoFont(700, fontSize);
   ctx.textAlign = "center";
   ctx.textBaseline = "middle";
-  ctx.shadowColor = `rgba(34, 255, 170, ${0.55 + pulse * 0.4})`;
-  ctx.shadowBlur = 12 + pulse * 16;
+  ctx.shadowColor = `rgba(34, 255, 170, ${0.55 + pulse * 0.4 + hoverBoost})`;
+  ctx.shadowBlur = 12 + pulse * 16 + (hovered ? 8 : 0);
   ctx.fillStyle = `rgba(190, 255, 220, ${0.82 + pulse * 0.18})`;
   ctx.fillText(label, centerX, centerY + 0.5);
   ctx.shadowBlur = 0;
@@ -211,25 +224,38 @@ function drawSecondaryTitleButton(
   ctx: CanvasRenderingContext2D,
   button: TitleButtonRect,
   label: string,
+  hovered: boolean,
 ): void {
   const centerX = button.x + button.width / 2;
   const centerY = button.y + button.height / 2;
   const fontSize = Math.min(18, Math.max(13, Math.round(button.height * 0.34)));
   const corner = Math.max(2, Math.round(button.height * 0.12));
 
-  ctx.fillStyle = "rgba(8, 14, 18, 0.55)";
+  if (hovered) {
+    ctx.shadowColor = "rgba(34, 255, 170, 0.45)";
+    ctx.shadowBlur = 14;
+  }
+  ctx.fillStyle = hovered ? "rgba(12, 28, 22, 0.78)" : "rgba(8, 14, 18, 0.55)";
   roundRect(ctx, button.x, button.y, button.width, button.height, corner);
   ctx.fill();
+  ctx.shadowBlur = 0;
 
-  ctx.strokeStyle = "rgba(142, 180, 168, 0.42)";
-  ctx.lineWidth = 1;
+  ctx.strokeStyle = hovered ? "rgba(142, 247, 166, 0.72)" : "rgba(142, 180, 168, 0.42)";
+  ctx.lineWidth = hovered ? 1.5 : 1;
   roundRect(ctx, button.x + 0.5, button.y + 0.5, button.width - 1, button.height - 1, corner);
   ctx.stroke();
 
-  ctx.font = monoFont(400, fontSize);
+  if (hovered) {
+    ctx.strokeStyle = "rgba(56, 255, 196, 0.45)";
+    ctx.lineWidth = 1;
+    roundRect(ctx, button.x + 3.5, button.y + 3.5, button.width - 7, button.height - 7, Math.max(1, corner - 1));
+    ctx.stroke();
+  }
+
+  ctx.font = monoFont(hovered ? 600 : 400, fontSize);
   ctx.textAlign = "center";
   ctx.textBaseline = "middle";
-  ctx.fillStyle = "rgba(168, 196, 184, 0.88)";
+  ctx.fillStyle = hovered ? "#eafff4" : "#c0d8ce";
   ctx.fillText(label, centerX, centerY + 0.5);
 }
 

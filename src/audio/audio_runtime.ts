@@ -1,4 +1,5 @@
 import { soundCatalogEntry } from "@/src/audio/sound_catalog.ts";
+import { clampVolume } from "@/src/game/audio_settings.ts";
 import {
   type EnemyIdleSoundSource,
   listenerForwardForDirection,
@@ -10,9 +11,15 @@ import {
 import type { CardinalDirection, GridPoint } from "@/src/grid/direction.ts";
 import type { Entity } from "@phughesmcr/miski";
 
+export type AudioVolumes = {
+  readonly musicVolume: number;
+  readonly soundVolume: number;
+};
+
 export interface AudioRuntime extends Disposable {
   unlock(): Promise<void>;
   startMusic(): void;
+  setVolumes(volumes: AudioVolumes): void;
   updateListener(position: GridPoint, facing: CardinalDirection): void;
   playCues(cues: readonly SoundCue[]): void;
   syncAmbientEmitters(emitters: readonly SoundEmitterSnapshot[]): void;
@@ -67,6 +74,8 @@ class WebAudioRuntime implements AudioRuntime {
   private readonly pendingCues: SoundCue[] = [];
   private readonly abortController = new AbortController();
   private listenerPosition?: GridPoint;
+  private musicVolume = 1;
+  private soundVolume = 1;
   private disposed = false;
 
   constructor(host: Window) {
@@ -89,6 +98,17 @@ class WebAudioRuntime implements AudioRuntime {
     if (this.disposed) return;
     this.pendingMusic = true;
     if (this.unlocked) this.startMusicNow();
+  }
+
+  setVolumes(volumes: AudioVolumes): void {
+    if (this.disposed) return;
+    this.musicVolume = clampVolume(volumes.musicVolume);
+    this.soundVolume = clampVolume(volumes.soundVolume);
+    if (this.graph === undefined) return;
+    const now = this.graph.context.currentTime;
+    setAudioParam(this.graph.musicGain.gain, this.musicVolume, now);
+    setAudioParam(this.graph.sfxGain.gain, this.soundVolume, now);
+    setAudioParam(this.graph.ambientGain.gain, this.soundVolume, now);
   }
 
   updateListener(position: GridPoint, facing: CardinalDirection): void {
@@ -166,9 +186,9 @@ class WebAudioRuntime implements AudioRuntime {
     const sfxGain = context.createGain();
     const ambientGain = context.createGain();
     setAudioParam(masterGain.gain, 1, context.currentTime);
-    setAudioParam(musicGain.gain, 1, context.currentTime);
-    setAudioParam(sfxGain.gain, 1, context.currentTime);
-    setAudioParam(ambientGain.gain, 1, context.currentTime);
+    setAudioParam(musicGain.gain, this.musicVolume, context.currentTime);
+    setAudioParam(sfxGain.gain, this.soundVolume, context.currentTime);
+    setAudioParam(ambientGain.gain, this.soundVolume, context.currentTime);
     musicGain.connect(masterGain);
     sfxGain.connect(masterGain);
     ambientGain.connect(masterGain);

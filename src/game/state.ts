@@ -62,9 +62,10 @@ export type DialogueState = {
 export type TargetMarkerTone = "danger" | "locked" | "loot" | "use";
 
 export type TitleIntent = "start" | "resume";
+export type TitleHoverButton = "start" | "settings";
 
 export type GameMode =
-  | { readonly type: "title"; readonly intent: TitleIntent }
+  | { readonly type: "title"; readonly intent: TitleIntent; readonly hoverButton?: TitleHoverButton }
   | { readonly type: "loading" }
   | { readonly type: "playing" }
   | { readonly type: "paused" }
@@ -81,7 +82,11 @@ export type GameMode =
     readonly revealStartedAtMs: number;
     readonly revealed: boolean;
   }
-  | { readonly type: "settings"; readonly returnIntent: TitleIntent }
+  | {
+    readonly type: "settings";
+    readonly returnIntent: TitleIntent;
+    readonly dragging?: "music" | "sound";
+  }
   | { readonly type: "victory" }
   | { readonly type: "defeat" }
   | { readonly type: "error"; readonly message: string };

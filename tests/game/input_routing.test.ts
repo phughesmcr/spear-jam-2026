@@ -3,7 +3,7 @@ import { createGameModel, type GameModel, transition } from "@/src/game/transiti
 import type { CanvasPointerInput } from "@/src/input/pointer.ts";
 import { DEFAULT_GAME_CANVAS_SIZE } from "@/src/render/canvas.ts";
 import { dialogueLayout } from "@/src/render/dialogue.ts";
-import { settingsBackButtonRect } from "@/src/render/settings.ts";
+import { settingsBackButtonRect, settingsSliderRects } from "@/src/render/settings.ts";
 import { titleSettingsButtonRect, titleStartButtonRect } from "@/src/render/title.ts";
 import { verbMenuButtonRects } from "@/src/render/verb_menu.ts";
 import { assertEquals } from "@std/assert";
@@ -28,6 +28,25 @@ Deno.test("routePointerInput maps title settings-button pointer up to settings",
   });
 });
 
+Deno.test("routePointerInput maps title pointer move to title hover events", () => {
+  const model = modelWithMode({ type: "title", intent: "start" });
+  const start = titleStartButtonRect(CANVAS_SIZE);
+  const settings = titleSettingsButtonRect(CANVAS_SIZE);
+
+  assertEquals(routePointerInput(model, CANVAS_SIZE, pointer(centerOf(start, { phase: "move" }))), {
+    type: "transition",
+    event: { type: "titlePointer", phase: "move", hoverButton: "start" },
+  });
+  assertEquals(routePointerInput(model, CANVAS_SIZE, pointer(centerOf(settings, { phase: "move" }))), {
+    type: "transition",
+    event: { type: "titlePointer", phase: "move", hoverButton: "settings" },
+  });
+  assertEquals(routePointerInput(model, CANVAS_SIZE, pointer({ phase: "move", x: 0, y: 0 })), {
+    type: "transition",
+    event: { type: "titlePointer", phase: "move", hoverButton: undefined },
+  });
+});
+
 Deno.test("routePointerInput maps settings back-button pointer up to wait", () => {
   const model = modelWithMode({ type: "settings", returnIntent: "start" });
   const button = settingsBackButtonRect(CANVAS_SIZE);
@@ -37,6 +56,67 @@ Deno.test("routePointerInput maps settings back-button pointer up to wait", () =
     command: { type: "wait" },
   });
   assertEquals(routePointerInput(model, CANVAS_SIZE, pointer({ phase: "up", x: 0, y: 0 })), { type: "none" });
+});
+
+Deno.test("routePointerInput maps settings slider drag to settingsPointer events", () => {
+  const model = modelWithMode({ type: "settings", returnIntent: "start" });
+  const [music, sound] = settingsSliderRects(CANVAS_SIZE);
+  if (music === undefined || sound === undefined) throw new Error("expected settings sliders");
+
+  assertEquals(routePointerInput(model, CANVAS_SIZE, pointer(centerOf(music, { phase: "down" }))), {
+    type: "transition",
+    event: {
+      type: "settingsPointer",
+      phase: "down",
+      slider: "music",
+      volume: 0.5,
+    },
+  });
+
+  const dragging = modelWithMode({ type: "settings", returnIntent: "start", dragging: "music" });
+  assertEquals(
+    routePointerInput(
+      dragging,
+      CANVAS_SIZE,
+      pointer({ phase: "move", x: music.x + music.width * 0.25, y: music.y + music.height / 2 }),
+    ),
+    {
+      type: "transition",
+      event: {
+        type: "settingsPointer",
+        phase: "move",
+        slider: "music",
+        volume: 0.25,
+      },
+    },
+  );
+
+  assertEquals(
+    routePointerInput(
+      dragging,
+      CANVAS_SIZE,
+      pointer({ phase: "up", x: music.x + music.width * 0.25, y: music.y + music.height / 2 }),
+    ),
+    {
+      type: "transition",
+      event: {
+        type: "settingsPointer",
+        phase: "up",
+        slider: "music",
+        volume: 0.25,
+      },
+    },
+  );
+
+  assertEquals(routePointerInput(model, CANVAS_SIZE, pointer(centerOf(sound, { phase: "down" }))), {
+    type: "transition",
+    event: {
+      type: "settingsPointer",
+      phase: "down",
+      slider: "sound",
+      volume: 0.5,
+    },
+  });
 });
 
 Deno.test("routePointerInput maps title start-button pointer up to wait", () => {

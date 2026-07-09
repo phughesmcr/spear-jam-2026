@@ -10,6 +10,7 @@ Deno.test("transition starts with render and map loading effects", () => {
 
   assertEquals(result.model.mode, { type: "loading" });
   assertEquals(result.effects, [
+    { type: "applyAudioVolumes" },
     { type: "render" },
     { type: "loadMap", mapName: "Level 1" },
   ]);
@@ -22,13 +23,21 @@ Deno.test("transition can start on the title screen before beginning the game", 
   });
 
   assertEquals(result.model.mode, { type: "title", intent: "start" });
-  assertEquals(result.effects, [{ type: "ensureInput" }, { type: "render" }]);
+  assertEquals(result.effects, [
+    { type: "ensureInput" },
+    { type: "applyAudioVolumes" },
+    { type: "render" },
+  ]);
 
   result = transition(result.model, { type: "gameCommand", command: { type: "wait" }, nowMs: 1000 });
   const mode = result.model.mode;
   if (mode.type !== "intermission") throw new Error(`Expected intermission mode, got ${mode.type}.`);
   assertEquals(mode.goto, "Level 1");
-  assertEquals(result.effects, [{ type: "ensureInput" }, { type: "render" }]);
+  assertEquals(result.effects, [
+    { type: "ensureInput" },
+    { type: "applyAudioVolumes" },
+    { type: "render" },
+  ]);
 });
 
 Deno.test("title start without intro loads the start map", () => {
@@ -37,6 +46,7 @@ Deno.test("title start without intro loads the start map", () => {
 
   assertEquals(result.model.mode, { type: "loading" });
   assertEquals(result.effects, [
+    { type: "applyAudioVolumes" },
     { type: "render" },
     { type: "loadMap", mapName: "Level 1" },
   ]);
@@ -84,6 +94,92 @@ Deno.test("title settings opens settings and back restores the same title intent
   assertEquals(closedFromResume.model.mode, { type: "title", intent: "resume" });
 });
 
+Deno.test("title pointer move tracks hovered menu buttons", () => {
+  const titled = transition(createGameModel("Level 1", { showTitle: true }), { type: "start" }).model;
+
+  const startHover = transition(titled, {
+    type: "titlePointer",
+    phase: "move",
+    hoverButton: "start",
+  });
+  assertEquals(startHover.model.mode, { type: "title", intent: "start", hoverButton: "start" });
+  assertEquals(startHover.effects, [{ type: "render" }]);
+
+  const settingsHover = transition(startHover.model, {
+    type: "titlePointer",
+    phase: "move",
+    hoverButton: "settings",
+  });
+  assertEquals(settingsHover.model.mode, { type: "title", intent: "start", hoverButton: "settings" });
+  assertEquals(settingsHover.effects, [{ type: "render" }]);
+
+  const cleared = transition(settingsHover.model, {
+    type: "titlePointer",
+    phase: "move",
+  });
+  assertEquals(cleared.model.mode, { type: "title", intent: "start" });
+  assertEquals(cleared.effects, [{ type: "render" }]);
+
+  const unchanged = transition(cleared.model, {
+    type: "titlePointer",
+    phase: "move",
+  });
+  assertEquals(unchanged.model.mode, { type: "title", intent: "start" });
+  assertEquals(unchanged.effects, []);
+});
+
+Deno.test("settings pointer drag updates music and sound volumes", () => {
+  const startTitle = transition(createGameModel("Level 1", { showTitle: true }), { type: "start" }).model;
+  const settings = transition(startTitle, { type: "gameCommand", command: { type: "settings" } }).model;
+
+  const musicDown = transition(settings, {
+    type: "settingsPointer",
+    phase: "down",
+    slider: "music",
+    volume: 0.4,
+  });
+  assertEquals(musicDown.model.audio.musicVolume, 0.4);
+  assertEquals(musicDown.model.audio.soundVolume, 1);
+  assertEquals(musicDown.model.mode, {
+    type: "settings",
+    returnIntent: "start",
+    dragging: "music",
+  });
+  assertEquals(musicDown.effects, [{ type: "applyAudioVolumes" }, { type: "render" }]);
+
+  const musicMove = transition(musicDown.model, {
+    type: "settingsPointer",
+    phase: "move",
+    slider: "music",
+    volume: 0.25,
+  });
+  assertEquals(musicMove.model.audio.musicVolume, 0.25);
+  assertEquals(musicMove.effects, [{ type: "applyAudioVolumes" }, { type: "render" }]);
+
+  const musicUp = transition(musicMove.model, {
+    type: "settingsPointer",
+    phase: "up",
+    slider: "music",
+    volume: 0.25,
+  });
+  assertEquals(musicUp.model.mode, { type: "settings", returnIntent: "start" });
+  assertEquals(musicUp.model.audio.musicVolume, 0.25);
+  assertEquals(musicUp.effects, []);
+
+  const soundDown = transition(musicUp.model, {
+    type: "settingsPointer",
+    phase: "down",
+    slider: "sound",
+    volume: 0.7,
+  });
+  assertEquals(soundDown.model.audio, { musicVolume: 0.25, soundVolume: 0.7 });
+  assertEquals(soundDown.model.mode, {
+    type: "settings",
+    returnIntent: "start",
+    dragging: "sound",
+  });
+});
+
 Deno.test("transition can start with an intro intermission before loading the first map", () => {
   let result = transition(createGameModel("Level 1", { showIntro: true }), { type: "start", nowMs: 1000 });
   let mode = result.model.mode;
@@ -98,7 +194,11 @@ Deno.test("transition can start with an intro intermission before loading the fi
   assertEquals(mode.goto, "Level 1");
   assertEquals(mode.revealStartedAtMs, 1000);
   assertEquals(mode.revealed, false);
-  assertEquals(result.effects, [{ type: "ensureInput" }, { type: "render" }]);
+  assertEquals(result.effects, [
+    { type: "ensureInput" },
+    { type: "applyAudioVolumes" },
+    { type: "render" },
+  ]);
 
   result = transition(result.model, { type: "gameCommand", command: { type: "wait" }, nowMs: 1000 });
   mode = result.model.mode;
