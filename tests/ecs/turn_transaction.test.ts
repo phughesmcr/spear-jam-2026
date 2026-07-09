@@ -48,7 +48,8 @@ Deno.test("consumed player action commits before enemies decide", async () => {
 
   assertEquals(result.cost, "turn");
   assertEquals(world.components.getEntityData(GridPos, player), { x: 2, y: 1 });
-  assertEquals(world.components.getEntityData(GridPos, enemy), { x: 3, y: 1 });
+  // Skirmish retreat from the committed player tile (distance 2) — idle distance 3 would advance.
+  assertEquals(world.components.getEntityData(GridPos, enemy), { x: 5, y: 1 });
 });
 
 Deno.test("free player action does not run enemies", async () => {
@@ -129,16 +130,16 @@ Deno.test("enemy actor order is deterministic and later enemies see earlier chan
     x: 1,
     y: 1,
     dir: Direction.East,
-    displayName: DisplayName.NetworkNeophyte,
-    archetype: EnemyArchetype.NetworkNeophyte,
+    displayName: DisplayName.GigabitGunslinger,
+    archetype: EnemyArchetype.Gunslinger,
     attack: MELEE_ATTACK,
   });
   const second = spawnEnemy(world, {
     x: 5,
     y: 1,
     dir: Direction.West,
-    displayName: DisplayName.NetworkNeophyte,
-    archetype: EnemyArchetype.NetworkNeophyte,
+    displayName: DisplayName.GigabitGunslinger,
+    archetype: EnemyArchetype.Gunslinger,
     attack: MELEE_ATTACK,
   });
   world.refresh();

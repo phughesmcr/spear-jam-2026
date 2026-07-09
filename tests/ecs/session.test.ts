@@ -675,7 +675,7 @@ Deno.test("ranged attacks spend ammo before resolving combat and level credit", 
         y: 1,
         dir: Direction.West,
         displayName: DisplayName.DigitalDog,
-        archetype: "networkNeophyte",
+        archetype: "meleeDog",
       },
     ]));
 
