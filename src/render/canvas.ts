@@ -41,7 +41,7 @@ export function canvasSizeController(
   onApply?: (size: GameCanvasSize) => void,
 ): Disposable {
   const applyDpi = (): void => {
-    const size = { width: host.innerWidth, height: host.innerHeight };
+    const size = DEFAULT_GAME_CANVAS_SIZE;
     const displaySize = calculateGameCanvasDisplaySize(host.innerWidth, host.innerHeight, size);
     const dpr = Math.min(host.devicePixelRatio ?? 1, MAX_DPR);
     canvas.style.setProperty("--game-aspect-ratio", String(size.width / size.height));
