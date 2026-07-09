@@ -1,5 +1,6 @@
 import {
   DECORATION_KINDS,
+  DOOR_SLIDES,
   type DoorSlide,
   type EntityDef,
   KeyColor as ContentKeyColor,
@@ -8,6 +9,7 @@ import {
 import { dimensions, terrainAt as staticTerrainAt } from "@/src/map/static_grid.ts";
 import { SKY_CEILING_TEXTURE, TERRAIN_CATALOG } from "@/src/map/terrain_palettes.ts";
 import { flagsBlockAttack, flagsBlockMovement, flagsBlockSight, terrainFlags } from "@/src/map/tile_flags.ts";
+import { createCodeRegistry } from "@/src/utils/code_registry.ts";
 
 export const KeyColor = ContentKeyColor;
 export { DECORATION_KINDS };
@@ -82,24 +84,18 @@ export type TerrainTile = BarrierTile | FloorTile | WallTile;
 
 export const DEFAULT_TERRAIN_PALETTE: readonly TerrainTile[] = TERRAIN_CATALOG;
 
-const KEY_COLOR_CODES: Record<KeyColorType, number> = {
-  [ContentKeyColor.Red]: 1,
-  [ContentKeyColor.Blue]: 2,
-  [ContentKeyColor.Yellow]: 3,
-};
-
-const KEY_COLORS_BY_CODE = new Map<number, KeyColorType>(
-  Object.entries(KEY_COLOR_CODES).map(([color, code]) => [code, color as KeyColorType]),
-);
+const KEY_COLOR_REGISTRY = createCodeRegistry("key color", [
+  ContentKeyColor.Red,
+  ContentKeyColor.Blue,
+  ContentKeyColor.Yellow,
+]);
 
 export function keyColorCode(color: KeyColorType): number {
-  return KEY_COLOR_CODES[color];
+  return KEY_COLOR_REGISTRY.encode(color);
 }
 
 export function keyColorForCode(code: number): KeyColorType {
-  const color = KEY_COLORS_BY_CODE.get(code);
-  if (color === undefined) throw new Error(`Unknown key color code: ${code}`);
-  return color;
+  return KEY_COLOR_REGISTRY.decode(code);
 }
 
 /** Sentinel `goto` for exits that end the game in victory instead of loading a map. */
@@ -109,27 +105,18 @@ export const VICTORY_GOTO = "victory";
  * Which way a door slides open. Horizontal directions must lie along the
  * door's span (east/west for doors in north-south walls, north/south for
  * doors in east-west walls); invalid directions fall back to the default.
+ * Codes are 1-based registry positions; 0 means "renderer default".
  */
-const DOOR_SLIDE_CODES: Readonly<Record<DoorSlide, number>> = {
-  north: 1,
-  east: 2,
-  south: 3,
-  west: 4,
-  up: 5,
-  down: 6,
-};
-
-const DOOR_SLIDES_BY_CODE = new Map<number, DoorSlide>(
-  Object.entries(DOOR_SLIDE_CODES).map(([slide, code]) => [code, slide as DoorSlide]),
-);
+const DOOR_SLIDE_REGISTRY = createCodeRegistry("door slide", DOOR_SLIDES);
 
 /** Storage code for a door slide direction; 0 means "renderer default". */
 export function doorSlideCode(slide?: DoorSlide): number {
-  return slide === undefined ? 0 : DOOR_SLIDE_CODES[slide];
+  return slide === undefined ? 0 : DOOR_SLIDE_REGISTRY.encode(slide);
 }
 
 export function doorSlideForCode(code: number): DoorSlide | undefined {
-  return DOOR_SLIDES_BY_CODE.get(code);
+  if (code === 0) return undefined;
+  return DOOR_SLIDE_REGISTRY.decode(code);
 }
 
 /** How long a door takes to slide fully open (or closed). */

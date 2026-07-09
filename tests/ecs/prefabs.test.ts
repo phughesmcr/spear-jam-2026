@@ -1,4 +1,5 @@
 import { dialogueTreeCode, DialogueTreeId } from "@/src/dialogue/dialogue.ts";
+import { SpriteId } from "@/src/content/sprite_ids.ts";
 import {
   Attack,
   AttackFacingRequirement,
@@ -8,7 +9,6 @@ import {
   DialogueTreeRef,
   DisplayNameComponent,
   Drawable,
-  DrawableKind,
   DrawableLayer,
   Enemy,
   EnemyArchetypeComponent,
@@ -20,10 +20,10 @@ import {
   OnTalkEvent,
   SoundEmitter,
   Sprite,
-  SpriteId,
   StoryTarget,
   TerminalDestination,
 } from "@/src/ecs/components.ts";
+import { DrawableKind } from "@/src/ecs/drawable_kind.ts";
 import { EnemyArchetype } from "@/src/ecs/enemy_catalog.ts";
 import {
   createDecoration,

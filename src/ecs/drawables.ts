@@ -1,15 +1,14 @@
 import { type Entity, System } from "@phughesmcr/miski";
+import { type SpriteId as SpriteIdType, SpriteId as SpriteIdValues } from "@/src/content/sprite_ids.ts";
 import {
-  DrawableKind,
   type LightEmitterSchema,
   SPRITE_ATTACK_MS,
   SPRITE_DEATH_MS,
   SPRITE_WALK_MS,
   SpriteAnimationKind,
   type SpriteAnimationSchema,
-  SpriteId,
-  type SpriteId as SpriteIdType,
 } from "@/src/ecs/components.ts";
+import { DrawableKind } from "@/src/ecs/drawable_kind.ts";
 import { drawableRenderQuery, lightRenderQuery } from "@/src/ecs/queries.ts";
 import {
   DEFAULT_DOOR_OPEN_MS,
@@ -19,7 +18,9 @@ import {
   keyColorForCode,
 } from "@/src/map/map.ts";
 
-export { DrawableKind, SPRITE_ATTACK_MS, SPRITE_DEATH_MS, SPRITE_WALK_MS, SpriteAnimationKind, SpriteId };
+export { DrawableKind, SPRITE_ATTACK_MS, SPRITE_DEATH_MS, SPRITE_WALK_MS, SpriteAnimationKind };
+export const SpriteId = SpriteIdValues;
+export type SpriteId = SpriteIdType;
 export type { SpriteAnimationSchema };
 
 type DrawableBase = {

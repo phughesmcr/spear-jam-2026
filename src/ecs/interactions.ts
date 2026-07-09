@@ -1,21 +1,20 @@
 import type { Entity, World } from "@phughesmcr/miski";
 import { dialogueTreeForCode, dialogueTreeStart } from "@/src/dialogue/dialogue.ts";
+import { ItemKind, itemKindForCode } from "@/src/content/items.ts";
 import {
   DialogueTreeRef,
   DisplayNameComponent,
   Door,
   Interactable,
   Item,
-  ITEM_KIND_CODES,
-  ItemKind,
   Locked,
   Npc,
   UplinkTerminal,
 } from "@/src/ecs/components.ts";
-import { displayNameForCode, displayNameText } from "@/src/game/names.ts";
 import type { SpatialIndex } from "@/src/ecs/spatial.ts";
 import type { InteractVerb } from "@/src/game/commands.ts";
 import type { GameEvent } from "@/src/game/events.ts";
+import { displayNameForCode, displayNameText } from "@/src/game/names.ts";
 import { type AmmoKind, type CommandSlot, commandSlotForCode, type DialogueState } from "@/src/game/state.ts";
 import { type KeyColor, keyColorForCode } from "@/src/map/map.ts";
 
@@ -69,11 +68,6 @@ export function collectItemAt(
   const pickup = itemPickupFor(item, itemKindForCode(kind), value);
   spatial.removeEntity(item);
   return pickup;
-}
-
-function itemKindForCode(kind: number): ItemKind {
-  if (ITEM_KIND_CODES.includes(kind as ItemKind)) return kind as ItemKind;
-  throw new Error(`Unknown item kind: ${kind}`);
 }
 
 function itemPickupFor(entity: Entity, kind: ItemKind, value: number): ItemPickup {

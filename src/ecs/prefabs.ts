@@ -1,10 +1,17 @@
 import type { Entity, World } from "@phughesmcr/miski";
 import { enemyArchetypeForAuthoringKey } from "@/src/content/enemies.ts";
+import { ItemKind } from "@/src/content/items.ts";
+import { SpriteId } from "@/src/content/sprite_ids.ts";
+import {
+  spriteIdForDecoration,
+  spriteIdForDisplayName,
+  spriteIdForEnemyArchetype,
+  spriteIdForItem,
+} from "@/src/content/sprites.ts";
 import {
   Attack,
   type AttackSchema,
   Blocking,
-  DecorationKind,
   Defense,
   DialogueTreeRef,
   DisplayNameComponent,
@@ -21,7 +28,6 @@ import {
   IDLE_AWARENESS,
   Interactable,
   Item,
-  ItemKind,
   LightEmitter,
   Locked,
   MapScoped,
@@ -44,13 +50,7 @@ import {
   TurnTaker,
   UplinkTerminal,
 } from "@/src/ecs/components.ts";
-import { DrawableKind, SpriteId } from "@/src/ecs/drawables.ts";
-import {
-  spriteIdForDecoration,
-  spriteIdForDisplayName,
-  spriteIdForEnemyArchetype,
-  spriteIdForItem,
-} from "@/src/content/sprites.ts";
+import { DrawableKind } from "@/src/ecs/drawable_kind.ts";
 import {
   DEFAULT_ENEMY_ARCHETYPE,
   type EnemyArchetype as EnemyArchetypeType,
@@ -100,13 +100,6 @@ const ITEM_KINDS = {
   pistolAmmo: ItemKind.PistolAmmo,
   cannonAmmo: ItemKind.CannonAmmo,
 } as const satisfies Readonly<Record<string, ItemKind>>;
-const DECORATION_KINDS = {
-  serverPile: DecorationKind.ServerPile,
-  cyborg: DecorationKind.Cyborg,
-  ceilingHook: DecorationKind.CeilingHook,
-  ceilingLight: DecorationKind.CeilingLight,
-  ceilingWires: DecorationKind.CeilingWires,
-} as const satisfies Readonly<Record<string, DecorationKind>>;
 type PositionedPrefab = {
   readonly x: number;
   readonly y: number;
@@ -305,12 +298,11 @@ export function createItem(world: World, prefab: ItemPrefab): Entity {
 export type DecorationPrefab = Omit<DecorationDef, "prefab">;
 
 export function createDecoration(world: World, prefab: DecorationPrefab): Entity {
-  const decoration = decorationKindForPrefab(prefab.decoration);
   return world.entities.createWithOrThrow(
     [
       [GridPos, { x: prefab.x, y: prefab.y }],
       [Drawable, { kind: DrawableKind.Sprite, layer: DrawableLayer.Structure }],
-      [Sprite, { id: spriteIdForDecoration(decoration) }],
+      [Sprite, { id: spriteIdForDecoration(prefab.decoration) }],
     ] as const,
   );
 }
@@ -470,8 +462,4 @@ function examineTextIdForPrefab(examineTextId: string): ExamineTextIdType {
 
 function itemKindForPrefab(item: string): ItemKind {
   return lookup(ITEM_KINDS, item, "item kind");
-}
-
-function decorationKindForPrefab(decoration: string): DecorationKind {
-  return lookup(DECORATION_KINDS, decoration, "decoration kind");
 }

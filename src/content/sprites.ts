@@ -1,14 +1,13 @@
-import {
-  DecorationKind,
-  type DecorationKind as DecorationKindType,
-  ItemKind,
-  type ItemKind as ItemKindType,
-  SpriteId,
-  type SpriteId as SpriteIdType,
-} from "@/src/ecs/components.ts";
+import { ItemKind, type ItemKind as ItemKindType } from "@/src/content/items.ts";
+import { SpriteId, type SpriteId as SpriteIdType } from "@/src/content/sprite_ids.ts";
 import { EnemyArchetype, type EnemyArchetype as EnemyArchetypeType } from "@/src/ecs/enemy_catalog.ts";
 import { DisplayName } from "@/src/game/names.ts";
-import { KeyColor, type KeyColor as KeyColorType, keyColorForCode } from "@/src/map/map.ts";
+import {
+  type DecorationKind as DecorationKindType,
+  KeyColor,
+  type KeyColor as KeyColorType,
+  keyColorForCode,
+} from "@/src/map/map.ts";
 
 type TopDownShape = "actor" | "badge" | "corpse" | "key" | "none" | "player" | "terminal" | "uplinkCode" | "weapon";
 type SpriteSourceFrame = readonly [number, number, number, number];
@@ -156,11 +155,11 @@ const KEY_SPRITE_IDS: Readonly<Record<KeyColorType, SpriteIdType>> = {
 };
 
 const DECORATION_SPRITE_IDS: Readonly<Record<DecorationKindType, SpriteIdType>> = {
-  [DecorationKind.ServerPile]: SpriteId.DecorServerPile,
-  [DecorationKind.Cyborg]: SpriteId.DecorCyborg,
-  [DecorationKind.CeilingHook]: SpriteId.DecorCeilingHook,
-  [DecorationKind.CeilingLight]: SpriteId.DecorCeilingLight,
-  [DecorationKind.CeilingWires]: SpriteId.DecorCeilingWires,
+  serverPile: SpriteId.DecorServerPile,
+  cyborg: SpriteId.DecorCyborg,
+  ceilingHook: SpriteId.DecorCeilingHook,
+  ceilingLight: SpriteId.DecorCeilingLight,
+  ceilingWires: SpriteId.DecorCeilingWires,
 };
 
 export function spriteAppearance(id: SpriteIdType): SpriteAppearance {

@@ -1,9 +1,15 @@
 import { Component, type ComponentPartitions, type DynamicComponent, type Entity, type World } from "@phughesmcr/miski";
+import { type ItemKind as ItemKindType, ItemKind as ItemKindValues } from "@/src/content/items.ts";
+import type { SpriteId } from "@/src/content/sprite_ids.ts";
+import { type DrawableKind } from "@/src/ecs/drawable_kind.ts";
 import { type EnemyArchetype, enemyArchetypeForCode } from "@/src/ecs/enemy_catalog.ts";
-import type { CardinalDirection } from "@/src/grid/direction.ts";
 import { type AttackDef, AttackFacingRequirement, AttackPattern, AttackTargetMode } from "@/src/game/attack.ts";
+import type { CardinalDirection } from "@/src/grid/direction.ts";
 
 export { AttackFacingRequirement, AttackPattern, AttackTargetMode };
+export const ItemKind = ItemKindValues;
+export type ItemKind = ItemKindType;
+export type { DrawableKind, SpriteId };
 
 export type GridPosSchema = { x: number; y: number };
 const GRID_POS_STORAGE = { x: Int16Array, y: Int16Array };
@@ -114,14 +120,6 @@ export const Blocking: Component<null> = new Component<null>({ name: "blocking" 
 
 export const Interactable: Component<null> = new Component<null>({ name: "interactable" });
 
-export const DrawableKind = {
-  Player: 1,
-  Actor: 2,
-  Door: 3,
-  Sprite: 4,
-} as const;
-export type DrawableKind = (typeof DrawableKind)[keyof typeof DrawableKind];
-
 export const DrawableLayer = {
   Item: 10,
   Structure: 20,
@@ -140,43 +138,6 @@ export const Drawable: Component<DrawableSchema, typeof DRAWABLE_STORAGE> = new 
   name: "drawable",
   schema: DRAWABLE_STORAGE,
 });
-
-export const SpriteId = {
-  Player: 1,
-  Npc: 2,
-  John: 3,
-  DigitalDog: 4,
-  GigabitGunslinger: 5,
-  NetworkNeophyte: 6,
-  SystemSentinel: 7,
-  AgenticAcolyte: 8,
-  UplinkTerminal: 9,
-  HealthPatch: 10,
-  RedKey: 11,
-  BlueKey: 12,
-  YellowKey: 13,
-  Weapon2: 14,
-  Weapon3: 15,
-  UplinkCode: 16,
-  Corpse: 17,
-  PistolAmmo: 18,
-  CannonAmmo: 19,
-  DecorServerPile: 20,
-  DecorCyborg: 21,
-  DecorCeilingHook: 22,
-  DecorCeilingLight: 23,
-  DecorCeilingWires: 24,
-} as const;
-export type SpriteId = (typeof SpriteId)[keyof typeof SpriteId];
-
-export const DecorationKind = {
-  ServerPile: 1,
-  Cyborg: 2,
-  CeilingHook: 3,
-  CeilingLight: 4,
-  CeilingWires: 5,
-} as const;
-export type DecorationKind = (typeof DecorationKind)[keyof typeof DecorationKind];
 
 const SPRITE_STORAGE = { id: Uint8Array };
 export type SpriteSchema = { id: SpriteId };
@@ -304,18 +265,7 @@ export const TerminalDestination: Component<TerminalDestinationSchema, typeof TE
     schema: TERMINAL_DESTINATION_STORAGE,
   });
 
-export const ItemKind = {
-  HealthPatch: 1,
-  PistolAmmo: 2,
-  CannonAmmo: 3,
-  Key: 4,
-  UplinkCode: 5,
-  Weapon: 6,
-} as const;
-export type ItemKind = (typeof ItemKind)[keyof typeof ItemKind];
-export const ITEM_KIND_CODES = Object.values(ItemKind);
-
-export type ItemSchema = { kind: ItemKind; value: number };
+export type ItemSchema = { kind: ItemKindType; value: number };
 const ITEM_STORAGE = { kind: Uint8Array, value: Uint8Array };
 export const Item: Component<ItemSchema, typeof ITEM_STORAGE> = new Component<ItemSchema, typeof ITEM_STORAGE>({
   name: "item",

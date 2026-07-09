@@ -9,7 +9,7 @@ import {
   SpriteAnimationKind,
   type SpriteAnimationSchema,
 } from "@/src/ecs/components.ts";
-import { DrawableKind } from "@/src/ecs/drawables.ts";
+import { DrawableKind } from "@/src/ecs/drawable_kind.ts";
 import { createCorpse, createDeathEffect } from "@/src/ecs/prefabs.ts";
 import { drawableRenderQuery, spriteAnimationQuery } from "@/src/ecs/queries.ts";
 import type { DefeatEffect } from "@/src/ecs/combat.ts";

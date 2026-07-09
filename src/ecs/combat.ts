@@ -12,8 +12,8 @@ import {
   Health,
   Player as PlayerTag,
   Sprite,
-  type SpriteId,
 } from "@/src/ecs/components.ts";
+import type { SpriteId } from "@/src/content/sprite_ids.ts";
 import type { SpatialAccess, SpatialLookup, SpatialMutations } from "@/src/ecs/spatial.ts";
 import { CARDINAL_DELTAS, directionDelta } from "@/src/grid/direction.ts";
 import type { GameEvent } from "@/src/game/events.ts";
