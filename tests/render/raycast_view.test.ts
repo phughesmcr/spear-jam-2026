@@ -1,11 +1,11 @@
-import { assertEquals } from "@std/assert";
 import { internalFrameSize } from "@/src/render/raycast/view.ts";
+import { assertEquals } from "@std/assert";
 
-Deno.test("internalFrameSize renders first-person views at three-quarter logical resolution", () => {
+Deno.test("internalFrameSize renders first-person views at half logical resolution", () => {
   assertEquals(internalFrameSize({ x: 0, y: 0, width: 720, height: 1280 }), {
-    width: 540,
-    cropHeight: 960,
-    height: 972,
+    width: 360,
+    cropHeight: 640,
+    height: 652,
   });
 });
 

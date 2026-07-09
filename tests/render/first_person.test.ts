@@ -112,7 +112,15 @@ class FakeOffscreenCanvasRenderingContext2D {
     return imageData;
   }
 
-  putImageData(_imageData: ImageData, _dx: number, _dy: number): void {
+  putImageData(
+    _imageData: ImageData,
+    _dx: number,
+    _dy: number,
+    _dirtyX?: number,
+    _dirtyY?: number,
+    _dirtyWidth?: number,
+    _dirtyHeight?: number,
+  ): void {
   }
 }
 
@@ -126,7 +134,10 @@ class FakeOffscreenCanvas {
     this.height = height;
   }
 
-  getContext(contextId: string): FakeOffscreenCanvasRenderingContext2D | null {
+  getContext(
+    contextId: string,
+    _options?: CanvasRenderingContext2DSettings,
+  ): FakeOffscreenCanvasRenderingContext2D | null {
     return contextId === "2d" ? this.context : null;
   }
 }

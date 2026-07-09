@@ -1,13 +1,14 @@
 /**
  * Canvas presentation for the raycast renderer.
  *
- * Owns the internal framebuffer (a Uint32 view straight over an ImageData
- * buffer, so presenting a frame is a single putImageData plus a single
- * nearest-neighbour upscale drawImage) and reuses it across frames.
+ * Owns an ImageData-backed Uint32 framebuffer (raycast writes pixels in place)
+ * and an OffscreenCanvas sized to the visible crop. Presenting a frame is a
+ * dirty-rect putImageData of only the visible rows, then a nearest-neighbour
+ * upscale drawImage onto the game canvas.
  *
  * The framebuffer renders a few extra rows of vertical overscan; head-bob
- * shifts the blitted crop inside that margin instead of touching the
- * projection, so the effect costs nothing in the pixel loops.
+ * shifts which crop is uploaded instead of touching the projection, so the
+ * effect costs nothing in the pixel loops.
  */
 
 import {
@@ -20,7 +21,7 @@ import {
 } from "@/src/render/raycast/scene.ts";
 
 /** Internal render resolution as a fraction of the logical viewport size. */
-const INTERNAL_SCALE = 0.75;
+const INTERNAL_SCALE = 0.5;
 
 /** Extra internal rows rendered above and below the visible crop. */
 const OVERSCAN_ROWS = 6;
@@ -69,21 +70,29 @@ export function internalFrameSize(rect: ViewRect): ViewFrameSize {
 export function createRaycastView(): RaycastView {
   let buffers: ViewBuffers | undefined;
 
-  const ensureBuffers = (width: number, height: number, spriteCapacity: number): ViewBuffers | undefined => {
+  const ensureBuffers = (
+    width: number,
+    height: number,
+    cropHeight: number,
+    spriteCapacity: number,
+  ): ViewBuffers | undefined => {
     if (
       buffers !== undefined &&
       buffers.frame.width === width &&
       buffers.frame.height === height &&
+      buffers.canvas.height === cropHeight &&
       buffers.frame.spriteOrder.length >= spriteCapacity
     ) {
       return buffers;
     }
 
-    const canvas = new OffscreenCanvas(width, height);
-    const context = canvas.getContext("2d");
+    // Opaque present target sized to the visible crop only — overscan rows stay
+    // in ImageData and are never uploaded.
+    const canvas = new OffscreenCanvas(width, cropHeight);
+    const context = canvas.getContext("2d", { alpha: false });
     if (context === null) return undefined;
 
-    const imageData = context.createImageData(width, height);
+    const imageData = new ImageData(width, height);
     const pixels = new Uint32Array(imageData.data.buffer);
     buffers = { frame: createFrame(width, height, pixels, spriteCapacity), imageData, canvas, context };
     return buffers;
@@ -92,22 +101,37 @@ export function createRaycastView(): RaycastView {
   return {
     render(ctx, rect, scene, atlas, camera, verticalOffsetFraction = 0, nowMs = 0, healthBarMaxDistance = 0): void {
       const frameSize = internalFrameSize(rect);
-      const view = ensureBuffers(frameSize.width, frameSize.height, scene.spriteX.length);
+      const view = ensureBuffers(
+        frameSize.width,
+        frameSize.height,
+        frameSize.cropHeight,
+        scene.spriteX.length,
+      );
       if (view === undefined) return;
 
       renderFrame(view.frame, scene, atlas, camera, nowMs, healthBarMaxDistance);
-      view.context.putImageData(view.imageData, 0, 0);
 
       let cropTop = OVERSCAN_ROWS - Math.round(verticalOffsetFraction * frameSize.cropHeight);
       if (cropTop < 0) cropTop = 0;
       if (cropTop > OVERSCAN_ROWS * 2) cropTop = OVERSCAN_ROWS * 2;
+
+      // Upload only the visible crop: ImageData y=cropTop maps to canvas y=0.
+      view.context.putImageData(
+        view.imageData,
+        0,
+        -cropTop,
+        0,
+        cropTop,
+        frameSize.width,
+        frameSize.cropHeight,
+      );
 
       const smoothing = ctx.imageSmoothingEnabled;
       ctx.imageSmoothingEnabled = false;
       ctx.drawImage(
         view.canvas,
         0,
-        cropTop,
+        0,
         frameSize.width,
         frameSize.cropHeight,
         rect.x,
