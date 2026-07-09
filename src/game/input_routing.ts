@@ -1,9 +1,10 @@
 import type { GameCommand } from "@/src/game/commands.ts";
+import type { GameModel, GameTransitionEvent } from "@/src/game/transition.ts";
+import type { CanvasPointerInput } from "@/src/input/pointer.ts";
 import type { GameCanvasSize } from "@/src/render/canvas.ts";
 import { dialogueOptionSlotAt } from "@/src/render/dialogue.ts";
+import { titleStartButtonHit } from "@/src/render/title.ts";
 import { verbMenuTargetAt } from "@/src/render/verb_menu.ts";
-import type { CanvasPointerInput } from "@/src/input/pointer.ts";
-import type { GameModel, GameTransitionEvent } from "@/src/game/transition.ts";
 
 export type PointerTransitionEvent = Extract<
   GameTransitionEvent,
@@ -21,6 +22,7 @@ export function routePointerInput(
   input: CanvasPointerInput,
 ): PointerInputRoute {
   const mode = model.mode;
+  if (mode.type === "title") return titlePointer(canvasSize, input);
   if (mode.type === "intermission") return waitOnPointerUp(input);
   if (mode.type === "victory" || mode.type === "defeat") return waitOnPointerUp(input);
 
@@ -57,4 +59,10 @@ export function firstPersonTouchGesturesEnabled(model: GameModel): boolean {
 
 function waitOnPointerUp(input: CanvasPointerInput): PointerInputRoute {
   return input.phase === "up" ? { type: "command", command: { type: "wait" } } : { type: "none" };
+}
+
+function titlePointer(canvasSize: GameCanvasSize, input: CanvasPointerInput): PointerInputRoute {
+  if (input.phase !== "up") return { type: "none" };
+  if (!titleStartButtonHit(canvasSize, input)) return { type: "none" };
+  return { type: "command", command: { type: "wait" } };
 }

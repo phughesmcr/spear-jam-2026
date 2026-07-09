@@ -1,4 +1,3 @@
-import type { Entity } from "@phughesmcr/miski";
 import { dialogueTreeNode } from "@/src/dialogue/dialogue.ts";
 import {
   type GameCommand,
@@ -11,12 +10,14 @@ import { CONTINUE_INTERMISSION_PROMPT, INTRO_INTERMISSION } from "@/src/game/int
 import { consumeGameEvents, createPresentationState, type PresentationState } from "@/src/game/presentation.ts";
 import type { GameMode, VerbMenuTarget, ViewMode } from "@/src/game/state.ts";
 import { openVerbMenu, verbMenuCommand, verbPointer } from "@/src/game/verb_menu_transition.ts";
+import type { Entity } from "@phughesmcr/miski";
 
 type DialogueMode = Extract<GameMode, { readonly type: "dialogue" }>;
 type HelpMode = Extract<GameMode, { readonly type: "help" }>;
 
 export type GameModelOptions = {
   readonly showIntro?: boolean;
+  readonly showTitle?: boolean;
 };
 
 export type VerbPointerPhase = "move" | "down" | "up" | "cancel";
@@ -25,6 +26,7 @@ export type DialoguePointerPhase = VerbPointerPhase;
 export type GameModel = {
   readonly startMapName: string;
   readonly showIntro: boolean;
+  readonly showTitle: boolean;
   readonly currentMapName: string;
   readonly presentation: PresentationState;
   readonly mode: GameMode;
@@ -66,6 +68,7 @@ export function createGameModel(startMapName: string, options: GameModelOptions 
   return {
     startMapName,
     showIntro: options.showIntro ?? false,
+    showTitle: options.showTitle ?? false,
     currentMapName: startMapName,
     presentation: createPresentationState(),
     mode: { type: "loading" },
@@ -77,22 +80,13 @@ export function createGameModel(startMapName: string, options: GameModelOptions 
 export function transition(model: GameModel, event: GameTransitionEvent): GameTransition {
   switch (event.type) {
     case "start":
-      if (model.showIntro) {
-        return done(
-          enterIntermission(model, {
-            title: INTRO_INTERMISSION.title,
-            pages: INTRO_INTERMISSION.pages,
-            prompt: INTRO_INTERMISSION.prompt,
-            goto: model.startMapName,
-            nowMs: event.nowMs ?? 0,
-          }),
-          [{ type: "ensureInput" }, { type: "render" }],
-        );
+      if (model.showTitle) {
+        return done({ ...model, mode: { type: "title", intent: "start" } }, [
+          { type: "ensureInput" },
+          { type: "render" },
+        ]);
       }
-      return done(model, [
-        { type: "render" },
-        { type: "loadMap", mapName: model.startMapName },
-      ]);
+      return beginGame(model, event.nowMs ?? 0);
     case "mapLoaded":
       return mapLoaded(model, event.mapName);
     case "loadFailed":
@@ -108,6 +102,25 @@ export function transition(model: GameModel, event: GameTransitionEvent): GameTr
   }
 }
 
+function beginGame(model: GameModel, nowMs: number): GameTransition {
+  if (model.showIntro) {
+    return done(
+      enterIntermission(model, {
+        title: INTRO_INTERMISSION.title,
+        pages: INTRO_INTERMISSION.pages,
+        prompt: INTRO_INTERMISSION.prompt,
+        goto: model.startMapName,
+        nowMs,
+      }),
+      [{ type: "ensureInput" }, { type: "render" }],
+    );
+  }
+  return done({ ...model, mode: { type: "loading" } }, [
+    { type: "render" },
+    { type: "loadMap", mapName: model.startMapName },
+  ]);
+}
+
 function mapLoaded(model: GameModel, mapName: string): GameTransition {
   return done({
     ...model,
@@ -119,6 +132,7 @@ function mapLoaded(model: GameModel, mapName: string): GameTransition {
 
 function gameCommand(model: GameModel, command: GameCommand, nowMs: number): GameTransition {
   const mode = model.mode;
+  if (mode.type === "title") return titleCommand(model, command, nowMs);
   if (mode.type === "intermission") return intermissionCommand(model, mode, command, nowMs);
   if (mode.type === "dialogue") return dialogueCommand(model, mode, command);
   if (mode.type === "help") return helpCommand(model, mode, command);
@@ -141,6 +155,23 @@ function gameCommand(model: GameModel, command: GameCommand, nowMs: number): Gam
     case "toggleView":
       return toggleView(model);
   }
+}
+
+function titleCommand(model: GameModel, command: GameCommand, nowMs: number): GameTransition {
+  const mode = model.mode;
+  if (mode.type !== "title") return done(model);
+
+  if (command.type === "menu") {
+    if (mode.intent === "resume") return closeTitleMenu(model);
+    return done(model);
+  }
+  if (command.type !== "wait") return done(model);
+  if (mode.intent === "resume") return closeTitleMenu(model);
+  return beginGame(model, nowMs);
+}
+
+function closeTitleMenu(model: GameModel): GameTransition {
+  return done({ ...model, mode: { type: "playing" } }, [{ type: "render" }]);
 }
 
 function intermissionCommand(
@@ -293,14 +324,10 @@ function playerCommandResult(
 }
 
 function toggleMenu(model: GameModel): GameTransition {
-  switch (model.mode.type) {
-    case "playing":
-      return done({ ...model, mode: { type: "menu" } }, [{ type: "render" }]);
-    case "menu":
-      return done({ ...model, mode: { type: "playing" } }, [{ type: "render" }]);
-    default:
-      return done(model, [{ type: "render" }]);
+  if (model.mode.type === "playing") {
+    return done({ ...model, mode: { type: "title", intent: "resume" } }, [{ type: "render" }]);
   }
+  return done(model, [{ type: "render" }]);
 }
 
 function toggleView(model: GameModel): GameTransition {

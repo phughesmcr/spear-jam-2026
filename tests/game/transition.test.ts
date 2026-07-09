@@ -1,7 +1,7 @@
-import { assertEquals } from "@std/assert";
-import type { Entity } from "@phughesmcr/miski";
-import { createGameModel, type GameModel, transition } from "@/src/game/transition.ts";
 import { DisplayName } from "@/src/game/names.ts";
+import { createGameModel, type GameModel, transition } from "@/src/game/transition.ts";
+import type { Entity } from "@phughesmcr/miski";
+import { assertEquals } from "@std/assert";
 
 const PLAYER = 1 as Entity;
 
@@ -13,6 +13,53 @@ Deno.test("transition starts with render and map loading effects", () => {
     { type: "render" },
     { type: "loadMap", mapName: "Level 1" },
   ]);
+});
+
+Deno.test("transition can start on the title screen before beginning the game", () => {
+  let result = transition(createGameModel("Level 1", { showTitle: true, showIntro: true }), {
+    type: "start",
+    nowMs: 1000,
+  });
+
+  assertEquals(result.model.mode, { type: "title", intent: "start" });
+  assertEquals(result.effects, [{ type: "ensureInput" }, { type: "render" }]);
+
+  result = transition(result.model, { type: "gameCommand", command: { type: "wait" }, nowMs: 1000 });
+  const mode = result.model.mode;
+  if (mode.type !== "intermission") throw new Error(`Expected intermission mode, got ${mode.type}.`);
+  assertEquals(mode.goto, "Level 1");
+  assertEquals(result.effects, [{ type: "ensureInput" }, { type: "render" }]);
+});
+
+Deno.test("title start without intro loads the start map", () => {
+  const titled = transition(createGameModel("Level 1", { showTitle: true }), { type: "start" }).model;
+  const result = transition(titled, { type: "gameCommand", command: { type: "wait" } });
+
+  assertEquals(result.model.mode, { type: "loading" });
+  assertEquals(result.effects, [
+    { type: "render" },
+    { type: "loadMap", mapName: "Level 1" },
+  ]);
+});
+
+Deno.test("escape opens the title menu while playing and resume closes it", () => {
+  const playing = transition(createGameModel("Level 1"), {
+    type: "mapLoaded",
+    mapName: "Level 1",
+  }).model;
+
+  const opened = transition(playing, { type: "gameCommand", command: { type: "menu" } });
+  assertEquals(opened.model.mode, { type: "title", intent: "resume" });
+  assertEquals(opened.effects, [{ type: "render" }]);
+
+  const resumed = transition(opened.model, { type: "gameCommand", command: { type: "wait" } });
+  assertEquals(resumed.model.mode, { type: "playing" });
+  assertEquals(resumed.effects, [{ type: "render" }]);
+
+  const reopened = transition(playing, { type: "gameCommand", command: { type: "menu" } }).model;
+  const escaped = transition(reopened, { type: "gameCommand", command: { type: "menu" } });
+  assertEquals(escaped.model.mode, { type: "playing" });
+  assertEquals(escaped.effects, [{ type: "render" }]);
 });
 
 Deno.test("transition can start with an intro intermission before loading the first map", () => {

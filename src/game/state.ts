@@ -61,11 +61,13 @@ export type DialogueState = {
 
 export type TargetMarkerTone = "danger" | "locked" | "loot" | "use";
 
+export type TitleIntent = "start" | "resume";
+
 export type GameMode =
+  | { readonly type: "title"; readonly intent: TitleIntent }
   | { readonly type: "loading" }
   | { readonly type: "playing" }
   | { readonly type: "paused" }
-  | { readonly type: "menu" }
   | { readonly type: "verbMenu"; readonly selectedIndex: number; readonly hoverTarget?: VerbMenuTarget }
   | { readonly type: "help"; readonly selectedIndex: number }
   | ({ readonly type: "dialogue" } & DialogueState)

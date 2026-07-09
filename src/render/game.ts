@@ -17,6 +17,7 @@ import { renderIntermission } from "@/src/render/intermission.ts";
 import { renderMap } from "@/src/render/map.ts";
 import { renderMessageLog } from "@/src/render/messages.ts";
 import { monoFont } from "@/src/render/text.ts";
+import { preloadTitleAssets, renderTitle } from "@/src/render/title.ts";
 import { preloadVerbMenuAssets, renderVerbMenu } from "@/src/render/verb_menu.ts";
 import { preloadWeaponHudAssets, renderWeaponHud } from "@/src/render/weapon_hud.ts";
 
@@ -73,6 +74,7 @@ export async function preloadGameAssets(
   onAssetLoad?: () => void,
 ): Promise<void> {
   await Promise.all([
+    preloadTitleAssets(document, onAssetLoad),
     preloadVerbMenuAssets(document, onAssetLoad),
     firstPersonRenderer.preloadAssets(document, onAssetLoad),
     preloadWeaponHudAssets(document, onAssetLoad),
@@ -145,14 +147,14 @@ export function renderGameFrame({
   }
   renderMessageLog(ctx, canvasSize, presentation.messages);
   switch (mode.type) {
+    case "title":
+      renderTitle(ctx, canvasSize, mode.intent, nowMs, onAssetLoad);
+      return { needsFrame: true };
     case "loading":
       renderOverlay(ctx, canvasSize, "LOADING");
       return { needsFrame: false };
     case "paused":
       renderOverlay(ctx, canvasSize, "PAUSED", "P to resume");
-      return { needsFrame: false };
-    case "menu":
-      renderOverlay(ctx, canvasSize, "MENU", "Esc to resume");
       return { needsFrame: false };
     case "help":
       renderHelp(ctx, canvasSize, onAssetLoad);

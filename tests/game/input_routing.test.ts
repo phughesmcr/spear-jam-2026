@@ -1,10 +1,11 @@
-import { assertEquals } from "@std/assert";
+import { firstPersonTouchGesturesEnabled, routePointerInput } from "@/src/game/input_routing.ts";
 import { createGameModel, type GameModel, transition } from "@/src/game/transition.ts";
 import type { CanvasPointerInput } from "@/src/input/pointer.ts";
 import { DEFAULT_GAME_CANVAS_SIZE } from "@/src/render/canvas.ts";
 import { dialogueLayout } from "@/src/render/dialogue.ts";
+import { titleStartButtonRect } from "@/src/render/title.ts";
 import { verbMenuButtonRects } from "@/src/render/verb_menu.ts";
-import { firstPersonTouchGesturesEnabled, routePointerInput } from "@/src/game/input_routing.ts";
+import { assertEquals } from "@std/assert";
 
 const CANVAS_SIZE = DEFAULT_GAME_CANVAS_SIZE;
 const BASE_POINTER = {
@@ -15,6 +16,20 @@ const BASE_POINTER = {
   pointerType: "mouse",
   button: 0,
 } as const satisfies CanvasPointerInput;
+
+Deno.test("routePointerInput maps title start-button pointer up to wait", () => {
+  const model = modelWithMode({ type: "title", intent: "start" });
+  const button = titleStartButtonRect(CANVAS_SIZE);
+
+  assertEquals(routePointerInput(model, CANVAS_SIZE, pointer(centerOf(button, { phase: "up" }))), {
+    type: "command",
+    command: { type: "wait" },
+  });
+  assertEquals(routePointerInput(model, CANVAS_SIZE, pointer({ phase: "up", x: 0, y: 0 })), { type: "none" });
+  assertEquals(routePointerInput(model, CANVAS_SIZE, pointer(centerOf(button, { phase: "down" }))), {
+    type: "none",
+  });
+});
 
 Deno.test("routePointerInput maps intermission pointer up to wait and swallows pointer down", () => {
   const model = modelWithMode({

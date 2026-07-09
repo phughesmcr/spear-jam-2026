@@ -65,7 +65,11 @@ class Game implements Disposable {
   constructor(spec: GameSpec, controller: AbortController) {
     this.spec = spec;
     this.controller = controller;
-    this.model = createGameModel(spec.startMapName ?? START_MAP_NAME, { showIntro: spec.startMapName === undefined });
+    const fullBoot = spec.startMapName === undefined;
+    this.model = createGameModel(spec.startMapName ?? START_MAP_NAME, {
+      showTitle: fullBoot,
+      showIntro: fullBoot,
+    });
     this.runtime = createGameRuntimeLoop({
       host: spec.host,
       document: spec.canvas.ownerDocument,
