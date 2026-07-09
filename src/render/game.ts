@@ -56,6 +56,15 @@ const EMPTY_PRESENTATION: PresentationView = {
   needsFrame: false,
 };
 
+type VignetteCache = {
+  width: number;
+  height: number;
+  canvas: OffscreenCanvas;
+  ctor: typeof OffscreenCanvas;
+};
+
+let vignetteCache: VignetteCache | undefined;
+
 export async function preloadGameAssets(
   document: Document,
   firstPersonRenderer: FirstPersonRenderer,
@@ -130,31 +139,31 @@ export function renderGameFrame({
   switch (mode.type) {
     case "loading":
       renderOverlay(ctx, canvasSize, "LOADING");
-      return { needsFrame };
+      return { needsFrame: false };
     case "paused":
       renderOverlay(ctx, canvasSize, "PAUSED", "P to resume");
-      return { needsFrame };
+      return { needsFrame: false };
     case "menu":
       renderOverlay(ctx, canvasSize, "MENU", "Esc to resume");
-      return { needsFrame };
+      return { needsFrame: false };
     case "help":
       renderHelp(ctx, canvasSize, onAssetLoad);
-      return { needsFrame };
+      return { needsFrame: false };
     case "dialogue":
       renderDialogue(ctx, canvasSize, mode, onAssetLoad);
-      return { needsFrame };
+      return { needsFrame: false };
     case "intermission":
       renderIntermission(ctx, canvasSize, mode, nowMs);
       return { needsFrame: true };
     case "victory":
       renderOverlay(ctx, canvasSize, "VICTORY", "Space to play again");
-      return { needsFrame };
+      return { needsFrame: false };
     case "defeat":
       renderOverlay(ctx, canvasSize, "DEFEAT", "Space to retry level");
-      return { needsFrame };
+      return { needsFrame: false };
     case "error":
       renderOverlay(ctx, canvasSize, "LOAD FAILED", mode.message);
-      return { needsFrame };
+      return { needsFrame: false };
     case "verbMenu":
       renderVerbMenu(ctx, canvasSize, mode.selectedIndex, mode.hoverTarget, onAssetLoad);
       return { needsFrame };
@@ -192,20 +201,48 @@ function renderOverlay(
 }
 
 function renderFirstPersonVignette(ctx: CanvasRenderingContext2D, rect: GameRenderRect): void {
-  const centerX = rect.x + rect.width / 2;
-  const centerY = rect.y + rect.height * 0.54;
-  const cornerRadius = Math.hypot(rect.width / 2, Math.max(centerY - rect.y, rect.y + rect.height - centerY));
-  const innerRadius = Math.min(rect.width, rect.height) * 0.28;
+  const canvas = vignetteCanvasFor(rect.width, rect.height);
+  if (canvas === undefined) {
+    paintVignette(ctx, 0, 0, rect.width, rect.height);
+    return;
+  }
+  ctx.drawImage(canvas, rect.x, rect.y);
+}
+
+function vignetteCanvasFor(width: number, height: number): OffscreenCanvas | undefined {
+  const ctor = globalThis.OffscreenCanvas;
+  if (
+    vignetteCache !== undefined &&
+    vignetteCache.width === width &&
+    vignetteCache.height === height &&
+    vignetteCache.ctor === ctor
+  ) {
+    return vignetteCache.canvas;
+  }
+  const canvas = new ctor(width, height);
+  const context = canvas.getContext("2d");
+  if (context === null) return undefined;
+  paintVignette(context, 0, 0, width, height);
+  vignetteCache = { width, height, canvas, ctor };
+  return canvas;
+}
+
+function paintVignette(
+  ctx: CanvasRenderingContext2D | OffscreenCanvasRenderingContext2D,
+  x: number,
+  y: number,
+  width: number,
+  height: number,
+): void {
+  const centerX = x + width / 2;
+  const centerY = y + height * 0.54;
+  const cornerRadius = Math.hypot(width / 2, Math.max(centerY - y, y + height - centerY));
+  const innerRadius = Math.min(width, height) * 0.28;
   const gradient = ctx.createRadialGradient(centerX, centerY, innerRadius, centerX, centerY, cornerRadius);
   gradient.addColorStop(0, "rgba(0, 0, 0, 0)");
   gradient.addColorStop(0.42, "rgba(0, 0, 0, 0)");
   gradient.addColorStop(0.72, "rgba(0, 0, 0, 0.32)");
   gradient.addColorStop(1, "rgba(0, 0, 0, 0.78)");
-
-  ctx.save();
-  ctx.globalAlpha = 1;
-  ctx.globalCompositeOperation = "source-over";
   ctx.fillStyle = gradient;
-  ctx.fillRect(rect.x, rect.y, rect.width, rect.height);
-  ctx.restore();
+  ctx.fillRect(x, y, width, height);
 }

@@ -221,7 +221,7 @@ export class GameSession implements Disposable {
   }
 
   targetMarkerTone(): TargetMarkerTone | undefined {
-    return targetMarkerTone(this.turnContext());
+    return this.spatial.withFreshOccupancy(() => targetMarkerTone(this.turnContext()));
   }
 
   getVisibility(): TileVisibility {

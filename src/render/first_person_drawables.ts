@@ -1,16 +1,17 @@
+import { type SpriteAppearance, spriteAppearance } from "@/src/content/sprites.ts";
 import {
   type DrawableEntity,
   DrawableKind,
   SpriteAnimationKind,
   type SpriteAnimationSchema,
 } from "@/src/ecs/drawables.ts";
-import { type SpriteAppearance, spriteAppearance } from "@/src/content/sprites.ts";
-import { type CardinalDirection, normalizeDirection } from "@/src/grid/direction.ts";
 import type { TargetMarkerTone } from "@/src/game/state.ts";
+import { type CardinalDirection, normalizeDirection } from "@/src/grid/direction.ts";
 import type { GameMap } from "@/src/map/map.ts";
 import { doorTexture, ENEMY_SHEET_COLUMNS, type FirstPersonAssetState } from "@/src/render/first_person_assets.ts";
 import { doorAxis, doorSlideForAxis, secretWallTextureSlot } from "@/src/render/first_person_scene.ts";
 import { addSlidingSolidWall, addSprite, addThinWall, type RaycastScene } from "@/src/render/raycast/scene.ts";
+import type { ViewRect } from "@/src/render/raycast/view.ts";
 import {
   createScalarTween,
   createSpriteTween,
@@ -23,7 +24,6 @@ import {
   type SpritePoint,
   type SpriteTween,
 } from "@/src/render/tween.ts";
-import type { ViewRect } from "@/src/render/raycast/view.ts";
 
 export type FirstPersonDrawableState = FirstPersonAssetState & {
   readonly spriteTweens: Map<DrawableEntity["entity"], SpriteTween>;
@@ -116,7 +116,8 @@ function addAppearanceSprite(
     appearance.firstPersonScale,
     appearance.firstPersonElevation + (appearance.itemBob ? itemElevation(nowMs) : 0),
   );
-  return appearance.itemBob;
+  // Bob is applied above when a frame runs; it does not schedule frames.
+  return false;
 }
 
 function enemySprite(baseSlot: number, dir: number, cameraDir: CardinalDirection, row: number): number {

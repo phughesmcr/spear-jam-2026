@@ -1,43 +1,53 @@
-import { assert, assertEquals } from "@std/assert";
 import type { FrameRenderSession } from "@/src/game/session_ports.ts";
 import type { PlayerStatusSnapshot } from "@/src/game/state.ts";
 import { Direction } from "@/src/grid/direction.ts";
 import { createGameMap } from "@/src/map/map.ts";
-import { renderGameFrame } from "@/src/render/game.ts";
 import type { FirstPersonRenderer } from "@/src/render/first_person.ts";
+import { renderGameFrame } from "@/src/render/game.ts";
+import { assert, assertEquals } from "@std/assert";
 
 const FULL_CANVAS = { width: 720, height: 1280 };
 
 Deno.test("renderGameFrame draws a visible first-person vignette over the play area", () => {
-  const ctx = new FakeGameContext();
+  withFakeOffscreenCanvas((): void => {
+    const ctx = new FakeGameContext();
 
+    const result = renderGameFrame({
+      ctx: ctx as unknown as CanvasRenderingContext2D,
+      canvasSize: FULL_CANVAS,
+      session: fakeSession(),
+      mode: { type: "playing" },
+      firstPersonRenderer: fakeFirstPersonRenderer(),
+    });
+    assertEquals(result, { needsFrame: false });
+
+    assertEquals(ctx.drawImages.length, 1);
+    assertEquals(ctx.drawImages[0], { x: 0, y: 0, width: 720, height: 1280 });
+
+    const gradient = FakeOffscreenCanvas.lastContext?.gradients[0];
+    assert(gradient !== undefined);
+    assertEquals(gradient.colorStops, [
+      { offset: 0, color: "rgba(0, 0, 0, 0)" },
+      { offset: 0.42, color: "rgba(0, 0, 0, 0)" },
+      { offset: 0.72, color: "rgba(0, 0, 0, 0.32)" },
+      { offset: 1, color: "rgba(0, 0, 0, 0.78)" },
+    ]);
+
+    const [, , innerRadius, , , outerRadius] = gradient.args;
+    assertEquals(innerRadius, 201.60000000000002);
+    assert(outerRadius > 779 && outerRadius < 780);
+  });
+});
+
+Deno.test("renderGameFrame stops requesting frames while paused", () => {
   const result = renderGameFrame({
-    ctx: ctx as unknown as CanvasRenderingContext2D,
+    ctx: new FakeGameContext() as unknown as CanvasRenderingContext2D,
     canvasSize: FULL_CANVAS,
     session: fakeSession(),
-    mode: { type: "playing" },
-    firstPersonRenderer: fakeFirstPersonRenderer(),
+    mode: { type: "paused" },
+    firstPersonRenderer: fakeFirstPersonRenderer(true),
   });
   assertEquals(result, { needsFrame: false });
-
-  const gradient = ctx.gradients[0];
-  assert(gradient !== undefined);
-  assertEquals(gradient.colorStops, [
-    { offset: 0, color: "rgba(0, 0, 0, 0)" },
-    { offset: 0.42, color: "rgba(0, 0, 0, 0)" },
-    { offset: 0.72, color: "rgba(0, 0, 0, 0.32)" },
-    { offset: 1, color: "rgba(0, 0, 0, 0.78)" },
-  ]);
-
-  const [, , innerRadius, , , outerRadius] = gradient.args;
-  assertEquals(innerRadius, 201.60000000000002);
-  assert(outerRadius > 779 && outerRadius < 780);
-
-  const vignetteFill = ctx.fillRects.find((call) => call.fillStyle === gradient);
-  assert(vignetteFill !== undefined);
-  assertEquals(vignetteFill.rect, { x: 0, y: 0, width: 720, height: 1280 });
-  assertEquals(vignetteFill.globalAlpha, 1);
-  assertEquals(vignetteFill.globalCompositeOperation, "source-over");
 });
 
 Deno.test("renderGameFrame does not schedule RAF or tick the session in top-down mode", () => {
@@ -199,6 +209,62 @@ class FakeGameDocument {
   }
 }
 
+class FakeOffscreenContext {
+  fillStyle: FakeFillStyle = "";
+  readonly gradients: FakeCanvasGradient[] = [];
+
+  createRadialGradient(
+    x0: number,
+    y0: number,
+    r0: number,
+    x1: number,
+    y1: number,
+    r1: number,
+  ): CanvasGradient {
+    const gradient = new FakeCanvasGradient([x0, y0, r0, x1, y1, r1]);
+    this.gradients.push(gradient);
+    return gradient as unknown as CanvasGradient;
+  }
+
+  fillRect(): void {}
+}
+
+class FakeOffscreenCanvas {
+  static lastContext: FakeOffscreenContext | undefined;
+  readonly width: number;
+  readonly height: number;
+  private readonly context = new FakeOffscreenContext();
+
+  constructor(width: number, height: number) {
+    this.width = width;
+    this.height = height;
+    FakeOffscreenCanvas.lastContext = this.context;
+  }
+
+  getContext(contextId: string): FakeOffscreenContext | null {
+    return contextId === "2d" ? this.context : null;
+  }
+}
+
+function withFakeOffscreenCanvas(run: () => void): void {
+  const original = globalThis.OffscreenCanvas;
+  FakeOffscreenCanvas.lastContext = undefined;
+  Object.defineProperty(globalThis, "OffscreenCanvas", {
+    configurable: true,
+    writable: true,
+    value: FakeOffscreenCanvas as unknown as typeof OffscreenCanvas,
+  });
+  try {
+    run();
+  } finally {
+    Object.defineProperty(globalThis, "OffscreenCanvas", {
+      configurable: true,
+      writable: true,
+      value: original,
+    });
+  }
+}
+
 class FakeGameContext {
   readonly canvas: { readonly ownerDocument: FakeGameDocument };
   fillStyle: FakeFillStyle = "";
@@ -213,6 +279,8 @@ class FakeGameContext {
   textBaseline: CanvasTextBaseline = "alphabetic";
   readonly gradients: FakeCanvasGradient[] = [];
   readonly fillRects: FakeFillRectCall[] = [];
+  readonly drawImages: { readonly x: number; readonly y: number; readonly width: number; readonly height: number }[] =
+    [];
   private readonly stack: {
     readonly fillStyle: FakeFillStyle;
     readonly globalAlpha: number;
@@ -267,7 +335,9 @@ class FakeGameContext {
   beginPath(): void {}
   closePath(): void {}
   clip(): void {}
-  drawImage(): void {}
+  drawImage(image: { readonly width: number; readonly height: number }, x: number, y: number): void {
+    this.drawImages.push({ x, y, width: image.width, height: image.height });
+  }
   ellipse(): void {}
   fill(): void {}
   fillText(): void {}

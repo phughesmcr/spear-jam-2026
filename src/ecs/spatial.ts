@@ -1,10 +1,10 @@
-import type { Entity, World } from "@phughesmcr/miski";
 import { Blocking, Door, GridPos, Interactable, Item } from "@/src/ecs/components.ts";
 import { positionedQuery } from "@/src/ecs/queries.ts";
 import { CARDINAL_DELTAS, directionDelta, type GridPoint } from "@/src/grid/direction.ts";
 import type { GameMap } from "@/src/map/map.ts";
 import { copyBaseFlags, dimensions } from "@/src/map/static_grid.ts";
 import { flagsBlockAttack, flagsBlockMovement, flagsBlockSight, TileFlag } from "@/src/map/tile_flags.ts";
+import type { Entity, World } from "@phughesmcr/miski";
 
 export interface SpatialLookup {
   tileBlocks(x: number, y: number): boolean;
@@ -43,6 +43,8 @@ export class SpatialIndex implements SpatialLookup, SpatialMutations {
   private readonly interactableOccupancy: Int32Array;
   private readonly itemOccupancy: Int32Array;
   private readonly pathQueue: Int32Array;
+  /** When true, nested occupancy queries reuse the snapshot from {@link withFreshOccupancy}. */
+  private occupancyHeld = false;
 
   constructor(world: World, map: GameMap) {
     this.world = world;
@@ -98,6 +100,22 @@ export class SpatialIndex implements SpatialLookup, SpatialMutations {
     const x = current.x + delta.dx;
     const y = current.y + delta.dy;
     return this.blockingEntityAtNoRefresh(x, y) ?? this.interactableAtNoRefresh(x, y) ?? this.itemAtNoRefresh(x, y);
+  }
+
+  /**
+   * Refresh occupancy once, then run `fn` without rebuilding on nested queries.
+   * Use for multi-tile scans (weapon range, pathing) that would otherwise
+   * re-walk every positioned entity per cell.
+   */
+  withFreshOccupancy<T>(fn: () => T): T {
+    if (this.occupancyHeld) return fn();
+    this.refreshOccupancy();
+    this.occupancyHeld = true;
+    try {
+      return fn();
+    } finally {
+      this.occupancyHeld = false;
+    }
   }
 
   nextStepToward(start: GridPoint, target: GridPoint): GridPoint | undefined {
@@ -202,6 +220,8 @@ export class SpatialIndex implements SpatialLookup, SpatialMutations {
   }
 
   private refreshOccupancy(): void {
+    if (this.occupancyHeld) return;
+
     this.runtimeFlags.set(this.baseFlags);
     this.blockingOccupancy.fill(EMPTY_ENTITY);
     this.interactableOccupancy.fill(EMPTY_ENTITY);

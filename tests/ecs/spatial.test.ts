@@ -1,10 +1,10 @@
-import { assertEquals, assertThrows } from "@std/assert";
 import { Blocking, Door, Facing, GridPos, Interactable, Item, ItemKind } from "@/src/ecs/components.ts";
 import { SpatialIndex } from "@/src/ecs/spatial.ts";
 import { createWorld } from "@/src/ecs/world.ts";
 import { createGameMap, KeyColor, keyColorCode } from "@/src/map/map.ts";
 import { DEFAULT_BARS_TERRAIN_ID, DEFAULT_WALL_TERRAIN_ID } from "@/src/map/terrain_palettes.ts";
 import { createEntity, flatTestMap } from "@/tests/ecs/helpers.ts";
+import { assertEquals, assertThrows } from "@std/assert";
 
 Deno.test("SpatialIndex indexes blocking, interactable, item, and faced entities", async () => {
   const world = await createWorld();
@@ -80,6 +80,34 @@ Deno.test("SpatialIndex keeps its index current when entities move or are remove
   spatial.removeEntity(key);
   assertEquals(world.entities.isActive(key), false);
   assertEquals(spatial.itemAt(2, 1), undefined);
+});
+
+Deno.test("SpatialIndex withFreshOccupancy refreshes once for nested queries", async () => {
+  const world = await createWorld();
+  const near = createEntity(world);
+  const far = createEntity(world);
+
+  world.components.addToEntity(GridPos, near, { x: 2, y: 1 });
+  world.components.addToEntity(Blocking, near);
+  world.components.addToEntity(GridPos, far, { x: 3, y: 1 });
+  world.components.addToEntity(Blocking, far);
+  world.refresh();
+
+  const spatial = new SpatialIndex(world, TEST_MAP);
+  const seen = spatial.withFreshOccupancy(() => [
+    spatial.blockingEntityAt(2, 1),
+    spatial.blockingEntityAt(3, 1),
+  ]);
+  assertEquals(seen, [near, far]);
+
+  // Direct ECS mutation mid-hold must not be visible until the hold ends.
+  const held = spatial.withFreshOccupancy(() => {
+    world.components.setEntityData(GridPos, far, { x: 4, y: 1 });
+    return spatial.blockingEntityAt(3, 1);
+  });
+  assertEquals(held, far);
+  assertEquals(spatial.blockingEntityAt(4, 1), far);
+  assertEquals(spatial.blockingEntityAt(3, 1), undefined);
 });
 
 Deno.test("SpatialIndex leaves occupancy unchanged when a move is rejected", async () => {
