@@ -64,6 +64,8 @@ export interface FirstPersonRenderSession {
 
 export type FirstPersonRenderResult = {
   readonly needsFrame: boolean;
+  /** True when the only reason for needsFrame is ambient (sky/bob/flicker). */
+  readonly ambientOnly?: boolean;
   readonly cameraAngle?: number;
 };
 
@@ -198,16 +200,20 @@ function renderFirstPersonView(
     retargetPoseTween(state.poseTween, playerX + 0.5, playerY + 0.5, targetAngle, nowMs);
   }
 
-  let spritesAnimating = false;
+  let spritesInteractive = false;
+  let spritesAmbient = false;
   for (const drawable of state.drawableScratch) {
-    spritesAnimating = addDrawable(state, scene, map, drawable, playerDir, nowMs) || spritesAnimating;
+    const demand = addDrawable(state, scene, map, drawable, playerDir, nowMs);
+    spritesInteractive ||= demand.interactive;
+    spritesAmbient ||= demand.ambient;
   }
 
   samplePoseTween(state.poseTween, nowMs, state.poseSample);
   sampleNudgeTween(state.nudgeTween, nowMs, state.nudgeSample);
   const skyAnimating = sceneHasSkyCeiling(scene, state.atlas);
-  const needsFrame = !state.poseSample.settled || !state.nudgeSample.settled || spritesAnimating ||
-    lightsAnimating || skyAnimating;
+  const interactive = !state.poseSample.settled || !state.nudgeSample.settled || spritesInteractive;
+  const ambient = spritesAmbient || lightsAnimating || skyAnimating;
+  const needsFrame = interactive || ambient;
 
   state.view.render(
     ctx,
@@ -225,5 +231,5 @@ function renderFirstPersonView(
   );
 
   if (targetTone !== undefined) drawTargetHighlight(ctx, rect, targetTone);
-  return { needsFrame, cameraAngle: state.poseSample.angle };
+  return { needsFrame, ambientOnly: needsFrame && !interactive, cameraAngle: state.poseSample.angle };
 }

@@ -435,6 +435,7 @@ Deno.test("first-person rendering requests another frame for scrolling sky ceili
     );
 
     assertEquals(result.needsFrame, true);
+    assertEquals(result.ambientOnly, true);
   });
 });
 
@@ -484,6 +485,7 @@ Deno.test("first-person rendering updates flickering lights and requests another
 
     assertNotEquals(scene.lightRed[1 * 3 + 2], firstAdjacentLight);
     assertEquals(result.needsFrame, true);
+    assertEquals(result.ambientOnly, true);
   });
 });
 
@@ -1031,5 +1033,6 @@ Deno.test("first-person rendering bobs pickup item sprites vertically", () => {
     assertEquals(scene.spriteCount, 1);
     assertAlmostEquals(scene.spriteElevation[0]!, 0.055, 1e-6);
     assertEquals(result.needsFrame, true);
+    assertEquals(result.ambientOnly, true);
   });
 });

@@ -7,8 +7,10 @@ import { DEFAULT_GAME_CANVAS_SIZE, type GameCanvasSize } from "@/src/render/canv
 import { createFirstPersonRenderer, type FirstPersonRenderer } from "@/src/render/first_person.ts";
 import { preloadGameAssets, renderGameFrame } from "@/src/render/game.ts";
 
-/** Cap continuous animation (sky/bob/flicker) below display refresh. */
+/** Cap interactive animation (pose/doors/enemies) below display refresh. */
 const TARGET_FRAME_MS = 1000 / 35;
+/** Cap ambient-only animation (sky/bob/flicker) to match light rebuild rate. */
+const AMBIENT_FRAME_MS = 1000 / 12;
 
 export type GameRuntimeLoopSpec = {
   readonly host: Window;
@@ -55,12 +57,14 @@ class RuntimeLoop implements GameRuntimeLoop {
   private animationFrameId?: number;
   private lastRenderMs = Number.NEGATIVE_INFINITY;
   private wantsFrame = false;
+  private ambientOnly = false;
   private readonly runAnimationFrame = (nowMs: number): void => {
     this.animationFrameId = undefined;
     const elapsed = nowMs - this.lastRenderMs;
-    // Skip work until the 35 fps budget elapses. Negative elapsed means the
+    const budgetMs = this.ambientOnly ? AMBIENT_FRAME_MS : TARGET_FRAME_MS;
+    // Skip work until the frame budget elapses. Negative elapsed means the
     // RAF clock and renderNow()'s performance.now() disagree (tests) — render.
-    if (elapsed >= 0 && elapsed < TARGET_FRAME_MS) {
+    if (elapsed >= 0 && elapsed < budgetMs) {
       if (this.wantsFrame) this.requestNextFrame();
       return;
     }
@@ -161,6 +165,8 @@ class RuntimeLoop implements GameRuntimeLoop {
     });
     this.lastRenderMs = nowMs;
     this.wantsFrame = tickResult.needsFrame || presentation.needsFrame || renderResult.needsFrame;
+    this.ambientOnly = this.wantsFrame && !tickResult.needsFrame && !presentation.needsFrame &&
+      renderResult.ambientOnly === true;
     this.setFrameNeeded(this.wantsFrame);
   }
 

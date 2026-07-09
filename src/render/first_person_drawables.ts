@@ -119,6 +119,19 @@ function addAppearanceSprite(
   return appearance.itemBob;
 }
 
+/** Per-drawable animation demand: interactive stays at full fps; ambient may throttle. */
+export type DrawableFrameDemand = {
+  readonly interactive: boolean;
+  readonly ambient: boolean;
+};
+
+const NO_FRAME_DEMAND: DrawableFrameDemand = { interactive: false, ambient: false };
+
+function frameDemand(interactive: boolean, ambient = false): DrawableFrameDemand {
+  if (!interactive && !ambient) return NO_FRAME_DEMAND;
+  return { interactive, ambient };
+}
+
 function enemySprite(baseSlot: number, dir: number, cameraDir: CardinalDirection, row: number): number {
   const relative = (normalizeDirection(dir) - cameraDir + 4) & 3;
   return baseSlot + row * ENEMY_SHEET_COLUMNS + REL_DIR_TO_SHEET_COLUMN[relative]!;
@@ -194,7 +207,7 @@ function spriteMoveDuration(drawable: DrawableEntity): number | undefined {
   return drawable.animation?.kind === SpriteAnimationKind.Walk ? drawable.animation.durationMs : undefined;
 }
 
-/** Returns true when the drawable's animation still needs frames. */
+/** Returns whether this drawable still needs interactive and/or ambient frames. */
 export function addDrawable(
   state: FirstPersonDrawableState,
   scene: RaycastScene,
@@ -202,20 +215,29 @@ export function addDrawable(
   drawable: DrawableEntity,
   cameraDir: CardinalDirection,
   nowMs: number,
-): boolean {
+): DrawableFrameDemand {
   const centerX = drawable.x + 0.5;
   const centerY = drawable.y + 0.5;
   switch (drawable.kind) {
     case DrawableKind.Player:
-      return false;
+      return NO_FRAME_DEMAND;
     case DrawableKind.Actor: {
       tweenedSpritePosition(state, drawable, nowMs);
       const appearance = spriteAppearance(drawable.spriteId);
       if (!appearance.enemySheet) {
-        addAppearanceSprite(state, scene, state.spritePoint.x, state.spritePoint.y, appearance, nowMs);
-        return !state.spritePoint.settled;
+        const bobbing = addAppearanceSprite(
+          state,
+          scene,
+          state.spritePoint.x,
+          state.spritePoint.y,
+          appearance,
+          nowMs,
+        );
+        return frameDemand(!state.spritePoint.settled, bobbing);
       }
-      if (appearance.firstPersonSlot === undefined) return !state.spritePoint.settled;
+      if (appearance.firstPersonSlot === undefined) {
+        return frameDemand(!state.spritePoint.settled);
+      }
       const row = enemySheetRow(drawable.animation, nowMs);
       const sprite = enemySprite(appearance.firstPersonSlot, drawable.dir, cameraDir, row);
       addFirstPersonSprite(
@@ -229,7 +251,7 @@ export function addDrawable(
         drawable.health?.current ?? 0,
         drawable.health?.max ?? 0,
       );
-      return !state.spritePoint.settled || animationIsActive(drawable.animation, nowMs);
+      return frameDemand(!state.spritePoint.settled || animationIsActive(drawable.animation, nowMs));
     }
     case DrawableKind.Door: {
       // A secret door stays disguised as its surrounding wall for its whole
@@ -246,7 +268,7 @@ export function addDrawable(
           doorSlideForAxis(drawable.slide, secretAxis),
           state.doorSample.value,
         );
-        return !state.doorSample.settled;
+        return frameDemand(!state.doorSample.settled);
       }
       tweenedDoorOpenness(state, drawable, nowMs);
       const axis = doorAxis(map, drawable.x, drawable.y);
@@ -259,7 +281,7 @@ export function addDrawable(
         doorSlideForAxis(drawable.slide, axis),
         state.doorSample.value,
       );
-      return !state.doorSample.settled;
+      return frameDemand(!state.doorSample.settled);
     }
     case DrawableKind.Sprite: {
       const appearance = spriteAppearance(drawable.spriteId);
@@ -277,9 +299,13 @@ export function addDrawable(
           appearance.firstPersonSlot + ENEMY_ROW_DEATH * ENEMY_SHEET_COLUMNS + frame,
           appearance.firstPersonScale,
         );
-        return animationIsActive(drawable.animation, nowMs);
+        return frameDemand(animationIsActive(drawable.animation, nowMs));
       }
-      return addAppearanceSprite(state, scene, centerX, centerY, appearance, nowMs);
+      return frameDemand(false, addAppearanceSprite(state, scene, centerX, centerY, appearance, nowMs));
+    }
+    default: {
+      const _exhaustive: never = drawable;
+      return _exhaustive;
     }
   }
 }

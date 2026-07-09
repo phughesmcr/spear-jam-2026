@@ -33,6 +33,8 @@ type GameRenderRect = {
 };
 export type GameFrameResult = {
   readonly needsFrame: boolean;
+  /** True when the only continuous demand is ambient first-person animation. */
+  readonly ambientOnly?: boolean;
 };
 
 export type FrameProps = {
@@ -93,8 +95,13 @@ export function renderGameFrame({
   onAssetLoad,
 }: FrameProps): GameFrameResult {
   let needsFrame = false;
-  ctx.fillStyle = BACKGROUND_COLOR;
-  ctx.fillRect(0, 0, canvasSize.width, canvasSize.height);
+  let ambientOnly = false;
+  const opaqueFirstPerson = session !== undefined && viewMode === "firstPerson" &&
+    (mode.type === "playing" || mode.type === "verbMenu");
+  if (!opaqueFirstPerson) {
+    ctx.fillStyle = BACKGROUND_COLOR;
+    ctx.fillRect(0, 0, canvasSize.width, canvasSize.height);
+  }
   if (session) {
     const map = session.getMap();
     if (viewMode === "firstPerson") {
@@ -117,6 +124,7 @@ export function renderGameFrame({
         playerWeaponSpec(playerStatus.selectedWeapon).range,
       );
       needsFrame ||= firstPersonResult.needsFrame;
+      ambientOnly = firstPersonResult.ambientOnly === true;
       renderFirstPersonVignette(ctx, playRect);
       renderWeaponHud(ctx, canvasSize, playerStatus.selectedWeapon, presentation.weaponHudPhase, onAssetLoad);
       const playerFacing = session.getPlayerFacing().dir;
@@ -166,10 +174,19 @@ export function renderGameFrame({
       return { needsFrame: false };
     case "verbMenu":
       renderVerbMenu(ctx, canvasSize, mode.selectedIndex, mode.hoverTarget, onAssetLoad);
-      return { needsFrame };
+      return frameResult(needsFrame, ambientOnly && !presentation.needsFrame);
     case "playing":
-      return { needsFrame };
+      return frameResult(needsFrame, ambientOnly && !presentation.needsFrame);
+    default: {
+      const _exhaustive: never = mode;
+      return _exhaustive;
+    }
   }
+}
+
+function frameResult(needsFrame: boolean, ambientOnly: boolean): GameFrameResult {
+  if (!needsFrame) return { needsFrame: false };
+  return { needsFrame: true, ambientOnly };
 }
 
 function renderOverlay(

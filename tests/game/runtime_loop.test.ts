@@ -60,7 +60,7 @@ Deno.test("runtime RAF callback clears the pending frame before requesting anoth
 Deno.test("runtime RAF skips work until the 35 fps budget elapses", () => {
   const window = new FakeWindow();
   let updateCount = 0;
-  let nowMs = 1_000;
+  const nowMs = 1_000;
   const originalNow = performance.now.bind(performance);
   Object.defineProperty(performance, "now", {
     configurable: true,
@@ -98,6 +98,65 @@ Deno.test("runtime RAF skips work until the 35 fps budget elapses", () => {
     Object.defineProperty(performance, "now", {
       configurable: true,
       value: originalNow,
+    });
+  }
+});
+
+Deno.test("runtime RAF uses a 12 fps budget for ambient-only first-person animation", () => {
+  const window = new FakeWindow();
+  let updateCount = 0;
+  const nowMs = 1_000;
+  const originalNow = performance.now.bind(performance);
+  Object.defineProperty(performance, "now", {
+    configurable: true,
+    value: () => nowMs,
+  });
+  const originalOffscreen = globalThis.OffscreenCanvas;
+  Object.defineProperty(globalThis, "OffscreenCanvas", {
+    configurable: true,
+    writable: true,
+    value: FakeOffscreenCanvas as unknown as typeof OffscreenCanvas,
+  });
+
+  try {
+    const runtime = createGameRuntimeLoop({
+      host: window as unknown as Window,
+      document: new FakeDocument() as unknown as Document,
+      ctx: new FakeContext() as unknown as CanvasRenderingContext2D,
+      signal: new AbortController().signal,
+      getModel: () => {
+        updateCount++;
+        return playingModel();
+      },
+      getSession: () => fakePlayingSession(),
+      dependencies: {
+        audio: new FakeAudioRuntime(),
+        firstPersonRenderer: fakeFirstPersonRenderer({ needsFrame: true, ambientOnly: true }),
+      },
+    });
+
+    runtime.start();
+    runtime.renderNow();
+    assertEquals(updateCount, 1);
+
+    // Still inside the ambient ~83 ms budget — reschedule without rendering.
+    window.runFrame(1, nowMs + 40);
+    assertEquals(updateCount, 1);
+    assertEquals(window.requestedFrameIds, [1, 2]);
+
+    // Past the ambient budget — render again.
+    window.runFrame(2, nowMs + 90);
+    assertEquals(updateCount, 2);
+    runtime[Symbol.dispose]();
+  } finally {
+    Object.defineProperty(performance, "now", {
+      configurable: true,
+      value: originalNow,
+    });
+    Object.defineProperty(globalThis, "OffscreenCanvas", {
+      configurable: true,
+      writable: true,
+      value: originalOffscreen,
     });
   }
 });
@@ -179,7 +238,17 @@ function modelWithoutFrame(): GameModel {
   return createGameModel("Level 1");
 }
 
-function fakeFirstPersonRenderer(): FirstPersonRenderer {
+function playingModel(): GameModel {
+  const model = createGameModel("Level 1");
+  return {
+    ...model,
+    mode: { type: "playing" },
+  };
+}
+
+function fakeFirstPersonRenderer(
+  result: { readonly needsFrame: boolean; readonly ambientOnly?: boolean } = { needsFrame: false },
+): FirstPersonRenderer {
   return {
     preloadAssets() {
       return Promise.resolve();
@@ -190,8 +259,28 @@ function fakeFirstPersonRenderer(): FirstPersonRenderer {
     reset() {},
     bump() {},
     render() {
-      return { needsFrame: false };
+      return result;
     },
+  };
+}
+
+function fakePlayingSession(): RuntimeSession {
+  return {
+    getPlayerPosition: () => ({ x: 0, y: 0 }),
+    getPlayerFacing: () => ({ dir: Direction.East }),
+    forEachSoundEmitter() {},
+    forEachEnemyIdleSoundSource() {},
+    getMap: () =>
+      createGameMap("Fake Map", [[1]], [], {
+        palette: [{ kind: "floor", id: 1, color: "#000000", floor_texture: "floor", ceiling_texture: "ceiling" }],
+      }),
+    getPlayerStatus: () => playerSnapshot(),
+    getVisibility: () => ({ isVisible: () => false, isExplored: () => false }),
+    forEachDrawable() {},
+    forEachLight() {},
+    targetMarkerTone: () => undefined,
+    tick: () => ({ needsFrame: false }),
+    getPlayerEntity: () => 1 as Entity,
   };
 }
 
@@ -328,8 +417,48 @@ class FakeWindow {
 }
 
 class FakeDocument {
-  createElement(tagName: string): unknown {
-    throw new Error(`Unexpected element ${tagName}.`);
+  createElement(tagName: string): FakeImage {
+    if (tagName !== "img") throw new Error(`Unexpected element ${tagName}.`);
+    return new FakeImage();
+  }
+}
+
+class FakeImage {
+  decoding: "async" | "auto" | "sync" = "auto";
+  src = "";
+  onload: ((event: Event) => void) | null = null;
+  onerror: ((event: Event) => void) | null = null;
+
+  addEventListener(): void {}
+  decode(): Promise<void> {
+    return Promise.resolve();
+  }
+}
+
+class FakeOffscreenContext {
+  fillStyle: string | CanvasGradient | CanvasPattern = "";
+
+  createRadialGradient(): CanvasGradient {
+    return {
+      addColorStop() {},
+    } as unknown as CanvasGradient;
+  }
+
+  fillRect(): void {}
+}
+
+class FakeOffscreenCanvas {
+  readonly width: number;
+  readonly height: number;
+  private readonly context = new FakeOffscreenContext();
+
+  constructor(width: number, height: number) {
+    this.width = width;
+    this.height = height;
+  }
+
+  getContext(contextId: string): FakeOffscreenContext | null {
+    return contextId === "2d" ? this.context : null;
   }
 }
 
@@ -337,13 +466,35 @@ class FakeContext {
   readonly canvas = { ownerDocument: new FakeDocument() };
   fillStyle: string | CanvasGradient | CanvasPattern = "";
   font = "";
+  globalAlpha = 1;
+  globalCompositeOperation: GlobalCompositeOperation = "source-over";
+  imageSmoothingEnabled = true;
+  lineCap: CanvasLineCap = "butt";
+  lineWidth = 1;
+  strokeStyle: string | CanvasGradient | CanvasPattern = "";
   textAlign: CanvasTextAlign = "start";
   textBaseline: CanvasTextBaseline = "alphabetic";
 
+  beginPath(): void {}
+  closePath(): void {}
+  clip(): void {}
+  createRadialGradient(): CanvasGradient {
+    return {
+      addColorStop() {},
+    } as unknown as CanvasGradient;
+  }
+  drawImage(): void {}
+  ellipse(): void {}
+  fill(): void {}
   fillRect(): void {}
   fillText(): void {}
-  save(): void {}
+  lineTo(): void {}
+  moveTo(): void {}
+  rect(): void {}
   restore(): void {}
+  save(): void {}
+  stroke(): void {}
+  strokeRect(): void {}
 
   measureText(text: string): TextMetrics {
     return { width: text.length * 8 } as TextMetrics;

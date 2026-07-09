@@ -103,6 +103,44 @@ Deno.test("renderGameFrame requests the help image in help mode", () => {
   assert(document.images.some((image) => image.src.endsWith("/assets/game/help.png")));
 });
 
+Deno.test("renderGameFrame skips the background clear before opaque first-person blit", () => {
+  withFakeOffscreenCanvas((): void => {
+    const ctx = new FakeGameContext();
+
+    renderGameFrame({
+      ctx: ctx as unknown as CanvasRenderingContext2D,
+      canvasSize: FULL_CANVAS,
+      session: fakeSession(),
+      mode: { type: "playing" },
+      firstPersonRenderer: fakeFirstPersonRenderer(),
+    });
+
+    assertEquals(
+      ctx.fillRects.some((call) =>
+        call.fillStyle === "#101217" && call.rect.width === 720 && call.rect.height === 1280
+      ),
+      false,
+    );
+  });
+});
+
+Deno.test("renderGameFrame clears the background for non-opaque modes", () => {
+  const ctx = new FakeGameContext();
+
+  renderGameFrame({
+    ctx: ctx as unknown as CanvasRenderingContext2D,
+    canvasSize: FULL_CANVAS,
+    session: fakeSession(),
+    mode: { type: "paused" },
+    firstPersonRenderer: fakeFirstPersonRenderer(),
+  });
+
+  assertEquals(
+    ctx.fillRects.some((call) => call.fillStyle === "#101217" && call.rect.width === 720 && call.rect.height === 1280),
+    true,
+  );
+});
+
 Deno.test("renderGameFrame returns first-person renderer frame demand", () => {
   const result = renderGameFrame({
     ctx: new FakeGameContext() as unknown as CanvasRenderingContext2D,
@@ -113,10 +151,23 @@ Deno.test("renderGameFrame returns first-person renderer frame demand", () => {
     nowMs: 240,
   });
 
-  assertEquals(result, { needsFrame: true });
+  assertEquals(result, { needsFrame: true, ambientOnly: false });
 });
 
-function fakeFirstPersonRenderer(needsFrame = false): FirstPersonRenderer {
+Deno.test("renderGameFrame propagates ambient-only first-person frame demand", () => {
+  const result = renderGameFrame({
+    ctx: new FakeGameContext() as unknown as CanvasRenderingContext2D,
+    canvasSize: FULL_CANVAS,
+    session: fakeSession(),
+    mode: { type: "playing" },
+    firstPersonRenderer: fakeFirstPersonRenderer(true, true),
+    nowMs: 240,
+  });
+
+  assertEquals(result, { needsFrame: true, ambientOnly: true });
+});
+
+function fakeFirstPersonRenderer(needsFrame = false, ambientOnly = false): FirstPersonRenderer {
   return {
     preloadAssets: () => Promise.resolve(),
     sceneForMap(): never {
@@ -124,7 +175,7 @@ function fakeFirstPersonRenderer(needsFrame = false): FirstPersonRenderer {
     },
     reset(): void {},
     bump(): void {},
-    render: () => ({ needsFrame }),
+    render: () => ({ needsFrame, ambientOnly: needsFrame ? ambientOnly : undefined }),
   };
 }
 
