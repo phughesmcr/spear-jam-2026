@@ -1,17 +1,18 @@
-import type { FrameRenderSession } from "@/src/game/session_ports.ts";
 import type { PresentationView } from "@/src/game/presentation.ts";
+import type { FrameRenderSession } from "@/src/game/session_ports.ts";
 import type { GameMode, ViewMode } from "@/src/game/state.ts";
+import { playerWeaponSpec } from "@/src/game/weapons.ts";
 import type { GameCanvasSize } from "@/src/render/canvas.ts";
 import {
   preloadCombatFeedbackAssets,
   renderCombatFeedback,
   renderFirstPersonCombatFeedback,
 } from "@/src/render/combat_feedback.ts";
-import { renderDrawableEntities } from "@/src/render/drawables.ts";
 import { preloadDialogueAssets, renderDialogue } from "@/src/render/dialogue.ts";
+import { renderDrawableEntities } from "@/src/render/drawables.ts";
 import type { FirstPersonRenderer } from "@/src/render/first_person.ts";
-import { preloadHudAssets, renderFirstPersonHud, renderHud } from "@/src/render/hud.ts";
 import { preloadHelpAssets, renderHelp } from "@/src/render/help.ts";
+import { preloadHudAssets, renderFirstPersonHud, renderHud } from "@/src/render/hud.ts";
 import { renderIntermission } from "@/src/render/intermission.ts";
 import { renderMap } from "@/src/render/map.ts";
 import { renderMessageLog } from "@/src/render/messages.ts";
@@ -104,6 +105,7 @@ export function renderGameFrame({
         nowMs,
         session.targetMarkerTone(),
         onAssetLoad,
+        playerWeaponSpec(playerStatus.selectedWeapon).range,
       );
       needsFrame ||= firstPersonResult.needsFrame;
       renderFirstPersonVignette(ctx, playRect);

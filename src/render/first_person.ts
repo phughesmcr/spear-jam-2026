@@ -18,8 +18,8 @@ import {
   DrawableKind,
   type LightEntityVisitor,
 } from "@/src/ecs/drawables.ts";
-import { type CardinalDirection, directionDelta, normalizeDirection } from "@/src/grid/direction.ts";
 import type { TargetMarkerTone } from "@/src/game/state.ts";
+import { type CardinalDirection, directionDelta, normalizeDirection } from "@/src/grid/direction.ts";
 import type { GameMap, TexturePackRef } from "@/src/map/map.ts";
 import {
   bakeLoadedAssets,
@@ -37,6 +37,7 @@ import {
   updateSceneLights,
 } from "@/src/render/first_person_scene.ts";
 import { cameraForAngle, clearSceneDynamic, type RaycastScene } from "@/src/render/raycast/scene.ts";
+import { createRaycastView, type ViewRect } from "@/src/render/raycast/view.ts";
 import {
   createNudgeTween,
   createPoseTween,
@@ -53,7 +54,6 @@ import {
   type SpriteTween,
   startNudgeTween,
 } from "@/src/render/tween.ts";
-import { createRaycastView, type ViewRect } from "@/src/render/raycast/view.ts";
 
 export interface FirstPersonRenderSession {
   getMap(): GameMap;
@@ -78,6 +78,7 @@ export interface FirstPersonRenderer {
     nowMs: number,
     targetTone?: TargetMarkerTone,
     onAssetLoad?: () => void,
+    healthBarMaxDistance?: number,
   ): FirstPersonRenderResult;
 }
 
@@ -124,8 +125,8 @@ export function createFirstPersonRenderer(): FirstPersonRenderer {
     bump(dirX, dirY, nowMs) {
       bumpFirstPersonRenderer(state, dirX, dirY, nowMs);
     },
-    render(ctx, rect, session, nowMs, targetTone, onAssetLoad) {
-      return renderFirstPersonView(state, ctx, rect, session, nowMs, targetTone, onAssetLoad);
+    render(ctx, rect, session, nowMs, targetTone, onAssetLoad, healthBarMaxDistance) {
+      return renderFirstPersonView(state, ctx, rect, session, nowMs, targetTone, onAssetLoad, healthBarMaxDistance);
     },
   };
 }
@@ -159,6 +160,7 @@ function renderFirstPersonView(
   nowMs: number,
   targetTone?: TargetMarkerTone,
   onAssetLoad?: () => void,
+  healthBarMaxDistance = 0,
 ): FirstPersonRenderResult {
   const map = session.getMap();
   const scene = sceneForMapForState(state, map);
@@ -216,6 +218,7 @@ function renderFirstPersonView(
     ),
     headBobFraction(state.poseSample),
     nowMs,
+    healthBarMaxDistance,
   );
 
   if (targetTone !== undefined) drawTargetHighlight(ctx, rect, targetTone);

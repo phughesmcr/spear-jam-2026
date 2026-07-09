@@ -1,4 +1,4 @@
-import { assert, assertAlmostEquals, assertEquals, assertNotEquals, assertThrows } from "@std/assert";
+import type { RaycastAtlas, RaycastScene } from "@/src/render/raycast/scene.ts";
 import {
   addSlidingSolidWall,
   addSprite,
@@ -14,9 +14,9 @@ import {
   THIN_SLIDE_NEG,
   THIN_SLIDE_UP,
 } from "@/src/render/raycast/scene.ts";
-import type { RaycastAtlas, RaycastScene } from "@/src/render/raycast/scene.ts";
-import { bakeSolidTexture, bakeTexture, TEX_SIZE } from "@/src/render/raycast/textures.ts";
 import type { TexelSource } from "@/src/render/raycast/textures.ts";
+import { bakeSolidTexture, bakeTexture, TEX_SIZE } from "@/src/render/raycast/textures.ts";
+import { assert, assertAlmostEquals, assertEquals, assertNotEquals, assertThrows } from "@std/assert";
 
 const VIEW = 64;
 const CENTER = VIEW >> 1;
@@ -558,10 +558,27 @@ Deno.test("renderFrame draws compact health bars above sprites with health", () 
   addSprite(scene, 2.5, 1.5, SPRITE, 1, 0, 1, 5, 10);
   const frame = createFrame(VIEW, VIEW);
 
-  renderFrame(frame, scene, atlas, CAMERA);
+  // Sprite is 1 tile ahead; pistol range (4) covers it.
+  renderFrame(frame, scene, atlas, CAMERA, 0, 4);
 
   assertEquals(rgba(pixel(frame, CENTER - 8, 4)), [34, 197, 94, 255]);
   assertEquals(rgba(pixel(frame, CENTER + 8, 4)), [127, 29, 29, 255]);
+});
+
+Deno.test("renderFrame omits health bars for sprites beyond the weapon range", () => {
+  const atlas = testAtlas();
+  const withHealth = corridorScene();
+  const withoutHealth = corridorScene();
+  // Camera at (1.5, 1.5); sprite at (3.5, 1.5) is 2 tiles away — outside melee range (1).
+  addSprite(withHealth, 3.5, 1.5, SPRITE, 1, 0, 1, 5, 10);
+  addSprite(withoutHealth, 3.5, 1.5, SPRITE, 1, 0, 1);
+  const healthFrame = createFrame(VIEW, VIEW);
+  const plainFrame = createFrame(VIEW, VIEW);
+
+  renderFrame(healthFrame, withHealth, atlas, CAMERA, 0, 1);
+  renderFrame(plainFrame, withoutHealth, atlas, CAMERA, 0, 1);
+
+  assertEquals(healthFrame.pixels, plainFrame.pixels);
 });
 
 Deno.test("a horizontally sliding door passes rays through the gap", () => {

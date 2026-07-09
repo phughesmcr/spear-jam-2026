@@ -8,6 +8,7 @@
  * interleave correctly with the sprites behind and in front of them.
  */
 
+import { flushThinHits } from "@/src/render/raycast/cast_walls.ts";
 import {
   CAMERA_HEIGHT,
   FIXED_ONE,
@@ -19,7 +20,6 @@ import {
   shadeBand,
 } from "@/src/render/raycast/scene_data.ts";
 import { TRANSPARENT_TEXEL } from "@/src/render/raycast/textures.ts";
-import { flushThinHits } from "@/src/render/raycast/cast_walls.ts";
 
 const MIN_SPRITE_DISTANCE = 0.05;
 const SPRITE_EMISSIVE_GAIN = 2;
@@ -65,6 +65,7 @@ export function renderSpritesAndThinWalls(
   atlas: RaycastAtlas,
   camera: RaycastCamera,
   focal: number,
+  healthBarMaxDistance: number,
 ): void {
   const width = frame.width;
 
@@ -77,10 +78,13 @@ export function renderSpritesAndThinWalls(
   const visible = projectSprites(frame, scene, camera);
   for (let order = 0; order < visible; order++) {
     const sprite = frame.spriteOrder[order]!;
-    const spriteCellX = scene.spriteX[sprite]! | 0;
-    const spriteCellY = scene.spriteY[sprite]! | 0;
+    const spriteX = scene.spriteX[sprite]!;
+    const spriteY = scene.spriteY[sprite]!;
+    const spriteCellX = spriteX | 0;
+    const spriteCellY = spriteY | 0;
     const spriteCell = spriteCellY * scene.mapWidth + spriteCellX;
     const lit = spriteCellX >= 0 && spriteCellY >= 0 && spriteCellX < scene.mapWidth && spriteCellY < scene.mapHeight;
+    const distance = Math.hypot(spriteX - camera.x, spriteY - camera.y);
     drawSprite(
       frame,
       atlas,
@@ -91,6 +95,8 @@ export function renderSpritesAndThinWalls(
       scene.spriteWidth[sprite]!,
       scene.spriteHeight[sprite]!,
       scene.spriteElevation[sprite]!,
+      distance,
+      healthBarMaxDistance,
       scene.spriteHealthCurrent[sprite]!,
       scene.spriteHealthMax[sprite]!,
       lit ? scene.lightRed[spriteCell]! : 255,
@@ -143,6 +149,8 @@ function drawSprite(
   widthScale: number,
   heightScale: number,
   elevation: number,
+  distance: number,
+  healthBarMaxDistance: number,
   healthCurrent: number,
   healthMax: number,
   lightRed: number,
@@ -167,7 +175,8 @@ function drawSprite(
   const top = bottom - spriteHeight;
   const left = screenX - spriteWidth * 0.5;
   const healthRatio = healthRatioFor(healthCurrent, healthMax);
-  const healthBarWidth = spriteWidth >= HEALTH_BAR_MIN_WIDTH && healthMax > 0 ?
+  const healthBarWidth = spriteWidth >= HEALTH_BAR_MIN_WIDTH && healthMax > 0 &&
+      distance <= healthBarMaxDistance ?
     Math.max(
       HEALTH_BAR_MIN_WIDTH,
       Math.min(HEALTH_BAR_MAX_WIDTH, Math.round(spriteWidth * HEALTH_BAR_WIDTH_FRACTION)),

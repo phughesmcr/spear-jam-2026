@@ -1,4 +1,3 @@
-import type { Entity, World } from "@phughesmcr/miski";
 import {
   Health,
   type HealthSchema,
@@ -28,6 +27,7 @@ import {
 } from "@/src/game/story.ts";
 import { playerWeaponSpec } from "@/src/game/weapons.ts";
 import { KeyColor, type KeyColor as KeyColorType, keyColorCode } from "@/src/map/map.ts";
+import type { Entity, World } from "@phughesmcr/miski";
 
 const ENEMY_DEFEAT_CREDITS = 10;
 const DEFAULT_PLAYER_WEAPON: CommandSlot = 1;
@@ -44,9 +44,31 @@ export const DEFAULT_PLAYER_INVENTORY: PlayerInventorySchema = {
   cannonAmmo: 0,
 };
 
+const KEY_COLOR_ORDER: readonly KeyColorType[] = [
+  KeyColor.Red,
+  KeyColor.Blue,
+  KeyColor.Yellow,
+];
+
+const WEAPON_SLOT_ORDER: readonly CommandSlot[] = [1, 2, 3];
+
 export const DEFAULT_PLAYER_EQUIPMENT: PlayerEquipmentSchema = {
   selectedWeapon: DEFAULT_PLAYER_WEAPON,
   unlockedWeaponMask: weaponBit(DEFAULT_PLAYER_WEAPON),
+};
+
+/** Generous ammo stock for the `?cheat` start loadout (no hard ammo cap in play). */
+export const CHEAT_PLAYER_AMMO = 99;
+
+export const CHEAT_PLAYER_INVENTORY: PlayerInventorySchema = {
+  ...DEFAULT_PLAYER_INVENTORY,
+  pistolAmmo: CHEAT_PLAYER_AMMO,
+  cannonAmmo: CHEAT_PLAYER_AMMO,
+};
+
+export const CHEAT_PLAYER_EQUIPMENT: PlayerEquipmentSchema = {
+  selectedWeapon: DEFAULT_PLAYER_WEAPON,
+  unlockedWeaponMask: WEAPON_SLOT_ORDER.reduce((mask, slot) => mask | weaponBit(slot), 0),
 };
 
 export const DEFAULT_PLAYER_PROGRESS: PlayerProgressSchema = {
@@ -55,14 +77,6 @@ export const DEFAULT_PLAYER_PROGRESS: PlayerProgressSchema = {
   xp: 0,
   levelCredits: 0,
 };
-
-const KEY_COLOR_ORDER: readonly KeyColorType[] = [
-  KeyColor.Red,
-  KeyColor.Blue,
-  KeyColor.Yellow,
-];
-
-const WEAPON_SLOT_ORDER: readonly CommandSlot[] = [1, 2, 3];
 
 export type PlayerProgressionCheckpoint = {
   readonly health: HealthSchema;
@@ -78,6 +92,13 @@ export function resetPlayerProgression(world: World, playerEntity: Entity): void
   world.components.setEntityData(PlayerEquipment, playerEntity, DEFAULT_PLAYER_EQUIPMENT);
   world.components.setEntityData(PlayerProgress, playerEntity, DEFAULT_PLAYER_PROGRESS);
   world.components.setEntityData(StoryFlags, playerEntity, { mask: 0 });
+}
+
+/** Full health, all weapons, and cheat ammo — used when the URL has `?cheat`. */
+export function applyCheatPlayerLoadout(world: World, playerEntity: Entity): void {
+  world.components.setEntityData(Health, playerEntity, DEFAULT_PLAYER_HEALTH);
+  world.components.setEntityData(PlayerInventory, playerEntity, CHEAT_PLAYER_INVENTORY);
+  world.components.setEntityData(PlayerEquipment, playerEntity, CHEAT_PLAYER_EQUIPMENT);
 }
 
 export function playerStoryFlags(world: World, playerEntity: Entity): readonly StoryFlag[] {

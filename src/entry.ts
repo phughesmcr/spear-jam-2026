@@ -28,6 +28,7 @@ export interface GameSpec {
   canvas: HTMLCanvasElement;
   seed: number;
   startMapName?: string;
+  cheat?: boolean;
   host: Window;
 }
 
@@ -98,6 +99,7 @@ class Game implements Disposable {
       mapName,
       currentSession: this.session,
       random: () => this.rng.nextFloat(),
+      cheat: this.spec.cheat,
     });
     if (result === undefined) return;
 

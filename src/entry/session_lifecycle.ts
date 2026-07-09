@@ -1,4 +1,4 @@
-import { createGameSession, type GameSession } from "@/src/ecs/session.ts";
+import { createGameSession, type GameSession, type GameSessionOptions } from "@/src/ecs/session.ts";
 import type { RandomSource } from "@/src/game/rng.ts";
 import { getMap } from "@/src/map/maps.ts";
 
@@ -7,7 +7,7 @@ export type SessionLifecycleSpec = {
   readonly preloadAssets: () => Promise<void>;
 };
 
-export type LoadMapSessionSpec = SessionLifecycleSpec & {
+export type LoadMapSessionSpec = SessionLifecycleSpec & GameSessionOptions & {
   readonly mapName: string;
   readonly currentSession?: GameSession;
   readonly random: RandomSource;
@@ -31,7 +31,7 @@ export async function loadMapSession(spec: LoadMapSessionSpec): Promise<SessionL
   try {
     await preloadSessionAssets(spec);
     if (currentSession === undefined) {
-      createdSession = await createGameSession(map, spec.random);
+      createdSession = await createGameSession(map, spec.random, { cheat: spec.cheat });
       loadedSession = createdSession;
     } else {
       currentSession.loadMap(map);

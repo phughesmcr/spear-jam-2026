@@ -1,4 +1,3 @@
-import type { Entity, World } from "@phughesmcr/miski";
 import {
   DialogueTreeRef,
   DisplayNameComponent,
@@ -11,7 +10,6 @@ import {
   StoryTarget,
   TerminalDestination,
 } from "@/src/ecs/components.ts";
-import { normalizeDirection } from "@/src/grid/direction.ts";
 import {
   createDrawableRenderScratch,
   createLightEntityScratch,
@@ -21,15 +19,8 @@ import {
   lightSystem,
 } from "@/src/ecs/drawables.ts";
 import { createPlayer } from "@/src/ecs/prefabs.ts";
-import { mapScopedQuery, positionedQuery } from "@/src/ecs/queries.ts";
-import type { SpatialIndex } from "@/src/ecs/spatial.ts";
-import { targetMarkerTone } from "@/src/ecs/turn/player.ts";
-import { runTurnTransaction, type TurnTransactionResult } from "@/src/ecs/turn/transaction.ts";
-import type { TurnContext } from "@/src/ecs/turn/actions.ts";
-import { createWorld } from "@/src/ecs/world.ts";
-import type { PlayerCommand, PlayerCommandResult } from "@/src/game/commands.ts";
-import type { GameEvent } from "@/src/game/events.ts";
 import {
+  applyCheatPlayerLoadout,
   capturePlayerProgressionCheckpoint,
   clearTransientPlayerState,
   completePlayerLevel,
@@ -40,23 +31,14 @@ import {
   restorePlayerProgressionCheckpoint,
   selectedPlayerWeapon,
 } from "@/src/ecs/progression.ts";
-import type { PlayerStatusSnapshot } from "@/src/game/state.ts";
+import { mapScopedQuery, positionedQuery } from "@/src/ecs/queries.ts";
 import {
-  createEnemyIdleSoundSourceScratch,
-  createSoundEmitterScratch,
-  enemyIdleSoundSourceSystem,
-  type EnemyIdleSoundSourceVisitor,
-  soundEmitterSystem,
-  type SoundEmitterVisitor,
-} from "@/src/ecs/sounds.ts";
-import type { RandomSource } from "@/src/game/rng.ts";
-import type { SoundCue } from "@/src/game/sound.ts";
-import { soundCuesForEvents } from "@/src/game/sound_cues.ts";
-import type { TargetMarkerTone } from "@/src/game/state.ts";
-import type { StoryEventId, StoryFlag } from "@/src/game/story.ts";
-import type { TileVisibility, VisibilityMap } from "@/src/game/visibility.ts";
-import { playerWeaponSpec } from "@/src/game/weapons.ts";
-import { type EntityDef, type GameMap, VICTORY_GOTO } from "@/src/map/map.ts";
+  playerSpawnFor,
+  rebuildRuntimeState,
+  refreshVisibility,
+  replaceMapContent,
+  spawnMapScopedEntities,
+} from "@/src/ecs/session/lifecycle.ts";
 import {
   actorPositionSnapshot,
   advanceAnimations,
@@ -65,14 +47,32 @@ import {
   setAnimation,
   writeDefeatEffect,
 } from "@/src/ecs/session/sprite_animations.ts";
-import {
-  playerSpawnFor,
-  rebuildRuntimeState,
-  refreshVisibility,
-  replaceMapContent,
-  spawnMapScopedEntities,
-} from "@/src/ecs/session/lifecycle.ts";
 import { applyEvent, assertUniqueTargets, queueTalkEvent } from "@/src/ecs/session/story_actions.ts";
+import {
+  createEnemyIdleSoundSourceScratch,
+  createSoundEmitterScratch,
+  enemyIdleSoundSourceSystem,
+  type EnemyIdleSoundSourceVisitor,
+  soundEmitterSystem,
+  type SoundEmitterVisitor,
+} from "@/src/ecs/sounds.ts";
+import type { SpatialIndex } from "@/src/ecs/spatial.ts";
+import type { TurnContext } from "@/src/ecs/turn/actions.ts";
+import { targetMarkerTone } from "@/src/ecs/turn/player.ts";
+import { runTurnTransaction, type TurnTransactionResult } from "@/src/ecs/turn/transaction.ts";
+import { createWorld } from "@/src/ecs/world.ts";
+import type { PlayerCommand, PlayerCommandResult } from "@/src/game/commands.ts";
+import type { GameEvent } from "@/src/game/events.ts";
+import type { RandomSource } from "@/src/game/rng.ts";
+import type { SoundCue } from "@/src/game/sound.ts";
+import { soundCuesForEvents } from "@/src/game/sound_cues.ts";
+import type { PlayerStatusSnapshot, TargetMarkerTone } from "@/src/game/state.ts";
+import type { StoryEventId, StoryFlag } from "@/src/game/story.ts";
+import type { TileVisibility, VisibilityMap } from "@/src/game/visibility.ts";
+import { playerWeaponSpec } from "@/src/game/weapons.ts";
+import { normalizeDirection } from "@/src/grid/direction.ts";
+import { type EntityDef, type GameMap, VICTORY_GOTO } from "@/src/map/map.ts";
+import type { Entity, World } from "@phughesmcr/miski";
 
 const UNCHANGED_PLAYER_COMMAND: PlayerCommandResult = Object.freeze({
   type: "continue",
@@ -101,20 +101,28 @@ export type MapScopedMetadataSnapshot = Partial<{
   readonly terminalDestination: number;
 }>;
 
+export type GameSessionOptions = {
+  readonly cheat?: boolean;
+};
+
 export async function createGameSession(
   map: GameMap,
   random: RandomSource,
+  options: GameSessionOptions = {},
 ): Promise<GameSession> {
   const world = await createWorld();
 
   try {
     const playerEntity = createPlayer(world, playerSpawnFor(map));
+    if (options.cheat) {
+      applyCheatPlayerLoadout(world, playerEntity);
+    }
     spawnMapScopedEntities(world, map);
 
     world.refresh();
     assertUniqueTargets(world);
 
-    return new GameSession(world, playerEntity, map, random);
+    return new GameSession(world, playerEntity, map, random, options);
   } catch (error) {
     await world.destroy();
     throw error;
@@ -126,6 +134,7 @@ export class GameSession implements Disposable {
   private readonly playerEntity: Entity;
   private currentMap: GameMap;
   private readonly random: RandomSource;
+  private readonly cheat: boolean;
   readonly forEachDrawable: (visit: DrawableEntityVisitor) => void;
   readonly forEachLight: (visit: LightEntityVisitor) => void;
   readonly forEachSoundEmitter: (visit: SoundEmitterVisitor) => void;
@@ -141,11 +150,13 @@ export class GameSession implements Disposable {
     playerEntity: Entity,
     map: GameMap,
     random: RandomSource,
+    options: GameSessionOptions = {},
   ) {
     this.world = world;
     this.playerEntity = playerEntity;
     this.currentMap = map;
     this.random = random;
+    this.cheat = options.cheat === true;
     this.forEachDrawable = boundScratchSystem(world.systems.create(drawableSystem), createDrawableRenderScratch());
     this.forEachLight = boundScratchSystem(world.systems.create(lightSystem), createLightEntityScratch());
     this.forEachSoundEmitter = boundScratchSystem(
@@ -233,6 +244,9 @@ export class GameSession implements Disposable {
 
   resetRun(map: GameMap): void {
     resetPlayerProgression(this.world, this.playerEntity);
+    if (this.cheat) {
+      applyCheatPlayerLoadout(this.world, this.playerEntity);
+    }
     this.pendingDialogueStoryEvent = undefined;
     this.currentMap = map;
     this.replaceMapContent(map);

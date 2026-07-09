@@ -1,11 +1,12 @@
-import { assertEquals } from "@std/assert";
-import type { Entity } from "@phughesmcr/miski";
 import { Health, PlayerEquipment, PlayerInventory, PlayerProgress } from "@/src/ecs/components.ts";
+import { createPlayer } from "@/src/ecs/prefabs.ts";
 import {
   addPlayerStoryFlag,
+  applyCheatPlayerLoadout,
   applyItemPickupToPlayer,
   awardCreditsForDefeats,
   capturePlayerProgressionCheckpoint,
+  CHEAT_PLAYER_AMMO,
   clearTransientPlayerState,
   completePlayerLevel,
   playerStatusSnapshotFor,
@@ -16,10 +17,11 @@ import {
   selectPlayerWeapon,
   spendPlayerAmmo,
 } from "@/src/ecs/progression.ts";
-import { createPlayer } from "@/src/ecs/prefabs.ts";
 import { createWorld } from "@/src/ecs/world.ts";
 import { StoryFlag } from "@/src/game/story.ts";
 import { KeyColor } from "@/src/map/map.ts";
+import type { Entity } from "@phughesmcr/miski";
+import { assertEquals } from "@std/assert";
 
 Deno.test("player progression reset restores default ECS components", async () => {
   const world = await createWorld();
@@ -52,6 +54,24 @@ Deno.test("player progression reset restores default ECS components", async () =
   assertEquals(world.components.getEntityData(Health, player), {
     current: 10,
     max: 10,
+  });
+});
+
+Deno.test("cheat loadout grants full health, all weapons, and ammo", async () => {
+  const world = await createWorld();
+  const player = createProgressionPlayer(world);
+
+  world.components.setEntityData(Health, player, { current: 2, max: 10 });
+  applyCheatPlayerLoadout(world, player);
+
+  assertEquals(playerStatusSnapshotFor(world, player), {
+    heldKeys: [],
+    selectedWeapon: 1,
+    unlockedWeapons: [1, 2, 3],
+    ammo: { pistol: CHEAT_PLAYER_AMMO, cannon: CHEAT_PLAYER_AMMO },
+    health: { current: 10, max: 10 },
+    hasUplinkCode: false,
+    progress: { credits: 0, score: 0, xp: 0, levelCredits: 0 },
   });
 });
 

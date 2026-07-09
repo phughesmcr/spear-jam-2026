@@ -8,11 +8,12 @@ export default define.page(function Home(ctx) {
   );
   const seed = Number.isFinite(seedParam) ? seedParam : 42;
   const mapName = ctx.url.searchParams.get("map") ?? undefined;
+  const cheat = ctx.url.searchParams.has("cheat");
   ctx.state.seed = seed;
 
   return (
     <main id="stage">
-      <Game seed={seed} startMapName={mapName} />
+      <Game seed={seed} startMapName={mapName} cheat={cheat} />
     </main>
   );
 });

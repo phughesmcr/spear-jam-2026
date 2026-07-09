@@ -54,6 +54,7 @@ export type RaycastView = {
     camera: RaycastCamera,
     verticalOffsetFraction?: number,
     nowMs?: number,
+    healthBarMaxDistance?: number,
   ): void;
 };
 
@@ -89,12 +90,12 @@ export function createRaycastView(): RaycastView {
   };
 
   return {
-    render(ctx, rect, scene, atlas, camera, verticalOffsetFraction = 0, nowMs = 0): void {
+    render(ctx, rect, scene, atlas, camera, verticalOffsetFraction = 0, nowMs = 0, healthBarMaxDistance = 0): void {
       const frameSize = internalFrameSize(rect);
       const view = ensureBuffers(frameSize.width, frameSize.height, scene.spriteX.length);
       if (view === undefined) return;
 
-      renderFrame(view.frame, scene, atlas, camera, nowMs);
+      renderFrame(view.frame, scene, atlas, camera, nowMs, healthBarMaxDistance);
       view.context.putImageData(view.imageData, 0, 0);
 
       let cropTop = OVERSCAN_ROWS - Math.round(verticalOffsetFraction * frameSize.cropHeight);

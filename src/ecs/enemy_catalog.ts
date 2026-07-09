@@ -1,4 +1,3 @@
-import { type AttackDef, AttackFacingRequirement, AttackPattern, AttackTargetMode } from "@/src/game/attack.ts";
 import {
   DEFAULT_ENEMY_ARCHETYPE,
   ENEMY_ARCHETYPE_CODES,
@@ -8,6 +7,7 @@ import {
   enemyArchetypeForAuthoringKey,
   enemyArchetypeForCode,
 } from "@/src/content/enemies.ts";
+import { type AttackDef, AttackFacingRequirement, AttackPattern, AttackTargetMode } from "@/src/game/attack.ts";
 import { DisplayName } from "@/src/game/names.ts";
 import { SoundId, type SoundId as SoundIdType } from "@/src/game/sound.ts";
 
@@ -79,18 +79,18 @@ export const ENEMY_CATALOG = {
     },
     behavior: {
       alert: { type: "advance", steps: 2, attackAfterMove: true },
-      investigate: { type: "move", steps: 2 },
+      investigate: { type: "move", steps: 1 },
     },
     idleSound: DEFAULT_ENEMY_IDLE_SOUND,
   },
   [EnemyArchetype.Gunslinger]: {
     displayName: DisplayName.GigabitGunslinger,
-    health: 2,
+    health: 3,
     hitDc: 10,
     damage: 1,
     attack: {
       attackBonus: 3,
-      range: 4,
+      range: 3,
     },
     behavior: {
       alert: { type: "skirmish", retreatRange: 1, advanceSteps: 1 },
@@ -100,14 +100,17 @@ export const ENEMY_CATALOG = {
   },
   [EnemyArchetype.NetworkNeophyte]: {
     displayName: DisplayName.NetworkNeophyte,
-    health: 3,
+    health: 4,
     hitDc: 10,
     damage: 1,
     attack: {
       attackBonus: 2,
-      range: 1,
+      range: 3,
     },
-    behavior: DEFAULT_ENEMY_BEHAVIOR_POLICY,
+    behavior: {
+      alert: { type: "skirmish", retreatRange: 1, advanceSteps: 1 },
+      investigate: { type: "move", steps: 1 },
+    },
     idleSound: DEFAULT_ENEMY_IDLE_SOUND,
   },
   [EnemyArchetype.SystemSentinel]: {
@@ -120,7 +123,7 @@ export const ENEMY_CATALOG = {
       range: 1,
     },
     behavior: {
-      alert: { type: "hold" },
+      alert: { type: "advance", steps: 1, attackAfterMove: false },
       investigate: { type: "watch" },
     },
     idleSound: DEFAULT_ENEMY_IDLE_SOUND,
@@ -137,7 +140,10 @@ export const ENEMY_CATALOG = {
       pattern: AttackPattern.Adjacent,
       targets: AttackTargetMode.All,
     },
-    behavior: DEFAULT_ENEMY_BEHAVIOR_POLICY,
+    behavior: {
+      alert: { type: "advance", steps: 1, attackAfterMove: true },
+      investigate: { type: "move", steps: 1 },
+    },
     idleSound: DEFAULT_ENEMY_IDLE_SOUND,
   },
 } as const satisfies Readonly<Record<EnemyArchetypeType, EnemyCatalogEntry>>;

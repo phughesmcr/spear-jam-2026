@@ -1,18 +1,18 @@
-import { assert, assertEquals, assertRejects } from "@std/assert";
-import { SPRITE_ATTACK_MS, SPRITE_DEATH_MS, SPRITE_WALK_MS, SpriteAnimationKind } from "@/src/ecs/components.ts";
-import { DrawableKind, SpriteId } from "@/src/ecs/drawables.ts";
-import type { ActorDrawableEntity, DrawableEntity } from "@/src/ecs/drawables.ts";
-import { createGameSession } from "@/src/ecs/session.ts";
 import { dialogueTreeCode, DialogueTreeId } from "@/src/dialogue/dialogue.ts";
+import { SPRITE_ATTACK_MS, SPRITE_DEATH_MS, SPRITE_WALK_MS, SpriteAnimationKind } from "@/src/ecs/components.ts";
+import type { ActorDrawableEntity, DrawableEntity } from "@/src/ecs/drawables.ts";
+import { DrawableKind, SpriteId } from "@/src/ecs/drawables.ts";
+import { createGameSession } from "@/src/ecs/session.ts";
 import type { PlayerCommandResult } from "@/src/game/commands.ts";
 import { DisplayName, displayNameCode } from "@/src/game/names.ts";
 import { type EnemyIdleSoundSource, type SoundEmitterSnapshot, SoundId } from "@/src/game/sound.ts";
 import { storyEventCode, StoryEventId, StoryFlag, storyTargetCode, StoryTargetId } from "@/src/game/story.ts";
 import { Direction } from "@/src/grid/direction.ts";
-import { createGameMap, KeyColor, terminalDestinationCode, VICTORY_GOTO } from "@/src/map/map.ts";
 import type { EntityDef, GameMap } from "@/src/map/map.ts";
+import { createGameMap, KeyColor, terminalDestinationCode, VICTORY_GOTO } from "@/src/map/map.ts";
 import { DEFAULT_BARS_TERRAIN_ID, DEFAULT_WALL_TERRAIN_ID } from "@/src/map/terrain_palettes.ts";
 import { flatTestMap } from "@/tests/ecs/helpers.ts";
+import { assert, assertEquals, assertRejects } from "@std/assert";
 
 Deno.test("createGameSession initializes default player progression and requires a player spawn", async () => {
   const session = await createGameSession(testMap([]), () => 0);
@@ -28,6 +28,42 @@ Deno.test("createGameSession initializes default player progression and requires
     Error,
     "player spawn",
   );
+});
+
+Deno.test("createGameSession cheat option starts with full loadout", async () => {
+  const session = await createGameSession(testMap([]), () => 0, { cheat: true });
+  try {
+    assertEquals(session.getPlayerStatus(), {
+      heldKeys: [],
+      selectedWeapon: 1,
+      unlockedWeapons: [1, 2, 3],
+      ammo: { pistol: 99, cannon: 99 },
+      health: { current: 10, max: 10 },
+      hasUplinkCode: false,
+      progress: { credits: 0, score: 0, xp: 0, levelCredits: 0 },
+    });
+  } finally {
+    session[Symbol.dispose]();
+  }
+});
+
+Deno.test("cheat resetRun restores the cheat loadout", async () => {
+  const session = await createGameSession(testMap([]), () => 0, { cheat: true });
+  try {
+    session.resetRun(flatTestMap(5, 3, [{ prefab: "player", x: 2, y: 1, dir: Direction.South }]));
+
+    assertEquals(session.getPlayerStatus(), {
+      heldKeys: [],
+      selectedWeapon: 1,
+      unlockedWeapons: [1, 2, 3],
+      ammo: { pistol: 99, cannon: 99 },
+      health: { current: 10, max: 10 },
+      hasUplinkCode: false,
+      progress: { credits: 0, score: 0, xp: 0, levelCredits: 0 },
+    });
+  } finally {
+    session[Symbol.dispose]();
+  }
 });
 
 Deno.test("player movement collects map-authored pickups into player state", async () => {

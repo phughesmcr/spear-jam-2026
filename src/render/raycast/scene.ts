@@ -21,8 +21,8 @@
  */
 
 import { renderPlanes } from "@/src/render/raycast/cast_planes.ts";
-import { renderWalls } from "@/src/render/raycast/cast_walls.ts";
 import { renderSpritesAndThinWalls } from "@/src/render/raycast/cast_sprites.ts";
+import { renderWalls } from "@/src/render/raycast/cast_walls.ts";
 import {
   assertFrameCapacity,
   PROJECTION_PLANE_LENGTH,
@@ -66,11 +66,12 @@ export function renderFrame(
   atlas: RaycastAtlas,
   camera: RaycastCamera,
   nowMs = 0,
+  healthBarMaxDistance = 0,
 ): void {
   assertFrameCapacity(frame, scene);
   frame.pixels.fill(0xff000000);
   const focal = (0.5 * frame.width) / PROJECTION_PLANE_LENGTH;
   renderPlanes(frame, scene, atlas, camera, focal, nowMs);
   renderWalls(frame, scene, atlas, camera, focal);
-  renderSpritesAndThinWalls(frame, scene, atlas, camera, focal);
+  renderSpritesAndThinWalls(frame, scene, atlas, camera, focal, healthBarMaxDistance);
 }
