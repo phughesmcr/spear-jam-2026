@@ -22,6 +22,8 @@ const DOOR_COLOR = "#9a6a3a";
 const LOCKED_DOOR_COLOR = "#b14b4b";
 /** Matches the top-down wall fill so an unrevealed secret door reads as a wall. */
 const SECRET_DOOR_WALL_COLOR = "#5a5f68";
+const GLASS_DOOR_COLOR = "#7dd3fc";
+const GLASS_DOOR_SMASHED_COLOR = "#334155";
 const UPLINK_TERMINAL_SCREEN = "#0f172a";
 const ITEM_TEXT = "#101217";
 const KEY_COLORS: Record<KeyColorType, string> = {
@@ -59,7 +61,17 @@ function renderDrawableEntity(
       renderActorDrawable(ctx, drawable, metrics);
       return;
     case DrawableKind.Door:
-      renderDoor(ctx, drawable.x, drawable.y, drawable.open, drawable.locked, drawable.secret, drawable.color, metrics);
+      renderDoor(
+        ctx,
+        drawable.x,
+        drawable.y,
+        drawable.open,
+        drawable.locked,
+        drawable.secret,
+        drawable.glass,
+        drawable.color,
+        metrics,
+      );
       return;
     case DrawableKind.Sprite:
       renderSpriteDrawable(ctx, drawable, metrics);
@@ -156,10 +168,11 @@ function renderDoor(
   open: boolean,
   locked: boolean,
   secret: boolean,
+  glass: boolean,
   color: KeyColorType | undefined,
   metrics: MapRenderMetrics,
 ): void {
-  if (open) return;
+  if (open && !glass) return;
   const { offsetX, offsetY, tileSize } = metrics;
   const tileX = offsetX + x * tileSize;
   const tileY = offsetY + y * tileSize;
@@ -173,7 +186,8 @@ function renderDoor(
   const width = tileSize - inset * 2;
   const height = tileSize - inset * 2;
   let fillColor = DOOR_COLOR;
-  if (locked) fillColor = color === undefined ? LOCKED_DOOR_COLOR : KEY_COLORS[color];
+  if (glass) fillColor = open ? GLASS_DOOR_SMASHED_COLOR : GLASS_DOOR_COLOR;
+  else if (locked) fillColor = color === undefined ? LOCKED_DOOR_COLOR : KEY_COLORS[color];
   ctx.fillStyle = fillColor;
   ctx.fillRect(tileX + inset, tileY + inset, width, height);
 }

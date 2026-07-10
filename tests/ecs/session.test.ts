@@ -395,6 +395,47 @@ Deno.test("explicitly opening a secret door opens it while keeping the wall disg
   }
 });
 
+Deno.test("glass doors reject OPEN and shatter on attack to allow passage", async () => {
+  const session = await createGameSession(
+    testMap([
+      { prefab: "door", x: 2, y: 1, glass: true },
+      { prefab: "item", x: 3, y: 1, item: "healthPatch", amount: 1 },
+    ], 5),
+    () => 0,
+  );
+  const playerPosition = (): { readonly x: number; readonly y: number } => {
+    let position = { x: -1, y: -1 };
+    session.forEachDrawable((drawable) => {
+      if (drawable.kind === DrawableKind.Player) position = { x: drawable.x, y: drawable.y };
+    });
+    return position;
+  };
+  const doorState = (): { readonly glass: boolean; readonly open: boolean } | undefined => {
+    let state: { readonly glass: boolean; readonly open: boolean } | undefined;
+    session.forEachDrawable((drawable) => {
+      if (drawable.kind === DrawableKind.Door) state = { glass: drawable.glass, open: drawable.open };
+    });
+    return state;
+  };
+  try {
+    // Glass is see-through while closed, but still blocks movement.
+    assertEquals(session.getVisibility().isVisible(3, 1), true);
+    assertEquals(doorState(), { glass: true, open: false });
+    assertEquals(eventTypes(session.handlePlayerCommand({ type: "interact", verb: "open" })), ["doorCannotOpen"]);
+    assertEquals(doorState(), { glass: true, open: false });
+    assertEquals(playerPosition(), { x: 1, y: 1 });
+
+    // Smart action falls through to attack and shatters the pane.
+    assertEquals(eventTypes(session.handlePlayerCommand({ type: "smartAction" })), ["doorShattered"]);
+    assertEquals(doorState(), { glass: true, open: true });
+
+    session.handlePlayerCommand({ type: "move", direction: "forward" });
+    assertEquals(playerPosition(), { x: 2, y: 1 });
+  } finally {
+    session[Symbol.dispose]();
+  }
+});
+
 Deno.test("consumed player actions run enemy phase and visibility refresh", async () => {
   const session = await createGameSession(
     testMap([

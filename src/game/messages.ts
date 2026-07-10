@@ -1,6 +1,6 @@
-import type { Entity } from "@phughesmcr/miski";
 import type { InteractVerb } from "@/src/game/commands.ts";
 import type { GameEvent } from "@/src/game/events.ts";
+import type { Entity } from "@phughesmcr/miski";
 
 /** Derives the message-log line for an event. Events are pure facts; wording lives here. */
 export function messageForEvent(playerEntity: Entity, event: GameEvent): string {
@@ -27,6 +27,10 @@ export function messageForEvent(playerEntity: Entity, event: GameEvent): string 
       return "Opened the door.";
     case "doorAlreadyOpen":
       return "It's already open.";
+    case "doorCannotOpen":
+      return "You can't open that.";
+    case "doorShattered":
+      return "The glass shatters.";
     case "uplinkTerminalLocked":
       return "The uplink needs a code.";
     case "uplinkTerminalActivated":

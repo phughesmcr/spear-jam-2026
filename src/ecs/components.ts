@@ -205,6 +205,9 @@ export const Locked: Component<LockedSchema, typeof LOCKED_STORAGE> = new Compon
 /** Marks a door disguised as a wall until the player bumps into it. */
 export const Secret: Component<null> = new Component<null>({ name: "secret" });
 
+/** Marks a glass door that cannot be opened, only shattered by attack. */
+export const Glass: Component<null> = new Component<null>({ name: "glass" });
+
 export const UplinkTerminal: Component<null> = new Component<null>({ name: "uplinkTerminal" });
 
 export type DisplayNameSchema = { displayName: number };
@@ -435,6 +438,7 @@ export const ALL_COMPONENTS: DynamicComponent[] = [
   Door,
   Locked,
   Secret,
+  Glass,
   UplinkTerminal,
   DisplayNameComponent,
   DialogueTreeRef,

@@ -1,6 +1,5 @@
-import { assertEquals } from "@std/assert";
 import { DialogueTreeId } from "@/src/dialogue/dialogue.ts";
-import { GridPos, Interactable, Locked } from "@/src/ecs/components.ts";
+import { Door, GridPos, Interactable, Locked } from "@/src/ecs/components.ts";
 import { collectItemAt, interactWithEntity } from "@/src/ecs/interactions.ts";
 import { createDoor, createKey, createNpc, createUplinkTerminal } from "@/src/ecs/prefabs.ts";
 import { SpatialIndex } from "@/src/ecs/spatial.ts";
@@ -8,6 +7,7 @@ import { createWorld } from "@/src/ecs/world.ts";
 import { DisplayName } from "@/src/game/names.ts";
 import { KeyColor } from "@/src/map/map.ts";
 import { createEntity, flatTestMap } from "@/tests/ecs/helpers.ts";
+import { assertEquals } from "@std/assert";
 
 Deno.test("interactWithEntity applies default verbs for doors, NPCs, and terminals", async () => {
   const world = await createWorld();
@@ -77,6 +77,23 @@ Deno.test("interactWithEntity opens locked doors only with a matching held key",
     events: [{ type: "doorOpened", entity: door }],
   });
   assertEquals(world.components.entityHas(Locked, door), false);
+});
+
+Deno.test("interactWithEntity refuses to open glass doors", async () => {
+  const world = await createWorld();
+  const door = createDoor(world, { x: 1, y: 1, glass: true });
+  world.refresh();
+
+  const spatial = new SpatialIndex(world, flatTestMap(3, 3));
+  assertEquals(interactWithEntity(world, spatial, door, new Set(), false), {
+    type: "unchanged",
+    events: [{ type: "doorCannotOpen", entity: door }],
+  });
+  assertEquals(interactWithEntity(world, spatial, door, new Set(), true, "open"), {
+    type: "unchanged",
+    events: [{ type: "doorCannotOpen", entity: door }],
+  });
+  assertEquals(world.components.getEntityData(Door, door).open, 0);
 });
 
 Deno.test("collectItemAt removes the collected pickup from the spatial index", async () => {

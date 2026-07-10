@@ -183,6 +183,7 @@ export const PROPERTY_TYPES: readonly TiledPropertyType[] = [
     classMember("locked", "bool", false),
     classMember("slide", "string", "up", "DoorSlide"),
     classMember("secret", "bool", false),
+    classMember("glass", "bool", false),
   ]),
   classPropertyType(34, "key", "#fffacc15", false, ["object"], [
     classMember("prefab", "string", "key", "Prefab"),
@@ -259,6 +260,11 @@ export const TEMPLATE_DEFINITIONS: readonly TemplateDefinition[] = [
     property("prefab", "door", "Prefab"),
     property("slide", "up", "DoorSlide"),
     property("secret", true),
+  ]),
+  templateDefinition("door_glass.tx", "door", "door", "Glass door", [
+    property("prefab", "door", "Prefab"),
+    property("slide", "up", "DoorSlide"),
+    property("glass", true),
   ]),
   ...Object.values(KeyColor).map((color) =>
     templateDefinition(`door_${color}_locked.tx`, "door", "door", `${color} locked door`, [

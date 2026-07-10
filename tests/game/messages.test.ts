@@ -1,6 +1,6 @@
-import { assertEquals } from "@std/assert";
-import type { Entity } from "@phughesmcr/miski";
 import { messageForEvent } from "@/src/game/messages.ts";
+import type { Entity } from "@phughesmcr/miski";
+import { assertEquals } from "@std/assert";
 
 const PLAYER = 1 as Entity;
 const DIGITAL_DOG = 2 as Entity;
@@ -82,6 +82,8 @@ Deno.test("messageForEvent covers interaction events", () => {
   assertEquals(messageForEvent(PLAYER, { type: "doorLocked", entity: DOOR }), "The door is locked.");
   assertEquals(messageForEvent(PLAYER, { type: "doorOpened", entity: DOOR }), "Opened the door.");
   assertEquals(messageForEvent(PLAYER, { type: "doorAlreadyOpen", entity: DOOR }), "It's already open.");
+  assertEquals(messageForEvent(PLAYER, { type: "doorCannotOpen", entity: DOOR }), "You can't open that.");
+  assertEquals(messageForEvent(PLAYER, { type: "doorShattered", entity: DOOR }), "The glass shatters.");
   assertEquals(messageForEvent(PLAYER, { type: "uplinkTerminalLocked", entity: DOOR }), "The uplink needs a code.");
   assertEquals(messageForEvent(PLAYER, { type: "uplinkTerminalActivated", entity: DOOR }), "Uplink accepted.");
   assertEquals(

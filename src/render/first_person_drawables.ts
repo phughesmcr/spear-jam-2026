@@ -7,7 +7,12 @@ import {
 } from "@/src/ecs/drawables.ts";
 import { type CardinalDirection, normalizeDirection } from "@/src/grid/direction.ts";
 import type { GameMap } from "@/src/map/map.ts";
-import { doorTexture, ENEMY_SHEET_COLUMNS, type FirstPersonAssetState } from "@/src/render/first_person_assets.ts";
+import {
+  doorTexture,
+  ENEMY_SHEET_COLUMNS,
+  type FirstPersonAssetState,
+  glassDoorTexture,
+} from "@/src/render/first_person_assets.ts";
 import { doorAxis, doorSlideForAxis, secretWallTextureSlot } from "@/src/render/first_person_scene.ts";
 import { addSlidingSolidWall, addSprite, addThinWall, type RaycastScene } from "@/src/render/raycast/scene.ts";
 import {
@@ -228,6 +233,18 @@ export function addDrawable(
           state.doorSample.value,
         );
         return frameDemand(!state.doorSample.settled);
+      }
+      // Glass doors stay in place: intact vs smashed is a texture swap, not a slide.
+      if (drawable.glass) {
+        const axis = doorAxis(map, drawable.x, drawable.y);
+        addThinWall(
+          scene,
+          drawable.x,
+          drawable.y,
+          glassDoorTexture(drawable.open),
+          axis,
+        );
+        return frameDemand(false);
       }
       tweenedDoorOpenness(state, drawable, nowMs);
       const axis = doorAxis(map, drawable.x, drawable.y);

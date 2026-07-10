@@ -1,4 +1,5 @@
 import { Blocking, Door, Facing, GridPos, Interactable, Item, ItemKind } from "@/src/ecs/components.ts";
+import { createDoor } from "@/src/ecs/prefabs.ts";
 import { SpatialIndex } from "@/src/ecs/spatial.ts";
 import { createWorld } from "@/src/ecs/world.ts";
 import { createGameMap, KeyColor, keyColorCode } from "@/src/map/map.ts";
@@ -289,6 +290,24 @@ Deno.test("SpatialIndex setDoorOpen toggles runtime flags and keeps doors target
   assertEquals(spatial.tileBlocksSight(2, 1), true);
   assertEquals(spatial.tileBlocksAttacks(2, 1), true);
   assertEquals(spatial.facedEntity({ x: 1, y: 1 }, 1), door);
+});
+
+Deno.test("SpatialIndex glass doors block move and attacks but not sight", async () => {
+  const world = await createWorld();
+  const door = createDoor(world, { x: 2, y: 1, glass: true });
+  world.refresh();
+
+  const spatial = new SpatialIndex(world, TEST_MAP);
+
+  assertEquals(spatial.tileBlocks(2, 1), true);
+  assertEquals(spatial.tileBlocksSight(2, 1), false);
+  assertEquals(spatial.tileBlocksAttacks(2, 1), true);
+
+  spatial.setDoorOpen(door, true);
+
+  assertEquals(spatial.tileBlocks(2, 1), false);
+  assertEquals(spatial.tileBlocksSight(2, 1), false);
+  assertEquals(spatial.tileBlocksAttacks(2, 1), false);
 });
 
 Deno.test("SpatialIndex pathing routes multiple starts around the same blocker", async () => {

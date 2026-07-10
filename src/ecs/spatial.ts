@@ -1,4 +1,4 @@
-import { Blocking, Door, GridPos, Interactable, Item } from "@/src/ecs/components.ts";
+import { Blocking, Door, Glass, GridPos, Interactable, Item } from "@/src/ecs/components.ts";
 import { positionedQuery } from "@/src/ecs/queries.ts";
 import { CARDINAL_DELTAS, directionDelta, type GridPoint } from "@/src/grid/direction.ts";
 import { authoredEnemyCount, type GameMap } from "@/src/map/map.ts";
@@ -25,6 +25,8 @@ export type SpatialAccess = SpatialLookup & SpatialMutations;
 const EMPTY_ENTITY = -1;
 const UNREACHABLE = -1;
 const DOOR_BLOCKING_FLAGS = TileFlag.BlocksMove | TileFlag.BlocksSight | TileFlag.BlocksAttack;
+/** Glass doors block passage and attacks but remain see-through, like barrier glass. */
+const GLASS_DOOR_BLOCKING_FLAGS = TileFlag.BlocksMove | TileFlag.BlocksAttack;
 const SCRATCH_PATH_SLOT = 0;
 
 /**
@@ -198,7 +200,7 @@ export class SpatialIndex implements SpatialLookup, SpatialMutations {
     const state = this.world.components.getEntityData(Door, entity);
     const tile = this.positionedTileFor(entity);
     this.world.components.setEntityData(Door, entity, { ...state, open: open ? 1 : 0 });
-    this.setDoorFlags(tile, open);
+    this.setDoorFlags(tile, open, this.world.components.entityHas(Glass, entity));
   }
 
   private resolvePathSlot(target: GridPoint): number {
@@ -299,7 +301,9 @@ export class SpatialIndex implements SpatialLookup, SpatialMutations {
         this.occupy(this.itemOccupancy, tile, entity, "item");
       }
       const door = this.world.components.readEntityData(Door, entity);
-      if (door !== undefined) this.setDoorFlags(tile, door.open === 1);
+      if (door !== undefined) {
+        this.setDoorFlags(tile, door.open === 1, this.world.components.entityHas(Glass, entity));
+      }
     }
   }
 
@@ -362,11 +366,11 @@ export class SpatialIndex implements SpatialLookup, SpatialMutations {
     }
   }
 
-  private setDoorFlags(tile: number, open: boolean): void {
-    if (open) {
-      this.runtimeFlags[tile] = this.runtimeFlags[tile]! & ~DOOR_BLOCKING_FLAGS;
-    } else {
-      this.runtimeFlags[tile] = this.runtimeFlags[tile]! | DOOR_BLOCKING_FLAGS;
+  private setDoorFlags(tile: number, open: boolean, glass: boolean): void {
+    this.runtimeFlags[tile] = this.runtimeFlags[tile]! & ~DOOR_BLOCKING_FLAGS;
+    if (!open) {
+      const flags = glass ? GLASS_DOOR_BLOCKING_FLAGS : DOOR_BLOCKING_FLAGS;
+      this.runtimeFlags[tile] = this.runtimeFlags[tile]! | flags;
     }
   }
 

@@ -1,8 +1,8 @@
-import type { Entity } from "@phughesmcr/miski";
 import type { GameEvent } from "@/src/game/events.ts";
 import { type SoundCue, SoundId, weaponSoundId } from "@/src/game/sound.ts";
 import type { CommandSlot } from "@/src/game/state.ts";
 import type { GridPoint } from "@/src/grid/direction.ts";
+import type { Entity } from "@phughesmcr/miski";
 
 export type SoundCueContext = {
   readonly playerEntity: Entity;
@@ -61,6 +61,7 @@ export function soundCuesForEvents(
         cues.push(cue(SoundId.DoorLocked, positionFor(event.entity, context), DOOR_LOCKED_RADIUS));
         break;
       case "doorOpened":
+      case "doorShattered":
         cues.push(cue(SoundId.DoorOpen, positionFor(event.entity, context), DOOR_OPEN_RADIUS));
         break;
       case "uplinkTerminalLocked":

@@ -6,7 +6,7 @@ import {
   type DefeatEffectWriter,
   entityAttack,
 } from "@/src/ecs/combat.ts";
-import { Door, Facing, GridPos, PlayerEquipment, Secret } from "@/src/ecs/components.ts";
+import { Door, Facing, Glass, GridPos, PlayerEquipment, Secret } from "@/src/ecs/components.ts";
 import { collectItemAt, interactWithEntity } from "@/src/ecs/interactions.ts";
 import {
   applyItemPickupToPlayer,
@@ -229,6 +229,20 @@ function resolveInteractionIntent(
 }
 
 function resolvePlayerAttackIntent(context: TurnContext, actor: Entity): IntentResolution {
+  const faced = facedEntity(context);
+  if (
+    faced !== undefined &&
+    context.world.components.entityHas(Glass, faced) &&
+    context.world.components.readEntityData(Door, faced)?.open === 0
+  ) {
+    context.spatial.setDoorOpen(faced, true);
+    return {
+      events: [{ type: "doorShattered", entity: faced }],
+      cost: "turn",
+      acted: true,
+    };
+  }
+
   const selectedWeapon = context.world.components.getEntityData(PlayerEquipment, actor);
   return resolvePlayerSelectedWeaponAttack(context, actor, selectedWeapon.selectedWeapon as CommandSlot);
 }

@@ -1,10 +1,10 @@
-import type { Entity, World } from "@phughesmcr/miski";
-import { dialogueTreeForCode, dialogueTreeStart } from "@/src/dialogue/dialogue.ts";
 import { ItemKind, itemKindForCode } from "@/src/content/items.ts";
+import { dialogueTreeForCode, dialogueTreeStart } from "@/src/dialogue/dialogue.ts";
 import {
   DialogueTreeRef,
   DisplayNameComponent,
   Door,
+  Glass,
   Interactable,
   Item,
   Locked,
@@ -17,6 +17,7 @@ import type { GameEvent } from "@/src/game/events.ts";
 import { displayNameForCode, displayNameText } from "@/src/game/names.ts";
 import { type AmmoKind, type CommandSlot, commandSlotForCode, type DialogueState } from "@/src/game/state.ts";
 import { type KeyColor, keyColorForCode } from "@/src/map/map.ts";
+import type { Entity, World } from "@phughesmcr/miski";
 
 type InteractionSpatial = Pick<SpatialIndex, "setDoorOpen">;
 
@@ -168,6 +169,16 @@ function interactWithDoor(
         }],
       } :
       UNCHANGED_INTERACTION;
+  }
+
+  if (world.components.entityHas(Glass, door)) {
+    return {
+      type: "unchanged",
+      events: [{
+        type: "doorCannotOpen",
+        entity: door,
+      }],
+    };
   }
 
   if (world.components.entityHas(Locked, door)) {

@@ -179,14 +179,20 @@ const ENTITY_DESCRIPTORS_INTERNAL = [
       examineTextId: EXAMINE_TEXT_ID_SCHEMA.optional(),
     },
   ),
-  entityDescriptor("door", ["prefab", "locked", "color", "slide", "openMs", "secret", "examineTextId"], true, {
-    locked: z.boolean().optional(),
-    color: KEY_COLOR_SCHEMA.optional(),
-    slide: DOOR_SLIDE_SCHEMA.optional(),
-    openMs: UINT16_SCHEMA.min(1).optional(),
-    secret: z.boolean().optional(),
-    examineTextId: EXAMINE_TEXT_ID_SCHEMA.optional(),
-  }),
+  entityDescriptor(
+    "door",
+    ["prefab", "locked", "color", "slide", "openMs", "secret", "glass", "examineTextId"],
+    true,
+    {
+      locked: z.boolean().optional(),
+      color: KEY_COLOR_SCHEMA.optional(),
+      slide: DOOR_SLIDE_SCHEMA.optional(),
+      openMs: UINT16_SCHEMA.min(1).optional(),
+      secret: z.boolean().optional(),
+      glass: z.boolean().optional(),
+      examineTextId: EXAMINE_TEXT_ID_SCHEMA.optional(),
+    },
+  ),
   entityDescriptor("key", ["prefab", "color"], false, {
     color: KEY_COLOR_SCHEMA,
   }),

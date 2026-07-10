@@ -24,6 +24,7 @@ import {
   EnemyAwareness,
   ExamineTextRef,
   Facing,
+  Glass,
   GridPos,
   Health,
   IDLE_AWARENESS,
@@ -237,6 +238,9 @@ export function createDoor(world: World, prefab: DoorPrefab): Entity {
   }
   if (prefab.secret === true) {
     world.components.addToEntity(Secret, entity);
+  }
+  if (prefab.glass === true) {
+    world.components.addToEntity(Glass, entity);
   }
   return entity;
 }

@@ -1,7 +1,7 @@
-import type { Entity } from "@phughesmcr/miski";
-import { Door, Interactable, Npc, Secret, UplinkTerminal } from "@/src/ecs/components.ts";
+import { Door, Glass, Interactable, Npc, Secret, UplinkTerminal } from "@/src/ecs/components.ts";
 import { type ActorIntent, facedEntity, type TurnContext } from "@/src/ecs/turn/actions.ts";
 import { type PlayerCommand, relativeMoveDirectionOffset, turnDirectionDelta } from "@/src/game/commands.ts";
+import type { Entity } from "@phughesmcr/miski";
 
 export function playerIntentsForCommand(context: TurnContext, command: PlayerCommand): readonly ActorIntent[] {
   switch (command.type) {
@@ -47,6 +47,7 @@ function smartActionInteractionTarget(context: TurnContext): Entity | undefined 
   const target = facedEntity(context);
   if (target === undefined || !context.world.components.entityHas(Interactable, target)) return undefined;
   if (context.world.components.entityHas(Secret, target)) return undefined;
+  if (context.world.components.entityHas(Glass, target)) return undefined;
 
   const door = context.world.components.readEntityData(Door, target);
   if (door !== undefined) return door.open === 0 ? target : undefined;

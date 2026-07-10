@@ -1,4 +1,3 @@
-import type { Entity } from "@phughesmcr/miski";
 import { awardCreditsForDefeats } from "@/src/ecs/progression.ts";
 import { enemyTurnQuery } from "@/src/ecs/queries.ts";
 import { playerPosition, resolveIntent, type TurnContext } from "@/src/ecs/turn/actions.ts";
@@ -9,6 +8,7 @@ import type { GameEvent } from "@/src/game/events.ts";
 import type { NoiseStimulus } from "@/src/game/perception.ts";
 import type { DialogueState } from "@/src/game/state.ts";
 import type { GridPoint } from "@/src/grid/direction.ts";
+import type { Entity } from "@phughesmcr/miski";
 
 const DOOR_NOISE_RADIUS = 4;
 
@@ -109,7 +109,7 @@ function noisesForPlayerAction(
   events: readonly GameEvent[],
   actionNoise: NoiseStimulus | undefined,
 ): readonly NoiseStimulus[] {
-  const eventNoise = events.some((event) => event.type === "doorOpened") ?
+  const eventNoise = events.some((event) => event.type === "doorOpened" || event.type === "doorShattered") ?
     noiseAt(playerPosition(context), DOOR_NOISE_RADIUS) :
     undefined;
   if (actionNoise === undefined) return eventNoise === undefined ? [] : [eventNoise];

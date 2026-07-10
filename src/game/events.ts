@@ -1,6 +1,6 @@
-import type { Entity } from "@phughesmcr/miski";
 import type { InteractVerb } from "@/src/game/commands.ts";
 import type { AmmoKind, CommandSlot } from "@/src/game/state.ts";
+import type { Entity } from "@phughesmcr/miski";
 
 /**
  * Structured facts about what happened during a turn.
@@ -72,6 +72,14 @@ export type GameEvent =
   }
   | {
     readonly type: "doorAlreadyOpen";
+    readonly entity: Entity;
+  }
+  | {
+    readonly type: "doorCannotOpen";
+    readonly entity: Entity;
+  }
+  | {
+    readonly type: "doorShattered";
     readonly entity: Entity;
   }
   | {

@@ -1,4 +1,3 @@
-import { type Entity, System } from "@phughesmcr/miski";
 import { type SpriteId as SpriteIdType, SpriteId as SpriteIdValues } from "@/src/content/sprite_ids.ts";
 import {
   type LightEmitterSchema,
@@ -17,6 +16,7 @@ import {
   type KeyColor as KeyColorType,
   keyColorForCode,
 } from "@/src/map/map.ts";
+import { type Entity, System } from "@phughesmcr/miski";
 
 export { DrawableKind, SPRITE_ATTACK_MS, SPRITE_DEATH_MS, SPRITE_WALK_MS, SpriteAnimationKind };
 export const SpriteId = SpriteIdValues;
@@ -52,6 +52,8 @@ export type DoorDrawableEntity = DrawableBase & {
   readonly locked: boolean;
   /** Disguised as a wall until the player reveals it; hides door styling and prompts. */
   readonly secret: boolean;
+  /** Shatterable glass pane; stays in place and swaps texture when smashed. */
+  readonly glass: boolean;
   readonly color?: KeyColorType;
   /** Slide direction for open/close animation; undefined = renderer default. */
   readonly slide?: DoorSlide;
@@ -98,6 +100,7 @@ type DrawableEntityScratch = {
   open: boolean;
   locked: boolean;
   secret: boolean;
+  glass: boolean;
   color: KeyColorType | undefined;
   slide: DoorSlide | undefined;
   openMs: number;
@@ -259,6 +262,7 @@ function createDrawableEntityScratch(): DrawableEntityScratch {
     open: false,
     locked: false,
     secret: false,
+    glass: false,
     color: undefined,
     slide: undefined,
     openMs: DEFAULT_DOOR_OPEN_MS,
@@ -305,6 +309,7 @@ function resetDrawableScratch(
   drawable.open = false;
   drawable.locked = false;
   drawable.secret = false;
+  drawable.glass = false;
   drawable.color = undefined;
   drawable.slide = undefined;
   drawable.openMs = DEFAULT_DOOR_OPEN_MS;
@@ -376,6 +381,7 @@ function doorDrawableEntityFor(
   drawable.open = components.door.partitions.open[entity]! === 1;
   drawable.locked = locked;
   drawable.secret = components.secret.has(entity);
+  drawable.glass = components.glass.has(entity);
   drawable.color = locked ? keyColorForCode(components.locked.partitions.color[entity]!) : undefined;
   drawable.slide = slide;
   drawable.openMs = openMs === 0 ? DEFAULT_DOOR_OPEN_MS : openMs;

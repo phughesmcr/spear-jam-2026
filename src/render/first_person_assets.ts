@@ -84,7 +84,8 @@ const BARRIER_TEX_BY_TEXTURE: Readonly<Record<BarrierTextureType, number>> = {
   [BarrierTexture.Glass]: 6,
 };
 const JAMB_TEX = 7;
-const FIRST_PACK_WALL_TEX = 8;
+const GLASS_SMASHED_TEX = 8;
+const FIRST_PACK_WALL_TEX = 9;
 
 const FLOOR_TEX = 0;
 const CEILING_TEX = 1;
@@ -198,6 +199,9 @@ export function createAssetCatalog(): AssetCatalog {
     managedAsset(new URL("../../assets/game/textures/glass.png", import.meta.url).href, [
       { layer: "walls", slot: BARRIER_TEX_BY_TEXTURE[BarrierTexture.Glass] },
     ]),
+    managedAsset(new URL("../../assets/game/textures/glass_smashed.png", import.meta.url).href, [
+      { layer: "walls", slot: GLASS_SMASHED_TEX },
+    ]),
     ...spriteManagedAssets(),
     texturePackAssets[TexturePack.Pack1],
     texturePackAssets[TexturePack.Pack2],
@@ -229,6 +233,7 @@ export function buildAtlas(): RaycastAtlas {
   walls[BARRIER_TEX_BY_TEXTURE[BarrierTexture.Bars]] = bakeBarrier(BarrierTexture.Bars);
   walls[BARRIER_TEX_BY_TEXTURE[BarrierTexture.Glass]] = bakeBarrier(BarrierTexture.Glass);
   walls[JAMB_TEX] = bakeSolidTexture(70, 72, 58);
+  walls[GLASS_SMASHED_TEX] = bakeBarrier(BarrierTexture.Glass);
 
   const planes: BakedTexture[] = [];
   planes[FLOOR_TEX] = bakeSolidTexture(35, 40, 50);
@@ -554,6 +559,10 @@ export function ceilingTextureSlot(state: FirstPersonAssetState, texture: Ceilin
 
 export function barrierTextureSlot(texture: BarrierTextureType): number {
   return BARRIER_TEX_BY_TEXTURE[texture];
+}
+
+export function glassDoorTexture(shattered: boolean): number {
+  return shattered ? GLASS_SMASHED_TEX : BARRIER_TEX_BY_TEXTURE[BarrierTexture.Glass];
 }
 
 export function doorTexture(locked: boolean, color: KeyColor | undefined): number {

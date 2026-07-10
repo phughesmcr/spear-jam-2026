@@ -518,6 +518,11 @@
           "name": "secret",
           "type": "bool",
           "value": false
+        },
+        {
+          "name": "glass",
+          "type": "bool",
+          "value": false
         }
       ],
       "name": "door",
