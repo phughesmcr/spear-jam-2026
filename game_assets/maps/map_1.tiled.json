@@ -8,7 +8,7 @@
             71, 3, 3, 3, 71, 19, 71, 71, 3, 71, 19, 19, 71, 35, 35,
             71, 3, 3, 3, 71, 19, 71, 3, 3, 71, 19, 19, 71, 35, 35,
             71, 71, 3, 71, 71, 19, 71, 71, 71, 71, 71, 19, 71, 35, 35,
-            71, 19, 19, 19, 71, 19, 19, 19, 71, 3, 3, 3, 71, 35, 35,
+            71, 19, 19, 19, 71, 19, 19, 19, 3, 3, 3, 3, 71, 35, 35,
             71, 19, 19, 19, 71, 71, 19, 71, 71, 3, 71, 3, 71, 35, 35,
             71, 19, 19, 19, 71, 37, 37, 37, 71, 3, 3, 3, 71, 35, 35,
             71, 71, 71, 19, 71, 37, 37, 37, 71, 71, 71, 71, 71, 64, 64,
@@ -184,6 +184,42 @@
                  "width":16,
                  "x":192,
                  "y":160
+                }, 
+                {
+                 "gid":144,
+                 "height":16,
+                 "id":45,
+                 "name":"door_s1",
+                 "opacity":1,
+                 "properties":[
+                        {
+                         "name":"glass",
+                         "type":"bool",
+                         "value":false
+                        }, 
+                        {
+                         "name":"prefab",
+                         "propertytype":"Prefab",
+                         "type":"string",
+                         "value":"door"
+                        }, 
+                        {
+                         "name":"secret",
+                         "type":"bool",
+                         "value":true
+                        }, 
+                        {
+                         "name":"slide",
+                         "propertytype":"DoorSlide",
+                         "type":"string",
+                         "value":"down"
+                        }],
+                 "rotation":0,
+                 "type":"door",
+                 "visible":true,
+                 "width":16,
+                 "x":128,
+                 "y":96
                 }, 
                 {
                  "gid":143,
@@ -439,7 +475,8 @@
                  "width":16,
                  "x":160,
                  "y":208
-                }, 
+                },
+            
                 {
                  "gid":150,
                  "height":16,
@@ -465,8 +502,7 @@
                  "width":16,
                  "x":128,
                  "y":208
-                },
-            
+                }, 
                 {
                  "gid":150,
                  "height":16,
@@ -1246,7 +1282,7 @@
          "y":0
         }],
  "nextlayerid":5,
- "nextobjectid":45,
+ "nextobjectid":46,
  "orientation":"orthogonal",
  "properties":[
         {

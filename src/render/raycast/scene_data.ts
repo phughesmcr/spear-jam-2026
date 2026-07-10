@@ -407,3 +407,15 @@ export function lightTexel(texel: number, red: number, green: number, blue: numb
     (((((texel >>> 8) & 0xff) * green / 255) | 0) << 8) |
     (((((texel >>> 16) & 0xff) * blue / 255) | 0) << 16)) >>> 0;
 }
+
+/** Blend `src` over `dst` using src's alpha. Output alpha is always opaque. */
+export function blendTexel(src: number, dst: number): number {
+  const alpha = src >>> 24;
+  if (alpha === 0) return dst;
+  if (alpha === 255) return (src | 0xff000000) >>> 0;
+  const inv = 255 - alpha;
+  return (0xff000000 |
+    ((((src & 0xff) * alpha + (dst & 0xff) * inv) / 255) | 0) |
+    ((((((src >>> 8) & 0xff) * alpha + ((dst >>> 8) & 0xff) * inv) / 255) | 0) << 8) |
+    ((((((src >>> 16) & 0xff) * alpha + ((dst >>> 16) & 0xff) * inv) / 255) | 0) << 16)) >>> 0;
+}

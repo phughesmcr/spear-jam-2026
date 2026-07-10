@@ -508,6 +508,35 @@ Deno.test("renderFrame draws see-through thin walls without stopping rays", () =
   assertEquals(pixel(frame, CENTER - (CENTER >> 2), CENTER), grateTexel);
 });
 
+Deno.test("renderFrame blends mid-alpha thin walls over the wall behind", () => {
+  const glass = bakeTexture(
+    { width: 1, height: 1, data: new Uint8ClampedArray([0, 0, 255, 128]) },
+    { transpose: true },
+  );
+  const atlas = testAtlas();
+  atlas.walls[GRATE] = glass;
+  const scene = corridorScene();
+  addThinWall(scene, 2, 1, GRATE, THIN_AXIS_X);
+  const frame = createFrame(VIEW, VIEW);
+
+  renderFrame(frame, scene, atlas, CAMERA);
+
+  assertAlmostEquals(frame.zbuffer[CENTER]!, 2.5, 1e-9);
+  assert(!glass.opaque);
+  const behind = texel(atlas, "walls", WALL, 2);
+  const glassTexel = glass.mips[0]!.bands[1]![0]!;
+  assertEquals(pixel(frame, CENTER, CENTER), blendOver(glassTexel, behind));
+});
+
+function blendOver(src: number, dst: number): number {
+  const alpha = src >>> 24;
+  const inv = 255 - alpha;
+  return (0xff000000 |
+    ((((src & 0xff) * alpha + (dst & 0xff) * inv) / 255) | 0) |
+    ((((((src >>> 8) & 0xff) * alpha + ((dst >>> 8) & 0xff) * inv) / 255) | 0) << 8) |
+    ((((((src >>> 16) & 0xff) * alpha + ((dst >>> 16) & 0xff) * inv) / 255) | 0) << 16)) >>> 0;
+}
+
 Deno.test("renderFrame draws sprites in front of walls and occludes behind doors", () => {
   const atlas = testAtlas();
   const scene = corridorScene();
@@ -523,6 +552,25 @@ Deno.test("renderFrame draws sprites in front of walls and occludes behind doors
   addSprite(scene, 3.5, 1.5, SPRITE, 1);
   renderFrame(frame, scene, atlas, CAMERA);
   assertEquals(pixel(frame, CENTER, CENTER), texel(atlas, "walls", DOOR, 1));
+});
+
+Deno.test("renderFrame punches through soft mid-alpha sprite fringes", () => {
+  const soft = bakeTexture(
+    { width: 1, height: 1, data: new Uint8ClampedArray([255, 0, 255, 100]) },
+    { transpose: true },
+  );
+  const atlas = {
+    ...testAtlas(),
+    sprites: [soft],
+  };
+  const scene = corridorScene();
+  addSprite(scene, 2.5, 1.5, SPRITE, 1);
+  const frame = createFrame(VIEW, VIEW);
+
+  renderFrame(frame, scene, atlas, CAMERA);
+
+  // Below the sprite punch-through cutoff, the far wall must show through.
+  assertEquals(pixel(frame, CENTER, CENTER), texel(atlas, "walls", WALL, 2));
 });
 
 Deno.test("renderFrame boosts sprite lightmap pixels under tile lighting", () => {

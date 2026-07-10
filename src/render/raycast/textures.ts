@@ -21,8 +21,14 @@ const INVERSE_SHADE_GAMMA = 1 / SHADE_GAMMA;
 /** Darkness variants per texture; band 0 is full brightness. */
 export const SHADE_BANDS = 8;
 
-/** Fully transparent texel sentinel. Opaque texels always have alpha 255. */
+/** Fully transparent texel sentinel. Non-zero alpha is preserved for blending. */
 export const TRANSPARENT_TEXEL = 0;
+
+/**
+ * Sprites keep binary punch-through: texels below this alpha are skipped at
+ * draw time so soft PNG fringes do not show as solid coloured rims.
+ */
+export const SPRITE_ALPHA_CUTOFF = 128;
 
 /** RGBA source pixels; structurally compatible with ImageData. */
 export type TexelSource = {
@@ -59,8 +65,9 @@ export type BakeOptions = {
 /**
  * Bake an RGBA source into pre-shaded mip texel bands. Sources of any size are
  * first resampled to TEX_SIZE with nearest-neighbour; lower mips are averaged
- * from that base level. Texels with alpha below 128 become
- * {@link TRANSPARENT_TEXEL} and everything else is forced fully opaque.
+ * from that base level. Fully transparent texels (alpha 0) become
+ * {@link TRANSPARENT_TEXEL}; all other alpha values are preserved for mid-alpha
+ * blending at draw time.
  */
 export function bakeTexture(source: TexelSource, options: BakeOptions = {}): BakedTexture {
   const transpose = options.transpose === true;
@@ -93,10 +100,11 @@ function baseTexels(
       const sourceX = Math.floor(x * source.width / TEX_SIZE);
       const sourceIndex = (sourceY * source.width + sourceX) * 4;
       const alpha = source.data[sourceIndex + 3]!;
-      if (alpha < 128) {
+      if (alpha === 0) {
         opaque = false;
         continue;
       }
+      if (alpha !== 255) opaque = false;
 
       let red = source.data[sourceIndex]!;
       let green = source.data[sourceIndex + 1]!;
@@ -111,7 +119,7 @@ function baseTexels(
       texels[texelIndex] = red;
       texels[texelIndex + 1] = green;
       texels[texelIndex + 2] = blue;
-      texels[texelIndex + 3] = 255;
+      texels[texelIndex + 3] = alpha;
     }
   }
 
@@ -127,26 +135,25 @@ function downsampleTexels(source: Uint8Array, sourceSize: number): Uint8Array {
       let red = 0;
       let green = 0;
       let blue = 0;
-      let count = 0;
+      let alpha = 0;
 
       for (let offsetY = 0; offsetY < 2; offsetY++) {
         for (let offsetX = 0; offsetX < 2; offsetX++) {
           const sourceIndex = (((y << 1) + offsetY) * sourceSize + (x << 1) + offsetX) * 4;
-          if (source[sourceIndex + 3]! < 128) continue;
           red += source[sourceIndex]!;
           green += source[sourceIndex + 1]!;
           blue += source[sourceIndex + 2]!;
-          count++;
+          alpha += source[sourceIndex + 3]!;
         }
       }
 
-      if (count < 2) continue;
+      if (alpha === 0) continue;
 
       const texelIndex = (y * size + x) * 4;
-      texels[texelIndex] = Math.round(red / count);
-      texels[texelIndex + 1] = Math.round(green / count);
-      texels[texelIndex + 2] = Math.round(blue / count);
-      texels[texelIndex + 3] = 255;
+      texels[texelIndex] = (red + 2) >> 2;
+      texels[texelIndex + 1] = (green + 2) >> 2;
+      texels[texelIndex + 2] = (blue + 2) >> 2;
+      texels[texelIndex + 3] = (alpha + 2) >> 2;
     }
   }
 
@@ -167,7 +174,7 @@ function bakeMip(source: Uint8Array, size: number, shift: number, transpose: boo
       const sourceIndex = (y * size + x) * 4;
       const alpha = source[sourceIndex + 3]!;
       const texelIndex = transpose ? (x << shift) | y : (y << shift) | x;
-      if (alpha < 128) {
+      if (alpha === 0) {
         continue; // Bands start zeroed, which is the transparent sentinel.
       }
 
@@ -181,7 +188,7 @@ function bakeMip(source: Uint8Array, size: number, shift: number, transpose: boo
         bytes[byteIndex] = shadeChannel(red, brightness);
         bytes[byteIndex + 1] = shadeChannel(green, brightness);
         bytes[byteIndex + 2] = shadeChannel(blue, brightness);
-        bytes[byteIndex + 3] = 255;
+        bytes[byteIndex + 3] = alpha;
       }
     }
   }

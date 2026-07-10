@@ -19,7 +19,7 @@ import {
   type RaycastScene,
   shadeBand,
 } from "@/src/render/raycast/scene_data.ts";
-import { TRANSPARENT_TEXEL } from "@/src/render/raycast/textures.ts";
+import { SPRITE_ALPHA_CUTOFF, TRANSPARENT_TEXEL } from "@/src/render/raycast/textures.ts";
 
 const MIN_SPRITE_DISTANCE = 0.05;
 const SPRITE_EMISSIVE_GAIN = 2;
@@ -219,7 +219,8 @@ function drawSprite(
     for (let y = yStart; y < yEnd; y++) {
       const texelIndex = columnBase + ((texYPos >>> 16) & mip.mask);
       const texel = texels[texelIndex]!;
-      if (texel !== TRANSPARENT_TEXEL) {
+      // Binary punch-through: soft mid-alpha fringes stay discarded for sprites.
+      if ((texel >>> 24) >= SPRITE_ALPHA_CUTOFF) {
         const litTexel = lightTexel(texel, lightRed, lightGreen, lightBlue);
         pixels[offset] = lightmapTexels === undefined || sourceTexels === undefined ?
           litTexel :

@@ -1,4 +1,5 @@
-import { assert, assertEquals } from "@std/assert";
+import { blendTexel } from "@/src/render/raycast/scene_data.ts";
+import type { BakedTexture, TexelSource } from "@/src/render/raycast/textures.ts";
 import {
   bakeSolidTexture,
   bakeTexture,
@@ -7,7 +8,7 @@ import {
   TEX_SHIFT,
   TEX_SIZE,
 } from "@/src/render/raycast/textures.ts";
-import type { BakedTexture, TexelSource } from "@/src/render/raycast/textures.ts";
+import { assert, assertEquals } from "@std/assert";
 
 function sourceFromRgba(width: number, height: number, rgba: readonly number[]): TexelSource {
   return { width, height, data: new Uint8ClampedArray(rgba) };
@@ -53,6 +54,14 @@ Deno.test("bakeTexture maps transparent texels to the zero sentinel", () => {
   // Top source half is opaque red, bottom half fully transparent.
   assertEquals(texelBytes(band(baked), 0), [255, 0, 0, 255]);
   assertEquals(band(baked)[(TEX_SIZE - 1) << TEX_SHIFT], 0);
+});
+
+Deno.test("bakeTexture preserves mid-alpha and marks the texture non-opaque", () => {
+  const baked = bakeTexture(sourceFromRgba(1, 1, [40, 120, 200, 128]));
+
+  assert(!baked.opaque);
+  assertEquals(texelBytes(band(baked), 0), [40, 120, 200, 128]);
+  assertEquals(texelBytes(band(baked, SHADE_BANDS - 1), 0)[3], 128);
 });
 
 Deno.test("bakeTexture keeps opaque black distinct from the transparent sentinel", () => {
@@ -112,3 +121,16 @@ Deno.test("bakeSolidTexture fills every texel", () => {
   assertEquals(texelBytes(band(baked), TEX_SIZE * TEX_SIZE - 1), [10, 20, 30, 255]);
   assertEquals(texelBytes(band(baked, 0, TEX_MIP_SIZES.length - 1), 16 * 16 - 1), [10, 20, 30, 255]);
 });
+
+Deno.test("blendTexel composites mid-alpha over the destination", () => {
+  const src = packRgba(0, 0, 255, 128);
+  const dst = packRgba(255, 0, 0, 255);
+
+  assertEquals(texelBytes(new Uint32Array([blendTexel(src, dst)]), 0), [127, 0, 128, 255]);
+  assertEquals(blendTexel(packRgba(1, 2, 3, 0), dst), dst);
+  assertEquals(blendTexel(packRgba(10, 20, 30, 255), dst), packRgba(10, 20, 30, 255));
+});
+
+function packRgba(red: number, green: number, blue: number, alpha: number): number {
+  return (alpha << 24 | blue << 16 | green << 8 | red) >>> 0;
+}

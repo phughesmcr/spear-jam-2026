@@ -9,6 +9,7 @@
  */
 
 import {
+  blendTexel,
   FIXED_ONE,
   lightTexel,
   MAX_THIN_HITS,
@@ -334,7 +335,9 @@ export function drawWallColumn(
   }
   for (let y = yStart; y < yEnd; y++) {
     const texel = texels[columnBase + ((texPos >>> 16) & mip.mask)]!;
-    if (texel !== TRANSPARENT_TEXEL) pixels[offset] = lightTexel(texel, lightRed, lightGreen, lightBlue);
+    if (texel !== TRANSPARENT_TEXEL) {
+      pixels[offset] = blendTexel(lightTexel(texel, lightRed, lightGreen, lightBlue), pixels[offset]!);
+    }
     texPos += texStep;
     offset += width;
   }
@@ -384,7 +387,12 @@ function drawVerticalSlideColumn(
   let pixelOffset = yStart * width + x;
   for (let y = yStart; y < yEnd; y++) {
     const texel = texels[columnBase + ((texPos >>> 16) & mip.mask)]!;
-    if (texel !== TRANSPARENT_TEXEL) pixels[pixelOffset] = lightTexel(texel, lightRed, lightGreen, lightBlue);
+    if (texel !== TRANSPARENT_TEXEL) {
+      pixels[pixelOffset] = blendTexel(
+        lightTexel(texel, lightRed, lightGreen, lightBlue),
+        pixels[pixelOffset]!,
+      );
+    }
     texPos += texStep;
     pixelOffset += width;
   }
