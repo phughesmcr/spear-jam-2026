@@ -33,6 +33,10 @@ export interface GameSpec {
   host: Window;
 }
 
+export interface GameController extends Disposable {
+  unlockAudio(): Promise<void>;
+}
+
 /** The map-loading effects, each carrying a `mapName`, that drive a session transition. */
 type SessionTransitionKind = Extract<GameEffect, { readonly mapName: string }>["type"];
 
@@ -46,14 +50,14 @@ const SESSION_TRANSITIONS: Record<
   resetRun: resetRunSession,
 };
 
-export function startGame(spec: GameSpec): Disposable {
+export function startGame(spec: GameSpec): GameController {
   const controller = new AbortController();
   const game = new Game(spec, controller);
   game.start();
   return game;
 }
 
-class Game implements Disposable {
+class Game implements GameController {
   private readonly spec: GameSpec;
   private readonly controller: AbortController;
   private readonly runtime: GameRuntimeLoop;
@@ -91,6 +95,10 @@ class Game implements Disposable {
   start(): void {
     this.runtime.start();
     this.apply({ type: "start", nowMs: performance.now() });
+  }
+
+  unlockAudio(): Promise<void> {
+    return this.runtime.unlockAudio();
   }
 
   private startSessionTransition(kind: SessionTransitionKind, mapName: string): void {
