@@ -12,9 +12,7 @@ Deno.test("sound catalog has exactly one entry for every sound id", () => {
   }
 });
 
-Deno.test("sound catalog marks only music and ambient sounds as loops", () => {
-  assertEquals(SOUND_CATALOG[SoundId.MusicMain].category, "music");
-  assertEquals(SOUND_CATALOG[SoundId.MusicMain].loop, true);
+Deno.test("sound catalog marks ambient sounds as loops and effects as one-shots", () => {
   assertEquals(SOUND_CATALOG[SoundId.AmbientHum].category, "ambient");
   assertEquals(SOUND_CATALOG[SoundId.AmbientHum].loop, true);
   assertEquals(SOUND_CATALOG[SoundId.DoorOpen].category, "sfx");

@@ -1,6 +1,6 @@
 import { SoundId, type SoundId as SoundIdType } from "@/src/game/sound.ts";
 
-export type SoundCategory = "ambient" | "music" | "sfx";
+export type SoundCategory = "ambient" | "sfx";
 
 export type SoundCatalogEntry = {
   readonly soundId: SoundIdType;
@@ -11,7 +11,6 @@ export type SoundCatalogEntry = {
   readonly loop: boolean;
 };
 
-const MUSIC_MAIN = new URL("../../assets/game/audio/music_main.wav", import.meta.url).href;
 const BLOCKED_MOVE = new URL("../../assets/game/audio/blocked_move.wav", import.meta.url).href;
 const DOOR_OPEN = new URL("../../assets/game/audio/door_open.wav", import.meta.url).href;
 const DOOR_LOCKED = new URL("../../assets/game/audio/door_locked.wav", import.meta.url).href;
@@ -59,7 +58,6 @@ const ACOLYTE_HURT = new URL("../../assets/game/audio/acolyte_hurt.wav", import.
 const ACOLYTE_DEFEAT = new URL("../../assets/game/audio/acolyte_defeat.wav", import.meta.url).href;
 
 export const SOUND_CATALOG: Readonly<Record<SoundIdType, SoundCatalogEntry>> = {
-  [SoundId.MusicMain]: music(SoundId.MusicMain, MUSIC_MAIN, 0.55),
   [SoundId.BlockedMove]: sfx(SoundId.BlockedMove, BLOCKED_MOVE, 0.45, 2),
   [SoundId.DoorOpen]: sfx(SoundId.DoorOpen, DOOR_OPEN, 0.75, 5),
   [SoundId.DoorLocked]: sfx(SoundId.DoorLocked, DOOR_LOCKED, 0.65, 3),
@@ -109,10 +107,6 @@ export const SOUND_CATALOG: Readonly<Record<SoundIdType, SoundCatalogEntry>> = {
 
 export function soundCatalogEntry(soundId: SoundIdType): SoundCatalogEntry {
   return SOUND_CATALOG[soundId];
-}
-
-function music(soundId: SoundIdType, src: string, volume: number): SoundCatalogEntry {
-  return { soundId, src, category: "music", volume, radius: 0, loop: true };
 }
 
 function sfx(soundId: SoundIdType, src: string, volume: number, radius: number): SoundCatalogEntry {

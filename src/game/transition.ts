@@ -1,4 +1,5 @@
 import { dialogueTreeNode } from "@/src/dialogue/dialogue.ts";
+import { TrackId, type TrackId as MusicTrackId } from "@/src/audio/music_catalog.ts";
 import { type AudioSettings, DEFAULT_AUDIO_SETTINGS, withAudioVolume } from "@/src/game/audio_settings.ts";
 import {
   type GameCommand,
@@ -50,6 +51,7 @@ export type GameEffect =
   | { readonly type: "closeDialogue" }
   | { readonly type: "ensureInput" }
   | { readonly type: "applyAudioVolumes" }
+  | { readonly type: "playMusic"; readonly trackId: MusicTrackId }
   | { readonly type: "loadMap"; readonly mapName: string }
   | { readonly type: "retryMap"; readonly mapName: string }
   | { readonly type: "resetRun"; readonly mapName: string }
@@ -138,6 +140,7 @@ export function transition(model: GameModel, event: GameTransitionEvent): GameTr
         return done({ ...model, mode: { type: "title", intent: "start" } }, [
           { type: "ensureInput" },
           { type: "applyAudioVolumes" },
+          { type: "playMusic", trackId: TrackId.Title },
           { type: "render" },
         ]);
       }
@@ -175,7 +178,12 @@ function beginGame(model: GameModel, nowMs: number): GameTransition {
         goto: model.startMapName,
         nowMs,
       }),
-      [{ type: "ensureInput" }, { type: "applyAudioVolumes" }, { type: "render" }],
+      [
+        { type: "ensureInput" },
+        { type: "applyAudioVolumes" },
+        { type: "playMusic", trackId: TrackId.Intro },
+        { type: "render" },
+      ],
     );
   }
   return done({ ...model, mode: { type: "loading" } }, [

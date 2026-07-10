@@ -1,3 +1,4 @@
+import { MUSIC_TRACKS } from "@/src/audio/music_catalog.ts";
 import { SOUND_IDS, SoundId, type SoundId as SoundIdType } from "@/src/game/sound.ts";
 
 type WaveSpec = {
@@ -10,7 +11,6 @@ type WaveSpec = {
 const SAMPLE_RATE = 22_050;
 const OUTPUT_DIR = "assets/game/audio";
 const ASSET_SPECS: Readonly<Record<SoundIdType, WaveSpec>> = {
-  [SoundId.MusicMain]: { durationSeconds: 4, frequency: 110, volume: 0.22, kind: "sine" },
   [SoundId.BlockedMove]: { durationSeconds: 0.12, frequency: 90, volume: 0.45, kind: "noise" },
   [SoundId.DoorOpen]: { durationSeconds: 0.45, frequency: 130, volume: 0.5, kind: "sweep" },
   [SoundId.DoorLocked]: { durationSeconds: 0.18, frequency: 180, volume: 0.42, kind: "square" },
@@ -100,6 +100,17 @@ export async function checkAudioAssets(): Promise<void> {
     } catch (error) {
       if (error instanceof Deno.errors.NotFound) {
         issues.push(`${assetPath(soundId)} is missing. Run deno task audio:generate.`);
+      } else {
+        throw error;
+      }
+    }
+  }
+  for (const [trackId, track] of Object.entries(MUSIC_TRACKS)) {
+    try {
+      await Deno.lstat(new URL(track.src));
+    } catch (error) {
+      if (error instanceof Deno.errors.NotFound) {
+        issues.push(`Music track ${trackId} is missing: ${track.src}`);
       } else {
         throw error;
       }

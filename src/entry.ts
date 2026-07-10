@@ -1,4 +1,5 @@
 import type { GameSession } from "@/src/ecs/session.ts";
+import { musicTrackForMap } from "@/src/audio/music_catalog.ts";
 import {
   loadMapSession,
   type LoadMapSessionSpec,
@@ -117,7 +118,7 @@ class Game implements Disposable {
     // ambient emitters/music so the first loops are spatialized correctly.
     this.runtime.updateAudioListener();
     this.runtime.syncAudioWorld();
-    this.runtime.startMusic();
+    this.runtime.playMusic(musicTrackForMap(mapName));
     this.apply({ type: "mapLoaded", mapName });
   }
 
@@ -201,6 +202,9 @@ class Game implements Disposable {
           break;
         case "applyAudioVolumes":
           this.runtime.setAudioVolumes(this.model.audio);
+          break;
+        case "playMusic":
+          this.runtime.playMusic(effect.trackId);
           break;
         case "loadMap":
         case "retryMap":

@@ -1,4 +1,5 @@
 import type { AudioRuntime } from "@/src/audio/audio_runtime.ts";
+import { TrackId } from "@/src/audio/music_catalog.ts";
 import { createGameRuntimeLoop } from "@/src/game/runtime_loop.ts";
 import type { RuntimeSession } from "@/src/game/session_ports.ts";
 import { type EnemyIdleSoundSource, type SoundCue, type SoundEmitterSnapshot, SoundId } from "@/src/game/sound.ts";
@@ -268,6 +269,23 @@ Deno.test("runtime updateAudioListener uses the current session pose", () => {
   assertEquals(audio.listenerFacing, 1);
 });
 
+Deno.test("runtime forwards the selected music track to audio", () => {
+  const audio = new FakeAudioRuntime();
+  const runtime = createGameRuntimeLoop({
+    host: new FakeWindow() as unknown as Window,
+    document: new FakeDocument() as unknown as Document,
+    ctx: new FakeContext() as unknown as CanvasRenderingContext2D,
+    signal: new AbortController().signal,
+    getModel: () => modelWithoutFrame(),
+    getSession: () => undefined,
+    dependencies: { audio, firstPersonRenderer: fakeFirstPersonRenderer() },
+  });
+
+  runtime.playMusic(TrackId.Map3);
+
+  assertEquals(audio.musicTrack, TrackId.Map3);
+});
+
 function modelNeedingFrame(): GameModel {
   const model = createGameModel("Level 1");
   return {
@@ -401,7 +419,7 @@ class FakeAudioRuntime implements AudioRuntime {
   ambientEmitters: readonly SoundEmitterSnapshot[] = [];
   enemyIdleSources: readonly EnemyIdleSoundSource[] = [];
   cues: readonly SoundCue[] = [];
-  musicStarted = false;
+  musicTrack?: TrackId;
   unlocks = 0;
   volumes?: { readonly musicVolume: number; readonly soundVolume: number };
 
@@ -410,8 +428,8 @@ class FakeAudioRuntime implements AudioRuntime {
     return Promise.resolve();
   }
 
-  startMusic(): void {
-    this.musicStarted = true;
+  playMusic(trackId: TrackId): void {
+    this.musicTrack = trackId;
   }
 
   setVolumes(volumes: { readonly musicVolume: number; readonly soundVolume: number }): void {

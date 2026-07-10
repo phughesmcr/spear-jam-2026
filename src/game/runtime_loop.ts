@@ -1,4 +1,5 @@
 import { type AudioRuntime, createAudioRuntime } from "@/src/audio/audio_runtime.ts";
+import type { TrackId } from "@/src/audio/music_catalog.ts";
 import type { AudioSettings } from "@/src/game/audio_settings.ts";
 import { fillPresentationView } from "@/src/game/presentation.ts";
 import {
@@ -46,7 +47,7 @@ export interface GameRuntimeLoop extends Disposable {
   updateAudioListener(): void;
   playCues(cues: readonly SoundCue[]): void;
   syncAudioWorld(): void;
-  startMusic(): void;
+  playMusic(trackId: TrackId): void;
 }
 
 export function createGameRuntimeLoop(spec: GameRuntimeLoopSpec): GameRuntimeLoop {
@@ -148,8 +149,8 @@ class RuntimeLoop implements GameRuntimeLoop {
     this.audio.syncEnemyIdleSources(this.enemyIdleSources);
   }
 
-  startMusic(): void {
-    this.audio.startMusic();
+  playMusic(trackId: TrackId): void {
+    this.audio.playMusic(trackId);
   }
 
   [Symbol.dispose](): void {

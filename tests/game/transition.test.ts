@@ -1,4 +1,5 @@
 import { DisplayName } from "@/src/game/names.ts";
+import { TrackId } from "@/src/audio/music_catalog.ts";
 import { createGameModel, type GameModel, transition } from "@/src/game/transition.ts";
 import type { Entity } from "@phughesmcr/miski";
 import { assertEquals } from "@std/assert";
@@ -26,6 +27,7 @@ Deno.test("transition can start on the title screen before beginning the game", 
   assertEquals(result.effects, [
     { type: "ensureInput" },
     { type: "applyAudioVolumes" },
+    { type: "playMusic", trackId: TrackId.Title },
     { type: "render" },
   ]);
 
@@ -36,6 +38,7 @@ Deno.test("transition can start on the title screen before beginning the game", 
   assertEquals(result.effects, [
     { type: "ensureInput" },
     { type: "applyAudioVolumes" },
+    { type: "playMusic", trackId: TrackId.Intro },
     { type: "render" },
   ]);
 });
@@ -225,6 +228,7 @@ Deno.test("transition can start with an intro intermission before loading the fi
   assertEquals(result.effects, [
     { type: "ensureInput" },
     { type: "applyAudioVolumes" },
+    { type: "playMusic", trackId: TrackId.Intro },
     { type: "render" },
   ]);
 

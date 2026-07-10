@@ -1,4 +1,5 @@
 import { soundCatalogEntry } from "@/src/audio/sound_catalog.ts";
+import { MUSIC_TRACKS, type TrackId } from "@/src/audio/music_catalog.ts";
 import { clampVolume } from "@/src/game/audio_settings.ts";
 import {
   type EnemyIdleSoundSource,
@@ -18,7 +19,7 @@ export type AudioVolumes = {
 
 export interface AudioRuntime extends Disposable {
   unlock(): Promise<void>;
-  startMusic(): void;
+  playMusic(trackId: TrackId): void;
   setVolumes(volumes: AudioVolumes): void;
   updateListener(position: GridPoint, facing: CardinalDirection): void;
   playCues(cues: readonly SoundCue[]): void;
@@ -63,9 +64,9 @@ class WebAudioRuntime implements AudioRuntime {
   private readonly host: Window;
   private graph?: AudioGraph;
   private unlocked = false;
-  private pendingMusic = false;
+  private musicTrackId?: TrackId;
   private musicElement?: HTMLAudioElement;
-  private musicSource?: MediaElementAudioSourceNode;
+  private musicTrackGain?: GainNode;
   private readonly buffers = new Map<SoundId, Promise<AudioBuffer | undefined>>();
   private readonly ambientSnapshots = new Map<Entity, SoundEmitterSnapshot>();
   private readonly ambientLoops = new Map<Entity, AmbientLoop>();
@@ -88,16 +89,17 @@ class WebAudioRuntime implements AudioRuntime {
     if (graph.context.state !== "running") await graph.context.resume();
     if (this.disposed || this.unlocked) return;
     this.unlocked = true;
-    if (this.pendingMusic) this.startMusicNow();
+    if (this.musicTrackId !== undefined) this.playMusicNow(this.musicTrackId);
     this.flushPendingCues();
     this.reconcileAmbientLoops();
     for (const entity of this.enemyIdleSources.keys()) this.scheduleEnemyIdle(entity);
   }
 
-  startMusic(): void {
+  playMusic(trackId: TrackId): void {
     if (this.disposed) return;
-    this.pendingMusic = true;
-    if (this.unlocked) this.startMusicNow();
+    this.musicTrackId = trackId;
+    this.prepareMusicElement(trackId);
+    if (this.unlocked) this.playMusicNow(trackId);
   }
 
   setVolumes(volumes: AudioVolumes): void {
@@ -163,7 +165,7 @@ class WebAudioRuntime implements AudioRuntime {
     if (this.disposed) return;
     this.disposed = true;
     this.unlocked = false;
-    this.pendingMusic = false;
+    this.musicTrackId = undefined;
     this.abortController.abort();
     this.pendingCues.length = 0;
     this.ambientSnapshots.clear();
@@ -198,36 +200,41 @@ class WebAudioRuntime implements AudioRuntime {
     return this.graph;
   }
 
-  private startMusicNow(): void {
+  private playMusicNow(trackId: TrackId): void {
     const graph = this.ensureGraph();
-    if (this.musicElement !== undefined) {
-      void this.musicElement.play().catch((error: unknown) => warnAudioFailure("play music", error));
-      return;
+    const entry = MUSIC_TRACKS[trackId];
+    const audio = this.prepareMusicElement(trackId);
+    let gain = this.musicTrackGain;
+    if (gain === undefined) {
+      const source = graph.context.createMediaElementSource(audio);
+      gain = graph.context.createGain();
+      source.connect(gain);
+      gain.connect(graph.musicGain);
+      this.musicTrackGain = gain;
     }
-
-    const entry = soundCatalogEntry(SoundId.MusicMain);
-    const audio = this.host.document.createElement("audio");
-    audio.src = entry.src;
-    audio.loop = true;
-    audio.preload = "auto";
-    audio.crossOrigin = "anonymous";
-    this.musicElement = audio;
-    this.musicSource = graph.context.createMediaElementSource(audio);
-    const gain = graph.context.createGain();
     setAudioParam(gain.gain, entry.volume, graph.context.currentTime);
-    this.musicSource.connect(gain);
-    gain.connect(graph.musicGain);
     void audio.play().catch((error: unknown) => warnAudioFailure("play music", error));
+  }
+
+  private prepareMusicElement(trackId: TrackId): HTMLAudioElement {
+    const entry = MUSIC_TRACKS[trackId];
+    const audio = this.musicElement ?? this.host.document.createElement("audio");
+    if (this.musicElement === undefined) {
+      audio.crossOrigin = "anonymous";
+      audio.preload = "auto";
+      this.musicElement = audio;
+    }
+    if (audio.src !== entry.src) {
+      audio.pause();
+      audio.src = entry.src;
+      audio.loop = entry.loop;
+    }
+    return audio;
   }
 
   private async playCue(cue: SoundCue): Promise<void> {
     const graph = this.ensureGraph();
     const entry = soundCatalogEntry(cue.soundId);
-    if (entry.category === "music") {
-      this.startMusic();
-      return;
-    }
-
     const buffer = await this.bufferFor(cue.soundId);
     if (buffer === undefined || this.disposed || !this.unlocked) return;
 

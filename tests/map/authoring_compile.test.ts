@@ -849,7 +849,7 @@ Deno.test("compileTiledMap validates sound ids and volume", () => {
           soundObjects: [
             object({
               properties: [
-                property("soundId", SoundId.MusicMain),
+                property("soundId", "musicMain"),
                 property("radius", 6),
               ],
             }),

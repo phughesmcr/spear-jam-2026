@@ -4,7 +4,6 @@ import { createCodeRegistry } from "@/src/utils/code_registry.ts";
 import type { Entity } from "@phughesmcr/miski";
 
 export const SoundId = {
-  MusicMain: "musicMain",
   BlockedMove: "blockedMove",
   DoorOpen: "doorOpen",
   DoorLocked: "doorLocked",
@@ -54,7 +53,6 @@ export const SoundId = {
 export type SoundId = (typeof SoundId)[keyof typeof SoundId];
 
 export const SOUND_IDS = [
-  SoundId.MusicMain,
   SoundId.BlockedMove,
   SoundId.DoorOpen,
   SoundId.DoorLocked,
