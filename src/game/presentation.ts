@@ -1,7 +1,7 @@
-import type { Entity } from "@phughesmcr/miski";
 import { type CombatFeedback, combatFeedbackForEvents } from "@/src/game/combat_feedback.ts";
 import type { GameEvent } from "@/src/game/events.ts";
 import { messageForEvent } from "@/src/game/messages.ts";
+import type { Entity } from "@phughesmcr/miski";
 
 const WEAPON_HUD_ACTIVE_MS = 140;
 const KEY_HUD_VISIBLE_MS = 1400;
@@ -75,7 +75,7 @@ export function consumeGameEvents(
 
   for (const event of events) {
     const text = messageForEvent(playerEntity, event);
-    if (activeTexts.has(text)) continue;
+    if (text === "" || activeTexts.has(text)) continue;
     activeTexts.add(text);
     nextMessages.push({ text, expiresAtMs: nowMs + MESSAGE_HUD_VISIBLE_MS });
   }

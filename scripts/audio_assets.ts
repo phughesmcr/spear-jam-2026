@@ -24,15 +24,38 @@ const ASSET_SPECS: Readonly<Record<SoundIdType, WaveSpec>> = {
   [SoundId.WeaponPulsePistol]: { durationSeconds: 0.18, frequency: 330, volume: 0.55, kind: "square" },
   [SoundId.WeaponCurrentCannon]: { durationSeconds: 0.34, frequency: 180, volume: 0.6, kind: "sweep" },
   [SoundId.WeaponNoAmmo]: { durationSeconds: 0.12, frequency: 220, volume: 0.32, kind: "square" },
-  [SoundId.EnemyIdle]: { durationSeconds: 0.5, frequency: 95, volume: 0.32, kind: "sweep" },
-  [SoundId.EnemyAttack]: { durationSeconds: 0.24, frequency: 140, volume: 0.55, kind: "noise" },
-  [SoundId.EnemyDefeat]: { durationSeconds: 0.48, frequency: 100, volume: 0.5, kind: "sweep" },
   [SoundId.PlayerHurt]: { durationSeconds: 0.24, frequency: 120, volume: 0.5, kind: "noise" },
   [SoundId.NpcInteract]: { durationSeconds: 0.22, frequency: 440, volume: 0.35, kind: "sine" },
   [SoundId.TerminalLocked]: { durationSeconds: 0.2, frequency: 260, volume: 0.35, kind: "square" },
   [SoundId.TerminalUse]: { durationSeconds: 0.4, frequency: 620, volume: 0.4, kind: "sweep" },
   [SoundId.AmbientHum]: { durationSeconds: 2, frequency: 85, volume: 0.24, kind: "sine" },
   [SoundId.AmbientLightBuzz]: { durationSeconds: 1.5, frequency: 120, volume: 0.2, kind: "noise" },
+  [SoundId.EnemyInvestigate]: { durationSeconds: 0.13, frequency: 880, volume: 0.3, kind: "sine" },
+  [SoundId.DogIdle]: { durationSeconds: 0.4, frequency: 180, volume: 0.35, kind: "noise" },
+  [SoundId.DogAlert]: { durationSeconds: 0.35, frequency: 220, volume: 0.4, kind: "square" },
+  [SoundId.DogAttack]: { durationSeconds: 0.28, frequency: 140, volume: 0.5, kind: "noise" },
+  [SoundId.DogHurt]: { durationSeconds: 0.3, frequency: 160, volume: 0.45, kind: "noise" },
+  [SoundId.DogDefeat]: { durationSeconds: 0.45, frequency: 110, volume: 0.5, kind: "sweep" },
+  [SoundId.GunslingerIdle]: { durationSeconds: 0.45, frequency: 240, volume: 0.32, kind: "sine" },
+  [SoundId.GunslingerAlert]: { durationSeconds: 0.22, frequency: 660, volume: 0.35, kind: "square" },
+  [SoundId.GunslingerAttack]: { durationSeconds: 0.35, frequency: 380, volume: 0.55, kind: "square" },
+  [SoundId.GunslingerHurt]: { durationSeconds: 0.3, frequency: 200, volume: 0.45, kind: "noise" },
+  [SoundId.GunslingerDefeat]: { durationSeconds: 0.5, frequency: 140, volume: 0.5, kind: "sweep" },
+  [SoundId.NeophyteIdle]: { durationSeconds: 0.35, frequency: 520, volume: 0.3, kind: "sine" },
+  [SoundId.NeophyteAlert]: { durationSeconds: 0.28, frequency: 740, volume: 0.35, kind: "square" },
+  [SoundId.NeophyteAttack]: { durationSeconds: 0.32, frequency: 440, volume: 0.5, kind: "square" },
+  [SoundId.NeophyteHurt]: { durationSeconds: 0.28, frequency: 260, volume: 0.4, kind: "noise" },
+  [SoundId.NeophyteDefeat]: { durationSeconds: 0.42, frequency: 180, volume: 0.45, kind: "sweep" },
+  [SoundId.SentinelIdle]: { durationSeconds: 2, frequency: 90, volume: 0.28, kind: "sine" },
+  [SoundId.SentinelAlert]: { durationSeconds: 0.2, frequency: 990, volume: 0.35, kind: "square" },
+  [SoundId.SentinelAttack]: { durationSeconds: 0.4, frequency: 120, volume: 0.55, kind: "noise" },
+  [SoundId.SentinelHurt]: { durationSeconds: 0.35, frequency: 150, volume: 0.45, kind: "noise" },
+  [SoundId.SentinelDefeat]: { durationSeconds: 1.2, frequency: 80, volume: 0.45, kind: "sweep" },
+  [SoundId.AcolyteIdle]: { durationSeconds: 0.45, frequency: 300, volume: 0.32, kind: "sine" },
+  [SoundId.AcolyteAlert]: { durationSeconds: 0.3, frequency: 560, volume: 0.4, kind: "square" },
+  [SoundId.AcolyteAttack]: { durationSeconds: 0.5, frequency: 200, volume: 0.55, kind: "sweep" },
+  [SoundId.AcolyteHurt]: { durationSeconds: 0.3, frequency: 220, volume: 0.45, kind: "noise" },
+  [SoundId.AcolyteDefeat]: { durationSeconds: 0.48, frequency: 130, volume: 0.5, kind: "sweep" },
 };
 
 if (import.meta.main) {
@@ -59,17 +82,21 @@ export async function main(args: readonly string[] = Deno.args): Promise<void> {
 export async function generateAudioAssets(): Promise<void> {
   await Deno.mkdir(OUTPUT_DIR, { recursive: true });
   for (const soundId of SOUND_IDS) {
-    await Deno.writeFile(assetPath(soundId), waveBytes(ASSET_SPECS[soundId], soundId));
+    const path = assetPath(soundId);
+    try {
+      await Deno.lstat(path);
+    } catch (error) {
+      if (!(error instanceof Deno.errors.NotFound)) throw error;
+      await Deno.writeFile(path, waveBytes(ASSET_SPECS[soundId], soundId));
+    }
   }
 }
 
 export async function checkAudioAssets(): Promise<void> {
   const issues: string[] = [];
   for (const soundId of SOUND_IDS) {
-    const expected = waveBytes(ASSET_SPECS[soundId], soundId);
     try {
-      const existing = await Deno.readFile(assetPath(soundId));
-      if (!bytesEqual(existing, expected)) issues.push(`${assetPath(soundId)} is stale. Run deno task audio:generate.`);
+      await Deno.lstat(assetPath(soundId));
     } catch (error) {
       if (error instanceof Deno.errors.NotFound) {
         issues.push(`${assetPath(soundId)} is missing. Run deno task audio:generate.`);
@@ -155,12 +182,4 @@ function pseudoRandom(seed: number): number {
 
 function snakeCase(value: string): string {
   return value.replace(/[A-Z]/g, (letter) => `_${letter.toLowerCase()}`);
-}
-
-function bytesEqual(a: Uint8Array, b: Uint8Array): boolean {
-  if (a.length !== b.length) return false;
-  for (let i = 0; i < a.length; i++) {
-    if (a[i] !== b[i]) return false;
-  }
-  return true;
 }

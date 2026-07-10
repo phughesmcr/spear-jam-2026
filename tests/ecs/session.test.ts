@@ -307,7 +307,7 @@ Deno.test("sessions expose ambient emitters and enemy idle sound sources", async
       volume: 0.25,
     }]);
     assertEquals(sessionEnemyIdleSoundSources(session).map(withoutEntity), [{
-      soundId: SoundId.EnemyIdle,
+      soundId: SoundId.DogIdle,
       x: 3,
       y: 1,
       radius: 5,
@@ -458,7 +458,7 @@ Deno.test("consumed player actions run enemy phase and visibility refresh", asyn
       if (drawable.kind === DrawableKind.Actor) enemies.push({ x: drawable.x, y: drawable.y });
     });
 
-    assertEquals(eventTypes(result), ["doorOpened"]);
+    assertEquals(eventTypes(result), ["doorOpened", "enemyAlerted"]);
     assertEquals(enemies, [{ x: 4, y: 1 }]);
     assertEquals(session.getVisibility().isVisible(4, 1), true);
   } finally {
@@ -750,7 +750,7 @@ Deno.test("enemy attacks expose short-lived ECS sprite animation state", async (
     );
     try {
       const result = session.handlePlayerCommand({ type: "wait" });
-      assertEquals(eventTypes(result), ["damageDealt"]);
+      assertEquals(eventTypes(result), ["enemyAlerted", "damageDealt"]);
 
       assertEquals(actorAt(sessionDrawables(session), 2, 1)?.animation, {
         kind: SpriteAnimationKind.Attack,
@@ -781,7 +781,7 @@ Deno.test("moving enemies expose short-lived ECS walk animation state", async ()
     );
     try {
       const result = session.handlePlayerCommand({ type: "wait" });
-      assertEquals(eventTypes(result), []);
+      assertEquals(eventTypes(result), ["enemyAlerted"]);
 
       assertEquals(actorAt(sessionDrawables(session), 4, 1)?.animation, {
         kind: SpriteAnimationKind.Walk,

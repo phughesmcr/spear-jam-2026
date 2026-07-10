@@ -604,7 +604,17 @@ Deno.test("first-person rendering keeps open doors in the raycast scene for jamb
     );
     const drawables: DrawableEntity[] = [
       playerDrawable(1, 1, Direction.East),
-      { kind: DrawableKind.Door, entity: 2, x: 2, y: 1, open: true, locked: false, secret: false, openMs: 0 },
+      {
+        kind: DrawableKind.Door,
+        entity: 2,
+        x: 2,
+        y: 1,
+        open: true,
+        locked: false,
+        secret: false,
+        glass: false,
+        openMs: 0,
+      },
     ];
     const session = sessionFor(map, drawables);
     const renderer = createFirstPersonRenderer();
@@ -654,6 +664,7 @@ Deno.test("first-person rendering uses sliding solid walls for closed secret doo
         open: false,
         locked: false,
         secret: true,
+        glass: false,
         openMs: 0,
       },
     ];
@@ -697,7 +708,17 @@ Deno.test("first-person rendering keeps open secret doors out of the thin-wall p
     );
     const drawables: DrawableEntity[] = [
       playerDrawable(1, 1, Direction.East),
-      { kind: DrawableKind.Door, entity: 2, x: 2, y: 1, open: true, locked: false, secret: true, openMs: 0 },
+      {
+        kind: DrawableKind.Door,
+        entity: 2,
+        x: 2,
+        y: 1,
+        open: true,
+        locked: false,
+        secret: true,
+        glass: false,
+        openMs: 0,
+      },
     ];
     const session = sessionFor(map, drawables);
     const renderer = createFirstPersonRenderer();

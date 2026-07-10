@@ -22,6 +22,9 @@
 
 - [RPG Sound Pack](https://opengameart.org/content/rpg-sound-pack)
 - [www.kenney.nl - 50 RPG Sound Effects](https://opengameart.org/content/50-rpg-sound-effects)
+- [80 CC0 creature SFX](https://opengameart.org/content/80-cc0-creature-sfx) (rubberduck, CC0)
+- [60 CC0 Sci-Fi SFX](https://opengameart.org/content/60-cc0-sci-fi-sfx) (rubberduck, CC0)
+- [Sci-Fi Weapon Shots SFX](https://lentikula.itch.io/sci-fi-weapon-shots-sfx-freecc0) (Lentikula, CC0)
 
 **Tools:**
 

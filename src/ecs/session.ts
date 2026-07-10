@@ -1,6 +1,8 @@
+import { enemyCatalogEntry, type EnemySoundProfile } from "@/src/content/enemies.ts";
 import {
   DialogueTreeRef,
   DisplayNameComponent,
+  enemyArchetypeFor,
   ExamineTextRef,
   Facing,
   type FacingSchema,
@@ -255,6 +257,7 @@ export class GameSession implements Disposable {
 
   handlePlayerCommand(command: PlayerCommand): PlayerCommandResult {
     const positionsBefore = this.entityPositionSnapshot();
+    const enemySounds = this.enemySoundSnapshot();
     const playerPositionBefore = this.getPlayerPosition();
     const playerWeaponSlot = selectedPlayerWeapon(this.world, this.playerEntity);
     const playerWeapon = playerWeaponSpec(playerWeaponSlot);
@@ -271,6 +274,7 @@ export class GameSession implements Disposable {
       playerPosition: playerPositionAfter,
       positionsBefore,
       positionsAfter: this.entityPositionSnapshot(),
+      enemySounds,
       blockedMove,
       dialogueTarget,
       playerWeaponSlot,
@@ -377,6 +381,16 @@ export class GameSession implements Disposable {
       if (position !== undefined) positions.set(entity, { x: position.x, y: position.y });
     }
     return positions;
+  }
+
+  private enemySoundSnapshot(): ReadonlyMap<Entity, EnemySoundProfile> {
+    const sounds = new Map<Entity, EnemySoundProfile>();
+    this.forEachEnemyIdleSoundSource((source) => {
+      const archetype = enemyArchetypeFor(this.world, source.entity);
+      if (archetype === undefined) return;
+      sounds.set(source.entity, enemyCatalogEntry(archetype).sounds);
+    });
+    return sounds;
   }
 
   private refreshVisibility(): void {

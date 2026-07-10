@@ -384,7 +384,7 @@ function ambientEmitter(): SoundEmitterSnapshot {
 function enemyIdleSource(): EnemyIdleSoundSource {
   return {
     entity: EMITTER,
-    soundId: SoundId.EnemyIdle,
+    soundId: SoundId.DogIdle,
     x: 5,
     y: 6,
     radius: 7,

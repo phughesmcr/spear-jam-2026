@@ -142,7 +142,9 @@ Deno.test("enemy actor order is deterministic and later enemies see earlier chan
   assertEquals(result.cost, "turn");
   assertEquals(world.components.getEntityData(GridPos, first), { x: 2, y: 1 });
   assertEquals(world.components.getEntityData(GridPos, second), { x: 4, y: 1 });
-  assertEquals(result.events, []);
+  assertEquals(result.events.map((event) => event.type), ["enemyAlerted", "enemyAlerted"]);
+  assertEquals(result.events[0], { type: "enemyAlerted", entity: first });
+  assertEquals(result.events[1], { type: "enemyAlerted", entity: second });
 });
 
 Deno.test("enemy phase stops immediately after player defeat", async () => {
@@ -169,8 +171,8 @@ Deno.test("enemy phase stops immediately after player defeat", async () => {
   const result = runTransaction(world, player, { type: "wait" }, flatTestMap(6, 3));
 
   assertEquals(result.outcome, "defeat");
-  assertEquals(result.events.map((event) => event.type), ["damageDealt", "entityDefeated"]);
-  assertEquals(result.events[0]?.type === "damageDealt" ? result.events[0].actor : undefined, killer);
+  assertEquals(result.events.map((event) => event.type), ["enemyAlerted", "damageDealt", "entityDefeated"]);
+  assertEquals(result.events[1]?.type === "damageDealt" ? result.events[1].actor : undefined, killer);
   assertEquals(world.components.getEntityData(GridPos, later), { x: 4, y: 1 });
 });
 

@@ -35,8 +35,9 @@ type AwarenessResult =
 export function runEnemyActorTurn(context: EnemyTurnContext, enemy: Entity): readonly GameEvent[] {
   if (!context.world.entities.isActive(enemy)) return [];
 
-  const events: GameEvent[] = [];
-  for (const intent of enemyIntentsForActor(context, enemy)) {
+  const { awareness, events: awarenessEvents } = updateEnemyAwareness(context, enemy);
+  const events: GameEvent[] = [...awarenessEvents];
+  for (const intent of enemyIntentsForAwareness(context, enemy, awareness)) {
     if (isPlayerDefeated(context)) break;
 
     const resolution = resolveIntent(context, intent);
@@ -50,8 +51,15 @@ export function runEnemyActorTurn(context: EnemyTurnContext, enemy: Entity): rea
 
 export function enemyIntentsForActor(context: EnemyTurnContext, enemy: Entity): readonly ActorIntent[] {
   if (!context.world.entities.isActive(enemy)) return [];
+  const { awareness } = updateEnemyAwareness(context, enemy);
+  return enemyIntentsForAwareness(context, enemy, awareness);
+}
 
-  const awareness = updateEnemyAwareness(context, enemy);
+function enemyIntentsForAwareness(
+  context: EnemyTurnContext,
+  enemy: Entity,
+  awareness: AwarenessResult,
+): readonly ActorIntent[] {
   const behavior = enemyBehaviorPolicyFor(context, enemy);
   const state = awareness.state;
   switch (state) {
@@ -201,7 +209,10 @@ function distanceToPlayer(context: EnemyTurnContext, enemy: Entity): number {
   return Math.abs(enemyPosition.x - target.x) + Math.abs(enemyPosition.y - target.y);
 }
 
-function updateEnemyAwareness(context: EnemyTurnContext, enemy: Entity): AwarenessResult {
+function updateEnemyAwareness(
+  context: EnemyTurnContext,
+  enemy: Entity,
+): { readonly awareness: AwarenessResult; readonly events: readonly GameEvent[] } {
   const position = entityPosition(context, enemy);
   const target = playerPosition(context);
   const facing = context.world.components.getEntityData(Facing, enemy).dir as CardinalDirection;
@@ -221,8 +232,10 @@ function updateEnemyAwareness(context: EnemyTurnContext, enemy: Entity): Awarene
       lastKnownY: target.y,
       turnsSinceSeen: 0,
     } as const;
-    setEnemyAwareness(context, enemy, awareness);
-    return { state: AwarenessState.Alert, position: target };
+    return {
+      awareness: { state: AwarenessState.Alert, position: target },
+      events: setEnemyAwareness(context, enemy, awareness),
+    };
   }
 
   const heardNoise = nearestHeardNoise(position, context.noises ?? [], senses.hearingRadius);
@@ -233,8 +246,10 @@ function updateEnemyAwareness(context: EnemyTurnContext, enemy: Entity): Awarene
       lastKnownY: heardNoise.y,
       turnsSinceSeen: 0,
     } as const;
-    setEnemyAwareness(context, enemy, awareness);
-    return { state: AwarenessState.Investigating, position: heardNoise };
+    return {
+      awareness: { state: AwarenessState.Investigating, position: heardNoise },
+      events: setEnemyAwareness(context, enemy, awareness),
+    };
   }
 
   const current = context.world.components.getEntityData(EnemyAwareness, enemy);
@@ -242,18 +257,22 @@ function updateEnemyAwareness(context: EnemyTurnContext, enemy: Entity): Awarene
     const lastKnown = { x: current.lastKnownX, y: current.lastKnownY };
     const turnsSinceSeen = current.turnsSinceSeen + 1;
     if (!samePosition(position, lastKnown) && turnsSinceSeen <= MAX_INVESTIGATION_TURNS) {
-      setEnemyAwareness(context, enemy, {
-        state: AwarenessState.Investigating,
-        lastKnownX: lastKnown.x,
-        lastKnownY: lastKnown.y,
-        turnsSinceSeen,
-      });
-      return { state: AwarenessState.Investigating, position: lastKnown };
+      return {
+        awareness: { state: AwarenessState.Investigating, position: lastKnown },
+        events: setEnemyAwareness(context, enemy, {
+          state: AwarenessState.Investigating,
+          lastKnownX: lastKnown.x,
+          lastKnownY: lastKnown.y,
+          turnsSinceSeen,
+        }),
+      };
     }
   }
 
-  setEnemyAwareness(context, enemy, IDLE_AWARENESS);
-  return { state: AwarenessState.Idle };
+  return {
+    awareness: { state: AwarenessState.Idle },
+    events: setEnemyAwareness(context, enemy, IDLE_AWARENESS),
+  };
 }
 
 function entityPosition(context: EnemyTurnContext, enemy: Entity): GridPoint {
@@ -294,7 +313,7 @@ function setEnemyAwareness(
     readonly lastKnownY: number;
     readonly turnsSinceSeen: number;
   },
-): void {
+): readonly GameEvent[] {
   const current = context.world.components.getEntityData(EnemyAwareness, enemy);
   if (
     current.state === awareness.state &&
@@ -302,10 +321,20 @@ function setEnemyAwareness(
     current.lastKnownY === awareness.lastKnownY &&
     current.turnsSinceSeen === awareness.turnsSinceSeen
   ) {
-    return;
+    return [];
+  }
+
+  const events: GameEvent[] = [];
+  if (awareness.state === AwarenessState.Alert && current.state !== AwarenessState.Alert) {
+    events.push({ type: "enemyAlerted", entity: enemy });
+  } else if (
+    awareness.state === AwarenessState.Investigating && current.state === AwarenessState.Idle
+  ) {
+    events.push({ type: "enemyInvestigating", entity: enemy });
   }
 
   context.world.components.setEntityData(EnemyAwareness, enemy, awareness);
+  return events;
 }
 
 function hasLastKnownPosition(awareness: { readonly lastKnownX: number; readonly lastKnownY: number }): boolean {

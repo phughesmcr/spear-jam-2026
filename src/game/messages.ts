@@ -51,6 +51,9 @@ export function messageForEvent(playerEntity: Entity, event: GameEvent): string 
       return `Earned ${event.amount} credits.`;
     case "xpGained":
       return `Converted ${event.amount} credits to XP.`;
+    case "enemyAlerted":
+    case "enemyInvestigating":
+      return "";
     default: {
       const _exhaustive: never = event;
       return _exhaustive;

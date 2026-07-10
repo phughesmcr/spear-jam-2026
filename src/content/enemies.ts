@@ -60,13 +60,35 @@ export type EnemyIdleSoundProfile = {
   readonly maxDelayMs: number;
 };
 
-export const DEFAULT_ENEMY_IDLE_SOUND: EnemyIdleSoundProfile = {
-  soundId: SoundId.EnemyIdle,
-  radius: 5,
-  volume: 0.42,
-  minDelayMs: 7000,
-  maxDelayMs: 14000,
+export type EnemySoundProfile = {
+  readonly idle: EnemyIdleSoundProfile;
+  readonly alert: SoundIdType;
+  readonly attack: SoundIdType;
+  readonly hurt: SoundIdType;
+  readonly defeat: SoundIdType;
 };
+
+function enemySounds(
+  idleSoundId: SoundIdType,
+  alert: SoundIdType,
+  attack: SoundIdType,
+  hurt: SoundIdType,
+  defeat: SoundIdType,
+): EnemySoundProfile {
+  return {
+    idle: {
+      soundId: idleSoundId,
+      radius: 5,
+      volume: 0.42,
+      minDelayMs: 7000,
+      maxDelayMs: 14000,
+    },
+    alert,
+    attack,
+    hurt,
+    defeat,
+  };
+}
 
 export type EnemyCatalogEntry = {
   readonly displayName: DisplayName;
@@ -76,7 +98,7 @@ export type EnemyCatalogEntry = {
   readonly attack: Readonly<Partial<AttackDef>>;
   readonly behavior: EnemyBehaviorPolicy;
   readonly senses: EnemySenses;
-  readonly idleSound: EnemyIdleSoundProfile;
+  readonly sounds: EnemySoundProfile;
 };
 
 export type EnemyArchetypeKey =
@@ -120,7 +142,13 @@ const ENEMY_ARCHETYPE_DEFINITIONS = [
         investigate: { type: "move", steps: 1 },
       },
       senses: { ...DEFAULT_ENEMY_SENSES, sightRadius: 4 },
-      idleSound: DEFAULT_ENEMY_IDLE_SOUND,
+      sounds: enemySounds(
+        SoundId.DogIdle,
+        SoundId.DogAlert,
+        SoundId.DogAttack,
+        SoundId.DogHurt,
+        SoundId.DogDefeat,
+      ),
     },
   },
   {
@@ -141,7 +169,13 @@ const ENEMY_ARCHETYPE_DEFINITIONS = [
         investigate: { type: "move", steps: 1 },
       },
       senses: { ...DEFAULT_ENEMY_SENSES, hearingRadius: 6 },
-      idleSound: DEFAULT_ENEMY_IDLE_SOUND,
+      sounds: enemySounds(
+        SoundId.GunslingerIdle,
+        SoundId.GunslingerAlert,
+        SoundId.GunslingerAttack,
+        SoundId.GunslingerHurt,
+        SoundId.GunslingerDefeat,
+      ),
     },
   },
   {
@@ -162,7 +196,13 @@ const ENEMY_ARCHETYPE_DEFINITIONS = [
         investigate: { type: "move", steps: 1 },
       },
       senses: { ...DEFAULT_ENEMY_SENSES },
-      idleSound: DEFAULT_ENEMY_IDLE_SOUND,
+      sounds: enemySounds(
+        SoundId.NeophyteIdle,
+        SoundId.NeophyteAlert,
+        SoundId.NeophyteAttack,
+        SoundId.NeophyteHurt,
+        SoundId.NeophyteDefeat,
+      ),
     },
   },
   {
@@ -183,7 +223,13 @@ const ENEMY_ARCHETYPE_DEFINITIONS = [
         investigate: { type: "watch" },
       },
       senses: { sightRadius: 1, hearingRadius: 1 },
-      idleSound: DEFAULT_ENEMY_IDLE_SOUND,
+      sounds: enemySounds(
+        SoundId.SentinelIdle,
+        SoundId.SentinelAlert,
+        SoundId.SentinelAttack,
+        SoundId.SentinelHurt,
+        SoundId.SentinelDefeat,
+      ),
     },
   },
   {
@@ -206,7 +252,13 @@ const ENEMY_ARCHETYPE_DEFINITIONS = [
         investigate: { type: "move", steps: 1 },
       },
       senses: { ...DEFAULT_ENEMY_SENSES },
-      idleSound: DEFAULT_ENEMY_IDLE_SOUND,
+      sounds: enemySounds(
+        SoundId.AcolyteIdle,
+        SoundId.AcolyteAlert,
+        SoundId.AcolyteAttack,
+        SoundId.AcolyteHurt,
+        SoundId.AcolyteDefeat,
+      ),
     },
   },
 ] as const satisfies readonly EnemyArchetypeDefinition[];

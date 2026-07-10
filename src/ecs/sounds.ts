@@ -41,7 +41,7 @@ export function createSoundEmitterScratch(): SoundEmitterScratch {
 export function createEnemyIdleSoundSourceScratch(): EnemyIdleSoundSourceScratch {
   return {
     entity: 0 as Entity,
-    soundId: SoundId.EnemyIdle,
+    soundId: SoundId.DogIdle,
     x: 0,
     y: 0,
     radius: 5,
@@ -81,7 +81,7 @@ export const enemyIdleSoundSourceSystem = new System({
     const archetypes = components.enemyArchetype.partitions.archetype;
     for (let i = 0; i < enemies.count; i++) {
       const entity = enemies.indices[i]! as Entity;
-      const idleSound = enemyCatalogEntry(enemyArchetypeForCode(archetypes[entity]!)).idleSound;
+      const idleSound = enemyCatalogEntry(enemyArchetypeForCode(archetypes[entity]!)).sounds.idle;
       const scratch = context.scratch;
       scratch.entity = entity;
       scratch.soundId = idleSound.soundId;

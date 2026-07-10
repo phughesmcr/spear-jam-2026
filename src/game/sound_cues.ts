@@ -1,3 +1,4 @@
+import type { EnemySoundProfile } from "@/src/content/enemies.ts";
 import type { GameEvent } from "@/src/game/events.ts";
 import { type SoundCue, SoundId, weaponSoundId } from "@/src/game/sound.ts";
 import type { CommandSlot } from "@/src/game/state.ts";
@@ -9,6 +10,7 @@ export type SoundCueContext = {
   readonly playerPosition: GridPoint;
   readonly positionsBefore: ReadonlyMap<Entity, GridPoint>;
   readonly positionsAfter: ReadonlyMap<Entity, GridPoint>;
+  readonly enemySounds: ReadonlyMap<Entity, EnemySoundProfile>;
   readonly blockedMove?: boolean;
   readonly dialogueTarget?: Entity;
   readonly playerWeaponSlot?: CommandSlot;
@@ -20,6 +22,9 @@ const DOOR_OPEN_RADIUS = 5;
 const DOOR_LOCKED_RADIUS = 3;
 const PICKUP_RADIUS = 3;
 const ENEMY_ATTACK_RADIUS = 5;
+const ENEMY_ALERT_RADIUS = 6;
+const ENEMY_INVESTIGATE_RADIUS = 4;
+const ENEMY_HURT_RADIUS = 4;
 const ENEMY_DEFEAT_RADIUS = 5;
 const PLAYER_HURT_RADIUS = 1;
 const NPC_INTERACT_RADIUS = 3;
@@ -73,6 +78,18 @@ export function soundCuesForEvents(
       case "noAmmo":
         cues.push(cue(SoundId.WeaponNoAmmo, context.playerPosition, 1));
         break;
+      case "enemyAlerted": {
+        const sounds = context.enemySounds.get(event.entity);
+        if (sounds !== undefined) {
+          cues.push(cue(sounds.alert, positionFor(event.entity, context), ENEMY_ALERT_RADIUS));
+        }
+        break;
+      }
+      case "enemyInvestigating":
+        cues.push(
+          cue(SoundId.EnemyInvestigate, positionFor(event.entity, context), ENEMY_INVESTIGATE_RADIUS),
+        );
+        break;
       case "attackMissed":
         playerWeaponCued = cueAttack(cues, event.actor, cuedEnemyAttacks, playerWeaponCued, context);
         break;
@@ -80,11 +97,19 @@ export function soundCuesForEvents(
         playerWeaponCued = cueAttack(cues, event.actor, cuedEnemyAttacks, playerWeaponCued, context);
         if (event.target === context.playerEntity) {
           cues.push(cue(SoundId.PlayerHurt, context.playerPosition, PLAYER_HURT_RADIUS));
+        } else {
+          const targetSounds = context.enemySounds.get(event.target);
+          if (targetSounds !== undefined) {
+            cues.push(cue(targetSounds.hurt, positionFor(event.target, context), ENEMY_HURT_RADIUS));
+          }
         }
         break;
       case "entityDefeated":
         if (event.entity !== context.playerEntity) {
-          cues.push(cue(SoundId.EnemyDefeat, positionFor(event.entity, context), ENEMY_DEFEAT_RADIUS));
+          const sounds = context.enemySounds.get(event.entity);
+          if (sounds !== undefined) {
+            cues.push(cue(sounds.defeat, positionFor(event.entity, context), ENEMY_DEFEAT_RADIUS));
+          }
         }
         break;
       default:
@@ -114,7 +139,10 @@ function cueAttack(
 
   if (!cuedEnemyAttacks.has(actor)) {
     cuedEnemyAttacks.add(actor);
-    cues.push(cue(SoundId.EnemyAttack, positionFor(actor, context), ENEMY_ATTACK_RADIUS));
+    const sounds = context.enemySounds.get(actor);
+    if (sounds !== undefined) {
+      cues.push(cue(sounds.attack, positionFor(actor, context), ENEMY_ATTACK_RADIUS));
+    }
   }
   return playerWeaponCued;
 }

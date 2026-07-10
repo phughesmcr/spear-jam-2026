@@ -79,7 +79,7 @@ Deno.test("enemy actor turns route around blocking terrain when pursuing", async
     ], []),
   );
 
-  assertEquals(events, []);
+  assertEquals(events, [{ type: "enemyAlerted", entity: enemy }]);
   assertEquals(world.components.getEntityData(GridPos, enemy), { x: 1, y: 0 });
   assertEquals(world.components.getEntityData(Facing, enemy), { dir: Direction.North });
 });
@@ -181,7 +181,7 @@ Deno.test("enemy actor turns investigate heard noises instead of omniscient play
 
   assertEquals(world.components.getEntityData(GridPos, enemy), { x: 1, y: 2 });
   assertEquals(world.components.getEntityData(Facing, enemy), { dir: Direction.South });
-  assertEquals(events, []);
+  assertEquals(events, [{ type: "enemyInvestigating", entity: enemy }]);
 });
 
 Deno.test("melee dogs investigate noise with a one-step pounce", async () => {
@@ -206,7 +206,7 @@ Deno.test("melee dogs investigate noise with a one-step pounce", async () => {
 
   assertEquals(world.components.getEntityData(GridPos, dog), { x: 2, y: 1 });
   assertEquals(world.components.getEntityData(Facing, dog), { dir: Direction.East });
-  assertEquals(events, []);
+  assertEquals(events, [{ type: "enemyInvestigating", entity: dog }]);
 });
 
 Deno.test("system sentinels investigate noise by watching without moving", async () => {
@@ -231,7 +231,7 @@ Deno.test("system sentinels investigate noise by watching without moving", async
 
   assertEquals(world.components.getEntityData(GridPos, sentinel), { x: 1, y: 1 });
   assertEquals(world.components.getEntityData(Facing, sentinel), { dir: Direction.East });
-  assertEquals(events, []);
+  assertEquals(events, [{ type: "enemyInvestigating", entity: sentinel }]);
 });
 
 Deno.test("system sentinels face the dominant axis when watching a noise", async () => {
@@ -256,7 +256,7 @@ Deno.test("system sentinels face the dominant axis when watching a noise", async
 
   assertEquals(world.components.getEntityData(GridPos, sentinel), { x: 1, y: 1 });
   assertEquals(world.components.getEntityData(Facing, sentinel), { dir: Direction.South });
-  assertEquals(events, []);
+  assertEquals(events, [{ type: "enemyInvestigating", entity: sentinel }]);
 });
 
 Deno.test("enemy actor turns keep investigating the last known position after noise stops", async () => {
@@ -346,7 +346,7 @@ Deno.test("melee dogs close two tiles and bite when they reach the player", asyn
   assertEquals(world.components.getEntityData(GridPos, dog), { x: 3, y: 1 });
   assertEquals(world.components.getEntityData(Facing, dog), { dir: 1 });
   assertEquals(world.components.getEntityData(Health, playerEntity), { current: 4, max: 5 });
-  assertEquals(events.map((event) => event.type), ["damageDealt"]);
+  assertEquals(events.map((event) => event.type), ["enemyAlerted", "damageDealt"]);
 });
 
 Deno.test("gunslingers shoot from range instead of closing", async () => {
@@ -372,7 +372,7 @@ Deno.test("gunslingers shoot from range instead of closing", async () => {
   assertEquals(world.components.getEntityData(GridPos, gunslinger), { x: 1, y: 1 });
   assertEquals(world.components.getEntityData(Facing, gunslinger), { dir: 1 });
   assertEquals(world.components.getEntityData(Health, playerEntity), { current: 4, max: 5 });
-  assertEquals(events.map((event) => event.type), ["damageDealt"]);
+  assertEquals(events.map((event) => event.type), ["enemyAlerted", "damageDealt"]);
 });
 
 Deno.test("enemy actor turns stop the enemy phase after player defeat", async () => {
@@ -404,6 +404,7 @@ Deno.test("enemy actor turns stop the enemy phase after player defeat", async ()
   const events = runEnemyPhase(world, playerEntity, flatTestMap(6, 3));
 
   assertEquals(events, [
+    { type: "enemyAlerted", entity: killingEnemy },
     {
       type: "damageDealt",
       actor: killingEnemy,
@@ -450,7 +451,7 @@ Deno.test("gunslingers back away when adjacent", async () => {
   assertEquals(world.components.getEntityData(GridPos, gunslinger), { x: 1, y: 1 });
   assertEquals(world.components.getEntityData(Facing, gunslinger), { dir: 3 });
   assertEquals(world.components.getEntityData(Health, playerEntity), { current: 5, max: 5 });
-  assertEquals(events, []);
+  assertEquals(events, [{ type: "enemyAlerted", entity: gunslinger }]);
 });
 
 Deno.test("network neophytes skirmish: advance when out of melee range", async () => {
@@ -476,7 +477,7 @@ Deno.test("network neophytes skirmish: advance when out of melee range", async (
   assertEquals(world.components.getEntityData(GridPos, neophyte), { x: 2, y: 1 });
   assertEquals(world.components.getEntityData(Facing, neophyte), { dir: 1 });
   assertEquals(world.components.getEntityData(Health, playerEntity), { current: 5, max: 5 });
-  assertEquals(events, []);
+  assertEquals(events, [{ type: "enemyAlerted", entity: neophyte }]);
 });
 
 Deno.test("system sentinels hold position and face the player when out of range", async () => {
@@ -533,7 +534,7 @@ Deno.test("agentic acolytes attack nearby cardinal targets without facing first"
   assertEquals(world.components.getEntityData(GridPos, acolyte), { x: 1, y: 1 });
   assertEquals(world.components.getEntityData(Facing, acolyte), { dir: Direction.East });
   assertEquals(world.components.getEntityData(Health, playerEntity), { current: 4, max: 5 });
-  assertEquals(events.map((event) => event.type), ["damageDealt"]);
+  assertEquals(events.map((event) => event.type), ["enemyAlerted", "damageDealt"]);
 });
 
 function runEnemyPhase(

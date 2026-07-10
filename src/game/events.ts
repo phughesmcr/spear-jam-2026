@@ -128,4 +128,12 @@ export type GameEvent =
     readonly type: "xpGained";
     readonly amount: number;
     readonly xp: number;
+  }
+  | {
+    readonly type: "enemyAlerted";
+    readonly entity: Entity;
+  }
+  | {
+    readonly type: "enemyInvestigating";
+    readonly entity: Entity;
   };
