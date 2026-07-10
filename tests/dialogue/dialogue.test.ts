@@ -1,4 +1,5 @@
 import { DialogueTreeId, dialogueTreeNode, dialogueTreeStart, validateDialogueTrees } from "@/src/dialogue/dialogue.ts";
+import { VoiceId } from "@/src/dialogue/voice.ts";
 import { assertEquals, assertThrows } from "@std/assert";
 
 Deno.test("dialogueTreeStart returns the authored start node", () => {
@@ -41,6 +42,18 @@ Deno.test("johnNexus dialogue covers the Nexus briefing path", () => {
     dialogueTreeNode("john_nexus", "warning").text,
     "Be wary of the core's stone sentinel guards. Stay sharp.",
   );
+  assertEquals(start.node.voice, VoiceId.JohnNexusGreet);
+  assertEquals(dialogueTreeNode("john_nexus", "nexus").voice, VoiceId.JohnNexusNexus);
+  assertEquals(dialogueTreeNode("john_nexus", "core").voice, VoiceId.JohnNexusCore);
+  assertEquals(dialogueTreeNode("john_nexus", "warning").voice, VoiceId.JohnNexusWarning);
+});
+
+Deno.test("johnThanks dialogue maps each authored node to its recording", () => {
+  const start = dialogueTreeStart(DialogueTreeId.JohnThanks);
+
+  assertEquals(start.node.voice, VoiceId.JohnThanksGreet);
+  assertEquals(dialogueTreeNode("john_thanks", "codes").voice, VoiceId.JohnThanksCodes);
+  assertEquals(dialogueTreeNode("john_thanks", "family").voice, VoiceId.JohnThanksFamily);
 });
 
 Deno.test("dialogueTreeNode rejects unknown node ids", () => {
@@ -108,6 +121,18 @@ Deno.test("validateDialogueTrees defaults omitted choices to a closing continue"
   );
 
   assertEquals(trees["john_intro"]?.nodes["greet"]?.choices, [{ label: "CONTINUE." }]);
+});
+
+Deno.test("validateDialogueTrees rejects unknown dialogue voice ids", () => {
+  assertThrows(
+    () =>
+      validateDialogueTrees(
+        { john_intro: { start: "greet", nodes: { greet: { text: "Hi.", voice: "missing" } } } },
+        { [DialogueTreeId.JohnIntro]: "john_intro" },
+      ),
+    Error,
+    'Dialogue tree "john_intro" node "greet" has unknown voice "missing".',
+  );
 });
 
 Deno.test("validateDialogueTrees rejects unmapped dialogue trees", () => {

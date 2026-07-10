@@ -1,4 +1,5 @@
 import { soundCatalogEntry } from "@/src/audio/sound_catalog.ts";
+import { type VoiceId, voiceSource } from "@/src/dialogue/voice.ts";
 import { MUSIC_TRACKS, type TrackId } from "@/src/audio/music_catalog.ts";
 import { clampVolume } from "@/src/game/audio_settings.ts";
 import {
@@ -23,6 +24,7 @@ export interface AudioRuntime extends Disposable {
   setVolumes(volumes: AudioVolumes): void;
   updateListener(position: GridPoint, facing: CardinalDirection): void;
   playCues(cues: readonly SoundCue[]): void;
+  setDialogueVoice(voice: VoiceId | undefined): void;
   syncAmbientEmitters(emitters: readonly SoundEmitterSnapshot[]): void;
   syncEnemyIdleSources(sources: readonly EnemyIdleSoundSource[]): void;
 }
@@ -68,6 +70,10 @@ class WebAudioRuntime implements AudioRuntime {
   private musicElement?: HTMLAudioElement;
   private musicTrackGain?: GainNode;
   private readonly buffers = new Map<SoundId, Promise<AudioBuffer | undefined>>();
+  private readonly voiceBuffers = new Map<VoiceId, Promise<AudioBuffer | undefined>>();
+  private dialogueVoice?: VoiceId;
+  private dialogueVoiceSource?: AudioBufferSourceNode;
+  private dialogueVoiceRequest = 0;
   private readonly ambientSnapshots = new Map<Entity, SoundEmitterSnapshot>();
   private readonly ambientLoops = new Map<Entity, AmbientLoop>();
   private readonly enemyIdleSources = new Map<Entity, EnemyIdleSoundSource>();
@@ -90,6 +96,9 @@ class WebAudioRuntime implements AudioRuntime {
     if (this.disposed || this.unlocked) return;
     this.unlocked = true;
     if (this.musicTrackId !== undefined) this.playMusicNow(this.musicTrackId);
+    if (this.dialogueVoice !== undefined) {
+      void this.startDialogueVoice(this.dialogueVoice, this.dialogueVoiceRequest);
+    }
     this.flushPendingCues();
     this.reconcileAmbientLoops();
     for (const entity of this.enemyIdleSources.keys()) this.scheduleEnemyIdle(entity);
@@ -140,6 +149,16 @@ class WebAudioRuntime implements AudioRuntime {
     for (const cue of cues) void this.playCue(cue);
   }
 
+  setDialogueVoice(voice: VoiceId | undefined): void {
+    if (this.disposed) return;
+    this.dialogueVoice = voice;
+    this.dialogueVoiceRequest++;
+    this.stopDialogueVoice();
+    if (this.unlocked && voice !== undefined) {
+      void this.startDialogueVoice(voice, this.dialogueVoiceRequest);
+    }
+  }
+
   syncAmbientEmitters(emitters: readonly SoundEmitterSnapshot[]): void {
     this.ambientSnapshots.clear();
     for (const emitter of emitters) this.ambientSnapshots.set(emitter.entity, copySoundEmitter(emitter));
@@ -166,6 +185,9 @@ class WebAudioRuntime implements AudioRuntime {
     this.disposed = true;
     this.unlocked = false;
     this.musicTrackId = undefined;
+    this.dialogueVoice = undefined;
+    this.dialogueVoiceRequest++;
+    this.stopDialogueVoice();
     this.abortController.abort();
     this.pendingCues.length = 0;
     this.ambientSnapshots.clear();
@@ -265,25 +287,63 @@ class WebAudioRuntime implements AudioRuntime {
   }
 
   private bufferFor(soundId: SoundId): Promise<AudioBuffer | undefined> {
-    const existing = this.buffers.get(soundId);
+    return this.decodedBufferFor(soundId, soundCatalogEntry(soundId).src, this.buffers);
+  }
+
+  private voiceBufferFor(voice: VoiceId): Promise<AudioBuffer | undefined> {
+    return this.decodedBufferFor(voice, voiceSource(voice), this.voiceBuffers);
+  }
+
+  private decodedBufferFor<Key>(
+    key: Key,
+    src: string,
+    buffers: Map<Key, Promise<AudioBuffer | undefined>>,
+  ): Promise<AudioBuffer | undefined> {
+    const existing = buffers.get(key);
     if (existing !== undefined) return existing;
 
     const graph = this.ensureGraph();
-    const entry = soundCatalogEntry(soundId);
-    const load = this.host.fetch(entry.src, { signal: this.abortController.signal })
+    const load = this.host.fetch(src, { signal: this.abortController.signal })
       .then((response) => {
-        if (!response.ok) throw new Error(`HTTP ${response.status} for ${entry.src}`);
+        if (!response.ok) throw new Error(`HTTP ${response.status} for ${src}`);
         return response.arrayBuffer();
       })
       .then((data) => graph.context.decodeAudioData(data))
       .catch((error: unknown) => {
-        warnAudioFailure(`load ${soundId}`, error);
+        warnAudioFailure(`load ${String(key)}`, error);
         // Evict the failed promise so a later attempt can retry the load.
-        if (this.buffers.get(soundId) === load) this.buffers.delete(soundId);
+        if (buffers.get(key) === load) buffers.delete(key);
         return undefined;
       });
-    this.buffers.set(soundId, load);
+    buffers.set(key, load);
     return load;
+  }
+
+  private async startDialogueVoice(voice: VoiceId, request: number): Promise<void> {
+    const graph = this.ensureGraph();
+    const buffer = await this.voiceBufferFor(voice);
+    if (
+      buffer === undefined || this.disposed || !this.unlocked || this.dialogueVoice !== voice ||
+      this.dialogueVoiceRequest !== request
+    ) return;
+
+    const source = graph.context.createBufferSource();
+    source.buffer = buffer;
+    source.connect(graph.sfxGain);
+    source.addEventListener("ended", () => {
+      if (this.dialogueVoiceSource === source) this.dialogueVoiceSource = undefined;
+      disconnectNode(source);
+    }, { once: true });
+    this.dialogueVoiceSource = source;
+    source.start();
+  }
+
+  private stopDialogueVoice(): void {
+    const source = this.dialogueVoiceSource;
+    if (source === undefined) return;
+    this.dialogueVoiceSource = undefined;
+    source.stop();
+    disconnectNode(source);
   }
 
   private reconcileAmbientLoops(): void {

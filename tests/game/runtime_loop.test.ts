@@ -1,5 +1,6 @@
 import type { AudioRuntime } from "@/src/audio/audio_runtime.ts";
 import { TrackId } from "@/src/audio/music_catalog.ts";
+import { type VoiceId, VoiceId as DialogueVoiceId } from "@/src/dialogue/voice.ts";
 import { createGameRuntimeLoop } from "@/src/game/runtime_loop.ts";
 import type { RuntimeSession } from "@/src/game/session_ports.ts";
 import { type EnemyIdleSoundSource, type SoundCue, type SoundEmitterSnapshot, SoundId } from "@/src/game/sound.ts";
@@ -286,6 +287,26 @@ Deno.test("runtime forwards the selected music track to audio", () => {
   assertEquals(audio.musicTrack, TrackId.Map3);
 });
 
+Deno.test("runtime forwards dialogue voice changes to audio", () => {
+  const window = new FakeWindow();
+  const audio = new FakeAudioRuntime();
+  const runtime = createGameRuntimeLoop({
+    host: window as unknown as Window,
+    document: new FakeDocument() as unknown as Document,
+    ctx: new FakeContext() as unknown as CanvasRenderingContext2D,
+    signal: new AbortController().signal,
+    getModel: () => modelWithoutFrame(),
+    getSession: () => undefined,
+    dependencies: { audio, firstPersonRenderer: fakeFirstPersonRenderer() },
+  });
+
+  runtime.setDialogueVoice(DialogueVoiceId.JohnNexusGreet);
+  assertEquals(audio.dialogueVoice, DialogueVoiceId.JohnNexusGreet);
+
+  runtime.setDialogueVoice(undefined);
+  assertEquals(audio.dialogueVoice, undefined);
+});
+
 function modelNeedingFrame(): GameModel {
   const model = createGameModel("Level 1");
   return {
@@ -420,6 +441,7 @@ class FakeAudioRuntime implements AudioRuntime {
   enemyIdleSources: readonly EnemyIdleSoundSource[] = [];
   cues: readonly SoundCue[] = [];
   musicTrack?: TrackId;
+  dialogueVoice?: VoiceId;
   unlocks = 0;
   volumes?: { readonly musicVolume: number; readonly soundVolume: number };
 
@@ -443,6 +465,10 @@ class FakeAudioRuntime implements AudioRuntime {
 
   playCues(cues: readonly SoundCue[]): void {
     this.cues = [...cues];
+  }
+
+  setDialogueVoice(voice: VoiceId | undefined): void {
+    this.dialogueVoice = voice;
   }
 
   syncAmbientEmitters(emitters: readonly SoundEmitterSnapshot[]): void {

@@ -1,4 +1,5 @@
 import type { DialogueChoice } from "@/src/dialogue/dialogue.ts";
+import type { VoiceId } from "@/src/dialogue/voice.ts";
 import type { DisplayName } from "@/src/game/names.ts";
 import type { KeyColor } from "@/src/map/map.ts";
 
@@ -52,6 +53,7 @@ export type PlayerStatusSnapshot = {
 export type DialogueState = {
   readonly title: string;
   readonly message: string;
+  readonly voice?: VoiceId;
   readonly choices: readonly DialogueChoice[];
   /** Speaker's DisplayName, used to pick a portrait sprite; absent falls back to a drawn bust. */
   readonly speaker?: DisplayName;

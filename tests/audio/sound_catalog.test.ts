@@ -1,6 +1,6 @@
-import { assertEquals } from "@std/assert";
 import { SOUND_CATALOG } from "@/src/audio/sound_catalog.ts";
 import { SOUND_IDS, SoundId } from "@/src/game/sound.ts";
+import { assertEquals } from "@std/assert";
 
 Deno.test("sound catalog has exactly one entry for every sound id", () => {
   assertEquals(Object.keys(SOUND_CATALOG).sort(), [...SOUND_IDS].sort());
@@ -8,7 +8,7 @@ Deno.test("sound catalog has exactly one entry for every sound id", () => {
   for (const soundId of SOUND_IDS) {
     const entry = SOUND_CATALOG[soundId];
     assertEquals(entry.soundId, soundId);
-    assertEquals(entry.src.endsWith(".wav"), true);
+    assertEquals(/\.(wav|mp3|ogg)(?:\?.*)?$/i.test(entry.src), true);
   }
 });
 

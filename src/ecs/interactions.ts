@@ -277,6 +277,7 @@ function npcDialogueState(
     speaker,
     treeKey: start.treeKey,
     message: start.node.text,
+    ...(start.node.voice === undefined ? {} : { voice: start.node.voice }),
     choices: start.node.choices,
   };
 }

@@ -39,6 +39,7 @@ Deno.test("sound cues use entity positions for doors, pickups, and dialogue", ()
   const cues = soundCuesForEvents(
     [
       { type: "doorOpened", entity: DOOR },
+      { type: "doorShattered", entity: DOOR },
       { type: "keyPickedUp", entity: PICKUP },
     ],
     context({
@@ -51,6 +52,7 @@ Deno.test("sound cues use entity positions for doors, pickups, and dialogue", ()
   assertEquals(cues, [
     { soundId: SoundId.NpcInteract, position: { x: 4, y: 1 }, radius: 3 },
     { soundId: SoundId.DoorOpen, position: { x: 2, y: 1 }, radius: 5 },
+    { soundId: SoundId.GlassSmash, position: { x: 2, y: 1 }, radius: 5 },
     { soundId: SoundId.PickupKey, position: { x: 3, y: 1 }, radius: 3 },
   ]);
 });

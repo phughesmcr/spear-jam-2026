@@ -1,5 +1,6 @@
 import { type AudioRuntime, createAudioRuntime } from "@/src/audio/audio_runtime.ts";
 import type { TrackId } from "@/src/audio/music_catalog.ts";
+import type { VoiceId } from "@/src/dialogue/voice.ts";
 import type { AudioSettings } from "@/src/game/audio_settings.ts";
 import { fillPresentationView } from "@/src/game/presentation.ts";
 import {
@@ -46,6 +47,7 @@ export interface GameRuntimeLoop extends Disposable {
   setAudioVolumes(volumes: AudioSettings): void;
   updateAudioListener(): void;
   playCues(cues: readonly SoundCue[]): void;
+  setDialogueVoice(voice: VoiceId | undefined): void;
   syncAudioWorld(): void;
   playMusic(trackId: TrackId): void;
 }
@@ -135,6 +137,10 @@ class RuntimeLoop implements GameRuntimeLoop {
 
   playCues(cues: readonly SoundCue[]): void {
     this.audio.playCues(cues);
+  }
+
+  setDialogueVoice(voice: VoiceId | undefined): void {
+    this.audio.setDialogueVoice(voice);
   }
 
   syncAudioWorld(): void {

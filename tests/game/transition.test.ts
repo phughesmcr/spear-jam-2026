@@ -1,4 +1,5 @@
 import { DisplayName } from "@/src/game/names.ts";
+import { VoiceId } from "@/src/dialogue/voice.ts";
 import { TrackId } from "@/src/audio/music_catalog.ts";
 import { createGameModel, type GameModel, transition } from "@/src/game/transition.ts";
 import type { Entity } from "@phughesmcr/miski";
@@ -589,6 +590,48 @@ Deno.test("transition lets dialogue choices advance or close the conversation", 
   const outOfRange = transition(model, { type: "gameCommand", command: { type: "selectWeapon", slot: 3 } });
   assertEquals(outOfRange.model.mode, DIALOGUE_MODE);
   assertEquals(outOfRange.effects, []);
+});
+
+Deno.test("transition starts, advances, and stops authored dialogue voices", () => {
+  const playing = createGameModel("Level 1");
+  const opened = transition(playing, {
+    type: "playerCommandResult",
+    playerEntity: PLAYER,
+    result: {
+      type: "dialogue",
+      events: [],
+      dialogue: {
+        title: "John",
+        speaker: DisplayName.John,
+        treeKey: "john_thanks",
+        message: "You made it.",
+        voice: VoiceId.JohnThanksGreet,
+        choices: [{ label: "WHERE TO NEXT?", next: "codes" }],
+      },
+    },
+  });
+
+  assertEquals(opened.effects, [
+    { type: "setDialogueVoice", voice: VoiceId.JohnThanksGreet },
+    { type: "render" },
+  ]);
+
+  const advanced = transition(opened.model, { type: "gameCommand", command: { type: "wait" } });
+  assertEquals(
+    advanced.model.mode.type === "dialogue" ? advanced.model.mode.voice : undefined,
+    VoiceId.JohnThanksCodes,
+  );
+  assertEquals(advanced.effects, [
+    { type: "setDialogueVoice", voice: VoiceId.JohnThanksCodes },
+    { type: "render" },
+  ]);
+
+  const closed = transition(advanced.model, { type: "gameCommand", command: { type: "selectWeapon", slot: 2 } });
+  assertEquals(closed.effects, [
+    { type: "setDialogueVoice" },
+    { type: "closeDialogue" },
+    { type: "render" },
+  ]);
 });
 
 Deno.test("transition confirms dialogue pointer only when down and up hit the same option", () => {

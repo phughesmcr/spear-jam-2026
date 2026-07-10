@@ -1,6 +1,7 @@
 import { assertAlmostEquals, assertEquals } from "@std/assert";
 import { createAudioRuntime, soundAttenuationForDistance } from "@/src/audio/audio_runtime.ts";
 import { MUSIC_TRACKS, TrackId } from "@/src/audio/music_catalog.ts";
+import { VOICE_CATALOG, VoiceId } from "@/src/dialogue/voice.ts";
 
 Deno.test("sound attenuation falls off inside the authored tile radius", () => {
   assertEquals(soundAttenuationForDistance(0, 2), 1);
@@ -37,11 +38,40 @@ Deno.test("music preloads before audio unlock and reuses one media element betwe
   runtime[Symbol.dispose]();
 });
 
+Deno.test("dialogue voice waits for unlock and replaces or stops the active line", async () => {
+  const host = new FakeAudioWindow();
+  const runtime = createAudioRuntime(host as unknown as Window);
+
+  runtime.setDialogueVoice(VoiceId.JohnThanksGreet);
+  assertEquals(host.context.bufferSources.length, 0);
+
+  await runtime.unlock();
+  await settlePromises();
+  assertEquals(host.fetched, [VOICE_CATALOG[VoiceId.JohnThanksGreet]]);
+  assertEquals(host.context.bufferSources.length, 1);
+  assertEquals(host.context.bufferSources[0]?.startCalls, 1);
+
+  runtime.setDialogueVoice(VoiceId.JohnThanksCodes);
+  await settlePromises();
+  assertEquals(host.context.bufferSources[0]?.stopCalls, 1);
+  assertEquals(host.context.bufferSources[1]?.startCalls, 1);
+
+  runtime.setDialogueVoice(undefined);
+  assertEquals(host.context.bufferSources[1]?.stopCalls, 1);
+
+  runtime[Symbol.dispose]();
+});
+
+async function settlePromises(): Promise<void> {
+  for (let index = 0; index < 8; index++) await Promise.resolve();
+}
+
 class FakeAudioWindow {
   readonly audio = new FakeAudioElement();
   readonly context = new FakeAudioContext();
   readonly document: Document;
   readonly AudioContext: new () => AudioContext;
+  readonly fetched: string[] = [];
 
   constructor() {
     this.document = {
@@ -54,6 +84,11 @@ class FakeAudioWindow {
     this.AudioContext = function AudioContextConstructor(): FakeAudioContext {
       return context;
     } as unknown as new () => AudioContext;
+  }
+
+  fetch(input: URL | RequestInfo): Promise<Response> {
+    this.fetched.push(String(input));
+    return Promise.resolve(new Response(new Uint8Array([1])));
   }
 }
 
@@ -91,6 +126,7 @@ class FakeAudioContext {
   } as unknown as AudioListener;
   state: AudioContextState = "suspended";
   mediaSourceCreations = 0;
+  readonly bufferSources: FakeBufferSourceNode[] = [];
 
   createGain(): GainNode {
     return new FakeGainNode() as unknown as GainNode;
@@ -99,6 +135,16 @@ class FakeAudioContext {
   createMediaElementSource(_element: HTMLMediaElement): MediaElementAudioSourceNode {
     this.mediaSourceCreations++;
     return new FakeAudioNode() as unknown as MediaElementAudioSourceNode;
+  }
+
+  createBufferSource(): AudioBufferSourceNode {
+    const source = new FakeBufferSourceNode();
+    this.bufferSources.push(source);
+    return source as unknown as AudioBufferSourceNode;
+  }
+
+  decodeAudioData(_audioData: ArrayBuffer): Promise<AudioBuffer> {
+    return Promise.resolve({} as AudioBuffer);
   }
 
   resume(): Promise<void> {
@@ -122,6 +168,26 @@ class FakeAudioNode {
 
 class FakeGainNode extends FakeAudioNode {
   readonly gain = new FakeAudioParam();
+}
+
+class FakeBufferSourceNode extends FakeAudioNode {
+  buffer: AudioBuffer | null = null;
+  startCalls = 0;
+  stopCalls = 0;
+
+  addEventListener(
+    _type: string,
+    _listener: EventListenerOrEventListenerObject,
+    _options?: AddEventListenerOptions,
+  ): void {}
+
+  start(): void {
+    this.startCalls++;
+  }
+
+  stop(): void {
+    this.stopCalls++;
+  }
 }
 
 class FakeAudioParam {

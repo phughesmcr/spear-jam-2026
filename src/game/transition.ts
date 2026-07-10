@@ -1,4 +1,5 @@
 import { dialogueTreeNode } from "@/src/dialogue/dialogue.ts";
+import type { VoiceId } from "@/src/dialogue/voice.ts";
 import { TrackId, type TrackId as MusicTrackId } from "@/src/audio/music_catalog.ts";
 import { type AudioSettings, DEFAULT_AUDIO_SETTINGS, withAudioVolume } from "@/src/game/audio_settings.ts";
 import {
@@ -49,6 +50,7 @@ export type GameModel = {
 export type GameEffect =
   | { readonly type: "render" }
   | { readonly type: "closeDialogue" }
+  | { readonly type: "setDialogueVoice"; readonly voice?: VoiceId }
   | { readonly type: "ensureInput" }
   | { readonly type: "applyAudioVolumes" }
   | { readonly type: "playMusic"; readonly trackId: MusicTrackId }
@@ -436,9 +438,10 @@ function selectDialogueChoice(model: GameModel, mode: DialogueMode, slot: number
       speaker: mode.speaker,
       treeKey: mode.treeKey,
       message: node.text,
+      ...(node.voice === undefined ? {} : { voice: node.voice }),
       choices: node.choices,
     },
-  }, [{ type: "render" }]);
+  }, dialogueRenderEffects(mode.voice, node.voice));
 }
 
 function outcomeCommand(
@@ -514,7 +517,7 @@ function playerCommandResult(
       return done({
         ...modelWithPresentation,
         mode: { type: "dialogue", ...result.dialogue },
-      }, [{ type: "render" }]);
+      }, dialogueRenderEffects(undefined, result.dialogue.voice));
     default: {
       const _exhaustive: never = result;
       return _exhaustive;
@@ -546,7 +549,19 @@ function togglePause(model: GameModel): GameTransition {
 }
 
 function closeDialogue(model: GameModel): GameTransition {
-  return done({ ...model, mode: { type: "playing" } }, [{ type: "closeDialogue" }, { type: "render" }]);
+  const voice = model.mode.type === "dialogue" ? model.mode.voice : undefined;
+  const effects: readonly GameEffect[] = voice === undefined ?
+    [{ type: "closeDialogue" }, { type: "render" }] :
+    [{ type: "setDialogueVoice" }, { type: "closeDialogue" }, { type: "render" }];
+  return done({ ...model, mode: { type: "playing" } }, effects);
+}
+
+function dialogueRenderEffects(previousVoice: VoiceId | undefined, voice: VoiceId | undefined): readonly GameEffect[] {
+  if (previousVoice === voice) return [{ type: "render" }];
+  const voiceEffect: GameEffect = voice === undefined ?
+    { type: "setDialogueVoice" } :
+    { type: "setDialogueVoice", voice };
+  return [voiceEffect, { type: "render" }];
 }
 
 function withoutDialoguePointerDown(mode: DialogueMode): DialogueMode {

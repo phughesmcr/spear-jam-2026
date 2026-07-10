@@ -1,4 +1,6 @@
 import { MUSIC_TRACKS } from "@/src/audio/music_catalog.ts";
+import { SOUND_CATALOG } from "@/src/audio/sound_catalog.ts";
+import { VOICE_CATALOG } from "@/src/dialogue/voice.ts";
 import { SOUND_IDS, SoundId, type SoundId as SoundIdType } from "@/src/game/sound.ts";
 
 type WaveSpec = {
@@ -14,6 +16,7 @@ const ASSET_SPECS: Readonly<Record<SoundIdType, WaveSpec>> = {
   [SoundId.BlockedMove]: { durationSeconds: 0.12, frequency: 90, volume: 0.45, kind: "noise" },
   [SoundId.DoorOpen]: { durationSeconds: 0.45, frequency: 130, volume: 0.5, kind: "sweep" },
   [SoundId.DoorLocked]: { durationSeconds: 0.18, frequency: 180, volume: 0.42, kind: "square" },
+  [SoundId.GlassSmash]: { durationSeconds: 0.35, frequency: 400, volume: 0.55, kind: "noise" },
   [SoundId.PickupItem]: { durationSeconds: 0.18, frequency: 660, volume: 0.38, kind: "sine" },
   [SoundId.PickupKey]: { durationSeconds: 0.24, frequency: 880, volume: 0.38, kind: "sine" },
   [SoundId.PickupWeapon]: { durationSeconds: 0.28, frequency: 520, volume: 0.42, kind: "sweep" },
@@ -82,41 +85,47 @@ export async function main(args: readonly string[] = Deno.args): Promise<void> {
 export async function generateAudioAssets(): Promise<void> {
   await Deno.mkdir(OUTPUT_DIR, { recursive: true });
   for (const soundId of SOUND_IDS) {
-    const path = assetPath(soundId);
-    try {
-      await Deno.lstat(path);
-    } catch (error) {
-      if (!(error instanceof Deno.errors.NotFound)) throw error;
-      await Deno.writeFile(path, waveBytes(ASSET_SPECS[soundId], soundId));
-    }
+    if (await assetExists(SOUND_CATALOG[soundId].src) || await pathExists(assetPath(soundId))) continue;
+    await Deno.writeFile(assetPath(soundId), waveBytes(ASSET_SPECS[soundId], soundId));
   }
 }
 
 export async function checkAudioAssets(): Promise<void> {
   const issues: string[] = [];
   for (const soundId of SOUND_IDS) {
-    try {
-      await Deno.lstat(assetPath(soundId));
-    } catch (error) {
-      if (error instanceof Deno.errors.NotFound) {
-        issues.push(`${assetPath(soundId)} is missing. Run deno task audio:generate.`);
-      } else {
-        throw error;
-      }
-    }
+    const src = SOUND_CATALOG[soundId].src;
+    if (await assetExists(src)) continue;
+    issues.push(`${src} is missing for ${soundId}. Run deno task audio:generate.`);
   }
   for (const [trackId, track] of Object.entries(MUSIC_TRACKS)) {
-    try {
-      await Deno.lstat(new URL(track.src));
-    } catch (error) {
-      if (error instanceof Deno.errors.NotFound) {
-        issues.push(`Music track ${trackId} is missing: ${track.src}`);
-      } else {
-        throw error;
-      }
-    }
+    if (await assetExists(track.src)) continue;
+    issues.push(`Music track ${trackId} is missing: ${track.src}`);
+  }
+  for (const [voiceId, src] of Object.entries(VOICE_CATALOG)) {
+    if (await assetExists(src)) continue;
+    issues.push(`Dialogue voice ${voiceId} is missing: ${src}`);
   }
   if (issues.length > 0) throw new Error(`Audio asset check failed:\n${issues.join("\n")}`);
+}
+
+async function assetExists(src: string): Promise<boolean> {
+  try {
+    await Deno.lstat(new URL(src));
+    return true;
+  } catch (error) {
+    if (error instanceof Deno.errors.NotFound) return false;
+    throw error;
+  }
+}
+
+async function pathExists(path: string): Promise<boolean> {
+  try {
+    await Deno.lstat(path);
+    return true;
+  } catch (error) {
+    if (error instanceof Deno.errors.NotFound) return false;
+    throw error;
+  }
 }
 
 function assetPath(soundId: SoundIdType): string {

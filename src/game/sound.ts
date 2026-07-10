@@ -7,6 +7,7 @@ export const SoundId = {
   BlockedMove: "blockedMove",
   DoorOpen: "doorOpen",
   DoorLocked: "doorLocked",
+  GlassSmash: "glassSmash",
   PickupItem: "pickupItem",
   PickupKey: "pickupKey",
   PickupWeapon: "pickupWeapon",
@@ -98,6 +99,7 @@ export const SOUND_IDS = [
   SoundId.AcolyteAttack,
   SoundId.AcolyteHurt,
   SoundId.AcolyteDefeat,
+  SoundId.GlassSmash,
 ] as const satisfies readonly SoundId[];
 
 export const AMBIENT_SOUND_IDS = [

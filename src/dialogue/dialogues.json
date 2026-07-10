@@ -22,6 +22,7 @@
     "nodes": {
       "greet": {
         "text": "You made it. Thank you — for my family, for all of it. The System forgot this place a long time ago. Out here in the background world, we look out for each other.",
+        "voice": "johnThanksGreet",
         "choices": [
           { "label": "WHERE TO NEXT?", "next": "codes" },
           { "label": "WHAT ABOUT YOU?", "next": "family" }
@@ -29,6 +30,7 @@
       },
       "codes": {
         "text": "To move through the background world's dark net, you'll need the green access codes for the uplink terminals. No codes, no passage. Find them.",
+        "voice": "johnThanksCodes",
         "choices": [
           { "label": "AND YOU?", "next": "family" },
           { "label": "UNDERSTOOD." }
@@ -36,6 +38,7 @@
       },
       "family": {
         "text": "I have to find safe passage for my family first. But our paths will cross again — soon. Stay sharp until then.",
+        "voice": "johnThanksFamily",
         "choices": [
           { "label": "THE GREEN CODES?", "next": "codes" },
           { "label": "SEE YOU SOON." }
@@ -48,6 +51,7 @@
     "nodes": {
       "greet": {
         "text": "Our paths cross again. Listen close — the next stretch is the hard part.",
+        "voice": "johnNexusGreet",
         "choices": [
           { "label": "WHAT'S THE PLAN?", "next": "nexus" },
           { "label": "BYE!" }
@@ -55,6 +59,7 @@
       },
       "nexus": {
         "text": "Travel through the Uplink Terminal on this level. It leads to The Nexus — that's where you'll find the Spear of Destiny.",
+        "voice": "johnNexusNexus",
         "choices": [
           { "label": "AND THEN?", "next": "core" },
           { "label": "GOT IT." }
@@ -62,6 +67,7 @@
       },
       "core": {
         "text": "Then go to The Mainframe Core. Upload the Spear's power and force a system reboot.",
+        "voice": "johnNexusCore",
         "choices": [
           { "label": "ANYTHING ELSE?", "next": "warning" },
           { "label": "UNDERSTOOD." }
@@ -69,6 +75,7 @@
       },
       "warning": {
         "text": "Be wary of the core's stone sentinel guards. Stay sharp.",
+        "voice": "johnNexusWarning",
         "choices": [
           { "label": "WILL DO." }
         ]

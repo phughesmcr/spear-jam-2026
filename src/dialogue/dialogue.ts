@@ -1,4 +1,5 @@
 import dialogueTrees from "@/src/dialogue/dialogues.json" with { type: "json" };
+import { VOICE_IDS, type VoiceId } from "@/src/dialogue/voice.ts";
 
 export const DialogueTreeId = {
   JohnIntro: "johnIntro",
@@ -15,6 +16,7 @@ export type DialogueChoice = {
 
 export type DialogueNode = {
   readonly text: string;
+  readonly voice?: VoiceId;
   readonly choices: readonly DialogueChoice[];
 };
 
@@ -31,6 +33,7 @@ export type DialogueTreeStart = {
 export const MAX_DIALOGUE_CHOICES = 3;
 
 const DEFAULT_CHOICES: readonly DialogueChoice[] = Object.freeze([{ label: "CONTINUE." }]);
+const VOICE_ID_SET = new Set<string>(VOICE_IDS);
 
 const DIALOGUE_TREE_KEYS = {
   [DialogueTreeId.JohnIntro]: "john_intro",
@@ -132,16 +135,26 @@ function validateDialogueNode(key: string, nodeId: string, rawNode: unknown): Di
     throw new Error(`Dialogue tree "${key}" node "${nodeId}" must have non-empty text.`);
   }
 
+  const voice = rawNode.voice;
+  if (voice !== undefined && (typeof voice !== "string" || !VOICE_ID_SET.has(voice))) {
+    throw new Error(`Dialogue tree "${key}" node "${nodeId}" has unknown voice "${String(voice)}".`);
+  }
+
   const rawChoices = rawNode.choices;
-  if (rawChoices === undefined) return { text, choices: DEFAULT_CHOICES };
+  if (rawChoices === undefined) {
+    return voice === undefined ?
+      { text, choices: DEFAULT_CHOICES } :
+      { text, voice: voice as VoiceId, choices: DEFAULT_CHOICES };
+  }
   if (!Array.isArray(rawChoices) || rawChoices.length === 0 || rawChoices.length > MAX_DIALOGUE_CHOICES) {
     throw new Error(`Dialogue tree "${key}" node "${nodeId}" must have 1 to ${MAX_DIALOGUE_CHOICES} choices.`);
   }
 
-  return {
+  const node: DialogueNode = {
     text,
     choices: rawChoices.map((rawChoice, index) => validateDialogueChoice(key, nodeId, index, rawChoice)),
   };
+  return voice === undefined ? node : { ...node, voice: voice as VoiceId };
 }
 
 function validateDialogueChoice(key: string, nodeId: string, index: number, rawChoice: unknown): DialogueChoice {

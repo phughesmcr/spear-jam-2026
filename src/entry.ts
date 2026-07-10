@@ -197,6 +197,9 @@ class Game implements Disposable {
         case "closeDialogue":
           this.session?.closeDialogue();
           break;
+        case "setDialogueVoice":
+          this.runtime.setDialogueVoice(effect.voice);
+          break;
         case "ensureInput":
           this.ensureInput();
           break;

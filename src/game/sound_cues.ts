@@ -66,8 +66,10 @@ export function soundCuesForEvents(
         cues.push(cue(SoundId.DoorLocked, positionFor(event.entity, context), DOOR_LOCKED_RADIUS));
         break;
       case "doorOpened":
-      case "doorShattered":
         cues.push(cue(SoundId.DoorOpen, positionFor(event.entity, context), DOOR_OPEN_RADIUS));
+        break;
+      case "doorShattered":
+        cues.push(cue(SoundId.GlassSmash, positionFor(event.entity, context), DOOR_OPEN_RADIUS));
         break;
       case "uplinkTerminalLocked":
         cues.push(cue(SoundId.TerminalLocked, positionFor(event.entity, context), TERMINAL_RADIUS));

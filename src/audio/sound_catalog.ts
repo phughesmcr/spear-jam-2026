@@ -12,13 +12,14 @@ export type SoundCatalogEntry = {
 };
 
 const BLOCKED_MOVE = new URL("../../assets/game/audio/blocked_move.wav", import.meta.url).href;
-const DOOR_OPEN = new URL("../../assets/game/audio/door_open.wav", import.meta.url).href;
-const DOOR_LOCKED = new URL("../../assets/game/audio/door_locked.wav", import.meta.url).href;
+const DOOR_OPEN = new URL("../../assets/game/audio/door_slide.mp3", import.meta.url).href;
+const DOOR_LOCKED = new URL("../../assets/game/audio/error.mp3", import.meta.url).href;
+const GLASS_SMASH = new URL("../../assets/game/audio/glass_smash.mp3", import.meta.url).href;
 const PICKUP_ITEM = new URL("../../assets/game/audio/pickup_item.wav", import.meta.url).href;
-const PICKUP_KEY = new URL("../../assets/game/audio/pickup_key.wav", import.meta.url).href;
+const PICKUP_KEY = new URL("../../assets/game/audio/key_pickup.mp3", import.meta.url).href;
 const PICKUP_WEAPON = new URL("../../assets/game/audio/pickup_weapon.wav", import.meta.url).href;
 const PICKUP_HEALTH = new URL("../../assets/game/audio/pickup_health.wav", import.meta.url).href;
-const PICKUP_AMMO = new URL("../../assets/game/audio/pickup_ammo.wav", import.meta.url).href;
+const PICKUP_AMMO = new URL("../../assets/game/audio/ammo_pickup.mp3", import.meta.url).href;
 const PICKUP_UPLINK_CODE = new URL("../../assets/game/audio/pickup_uplink_code.wav", import.meta.url).href;
 const WEAPON_BIT_SHIFTER = new URL("../../assets/game/audio/weapon_bit_shifter.wav", import.meta.url).href;
 const WEAPON_PULSE_PISTOL = new URL("../../assets/game/audio/weapon_pulse_pistol.wav", import.meta.url).href;
@@ -26,10 +27,10 @@ const WEAPON_CURRENT_CANNON = new URL("../../assets/game/audio/weapon_current_ca
 const WEAPON_NO_AMMO = new URL("../../assets/game/audio/weapon_no_ammo.wav", import.meta.url).href;
 const PLAYER_HURT = new URL("../../assets/game/audio/player_hurt.wav", import.meta.url).href;
 const NPC_INTERACT = new URL("../../assets/game/audio/npc_interact.wav", import.meta.url).href;
-const TERMINAL_LOCKED = new URL("../../assets/game/audio/terminal_locked.wav", import.meta.url).href;
+const TERMINAL_LOCKED = new URL("../../assets/game/audio/error.mp3", import.meta.url).href;
 const TERMINAL_USE = new URL("../../assets/game/audio/terminal_use.wav", import.meta.url).href;
 const AMBIENT_HUM = new URL("../../assets/game/audio/ambient_hum.wav", import.meta.url).href;
-const AMBIENT_LIGHT_BUZZ = new URL("../../assets/game/audio/ambient_light_buzz.wav", import.meta.url).href;
+const AMBIENT_LIGHT_BUZZ = new URL("../../assets/game/audio/buzz.ogg", import.meta.url).href;
 const ENEMY_INVESTIGATE = new URL("../../assets/game/audio/enemy_investigate.wav", import.meta.url).href;
 const DOG_IDLE = new URL("../../assets/game/audio/dog_idle.wav", import.meta.url).href;
 const DOG_ALERT = new URL("../../assets/game/audio/dog_alert.wav", import.meta.url).href;
@@ -61,6 +62,7 @@ export const SOUND_CATALOG: Readonly<Record<SoundIdType, SoundCatalogEntry>> = {
   [SoundId.BlockedMove]: sfx(SoundId.BlockedMove, BLOCKED_MOVE, 0.45, 2),
   [SoundId.DoorOpen]: sfx(SoundId.DoorOpen, DOOR_OPEN, 0.75, 5),
   [SoundId.DoorLocked]: sfx(SoundId.DoorLocked, DOOR_LOCKED, 0.65, 3),
+  [SoundId.GlassSmash]: sfx(SoundId.GlassSmash, GLASS_SMASH, 0.8, 5),
   [SoundId.PickupItem]: sfx(SoundId.PickupItem, PICKUP_ITEM, 0.55, 3),
   [SoundId.PickupKey]: sfx(SoundId.PickupKey, PICKUP_KEY, 0.65, 3),
   [SoundId.PickupWeapon]: sfx(SoundId.PickupWeapon, PICKUP_WEAPON, 0.7, 3),
