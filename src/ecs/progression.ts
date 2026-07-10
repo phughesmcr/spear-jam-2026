@@ -193,6 +193,10 @@ export function playerAmmoAmount(world: World, playerEntity: Entity, ammo: AmmoK
       return inventory.pistolAmmo;
     case "cannon":
       return inventory.cannonAmmo;
+    default: {
+      const _exhaustive: never = ammo;
+      return _exhaustive;
+    }
   }
 }
 
@@ -207,6 +211,10 @@ export function spendPlayerAmmo(world: World, playerEntity: Entity, ammo: AmmoKi
       if (inventory.cannonAmmo <= 0) return false;
       world.components.setEntityData(PlayerInventory, playerEntity, { cannonAmmo: inventory.cannonAmmo - 1 });
       return true;
+    default: {
+      const _exhaustive: never = ammo;
+      return _exhaustive;
+    }
   }
 }
 
@@ -246,6 +254,10 @@ export function applyItemPickupToPlayer(
         ammo: pickup.ammo,
         amount: pickup.amount,
       }];
+    default: {
+      const _exhaustive: never = pickup;
+      return _exhaustive;
+    }
   }
 }
 
@@ -322,6 +334,10 @@ function addPlayerAmmo(world: World, playerEntity: Entity, ammo: AmmoKind, amoun
     case "cannon":
       world.components.setEntityData(PlayerInventory, playerEntity, { cannonAmmo: inventory.cannonAmmo + amount });
       return;
+    default: {
+      const _exhaustive: never = ammo;
+      return _exhaustive;
+    }
   }
 }
 

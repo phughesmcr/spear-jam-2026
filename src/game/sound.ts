@@ -135,5 +135,9 @@ export function weaponSoundId(slot: CommandSlot): SoundId {
       return SoundId.WeaponPulsePistol;
     case 3:
       return SoundId.WeaponCurrentCannon;
+    default: {
+      const _exhaustive: never = slot;
+      return _exhaustive;
+    }
   }
 }

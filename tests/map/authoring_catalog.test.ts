@@ -1,6 +1,6 @@
-import { assertEquals } from "@std/assert";
 import { PROPERTY_TYPES, TEMPLATE_DEFINITIONS } from "@/src/map/authoring/catalog.ts";
-import { PREFAB_AUTHORING_PROPERTY_NAMES } from "@/src/map/entity_content.ts";
+import { PREFAB_AUTHORING_PROPERTY_NAMES } from "@/src/map/entity_descriptors.ts";
+import { assertEquals } from "@std/assert";
 
 // The Tiled authoring catalog (object classes + templates) carries data that ENTITY_DEFINITIONS
 // does not — per-field defaults, enum-type references, colors — so it cannot be fully derived.

@@ -56,6 +56,10 @@ export function applyEvent(
         });
         break;
       }
+      default: {
+        const _exhaustive: never = action.type;
+        return _exhaustive;
+      }
     }
   }
 
@@ -88,6 +92,10 @@ function canApplyActions(world: World, spatial: SpatialIndex, actions: readonly 
         const blocker = spatial.blockingEntityAt(destination.x, destination.y);
         if (blocker !== undefined && blocker !== target) return false;
         break;
+      }
+      default: {
+        const _exhaustive: never = action.type;
+        return _exhaustive;
       }
     }
   }

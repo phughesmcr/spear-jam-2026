@@ -63,7 +63,6 @@ function fakeSession(drawables: readonly DrawableEntity[]): FrameRenderSession {
       for (const drawable of drawables) visit(drawable);
     },
     forEachLight: () => {},
-    targetMarkerTone: () => undefined,
   };
 }
 

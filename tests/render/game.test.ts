@@ -4,6 +4,8 @@ import { Direction } from "@/src/grid/direction.ts";
 import { createGameMap } from "@/src/map/map.ts";
 import type { FirstPersonRenderer } from "@/src/render/first_person.ts";
 import { renderGameFrame } from "@/src/render/game.ts";
+import { invalidateIntermissionCaches } from "@/src/render/intermission.ts";
+import { createGameRenderScratch } from "@/src/render/render_scratch.ts";
 import { assert, assertEquals } from "@std/assert";
 
 const FULL_CANVAS = { width: 720, height: 1280 };
@@ -12,7 +14,7 @@ Deno.test("renderGameFrame draws a visible first-person vignette over the play a
   withFakeOffscreenCanvas((): void => {
     const ctx = new FakeGameContext();
 
-    const result = renderGameFrame({
+    const result = renderWithScratch({
       ctx: ctx as unknown as CanvasRenderingContext2D,
       canvasSize: FULL_CANVAS,
       session: fakeSession(),
@@ -40,7 +42,7 @@ Deno.test("renderGameFrame draws a visible first-person vignette over the play a
 });
 
 Deno.test("renderGameFrame stops requesting frames while paused", () => {
-  const result = renderGameFrame({
+  const result = renderWithScratch({
     ctx: new FakeGameContext() as unknown as CanvasRenderingContext2D,
     canvasSize: FULL_CANVAS,
     session: fakeSession(),
@@ -65,7 +67,7 @@ Deno.test("renderGameFrame does not schedule RAF or tick the session in top-down
   });
 
   try {
-    const result = renderGameFrame({
+    const result = renderWithScratch({
       ctx: new FakeGameContext() as unknown as CanvasRenderingContext2D,
       canvasSize: FULL_CANVAS,
       session: fakeSession(() => {
@@ -93,7 +95,7 @@ Deno.test("renderGameFrame requests the help image in help mode", () => {
   const document = new FakeGameDocument();
   const ctx = new FakeGameContext(document);
 
-  const result = renderGameFrame({
+  const result = renderWithScratch({
     ctx: ctx as unknown as CanvasRenderingContext2D,
     canvasSize: FULL_CANVAS,
     mode: { type: "help", selectedIndex: 0 },
@@ -107,7 +109,7 @@ Deno.test("renderGameFrame skips the background clear before opaque first-person
   withFakeOffscreenCanvas((): void => {
     const ctx = new FakeGameContext();
 
-    renderGameFrame({
+    renderWithScratch({
       ctx: ctx as unknown as CanvasRenderingContext2D,
       canvasSize: FULL_CANVAS,
       session: fakeSession(),
@@ -127,7 +129,7 @@ Deno.test("renderGameFrame skips the background clear before opaque first-person
 Deno.test("renderGameFrame clears the background for non-opaque modes", () => {
   const ctx = new FakeGameContext();
 
-  renderGameFrame({
+  renderWithScratch({
     ctx: ctx as unknown as CanvasRenderingContext2D,
     canvasSize: FULL_CANVAS,
     session: fakeSession(),
@@ -142,7 +144,7 @@ Deno.test("renderGameFrame clears the background for non-opaque modes", () => {
 });
 
 Deno.test("renderGameFrame returns first-person renderer frame demand", () => {
-  const result = renderGameFrame({
+  const result = renderWithScratch({
     ctx: new FakeGameContext() as unknown as CanvasRenderingContext2D,
     canvasSize: FULL_CANVAS,
     session: fakeSession(),
@@ -155,7 +157,7 @@ Deno.test("renderGameFrame returns first-person renderer frame demand", () => {
 });
 
 Deno.test("renderGameFrame propagates ambient-only first-person frame demand", () => {
-  const result = renderGameFrame({
+  const result = renderWithScratch({
     ctx: new FakeGameContext() as unknown as CanvasRenderingContext2D,
     canvasSize: FULL_CANVAS,
     session: fakeSession(),
@@ -167,6 +169,51 @@ Deno.test("renderGameFrame propagates ambient-only first-person frame demand", (
   assertEquals(result, { needsFrame: true, ambientOnly: true });
 });
 
+Deno.test("renderGameFrame skips session rendering for opaque intermission mode", () => {
+  withFakeOffscreenCanvas((): void => {
+    invalidateIntermissionCaches();
+    const scratch = createGameRenderScratch();
+    let rendererCalls = 0;
+    const renderer: FirstPersonRenderer = {
+      ...fakeFirstPersonRenderer(true),
+      render: (...args) => {
+        rendererCalls++;
+        fakeFirstPersonRenderer(true).render(...args);
+      },
+    };
+
+    renderWithScratch({
+      ctx: new FakeGameContext() as unknown as CanvasRenderingContext2D,
+      canvasSize: FULL_CANVAS,
+      scratch,
+      session: fakeSession(),
+      mode: {
+        type: "intermission",
+        pages: ["Signal received."],
+        pageIndex: 0,
+        prompt: "Continue",
+        goto: "next",
+        revealStartedAtMs: 0,
+        revealed: true,
+      },
+      firstPersonRenderer: renderer,
+    });
+
+    assertEquals(rendererCalls, 0);
+    assertEquals(scratch.spy.sessionRenderCount, 0);
+    assertEquals(scratch.spy.messageLogRenderCount, 0);
+  });
+});
+
+function renderWithScratch(
+  props: Omit<Parameters<typeof renderGameFrame>[0], "scratch"> & {
+    scratch?: ReturnType<typeof createGameRenderScratch>;
+  },
+) {
+  const scratch = props.scratch ?? createGameRenderScratch();
+  return renderGameFrame({ ...props, scratch });
+}
+
 function fakeFirstPersonRenderer(needsFrame = false, ambientOnly = false): FirstPersonRenderer {
   return {
     preloadAssets: () => Promise.resolve(),
@@ -175,7 +222,11 @@ function fakeFirstPersonRenderer(needsFrame = false, ambientOnly = false): First
     },
     reset(): void {},
     bump(): void {},
-    render: () => ({ needsFrame, ambientOnly: needsFrame ? ambientOnly : undefined }),
+    render: (_ctx, _rect, _session, _nowMs, out) => {
+      out.needsFrame = needsFrame;
+      out.ambientOnly = needsFrame ? ambientOnly : false;
+      out.cameraAngle = 0;
+    },
   };
 }
 
@@ -190,7 +241,6 @@ function fakeSession(onTick?: () => void): FrameRenderSession & { tick(): { read
     getPlayerPosition: () => ({ x: 0, y: 0 }),
     forEachDrawable: () => {},
     forEachLight: () => {},
-    targetMarkerTone: () => undefined,
     tick: () => {
       onTick?.();
       return { needsFrame: true };
@@ -263,6 +313,17 @@ class FakeGameDocument {
 class FakeOffscreenContext {
   fillStyle: FakeFillStyle = "";
   readonly gradients: FakeCanvasGradient[] = [];
+
+  createLinearGradient(
+    x0: number,
+    y0: number,
+    x1: number,
+    y1: number,
+  ): CanvasGradient {
+    const gradient = new FakeCanvasGradient([x0, y0, 0, x1, y1, 0]);
+    this.gradients.push(gradient);
+    return gradient as unknown as CanvasGradient;
+  }
 
   createRadialGradient(
     x0: number,

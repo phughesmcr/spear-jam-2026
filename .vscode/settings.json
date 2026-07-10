@@ -18,8 +18,5 @@
   },
   "[javascript]": {
     "editor.defaultFormatter": "denoland.vscode-deno"
-  },
-  "files.associations": {
-    "*.css": "tailwindcss"
   }
 }

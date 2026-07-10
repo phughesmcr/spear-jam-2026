@@ -5,13 +5,11 @@ import {
   SpriteAnimationKind,
   type SpriteAnimationSchema,
 } from "@/src/ecs/drawables.ts";
-import type { TargetMarkerTone } from "@/src/game/state.ts";
 import { type CardinalDirection, normalizeDirection } from "@/src/grid/direction.ts";
 import type { GameMap } from "@/src/map/map.ts";
 import { doorTexture, ENEMY_SHEET_COLUMNS, type FirstPersonAssetState } from "@/src/render/first_person_assets.ts";
 import { doorAxis, doorSlideForAxis, secretWallTextureSlot } from "@/src/render/first_person_scene.ts";
 import { addSlidingSolidWall, addSprite, addThinWall, type RaycastScene } from "@/src/render/raycast/scene.ts";
-import type { ViewRect } from "@/src/render/raycast/view.ts";
 import {
   createScalarTween,
   createSpriteTween,
@@ -42,15 +40,6 @@ const REL_DIR_TO_SHEET_COLUMN: readonly [number, number, number, number] = [2, 3
 const ITEM_BOB_PERIOD_MS = 1_200;
 const ITEM_BOB_BASE_ELEVATION = 0.03;
 const ITEM_BOB_ELEVATION_AMPLITUDE = 0.025;
-const TARGET_SIZE_FRACTION = 0.055;
-const TARGET_INNER_FRACTION = 0.38;
-const TARGET_Y_FRACTION = 0.47;
-const TARGET_COLORS: Readonly<Record<TargetMarkerTone, string>> = {
-  danger: "rgba(248, 113, 113, 0.92)",
-  locked: "rgba(250, 204, 21, 0.9)",
-  loot: "rgba(125, 211, 252, 0.9)",
-  use: "rgba(52, 211, 153, 0.9)",
-};
 
 /** Animated openness for a door entity; updates doorSample. */
 function tweenedDoorOpenness(
@@ -156,36 +145,6 @@ function enemySheetRow(animation: SpriteAnimationSchema | undefined, nowMs: numb
     return animationFrame(animation, nowMs, 2) === 0 ? ENEMY_ROW_IDLE : ENEMY_ROW_WALK;
   }
   return ENEMY_ROW_IDLE;
-}
-
-export function drawTargetHighlight(ctx: CanvasRenderingContext2D, rect: ViewRect, tone: TargetMarkerTone): void {
-  const size = Math.max(18, Math.round(rect.width * TARGET_SIZE_FRACTION));
-  const inner = Math.round(size * TARGET_INNER_FRACTION);
-  const cx = Math.round(rect.x + rect.width / 2);
-  const cy = Math.round(rect.y + rect.height * TARGET_Y_FRACTION);
-  const left = cx - size;
-  const right = cx + size;
-  const top = cy - size;
-  const bottom = cy + size;
-
-  ctx.save();
-  ctx.strokeStyle = TARGET_COLORS[tone];
-  ctx.lineWidth = Math.max(2, Math.round(rect.width / 360));
-  ctx.beginPath();
-  ctx.moveTo(left, top + inner);
-  ctx.lineTo(left, top);
-  ctx.lineTo(left + inner, top);
-  ctx.moveTo(right - inner, top);
-  ctx.lineTo(right, top);
-  ctx.lineTo(right, top + inner);
-  ctx.moveTo(right, bottom - inner);
-  ctx.lineTo(right, bottom);
-  ctx.lineTo(right - inner, bottom);
-  ctx.moveTo(left + inner, bottom);
-  ctx.lineTo(left, bottom);
-  ctx.lineTo(left, bottom - inner);
-  ctx.stroke();
-  ctx.restore();
 }
 
 /** Tweened world position for a moving entity; updates spritePoint. */

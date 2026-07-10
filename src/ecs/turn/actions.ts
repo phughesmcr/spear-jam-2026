@@ -1,5 +1,4 @@
-import type { Entity, World } from "@phughesmcr/miski";
-import { AttackFacingRequirement, Door, Facing, GridPos, PlayerEquipment, Secret } from "@/src/ecs/components.ts";
+import { enemyAttackFacesTarget } from "@/src/content/enemies.ts";
 import {
   attackEntity,
   attackTargets,
@@ -7,6 +6,7 @@ import {
   type DefeatEffectWriter,
   entityAttack,
 } from "@/src/ecs/combat.ts";
+import { Door, Facing, GridPos, PlayerEquipment, Secret } from "@/src/ecs/components.ts";
 import { collectItemAt, interactWithEntity } from "@/src/ecs/interactions.ts";
 import {
   applyItemPickupToPlayer,
@@ -16,10 +16,10 @@ import {
   selectPlayerWeapon,
   spendPlayerAmmo,
 } from "@/src/ecs/progression.ts";
-import type { SpatialAccess, SpatialDistanceField } from "@/src/ecs/spatial.ts";
-import { examineEntity } from "@/src/game/examine.ts";
+import type { SpatialAccess } from "@/src/ecs/spatial.ts";
 import type { InteractVerb } from "@/src/game/commands.ts";
 import type { GameEvent } from "@/src/game/events.ts";
+import { examineEntity } from "@/src/game/examine.ts";
 import type { BlocksSight, NoiseStimulus } from "@/src/game/perception.ts";
 import type { RandomSource } from "@/src/game/rng.ts";
 import type { CommandSlot, DialogueState } from "@/src/game/state.ts";
@@ -34,6 +34,7 @@ import {
   manhattanDistance,
   normalizeDirection,
 } from "@/src/grid/direction.ts";
+import type { Entity, World } from "@phughesmcr/miski";
 
 const MOVE_NOISE_RADIUS = 2;
 
@@ -41,7 +42,8 @@ export type TurnSpatial = SpatialAccess & {
   itemAt(x: number, y: number): Entity | undefined;
   facedEntity(current: GridPoint, dir: number): Entity | undefined;
   nextStepToward(start: GridPoint, target: GridPoint): GridPoint | undefined;
-  distanceFieldTo?(target: GridPoint): SpatialDistanceField;
+  beginEnemyPathingPhase(): void;
+  endEnemyPathingPhase(): void;
 };
 
 export type TurnContext = {
@@ -120,6 +122,10 @@ export function resolveIntent(context: TurnContext, intent: ActorIntent): Intent
       return resolveSelectWeaponIntent(context, intent.actor, intent.slot);
     case "examine":
       return { events: [examineEntity(context.world, intent.target)], cost: "free", acted: true };
+    default: {
+      const _exhaustive: never = intent;
+      return _exhaustive;
+    }
   }
 }
 
@@ -215,6 +221,10 @@ function resolveInteractionIntent(
       };
     case "uplinkTerminal":
       return { events: interaction.events, cost: "free", terminal: interaction.terminal, acted: true };
+    default: {
+      const _exhaustive: never = interaction;
+      return _exhaustive;
+    }
   }
 }
 
@@ -285,7 +295,7 @@ function attackEntityTargetsPlayer(context: TurnContext, actor: Entity): readonl
   const attack = entityAttack(context.world, actor);
   if (attack === undefined) return [];
 
-  if (attack.requiresFacing === AttackFacingRequirement.Required) {
+  if (enemyAttackFacesTarget(attack.pattern)) {
     faceEntityToward(context, actor, playerPosition(context));
   }
 

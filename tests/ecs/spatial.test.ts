@@ -291,7 +291,7 @@ Deno.test("SpatialIndex setDoorOpen toggles runtime flags and keeps doors target
   assertEquals(spatial.facedEntity({ x: 1, y: 1 }, 1), door);
 });
 
-Deno.test("SpatialIndex distance fields route multiple starts around the same blocker", async () => {
+Deno.test("SpatialIndex pathing routes multiple starts around the same blocker", async () => {
   const world = await createWorld();
   const actor = createEntity(world);
   const blocker = createEntity(world);
@@ -303,10 +303,13 @@ Deno.test("SpatialIndex distance fields route multiple starts around the same bl
   world.refresh();
 
   const spatial = new SpatialIndex(world, flatTestMap(5, 3));
-  const field = spatial.distanceFieldTo({ x: 4, y: 1 });
-
-  assertEquals(field.nextStepFrom({ x: 1, y: 1 }), { x: 1, y: 0 });
-  assertEquals(field.nextStepFrom({ x: 1, y: 2 }), { x: 2, y: 2 });
+  spatial.beginEnemyPathingPhase();
+  try {
+    assertEquals(spatial.nextStepToward({ x: 1, y: 1 }, { x: 4, y: 1 }), { x: 1, y: 0 });
+    assertEquals(spatial.nextStepToward({ x: 1, y: 2 }, { x: 4, y: 1 }), { x: 2, y: 2 });
+  } finally {
+    spatial.endEnemyPathingPhase();
+  }
 });
 
 const TEST_MAP = flatTestMap(5, 2);

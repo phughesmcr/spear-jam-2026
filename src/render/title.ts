@@ -1,6 +1,7 @@
 import type { TitleHoverButton, TitleIntent } from "@/src/game/state.ts";
 import { createImageAsset, loadedImage, preloadImageAsset } from "@/src/render/assets.ts";
 import type { GameCanvasSize } from "@/src/render/canvas.ts";
+import type { RenderSpy } from "@/src/render/render_scratch.ts";
 import { monoFont } from "@/src/render/text.ts";
 
 export type TitleButtonRect = {
@@ -41,21 +42,47 @@ const SCAN_MS = 2200;
 
 const titleBackgroundAsset = createImageAsset(TITLE_BACKGROUND_SRC);
 
+type TitleGeometryCache = {
+  width: number;
+  height: number;
+  startButton: TitleButtonRect;
+  settingsButton: TitleButtonRect;
+};
+
+let titleGeometryCache: TitleGeometryCache | undefined;
+
 export async function preloadTitleAssets(document: Document, onAssetLoad?: () => void): Promise<void> {
   await preloadImageAsset(document, titleBackgroundAsset, onAssetLoad);
 }
 
 export function titleStartButtonRect(canvasSize: GameCanvasSize): TitleButtonRect {
-  return titleButtonRect(canvasSize);
+  return titleGeometryFor(canvasSize).startButton;
 }
 
 export function titleSettingsButtonRect(canvasSize: GameCanvasSize): TitleButtonRect {
-  const start = titleStartButtonRect(canvasSize);
-  const gap = Math.round(start.height * BUTTON_GAP_RATIO);
-  return {
-    ...start,
-    y: start.y - gap - start.height,
+  return titleGeometryFor(canvasSize).settingsButton;
+}
+
+function titleGeometryFor(canvasSize: GameCanvasSize): TitleGeometryCache {
+  if (
+    titleGeometryCache !== undefined &&
+    titleGeometryCache.width === canvasSize.width &&
+    titleGeometryCache.height === canvasSize.height
+  ) {
+    return titleGeometryCache;
+  }
+  const startButton = titleButtonRect(canvasSize);
+  const gap = Math.round(startButton.height * BUTTON_GAP_RATIO);
+  titleGeometryCache = {
+    width: canvasSize.width,
+    height: canvasSize.height,
+    startButton,
+    settingsButton: {
+      ...startButton,
+      y: startButton.y - gap - startButton.height,
+    },
   };
+  return titleGeometryCache;
 }
 
 function titleButtonRect(canvasSize: GameCanvasSize): TitleButtonRect {
@@ -104,9 +131,11 @@ export function renderTitle(
   nowMs = 0,
   onAssetLoad?: () => void,
   hoverButton?: TitleHoverButton,
+  _spy?: RenderSpy,
 ): void {
-  const startButton = titleStartButtonRect(canvasSize);
-  const settingsButton = titleSettingsButtonRect(canvasSize);
+  const geometry = titleGeometryFor(canvasSize);
+  const startButton = geometry.startButton;
+  const settingsButton = geometry.settingsButton;
   const image = loadedImage(ctx, titleBackgroundAsset, onAssetLoad);
 
   ctx.save();

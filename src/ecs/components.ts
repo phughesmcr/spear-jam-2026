@@ -1,12 +1,12 @@
-import { Component, type ComponentPartitions, type DynamicComponent, type Entity, type World } from "@phughesmcr/miski";
+import { type EnemyArchetypeCode, enemyArchetypeForCode } from "@/src/content/enemies.ts";
 import { type ItemKind as ItemKindType, ItemKind as ItemKindValues } from "@/src/content/items.ts";
 import type { SpriteId } from "@/src/content/sprite_ids.ts";
 import { type DrawableKind } from "@/src/ecs/drawable_kind.ts";
-import { type EnemyArchetype, enemyArchetypeForCode } from "@/src/ecs/enemy_catalog.ts";
-import { type AttackDef, AttackFacingRequirement, AttackPattern, AttackTargetMode } from "@/src/game/attack.ts";
+import { type AttackDef, AttackPattern, AttackTargetMode } from "@/src/game/attack.ts";
 import type { CardinalDirection } from "@/src/grid/direction.ts";
+import { Component, type ComponentPartitions, type DynamicComponent, type Entity, type World } from "@phughesmcr/miski";
 
-export { AttackFacingRequirement, AttackPattern, AttackTargetMode };
+export { AttackPattern, AttackTargetMode };
 export const ItemKind = ItemKindValues;
 export type ItemKind = ItemKindType;
 export type { DrawableKind, SpriteId };
@@ -353,7 +353,7 @@ export const EnemyAwareness: Component<EnemyAwarenessSchema, typeof ENEMY_AWAREN
   schema: ENEMY_AWARENESS_STORAGE,
 });
 
-export type EnemyArchetypeSchema = { archetype: EnemyArchetype };
+export type EnemyArchetypeSchema = { archetype: EnemyArchetypeCode };
 const ENEMY_ARCHETYPE_STORAGE = { archetype: Uint8Array };
 export const EnemyArchetypeComponent: Component<EnemyArchetypeSchema, typeof ENEMY_ARCHETYPE_STORAGE> = new Component<
   EnemyArchetypeSchema,
@@ -363,7 +363,7 @@ export const EnemyArchetypeComponent: Component<EnemyArchetypeSchema, typeof ENE
   schema: ENEMY_ARCHETYPE_STORAGE,
 });
 
-export function enemyArchetypeFor(world: World, entity: Entity): EnemyArchetype | undefined {
+export function enemyArchetypeFor(world: World, entity: Entity): EnemyArchetypeCode | undefined {
   const archetype = world.components.readEntityData(EnemyArchetypeComponent, entity)?.archetype;
   return archetype === undefined ? undefined : enemyArchetypeForCode(archetype);
 }
@@ -403,7 +403,6 @@ const ATTACK_STORAGE = {
   minDamage: Uint8Array,
   maxDamage: Uint8Array,
   range: Uint8Array,
-  requiresFacing: Uint8Array,
   attackBonus: Int8Array,
   critThreshold: Uint8Array,
   critMultiplier: Uint8Array,

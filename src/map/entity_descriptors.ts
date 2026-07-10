@@ -3,7 +3,7 @@ import {
   type DialogueTreeId,
   type DisplayName,
   ENEMY_ARCHETYPE_AUTHORING_KEYS,
-  type EnemyArchetypeAuthoringKey,
+  type EnemyArchetypeKey,
   type ExamineTextId,
   KNOWN_DIALOGUE_TREE_IDS,
   KNOWN_DISPLAY_NAMES,
@@ -15,7 +15,6 @@ import {
   type StoryTargetId,
 } from "@/src/content/known_ids.ts";
 import {
-  ATTACK_FACING_REQUIREMENT_AUTHORING_KEYS,
   ATTACK_PATTERN_AUTHORING_KEYS,
   ATTACK_TARGET_MODE_AUTHORING_KEYS,
   type AuthoringAttackDef,
@@ -38,7 +37,7 @@ export type AttackDef = AuthoringAttackDef;
 
 export type { DialogueTreeId, DisplayName, ExamineTextId, StoryEventId, StoryTargetId };
 /** Authoring enemy archetype key; runtime numeric codes live in {@link "@/src/content/enemies.ts"}. */
-export type EnemyArchetype = EnemyArchetypeAuthoringKey;
+export type EnemyArchetype = EnemyArchetypeKey;
 export type SoundId = KnownSoundId;
 export const ITEM_KINDS = ["healthPatch", "pistolAmmo", "cannonAmmo"] as const;
 /** Authoring pickup kind strings; runtime ECS codes live in {@link "@/src/content/items.ts"}. */
@@ -51,6 +50,20 @@ export const DECORATION_KINDS = [
   "ceilingWires",
 ] as const;
 export type DecorationKind = (typeof DECORATION_KINDS)[number];
+
+export type EntityPrefab =
+  | "player"
+  | "npc"
+  | "enemy"
+  | "door"
+  | "key"
+  | "uplinkCode"
+  | "uplinkTerminal"
+  | "weaponPickup"
+  | "item"
+  | "decoration"
+  | "light"
+  | "sound";
 
 const INTEGER_SCHEMA = z.number().int();
 const UINT8_SCHEMA = INTEGER_SCHEMA.min(0).max(255);
@@ -76,10 +89,6 @@ const SOUND_ID_SCHEMA = stringEnumSchema<SoundId>(AMBIENT_SOUND_IDS, "ambient so
 const EXAMINE_TEXT_ID_SCHEMA = stringEnumSchema<ExamineTextId>(KNOWN_EXAMINE_TEXT_IDS, "examine text");
 const ITEM_KIND_SCHEMA = stringEnumSchema<ItemKind>(ITEM_KINDS, "item kind");
 const DECORATION_KIND_SCHEMA = stringEnumSchema<DecorationKind>(DECORATION_KINDS, "decoration kind");
-const ATTACK_FACING_REQUIREMENT_SCHEMA = stringEnumSchema(
-  ATTACK_FACING_REQUIREMENT_AUTHORING_KEYS,
-  "attack facing requirement",
-);
 const ATTACK_PATTERN_SCHEMA = stringEnumSchema(ATTACK_PATTERN_AUTHORING_KEYS, "attack pattern");
 const ATTACK_TARGET_MODE_SCHEMA = stringEnumSchema(ATTACK_TARGET_MODE_AUTHORING_KEYS, "attack target mode");
 
@@ -87,7 +96,6 @@ const ATTACK_SCHEMA = z.object({
   minDamage: UINT8_SCHEMA.min(1).optional(),
   maxDamage: UINT8_SCHEMA.min(1).optional(),
   range: UINT8_SCHEMA.min(1).optional(),
-  requiresFacing: ATTACK_FACING_REQUIREMENT_SCHEMA.optional(),
   attackBonus: INT8_SCHEMA.optional(),
   critThreshold: UINT8_SCHEMA.min(1).optional(),
   critMultiplier: UINT8_SCHEMA.min(1).optional(),
@@ -100,13 +108,35 @@ const BASE_ENTITY_SCHEMA = {
   y: NON_NEGATIVE_INTEGER_SCHEMA,
 } as const;
 
-const ENTITY_DEFINITIONS = [
-  entityDefinition("player", ["prefab", "dir", "facing"], {
+/** Tiled flat attack_* properties → nested {@link AuthoringAttackDef} field names. */
+export const ATTACK_PROPERTY_MAP = {
+  attackMinDamage: "minDamage",
+  attackMaxDamage: "maxDamage",
+  attackRange: "range",
+  attackBonus: "attackBonus",
+  attackCritThreshold: "critThreshold",
+  attackCritMultiplier: "critMultiplier",
+  attackPattern: "pattern",
+  attackTargets: "targets",
+} as const;
+
+export type EntityDescriptor = {
+  readonly prefab: EntityPrefab;
+  readonly authoringProperties: readonly string[];
+  readonly normalizedFields: readonly string[];
+  readonly blockingMovement: boolean;
+  readonly marker: EntityPrefab;
+  readonly schema: z.ZodObject<z.ZodRawShape>;
+};
+
+const ENTITY_DESCRIPTORS_INTERNAL = [
+  entityDescriptor("player", ["prefab", "dir", "facing"], true, {
     dir: DIRECTION_SCHEMA,
   }),
-  entityDefinition(
+  entityDescriptor(
     "npc",
     ["prefab", "dir", "facing", "displayName", "dialogueTreeId", "examineTextId", "storyId", "onTalkEvent"],
+    true,
     {
       dir: DIRECTION_SCHEMA,
       displayName: DISPLAY_NAME_SCHEMA,
@@ -116,7 +146,7 @@ const ENTITY_DEFINITIONS = [
       onTalkEvent: STORY_EVENT_ID_SCHEMA.optional(),
     },
   ),
-  entityDefinition(
+  entityDescriptor(
     "enemy",
     [
       "prefab",
@@ -130,7 +160,6 @@ const ENTITY_DEFINITIONS = [
       "attackMinDamage",
       "attackMaxDamage",
       "attackRange",
-      "attackRequiresFacing",
       "attackBonus",
       "attackCritThreshold",
       "attackCritMultiplier",
@@ -138,6 +167,7 @@ const ENTITY_DEFINITIONS = [
       "attackTargets",
       "examineTextId",
     ],
+    true,
     {
       dir: DIRECTION_SCHEMA,
       displayName: DISPLAY_NAME_SCHEMA.optional(),
@@ -149,7 +179,7 @@ const ENTITY_DEFINITIONS = [
       examineTextId: EXAMINE_TEXT_ID_SCHEMA.optional(),
     },
   ),
-  entityDefinition("door", ["prefab", "locked", "color", "slide", "openMs", "secret", "examineTextId"], {
+  entityDescriptor("door", ["prefab", "locked", "color", "slide", "openMs", "secret", "examineTextId"], true, {
     locked: z.boolean().optional(),
     color: KEY_COLOR_SCHEMA.optional(),
     slide: DOOR_SLIDE_SCHEMA.optional(),
@@ -157,56 +187,57 @@ const ENTITY_DEFINITIONS = [
     secret: z.boolean().optional(),
     examineTextId: EXAMINE_TEXT_ID_SCHEMA.optional(),
   }),
-  entityDefinition("key", ["prefab", "color"], {
+  entityDescriptor("key", ["prefab", "color"], false, {
     color: KEY_COLOR_SCHEMA,
   }),
-  entityDefinition("uplinkCode", ["prefab"], {}),
-  entityDefinition("uplinkTerminal", ["prefab", "goto", "examineTextId"], {
+  entityDescriptor("uplinkCode", ["prefab"], false, {}),
+  entityDescriptor("uplinkTerminal", ["prefab", "goto", "examineTextId"], true, {
     goto: z.string().min(1),
     examineTextId: EXAMINE_TEXT_ID_SCHEMA.optional(),
   }),
-  entityDefinition("weaponPickup", ["prefab", "slot"], {
+  entityDescriptor("weaponPickup", ["prefab", "slot"], false, {
     slot: z.union([z.literal(2), z.literal(3)]),
   }),
-  entityDefinition("item", ["prefab", "item", "amount"], {
+  entityDescriptor("item", ["prefab", "item", "amount"], false, {
     item: ITEM_KIND_SCHEMA,
     amount: UINT8_SCHEMA.min(1),
   }),
-  entityDefinition("decoration", ["prefab", "decoration"], {
+  entityDescriptor("decoration", ["prefab", "decoration"], false, {
     decoration: DECORATION_KIND_SCHEMA,
   }),
-  entityDefinition("light", ["prefab", "color", "radius", "flickerAmount", "flickerSpeed"], {
+  entityDescriptor("light", ["prefab", "color", "radius", "flickerAmount", "flickerSpeed"], false, {
     color: LIGHT_COLOR_SCHEMA,
     radius: UINT8_SCHEMA.min(1),
     flickerAmount: z.number().min(0).max(1).optional(),
     flickerSpeed: z.number().positive().optional(),
   }),
-  entityDefinition("sound", ["prefab", "soundId", "radius", "volume"], {
+  entityDescriptor("sound", ["prefab", "soundId", "radius", "volume"], false, {
     soundId: SOUND_ID_SCHEMA,
     radius: UINT8_SCHEMA.min(1),
     volume: z.number().min(0).max(1).optional(),
   }),
 ] as const;
 
-const ENTITY_SCHEMAS = ENTITY_DEFINITIONS.map((definition) => definition.schema) as [
-  (typeof ENTITY_DEFINITIONS)[0]["schema"],
-  (typeof ENTITY_DEFINITIONS)[1]["schema"],
-  (typeof ENTITY_DEFINITIONS)[2]["schema"],
-  (typeof ENTITY_DEFINITIONS)[3]["schema"],
-  (typeof ENTITY_DEFINITIONS)[4]["schema"],
-  (typeof ENTITY_DEFINITIONS)[5]["schema"],
-  (typeof ENTITY_DEFINITIONS)[6]["schema"],
-  (typeof ENTITY_DEFINITIONS)[7]["schema"],
-  (typeof ENTITY_DEFINITIONS)[8]["schema"],
-  (typeof ENTITY_DEFINITIONS)[9]["schema"],
-  (typeof ENTITY_DEFINITIONS)[10]["schema"],
-  (typeof ENTITY_DEFINITIONS)[11]["schema"],
+export const ENTITY_DESCRIPTORS: readonly EntityDescriptor[] = ENTITY_DESCRIPTORS_INTERNAL;
+
+const ENTITY_SCHEMAS = ENTITY_DESCRIPTORS_INTERNAL.map((descriptor) => descriptor.schema) as [
+  (typeof ENTITY_DESCRIPTORS_INTERNAL)[0]["schema"],
+  (typeof ENTITY_DESCRIPTORS_INTERNAL)[1]["schema"],
+  (typeof ENTITY_DESCRIPTORS_INTERNAL)[2]["schema"],
+  (typeof ENTITY_DESCRIPTORS_INTERNAL)[3]["schema"],
+  (typeof ENTITY_DESCRIPTORS_INTERNAL)[4]["schema"],
+  (typeof ENTITY_DESCRIPTORS_INTERNAL)[5]["schema"],
+  (typeof ENTITY_DESCRIPTORS_INTERNAL)[6]["schema"],
+  (typeof ENTITY_DESCRIPTORS_INTERNAL)[7]["schema"],
+  (typeof ENTITY_DESCRIPTORS_INTERNAL)[8]["schema"],
+  (typeof ENTITY_DESCRIPTORS_INTERNAL)[9]["schema"],
+  (typeof ENTITY_DESCRIPTORS_INTERNAL)[10]["schema"],
+  (typeof ENTITY_DESCRIPTORS_INTERNAL)[11]["schema"],
 ];
 
 export const ENTITY_SCHEMA = z.discriminatedUnion("prefab", ENTITY_SCHEMAS);
 
 export type EntityDef = z.infer<typeof ENTITY_SCHEMA>;
-export type EntityPrefab = EntityDef["prefab"];
 export type EntityDefFor<Prefab extends EntityPrefab> = Extract<EntityDef, { readonly prefab: Prefab }>;
 export type PlayerDef = EntityDefFor<"player">;
 export type NpcDef = EntityDefFor<"npc">;
@@ -221,15 +252,18 @@ export type DecorationDef = EntityDefFor<"decoration">;
 export type LightDef = EntityDefFor<"light">;
 export type SoundDef = EntityDefFor<"sound">;
 
-export const ENTITY_PREFABS = ENTITY_DEFINITIONS.map((definition) => definition.prefab) as readonly EntityPrefab[];
+export const ENTITY_PREFABS = ENTITY_DESCRIPTORS.map((descriptor) => descriptor.prefab) as readonly EntityPrefab[];
 export const ENTITY_AUTHORING_PROPERTY_NAMES: ReadonlySet<string> = propertySet(
-  ENTITY_DEFINITIONS.flatMap((definition) => definition.authoringProperties),
+  ENTITY_DESCRIPTORS.flatMap((descriptor) => descriptor.authoringProperties),
 );
 export const PREFAB_AUTHORING_PROPERTY_NAMES = Object.fromEntries(
-  ENTITY_DEFINITIONS.map((definition) => [definition.prefab, propertySet(definition.authoringProperties)]),
+  ENTITY_DESCRIPTORS.map((descriptor) => [descriptor.prefab, propertySet(descriptor.authoringProperties)]),
 ) as Readonly<Record<EntityPrefab, ReadonlySet<string>>>;
 
 const ENTITY_PREFAB_SET = new Set<string>(ENTITY_PREFABS);
+const BLOCKING_PREFABS = new Set(
+  ENTITY_DESCRIPTORS.filter((descriptor) => descriptor.blockingMovement).map((descriptor) => descriptor.prefab),
+);
 
 const DIRECTIONS: Readonly<Record<string, number>> = {
   north: 0,
@@ -238,20 +272,17 @@ const DIRECTIONS: Readonly<Record<string, number>> = {
   west: 3,
 };
 
-/** Tiled flat attack_* properties → nested {@link AuthoringAttackDef} field names. */
-const ATTACK_PROPERTY_MAP = {
-  attackMinDamage: "minDamage",
-  attackMaxDamage: "maxDamage",
-  attackRange: "range",
-  attackRequiresFacing: "requiresFacing",
-  attackBonus: "attackBonus",
-  attackCritThreshold: "critThreshold",
-  attackCritMultiplier: "critMultiplier",
-  attackPattern: "pattern",
-  attackTargets: "targets",
-} as const;
-
 const DIALOGUE_TREE_NONE = "none";
+
+export function descriptorForPrefab(prefab: EntityPrefab): EntityDescriptor {
+  const descriptor = ENTITY_DESCRIPTORS.find((candidate) => candidate.prefab === prefab);
+  if (descriptor === undefined) throw new Error(`Unknown entity prefab "${prefab}".`);
+  return descriptor;
+}
+
+export function prefabBlocksMovement(prefab: EntityPrefab): boolean {
+  return BLOCKING_PREFABS.has(prefab);
+}
 
 export function mapEntityPrefab(value: string, context: string): EntityPrefab {
   if (isEntityPrefab(value)) return value;
@@ -320,19 +351,24 @@ export function entityFromAuthoring(
   };
 }
 
-function entityDefinition<Name extends string, Shape extends z.ZodRawShape>(
+function entityDescriptor<Name extends EntityPrefab, Shape extends z.ZodRawShape>(
   prefab: Name,
   authoringProperties: readonly string[],
+  blockingMovement: boolean,
   shape: Shape,
 ) {
+  const schema = z.object({
+    prefab: z.literal(prefab),
+    ...BASE_ENTITY_SCHEMA,
+    ...shape,
+  }).strict();
   return {
     prefab,
     authoringProperties,
-    schema: z.object({
-      prefab: z.literal(prefab),
-      ...BASE_ENTITY_SCHEMA,
-      ...shape,
-    }).strict(),
+    normalizedFields: Object.keys(shape),
+    blockingMovement,
+    marker: prefab,
+    schema,
   } as const;
 }
 

@@ -1,3 +1,6 @@
+import { CARDINAL_DELTAS } from "@/src/grid/direction.ts";
+import { VICTORY_GOTO } from "@/src/map/destinations.ts";
+import { prefabBlocksMovement } from "@/src/map/entity_descriptors.ts";
 import {
   type DoorDef,
   type GameMap,
@@ -8,9 +11,7 @@ import {
   terrainBlocksMovement,
   terrainIsBarrier,
   type UplinkTerminalDef,
-  VICTORY_GOTO,
 } from "@/src/map/map.ts";
-import { CARDINAL_DELTAS } from "@/src/grid/direction.ts";
 
 type ReachabilityResult = {
   readonly reachableKeyMask: number;
@@ -29,13 +30,6 @@ const KEY_BITS: Readonly<Record<KeyColorType, number>> = {
   [KeyColor.Blue]: 1 << 1,
   [KeyColor.Yellow]: 1 << 2,
 };
-const BLOCKING_ENTITY_PREFABS = new Set<GameMap["entities"][number]["prefab"]>([
-  "door",
-  "enemy",
-  "npc",
-  "player",
-  "uplinkTerminal",
-]);
 
 export function validateGameMaps(maps: readonly GameMap[]): readonly string[] {
   const issues: string[] = [];
@@ -69,7 +63,7 @@ function validateGameMap(map: GameMap, mapNames: ReadonlySet<string>): readonly 
       issues.push(`${map.name}: ${entity.prefab} at (${entity.x},${entity.y}) is placed on blocking terrain.`);
     }
 
-    if (BLOCKING_ENTITY_PREFABS.has(entity.prefab)) {
+    if (prefabBlocksMovement(entity.prefab)) {
       const tile = tileKey(entity.x, entity.y);
       const existing = blockersByTile.get(tile);
       if (existing === undefined) {
@@ -193,7 +187,8 @@ function reachabilityIndexes(map: GameMap): ReachabilityIndexes {
   const doorsByTile = new Map<string, DoorDef[]>();
 
   for (const entity of map.entities) {
-    switch (entity.prefab) {
+    const prefab = entity.prefab;
+    switch (prefab) {
       case "key": {
         const tile = tileKey(entity.x, entity.y);
         keyMasksByTile.set(tile, (keyMasksByTile.get(tile) ?? 0) | keyBit(entity.color));
@@ -222,11 +217,16 @@ function reachabilityIndexes(map: GameMap): ReachabilityIndexes {
       case "enemy":
       case "npc":
       case "item":
+      case "decoration":
       case "light":
       case "player":
       case "sound":
       case "weaponPickup":
         break;
+      default: {
+        const _exhaustive: never = prefab;
+        return _exhaustive;
+      }
     }
   }
 

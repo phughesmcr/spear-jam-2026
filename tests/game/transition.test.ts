@@ -560,12 +560,12 @@ Deno.test("transition confirms dialogue pointer only when down and up hit the sa
   let model: GameModel = { ...createGameModel("Level 1"), mode: DIALOGUE_MODE };
 
   ({ model } = transition(model, { type: "dialoguePointer", phase: "down", optionSlot: 1 }));
-  assertEquals(model.dialoguePointerDownSlot, 1);
+  assertEquals(model.mode.type === "dialogue" ? model.mode.pointerDownSlot : undefined, 1);
 
   let result = transition(model, { type: "dialoguePointer", phase: "up", optionSlot: 2 });
   model = result.model;
   assertEquals(model.mode, DIALOGUE_MODE);
-  assertEquals(model.dialoguePointerDownSlot, undefined);
+  assertEquals(model.mode.type === "dialogue" ? model.mode.pointerDownSlot : undefined, undefined);
   assertEquals(result.effects, []);
 
   ({ model } = transition(model, { type: "dialoguePointer", phase: "down", optionSlot: 2 }));

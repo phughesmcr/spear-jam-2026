@@ -58,7 +58,6 @@ import {
 } from "@/src/ecs/sounds.ts";
 import type { SpatialIndex } from "@/src/ecs/spatial.ts";
 import type { TurnContext } from "@/src/ecs/turn/actions.ts";
-import { targetMarkerTone } from "@/src/ecs/turn/player.ts";
 import { runTurnTransaction, type TurnTransactionResult } from "@/src/ecs/turn/transaction.ts";
 import { createWorld } from "@/src/ecs/world.ts";
 import type { PlayerCommand, PlayerCommandResult } from "@/src/game/commands.ts";
@@ -66,7 +65,7 @@ import type { GameEvent } from "@/src/game/events.ts";
 import type { RandomSource } from "@/src/game/rng.ts";
 import type { SoundCue } from "@/src/game/sound.ts";
 import { soundCuesForEvents } from "@/src/game/sound_cues.ts";
-import type { PlayerStatusSnapshot, TargetMarkerTone } from "@/src/game/state.ts";
+import type { PlayerStatusSnapshot } from "@/src/game/state.ts";
 import type { StoryEventId, StoryFlag } from "@/src/game/story.ts";
 import type { TileVisibility, VisibilityMap } from "@/src/game/visibility.ts";
 import { playerWeaponSpec } from "@/src/game/weapons.ts";
@@ -219,10 +218,6 @@ export class GameSession implements Disposable {
   getPlayerFacing(): FacingSchema {
     const facing = this.world.components.getEntityData(Facing, this.playerEntity);
     return { dir: normalizeDirection(facing.dir) };
-  }
-
-  targetMarkerTone(): TargetMarkerTone | undefined {
-    return this.spatial.withFreshOccupancy(() => targetMarkerTone(this.turnContext()));
   }
 
   getVisibility(): TileVisibility {
@@ -411,6 +406,10 @@ function withSoundCues(result: PlayerCommandResult, soundCues: readonly SoundCue
       return { type: "mapChange", events: result.events, mapChange: result.mapChange, soundCues };
     case "outcome":
       return { type: "outcome", events: result.events, outcome: result.outcome, soundCues };
+    default: {
+      const _exhaustive: never = result;
+      return _exhaustive;
+    }
   }
 }
 

@@ -59,8 +59,6 @@ export type DialogueState = {
   readonly treeKey?: string;
 };
 
-export type TargetMarkerTone = "danger" | "locked" | "loot" | "use";
-
 export type TitleIntent = "start" | "resume";
 export type TitleHoverButton = "start" | "settings";
 
@@ -69,9 +67,14 @@ export type GameMode =
   | { readonly type: "loading" }
   | { readonly type: "playing" }
   | { readonly type: "paused" }
-  | { readonly type: "verbMenu"; readonly selectedIndex: number; readonly hoverTarget?: VerbMenuTarget }
+  | {
+    readonly type: "verbMenu";
+    readonly selectedIndex: number;
+    readonly hoverTarget?: VerbMenuTarget;
+    readonly pointerDownTarget?: VerbMenuTarget;
+  }
   | { readonly type: "help"; readonly selectedIndex: number }
-  | ({ readonly type: "dialogue" } & DialogueState)
+  | ({ readonly type: "dialogue" } & DialogueState & { readonly pointerDownSlot?: number })
   | {
     readonly type: "intermission";
     readonly title?: string;

@@ -1,7 +1,6 @@
 import { attackEntity, attackTargets, resolveAttack } from "@/src/ecs/combat.ts";
 import type { AttackSchema } from "@/src/ecs/components.ts";
 import {
-  AttackFacingRequirement,
   AttackPattern,
   AttackTargetMode,
   Blocking,
@@ -27,7 +26,6 @@ const BASE_ATTACK: AttackSchema = {
   minDamage: 1,
   maxDamage: 1,
   range: 1,
-  requiresFacing: AttackFacingRequirement.Required,
   attackBonus: 0,
   critThreshold: 20,
   critMultiplier: 2,
@@ -196,7 +194,6 @@ Deno.test("attackTargets can hit all cardinal adjacent targets without facing", 
     attacker,
     {
       ...BASE_ATTACK,
-      requiresFacing: AttackFacingRequirement.None,
       pattern: AttackPattern.Adjacent,
       targets: AttackTargetMode.All,
     },

@@ -303,8 +303,10 @@ function fakeFirstPersonRenderer(
     },
     reset() {},
     bump() {},
-    render() {
-      return result;
+    render(_ctx, _rect, _session, _nowMs, out) {
+      out.needsFrame = result.needsFrame;
+      out.ambientOnly = result.ambientOnly === true;
+      out.cameraAngle = 0;
     },
   };
 }
@@ -323,7 +325,6 @@ function fakePlayingSession(): RuntimeSession {
     getVisibility: () => ({ isVisible: () => false, isExplored: () => false }),
     forEachDrawable() {},
     forEachLight() {},
-    targetMarkerTone: () => undefined,
     tick: () => ({ needsFrame: false }),
     getPlayerEntity: () => 1 as Entity,
   };
@@ -347,7 +348,6 @@ function fakeAudioSession(): RuntimeSession {
     getVisibility: () => ({ isVisible: () => false, isExplored: () => false }),
     forEachDrawable() {},
     forEachLight() {},
-    targetMarkerTone: () => undefined,
     tick: () => ({ needsFrame: false }),
     getPlayerEntity: () => 1 as Entity,
   };

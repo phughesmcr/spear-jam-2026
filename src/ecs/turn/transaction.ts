@@ -1,8 +1,7 @@
 import type { Entity } from "@phughesmcr/miski";
 import { awardCreditsForDefeats } from "@/src/ecs/progression.ts";
 import { enemyTurnQuery } from "@/src/ecs/queries.ts";
-import type { SpatialDistanceField } from "@/src/ecs/spatial.ts";
-import { playerPosition, resolveIntent, type TurnContext, type TurnSpatial } from "@/src/ecs/turn/actions.ts";
+import { playerPosition, resolveIntent, type TurnContext } from "@/src/ecs/turn/actions.ts";
 import { isPlayerDefeated, runEnemyActorTurn } from "@/src/ecs/turn/enemy.ts";
 import { playerIntentsForCommand } from "@/src/ecs/turn/player.ts";
 import type { PlayerCommand } from "@/src/game/commands.ts";
@@ -69,12 +68,18 @@ export function runTurnTransaction(context: TurnContext, command: PlayerCommand)
 
   const actionEvents = awardCreditsForDefeats(context.world, context.player, playerEvents);
   const noises = noisesForPlayerAction(context, actionEvents, actionNoise);
-  const enemyEvents = runEnemyPhase({
+  const enemyContext = {
     ...context,
-    spatial: phasePathingSpatial(context.spatial),
     noises,
     blocksSight: context.blocksSight ?? ((x, y) => context.spatial.tileBlocksSight(x, y)),
-  });
+  };
+  context.spatial.beginEnemyPathingPhase();
+  let enemyEvents: readonly GameEvent[];
+  try {
+    enemyEvents = runEnemyPhase(enemyContext);
+  } finally {
+    context.spatial.endEnemyPathingPhase();
+  }
   const events = [...actionEvents, ...enemyEvents];
   return {
     events,
@@ -97,35 +102,6 @@ function runEnemyPhase(
     events.push(...runEnemyActorTurn(context, enemy));
   }
   return events;
-}
-
-function phasePathingSpatial(spatial: TurnSpatial): TurnSpatial {
-  if (spatial.distanceFieldTo === undefined) return spatial;
-
-  const fields = new Map<string, SpatialDistanceField>();
-  return {
-    tileBlocks: (x, y) => spatial.tileBlocks(x, y),
-    tileBlocksSight: (x, y) => spatial.tileBlocksSight(x, y),
-    tileBlocksAttacks: (x, y) => spatial.tileBlocksAttacks(x, y),
-    blockingEntityAt: (x, y) => spatial.blockingEntityAt(x, y),
-    positionBlocks: (x, y) => spatial.positionBlocks(x, y),
-    itemAt: (x, y) => spatial.itemAt(x, y),
-    facedEntity: (current, dir) => spatial.facedEntity(current, dir),
-    moveEntity: (entity, to) => spatial.moveEntity(entity, to),
-    removeEntity: (entity) => spatial.removeEntity(entity),
-    setBlocking: (entity, blocking) => spatial.setBlocking(entity, blocking),
-    setDoorOpen: (entity, open) => spatial.setDoorOpen(entity, open),
-    nextStepToward(start, target) {
-      const key = `${target.x},${target.y}`;
-      let field = fields.get(key);
-      if (field === undefined) {
-        field = spatial.distanceFieldTo!(target);
-        fields.set(key, field);
-      }
-      return field.nextStepFrom(start);
-    },
-    distanceFieldTo: (target) => spatial.distanceFieldTo!(target),
-  };
 }
 
 function noisesForPlayerAction(

@@ -1,7 +1,7 @@
 import { Blocking, Door, GridPos, Interactable, Item } from "@/src/ecs/components.ts";
 import { positionedQuery } from "@/src/ecs/queries.ts";
 import { CARDINAL_DELTAS, directionDelta, type GridPoint } from "@/src/grid/direction.ts";
-import type { GameMap } from "@/src/map/map.ts";
+import { authoredEnemyCount, type GameMap } from "@/src/map/map.ts";
 import { copyBaseFlags, dimensions } from "@/src/map/static_grid.ts";
 import { flagsBlockAttack, flagsBlockMovement, flagsBlockSight, TileFlag } from "@/src/map/tile_flags.ts";
 import type { Entity, World } from "@phughesmcr/miski";
@@ -21,14 +21,11 @@ export interface SpatialMutations {
   setDoorOpen(entity: Entity, open: boolean): void;
 }
 
-export interface SpatialDistanceField {
-  nextStepFrom(start: GridPoint): GridPoint | undefined;
-}
-
 export type SpatialAccess = SpatialLookup & SpatialMutations;
 const EMPTY_ENTITY = -1;
 const UNREACHABLE = -1;
 const DOOR_BLOCKING_FLAGS = TileFlag.BlocksMove | TileFlag.BlocksSight | TileFlag.BlocksAttack;
+const SCRATCH_PATH_SLOT = 0;
 
 /**
  * Map-aware spatial owner for terrain and entity occupancy.
@@ -37,12 +34,20 @@ export class SpatialIndex implements SpatialLookup, SpatialMutations {
   private readonly world: World;
   private readonly width: number;
   private readonly height: number;
+  private readonly tileCount: number;
   private readonly baseFlags: Uint32Array;
   private readonly runtimeFlags: Uint32Array;
   private readonly blockingOccupancy: Int32Array;
   private readonly interactableOccupancy: Int32Array;
   private readonly itemOccupancy: Int32Array;
   private readonly pathQueue: Int32Array;
+  private readonly pathPoolSize: number;
+  private readonly pathDistances: Int32Array;
+  private readonly pathTargetX: Int32Array;
+  private readonly pathTargetY: Int32Array;
+  private readonly pathSlotBuilt: Uint8Array;
+  private pathSlotsUsed = 0;
+  private enemyPathingPhase = false;
   /** When true, nested occupancy queries reuse the snapshot from {@link withFreshOccupancy}. */
   private occupancyHeld = false;
 
@@ -54,6 +59,7 @@ export class SpatialIndex implements SpatialLookup, SpatialMutations {
     this.height = height;
 
     const tileCount = width * height;
+    this.tileCount = tileCount;
     this.baseFlags = copyBaseFlags(map);
     this.runtimeFlags = new Uint32Array(this.baseFlags);
     this.blockingOccupancy = filledEntityArray(tileCount);
@@ -61,7 +67,24 @@ export class SpatialIndex implements SpatialLookup, SpatialMutations {
     this.itemOccupancy = filledEntityArray(tileCount);
     this.pathQueue = new Int32Array(tileCount);
 
+    const pathPoolSize = Math.max(1, authoredEnemyCount(map));
+    this.pathPoolSize = pathPoolSize;
+    this.pathDistances = new Int32Array(pathPoolSize * tileCount);
+    this.pathTargetX = new Int32Array(pathPoolSize);
+    this.pathTargetY = new Int32Array(pathPoolSize);
+    this.pathSlotBuilt = new Uint8Array(pathPoolSize);
+
     this.refreshOccupancy();
+  }
+
+  beginEnemyPathingPhase(): void {
+    this.enemyPathingPhase = true;
+    this.pathSlotsUsed = 0;
+    this.pathSlotBuilt.fill(0);
+  }
+
+  endEnemyPathingPhase(): void {
+    this.enemyPathingPhase = false;
   }
 
   tileBlocks(x: number, y: number): boolean {
@@ -119,53 +142,12 @@ export class SpatialIndex implements SpatialLookup, SpatialMutations {
   }
 
   nextStepToward(start: GridPoint, target: GridPoint): GridPoint | undefined {
-    return this.distanceFieldTo(target).nextStepFrom(start);
-  }
-
-  distanceFieldTo(target: GridPoint): SpatialDistanceField {
-    this.refreshOccupancy();
-    const targetTile = this.tileIndex(target.x, target.y);
-    const distances = new Int32Array(this.width * this.height);
-    distances.fill(UNREACHABLE);
-    if (targetTile === undefined) return { nextStepFrom: () => undefined };
-
-    const targetBlocks = this.positionBlocksNoRefresh(target.x, target.y);
-    let head = 0;
-    let tail = 0;
-
-    if (targetBlocks) {
-      for (const delta of CARDINAL_DELTAS) {
-        const x = target.x + delta.dx;
-        const y = target.y + delta.dy;
-        const tile = this.tileIndex(x, y);
-        if (tile === undefined || this.positionBlocksNoRefresh(x, y)) continue;
-        distances[tile] = 0;
-        this.pathQueue[tail++] = tile;
-      }
-    } else {
-      distances[targetTile] = 0;
-      this.pathQueue[tail++] = targetTile;
+    const slot = this.resolvePathSlot(target);
+    if (!this.enemyPathingPhase || this.pathSlotBuilt[slot] === 0) {
+      this.fillDistanceField(slot, target);
+      if (this.enemyPathingPhase) this.pathSlotBuilt[slot] = 1;
     }
-
-    while (head < tail) {
-      const tile = this.pathQueue[head++]!;
-      const x = tile % this.width;
-      const y = Math.trunc(tile / this.width);
-      const distance = distances[tile]!;
-
-      for (const delta of CARDINAL_DELTAS) {
-        const nextX = x + delta.dx;
-        const nextY = y + delta.dy;
-        const nextTile = this.tileIndex(nextX, nextY);
-        if (nextTile === undefined || distances[nextTile] !== UNREACHABLE) continue;
-        if (this.positionBlocksNoRefresh(nextX, nextY)) continue;
-
-        distances[nextTile] = distance + 1;
-        this.pathQueue[tail++] = nextTile;
-      }
-    }
-
-    return { nextStepFrom: (start) => this.nextStepFromDistances(start, distances) };
+    return this.nextStepFromSlot(start, slot);
   }
 
   moveEntity(entity: Entity, to: { readonly x: number; readonly y: number }): void {
@@ -217,6 +199,77 @@ export class SpatialIndex implements SpatialLookup, SpatialMutations {
     const tile = this.positionedTileFor(entity);
     this.world.components.setEntityData(Door, entity, { ...state, open: open ? 1 : 0 });
     this.setDoorFlags(tile, open);
+  }
+
+  private resolvePathSlot(target: GridPoint): number {
+    if (!this.enemyPathingPhase) return SCRATCH_PATH_SLOT;
+
+    const targetX = target.x;
+    const targetY = target.y;
+    for (let slot = 0; slot < this.pathSlotsUsed; slot++) {
+      if (this.pathTargetX[slot] === targetX && this.pathTargetY[slot] === targetY) return slot;
+    }
+
+    if (this.pathSlotsUsed >= this.pathPoolSize) {
+      throw new Error(
+        `Enemy pathing cache exhausted: ${this.pathSlotsUsed} unique targets exceed the authored enemy pool size of ${this.pathPoolSize}.`,
+      );
+    }
+
+    const slot = this.pathSlotsUsed;
+    this.pathSlotsUsed++;
+    this.pathTargetX[slot] = targetX;
+    this.pathTargetY[slot] = targetY;
+    return slot;
+  }
+
+  private fillDistanceField(slot: number, target: GridPoint): void {
+    this.refreshOccupancy();
+
+    const base = slot * this.tileCount;
+    const distances = this.pathDistances;
+    distances.fill(UNREACHABLE, base, base + this.tileCount);
+
+    const targetTile = this.tileIndex(target.x, target.y);
+    if (targetTile === undefined) return;
+
+    const targetBlocks = this.positionBlocksNoRefresh(target.x, target.y);
+    let head = 0;
+    let tail = 0;
+
+    if (targetBlocks) {
+      for (let index = 0; index < CARDINAL_DELTAS.length; index++) {
+        const delta = CARDINAL_DELTAS[index]!;
+        const x = target.x + delta.dx;
+        const y = target.y + delta.dy;
+        const tile = this.tileIndex(x, y);
+        if (tile === undefined || this.positionBlocksNoRefresh(x, y)) continue;
+        distances[base + tile] = 0;
+        this.pathQueue[tail++] = tile;
+      }
+    } else {
+      distances[base + targetTile] = 0;
+      this.pathQueue[tail++] = targetTile;
+    }
+
+    while (head < tail) {
+      const tile = this.pathQueue[head++]!;
+      const x = tile % this.width;
+      const y = Math.trunc(tile / this.width);
+      const distance = distances[base + tile]!;
+
+      for (let index = 0; index < CARDINAL_DELTAS.length; index++) {
+        const delta = CARDINAL_DELTAS[index]!;
+        const nextX = x + delta.dx;
+        const nextY = y + delta.dy;
+        const nextTile = this.tileIndex(nextX, nextY);
+        if (nextTile === undefined || distances[base + nextTile] !== UNREACHABLE) continue;
+        if (this.positionBlocksNoRefresh(nextX, nextY)) continue;
+
+        distances[base + nextTile] = distance + 1;
+        this.pathQueue[tail++] = nextTile;
+      }
+    }
   }
 
   private refreshOccupancy(): void {
@@ -317,21 +370,24 @@ export class SpatialIndex implements SpatialLookup, SpatialMutations {
     }
   }
 
-  private nextStepFromDistances(start: GridPoint, distances: Int32Array): GridPoint | undefined {
+  private nextStepFromSlot(start: GridPoint, slot: number): GridPoint | undefined {
     const startTile = this.tileIndex(start.x, start.y);
     if (startTile === undefined) return undefined;
 
-    const startDistance = distances[startTile]!;
+    const base = slot * this.tileCount;
+    const distances = this.pathDistances;
+    const startDistance = distances[base + startTile]!;
     let bestTile = UNREACHABLE;
     let bestDistance = startDistance === UNREACHABLE ? Number.MAX_SAFE_INTEGER : startDistance;
 
-    for (const delta of CARDINAL_DELTAS) {
+    for (let index = 0; index < CARDINAL_DELTAS.length; index++) {
+      const delta = CARDINAL_DELTAS[index]!;
       const x = start.x + delta.dx;
       const y = start.y + delta.dy;
       const tile = this.tileIndex(x, y);
       if (tile === undefined || this.positionBlocksNoRefresh(x, y)) continue;
 
-      const distance = distances[tile]!;
+      const distance = distances[base + tile]!;
       if (distance === UNREACHABLE || distance >= bestDistance) continue;
       bestTile = tile;
       bestDistance = distance;

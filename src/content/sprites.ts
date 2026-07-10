@@ -1,6 +1,5 @@
 import { ItemKind, type ItemKind as ItemKindType } from "@/src/content/items.ts";
 import { SpriteId, type SpriteId as SpriteIdType } from "@/src/content/sprite_ids.ts";
-import { EnemyArchetype, type EnemyArchetype as EnemyArchetypeType } from "@/src/ecs/enemy_catalog.ts";
 import { DisplayName } from "@/src/game/names.ts";
 import {
   type DecorationKind as DecorationKindType,
@@ -131,14 +130,6 @@ const SPRITE_APPEARANCES: Readonly<Record<SpriteIdType, SpriteAppearance>> = {
 
 const SPRITE_APPEARANCE_LIST = Object.values(SPRITE_APPEARANCES);
 
-const ENEMY_SPRITE_IDS: Readonly<Record<EnemyArchetypeType, SpriteIdType>> = {
-  [EnemyArchetype.MeleeDog]: SpriteId.DigitalDog,
-  [EnemyArchetype.Gunslinger]: SpriteId.GigabitGunslinger,
-  [EnemyArchetype.NetworkNeophyte]: SpriteId.NetworkNeophyte,
-  [EnemyArchetype.SystemSentinel]: SpriteId.SystemSentinel,
-  [EnemyArchetype.AgenticAcolyte]: SpriteId.AgenticAcolyte,
-};
-
 const ITEM_SPRITE_IDS: Readonly<
   Record<Exclude<ItemKindType, typeof ItemKind.Key | typeof ItemKind.Weapon>, SpriteIdType>
 > = {
@@ -174,18 +165,21 @@ export function spriteIdForDisplayName(displayName: DisplayName): SpriteIdType {
   return displayName === DisplayName.John ? SpriteId.John : SpriteId.Npc;
 }
 
-export function spriteIdForEnemyArchetype(archetype: EnemyArchetypeType): SpriteIdType {
-  return ENEMY_SPRITE_IDS[archetype];
-}
-
 export function spriteIdForItem(item: ItemKindType, value: number): SpriteIdType {
   switch (item) {
+    case ItemKind.HealthPatch:
+    case ItemKind.PistolAmmo:
+    case ItemKind.CannonAmmo:
+    case ItemKind.UplinkCode:
+      return ITEM_SPRITE_IDS[item];
     case ItemKind.Key:
       return KEY_SPRITE_IDS[keyColorForCode(value)];
     case ItemKind.Weapon:
       return value === 2 ? SpriteId.Weapon2 : SpriteId.Weapon3;
-    default:
-      return ITEM_SPRITE_IDS[item];
+    default: {
+      const _exhaustive: never = item;
+      return _exhaustive;
+    }
   }
 }
 

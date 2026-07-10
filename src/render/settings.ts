@@ -26,6 +26,15 @@ const SLIDER_THUMB_RADIUS = 10;
 const SLIDER_HIT_HEIGHT = 36;
 const SLIDER_GAP_RATIO = 0.075;
 
+type SettingsGeometryCache = {
+  width: number;
+  height: number;
+  backButton: TitleButtonRect;
+  sliders: readonly SettingsSliderRect[];
+};
+
+let settingsGeometryCache: SettingsGeometryCache | undefined;
+
 export type SettingsSliderRect = {
   readonly id: SettingsSliderId;
   readonly x: number;
@@ -40,20 +49,7 @@ export type SettingsView = {
 };
 
 export function settingsBackButtonRect(canvasSize: GameCanvasSize): TitleButtonRect {
-  const width = Math.min(
-    BACK_BUTTON_WIDTH_MAX,
-    Math.max(BACK_BUTTON_WIDTH_MIN, Math.round(canvasSize.width * BACK_BUTTON_WIDTH_RATIO)),
-  );
-  const height = Math.min(
-    BACK_BUTTON_HEIGHT_MAX,
-    Math.max(BACK_BUTTON_HEIGHT_MIN, Math.round(canvasSize.height * BACK_BUTTON_HEIGHT_RATIO)),
-  );
-  return {
-    x: Math.round((canvasSize.width - width) / 2),
-    y: Math.round(canvasSize.height * 0.84 - height / 2),
-    width,
-    height,
-  };
+  return settingsGeometryFor(canvasSize).backButton;
 }
 
 export function settingsBackButtonHit(canvasSize: GameCanvasSize, point: TitlePoint): boolean {
@@ -62,18 +58,7 @@ export function settingsBackButtonHit(canvasSize: GameCanvasSize, point: TitlePo
 }
 
 export function settingsSliderRects(canvasSize: GameCanvasSize): readonly SettingsSliderRect[] {
-  const width = Math.min(
-    SLIDER_WIDTH_MAX,
-    Math.max(SLIDER_WIDTH_MIN, Math.round(canvasSize.width * SLIDER_WIDTH_RATIO)),
-  );
-  const x = Math.round((canvasSize.width - width) / 2);
-  const gap = Math.round(canvasSize.height * SLIDER_GAP_RATIO);
-  const musicY = Math.round(canvasSize.height * 0.32 - SLIDER_HIT_HEIGHT / 2);
-  return [
-    { id: "music", x, y: musicY, width, height: SLIDER_HIT_HEIGHT },
-    { id: "sound", x, y: musicY + gap + SLIDER_HIT_HEIGHT, width, height: SLIDER_HIT_HEIGHT },
-    { id: "fps", x, y: musicY + 2 * (gap + SLIDER_HIT_HEIGHT), width, height: SLIDER_HIT_HEIGHT },
-  ];
+  return settingsGeometryFor(canvasSize).sliders;
 }
 
 export function settingsSliderAt(
@@ -124,6 +109,55 @@ export function renderSettings(
 
   drawTitleButton(ctx, backButton, BACK_BUTTON_LABEL, nowMs);
   ctx.restore();
+}
+
+function settingsGeometryFor(canvasSize: GameCanvasSize): SettingsGeometryCache {
+  if (
+    settingsGeometryCache !== undefined &&
+    settingsGeometryCache.width === canvasSize.width &&
+    settingsGeometryCache.height === canvasSize.height
+  ) {
+    return settingsGeometryCache;
+  }
+
+  const backWidth = Math.min(
+    BACK_BUTTON_WIDTH_MAX,
+    Math.max(BACK_BUTTON_WIDTH_MIN, Math.round(canvasSize.width * BACK_BUTTON_WIDTH_RATIO)),
+  );
+  const backHeight = Math.min(
+    BACK_BUTTON_HEIGHT_MAX,
+    Math.max(BACK_BUTTON_HEIGHT_MIN, Math.round(canvasSize.height * BACK_BUTTON_HEIGHT_RATIO)),
+  );
+  const sliderWidth = Math.min(
+    SLIDER_WIDTH_MAX,
+    Math.max(SLIDER_WIDTH_MIN, Math.round(canvasSize.width * SLIDER_WIDTH_RATIO)),
+  );
+  const sliderX = Math.round((canvasSize.width - sliderWidth) / 2);
+  const gap = Math.round(canvasSize.height * SLIDER_GAP_RATIO);
+  const musicY = Math.round(canvasSize.height * 0.32 - SLIDER_HIT_HEIGHT / 2);
+
+  settingsGeometryCache = {
+    width: canvasSize.width,
+    height: canvasSize.height,
+    backButton: {
+      x: Math.round((canvasSize.width - backWidth) / 2),
+      y: Math.round(canvasSize.height * 0.84 - backHeight / 2),
+      width: backWidth,
+      height: backHeight,
+    },
+    sliders: [
+      { id: "music", x: sliderX, y: musicY, width: sliderWidth, height: SLIDER_HIT_HEIGHT },
+      { id: "sound", x: sliderX, y: musicY + gap + SLIDER_HIT_HEIGHT, width: sliderWidth, height: SLIDER_HIT_HEIGHT },
+      {
+        id: "fps",
+        x: sliderX,
+        y: musicY + 2 * (gap + SLIDER_HIT_HEIGHT),
+        width: sliderWidth,
+        height: SLIDER_HIT_HEIGHT,
+      },
+    ],
+  };
+  return settingsGeometryCache;
 }
 
 function drawSettingsSlider(

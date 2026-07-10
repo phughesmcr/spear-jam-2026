@@ -1,3 +1,4 @@
+import { createPresentationViewScratch } from "@/src/game/presentation.ts";
 import { assertEquals } from "@std/assert";
 import {
   messageLogLineY,
@@ -31,7 +32,12 @@ Deno.test("messageLogTextColor dims older visible messages", () => {
 Deno.test("renderMessageLog draws newest messages first from the left margin", () => {
   const ctx = new FakeMessageContext();
 
-  renderMessageLog(ctx as unknown as CanvasRenderingContext2D, { width: 720, height: 1280 }, ["older", "newer"]);
+  const presentation = createPresentationViewScratch();
+  presentation.messageCount = 2;
+  presentation.messages[0] = "older";
+  presentation.messages[1] = "newer";
+
+  renderMessageLog(ctx as unknown as CanvasRenderingContext2D, { width: 720, height: 1280 }, presentation);
 
   assertEquals(ctx.textAlign, "left");
   assertEquals(ctx.fills.map(({ text, x }) => ({ text, x })), [

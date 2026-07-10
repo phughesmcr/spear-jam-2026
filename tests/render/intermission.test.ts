@@ -27,6 +27,8 @@ Deno.test("promptAlpha blinks the bottom intermission prompt", () => {
 });
 
 class FakeTextContext {
+  font = "";
+
   measureText(text: string): TextMetrics {
     return { width: text.length * 8 } as TextMetrics;
   }

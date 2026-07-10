@@ -210,17 +210,6 @@
       "valuesAsFlags": false
     },
     {
-      "id": 13,
-      "name": "AttackRequiresFacing",
-      "storageType": "string",
-      "type": "enum",
-      "values": [
-        "none",
-        "required"
-      ],
-      "valuesAsFlags": false
-    },
-    {
       "id": 14,
       "name": "TextureRef",
       "storageType": "string",

@@ -1,7 +1,7 @@
-import { type Entity, System } from "@phughesmcr/miski";
-import { enemyArchetypeForCode, enemyCatalogEntry } from "@/src/ecs/enemy_catalog.ts";
+import { enemyArchetypeForCode, enemyCatalogEntry } from "@/src/content/enemies.ts";
 import { enemyIdleSoundSourceQuery, soundEmitterQuery } from "@/src/ecs/queries.ts";
 import { type EnemyIdleSoundSource, type SoundEmitterSnapshot, SoundId, soundIdForCode } from "@/src/game/sound.ts";
+import { type Entity, System } from "@phughesmcr/miski";
 
 /** Receives a reused scratch object; copy fields before storing it past the callback. */
 export type SoundEmitterVisitor = (sound: SoundEmitterSnapshot) => void;

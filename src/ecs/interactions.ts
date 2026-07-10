@@ -143,6 +143,10 @@ function performInteraction(
       return interactWithNpc(world, target);
     case "use":
       return interactWithUplinkTerminal(target, hasUplinkCode);
+    default: {
+      const _exhaustive: never = verb;
+      return _exhaustive;
+    }
   }
 }
 

@@ -1,5 +1,5 @@
 import { type AudioSettings, DEFAULT_AUDIO_SETTINGS } from "@/src/game/audio_settings.ts";
-import type { PresentationView } from "@/src/game/presentation.ts";
+import type { PresentationViewScratch } from "@/src/game/presentation.ts";
 import { DEFAULT_INTERACTIVE_FPS } from "@/src/game/render_settings.ts";
 import type { FrameRenderSession } from "@/src/game/session_ports.ts";
 import type { GameMode, ViewMode } from "@/src/game/state.ts";
@@ -12,12 +12,14 @@ import {
 } from "@/src/render/combat_feedback.ts";
 import { preloadDialogueAssets, renderDialogue } from "@/src/render/dialogue.ts";
 import { renderDrawableEntities } from "@/src/render/drawables.ts";
-import type { FirstPersonRenderer } from "@/src/render/first_person.ts";
+import type { FirstPersonFrameScratch, FirstPersonRenderer } from "@/src/render/first_person.ts";
 import { preloadHelpAssets, renderHelp } from "@/src/render/help.ts";
 import { preloadHudAssets, renderFirstPersonHud, renderHud } from "@/src/render/hud.ts";
 import { renderIntermission } from "@/src/render/intermission.ts";
 import { renderMap } from "@/src/render/map.ts";
 import { renderMessageLog } from "@/src/render/messages.ts";
+import { renderLayerPolicy } from "@/src/render/mode_policy.ts";
+import type { GameFrameResultScratch, GameRenderScratch, RenderSpy } from "@/src/render/render_scratch.ts";
 import { renderSettings } from "@/src/render/settings.ts";
 import { monoFont } from "@/src/render/text.ts";
 import { preloadTitleAssets, renderTitle } from "@/src/render/title.ts";
@@ -29,12 +31,6 @@ const OVERLAY_COLOR = "rgba(0, 0, 0, 0.6)";
 const OVERLAY_TITLE_COLOR = "#f3f4f6";
 const OVERLAY_SUBTITLE_COLOR = "#c9d1d9";
 
-type GameRenderRect = {
-  x: number;
-  y: number;
-  width: number;
-  height: number;
-};
 export type GameFrameResult = {
   readonly needsFrame: boolean;
   /** True when the only continuous demand is ambient first-person animation. */
@@ -44,24 +40,17 @@ export type GameFrameResult = {
 export type FrameProps = {
   readonly ctx: CanvasRenderingContext2D;
   readonly canvasSize: GameCanvasSize;
+  readonly scratch: GameRenderScratch;
   readonly session?: FrameRenderSession;
   readonly mode?: GameMode;
-  readonly presentation?: PresentationView;
+  readonly presentation?: PresentationViewScratch;
   readonly viewMode?: ViewMode;
   readonly audio?: AudioSettings;
   readonly interactiveFps?: number;
   readonly firstPersonRenderer?: FirstPersonRenderer;
   readonly nowMs?: number;
   readonly onAssetLoad?: () => void;
-};
-
-const FIRST_PERSON_PLAY_RECT: GameRenderRect = { x: 0, y: 0, width: 0, height: 0 };
-const EMPTY_PRESENTATION: PresentationView = {
-  messages: [],
-  combatFeedback: [],
-  weaponHudPhase: "idle",
-  showKeys: false,
-  needsFrame: false,
+  readonly spy?: RenderSpy;
 };
 
 type VignetteCache = {
@@ -93,73 +82,59 @@ export async function preloadGameAssets(
 export function renderGameFrame({
   ctx,
   canvasSize,
+  scratch,
   session,
   mode = { type: "loading" },
-  presentation = EMPTY_PRESENTATION,
+  presentation = scratch.presentation,
   viewMode = "firstPerson",
   audio = DEFAULT_AUDIO_SETTINGS,
   interactiveFps = DEFAULT_INTERACTIVE_FPS,
   firstPersonRenderer,
   nowMs = 0,
   onAssetLoad,
+  spy = scratch.spy,
 }: FrameProps): GameFrameResult {
-  let needsFrame = false;
-  let ambientOnly = false;
-  const opaqueFirstPerson = session !== undefined && viewMode === "firstPerson" &&
-    (mode.type === "playing" || mode.type === "verbMenu");
-  if (!opaqueFirstPerson) {
+  const policy = renderLayerPolicy(mode, viewMode);
+  const frameResult = scratch.frameResult;
+  frameResult.needsFrame = false;
+  frameResult.ambientOnly = false;
+
+  if (!policy.opaqueFirstPerson) {
     ctx.fillStyle = BACKGROUND_COLOR;
     ctx.fillRect(0, 0, canvasSize.width, canvasSize.height);
   }
-  if (session) {
-    const map = session.getMap();
-    if (viewMode === "firstPerson") {
-      if (firstPersonRenderer === undefined) {
-        throw new Error("renderGameFrame requires a first-person renderer for first-person sessions.");
-      }
-      const playRect = FIRST_PERSON_PLAY_RECT;
-      playRect.x = 0;
-      playRect.y = 0;
-      playRect.width = canvasSize.width;
-      playRect.height = canvasSize.height;
-      const playerStatus = session.getPlayerStatus();
-      const firstPersonResult = firstPersonRenderer.render(
-        ctx,
-        playRect,
-        session,
-        nowMs,
-        session.targetMarkerTone(),
-        onAssetLoad,
-        playerWeaponSpec(playerStatus.selectedWeapon).range,
-      );
-      needsFrame ||= firstPersonResult.needsFrame;
-      ambientOnly = firstPersonResult.ambientOnly === true;
-      renderFirstPersonVignette(ctx, playRect);
-      renderWeaponHud(ctx, canvasSize, playerStatus.selectedWeapon, presentation.weaponHudPhase, onAssetLoad);
-      const playerFacing = session.getPlayerFacing().dir;
-      renderFirstPersonHud(
-        ctx,
-        canvasSize,
-        playerStatus,
-        { showKeys: presentation.showKeys, facing: playerFacing, compassAngle: firstPersonResult.cameraAngle },
-        onAssetLoad,
-      );
-      renderFirstPersonCombatFeedback(ctx, canvasSize, presentation.combatFeedback, onAssetLoad);
-    } else {
-      const metrics = renderMap(ctx, canvasSize, map, session.getVisibility());
-      renderDrawableEntities(ctx, session, metrics);
-      renderCombatFeedback(ctx, metrics, presentation.combatFeedback);
-      renderHud(ctx, canvasSize, session);
-    }
+
+  if (session !== undefined && policy.renderSession) {
+    spy.sessionRenderCount++;
+    renderSessionFrame({
+      ctx,
+      canvasSize,
+      scratch,
+      session,
+      presentation,
+      viewMode,
+      firstPersonRenderer,
+      firstPersonFrame: scratch.firstPersonFrame,
+      nowMs,
+      onAssetLoad,
+      frameResult,
+    });
   }
-  renderMessageLog(ctx, canvasSize, presentation.messages);
+
+  if (policy.renderMessageLog) {
+    spy.messageLogRenderCount++;
+    renderMessageLog(ctx, canvasSize, presentation);
+  }
+
   switch (mode.type) {
     case "title":
-      renderTitle(ctx, canvasSize, mode.intent, nowMs, onAssetLoad, mode.hoverButton);
-      return { needsFrame: true };
+      renderTitle(ctx, canvasSize, mode.intent, nowMs, onAssetLoad, mode.hoverButton, spy);
+      frameResult.needsFrame = true;
+      return frameResultFromScratch(frameResult);
     case "settings":
       renderSettings(ctx, canvasSize, { audio, interactiveFps }, nowMs);
-      return { needsFrame: true };
+      frameResult.needsFrame = true;
+      return frameResultFromScratch(frameResult);
     case "loading":
       renderOverlay(ctx, canvasSize, "LOADING");
       return { needsFrame: false };
@@ -173,8 +148,9 @@ export function renderGameFrame({
       renderDialogue(ctx, canvasSize, mode, onAssetLoad);
       return { needsFrame: false };
     case "intermission":
-      renderIntermission(ctx, canvasSize, mode, nowMs);
-      return { needsFrame: true };
+      renderIntermission(ctx, canvasSize, mode, nowMs, spy);
+      frameResult.needsFrame = true;
+      return frameResultFromScratch(frameResult);
     case "victory":
       renderOverlay(ctx, canvasSize, "VICTORY", "Space to play again");
       return { needsFrame: false };
@@ -186,9 +162,9 @@ export function renderGameFrame({
       return { needsFrame: false };
     case "verbMenu":
       renderVerbMenu(ctx, canvasSize, mode.selectedIndex, mode.hoverTarget, onAssetLoad);
-      return frameResult(needsFrame, ambientOnly && !presentation.needsFrame);
+      return finalizePlayingFrame(frameResult, presentation);
     case "playing":
-      return frameResult(needsFrame, ambientOnly && !presentation.needsFrame);
+      return finalizePlayingFrame(frameResult, presentation);
     default: {
       const _exhaustive: never = mode;
       return _exhaustive;
@@ -196,9 +172,87 @@ export function renderGameFrame({
   }
 }
 
-function frameResult(needsFrame: boolean, ambientOnly: boolean): GameFrameResult {
-  if (!needsFrame) return { needsFrame: false };
-  return { needsFrame: true, ambientOnly };
+function renderSessionFrame(input: {
+  readonly ctx: CanvasRenderingContext2D;
+  readonly canvasSize: GameCanvasSize;
+  readonly scratch: GameRenderScratch;
+  readonly session: FrameRenderSession;
+  readonly presentation: PresentationViewScratch;
+  readonly viewMode: ViewMode;
+  readonly firstPersonRenderer?: FirstPersonRenderer;
+  readonly firstPersonFrame?: FirstPersonFrameScratch;
+  readonly nowMs: number;
+  readonly onAssetLoad?: () => void;
+  readonly frameResult: GameFrameResultScratch;
+}): void {
+  const {
+    ctx,
+    canvasSize,
+    scratch,
+    session,
+    presentation,
+    viewMode,
+    firstPersonRenderer,
+    firstPersonFrame,
+    nowMs,
+    onAssetLoad,
+    frameResult,
+  } = input;
+  const map = session.getMap();
+  if (viewMode === "firstPerson") {
+    if (firstPersonRenderer === undefined || firstPersonFrame === undefined) {
+      throw new Error("renderGameFrame requires a first-person renderer and frame scratch for first-person sessions.");
+    }
+    const playRect = scratch.playRect;
+    playRect.x = 0;
+    playRect.y = 0;
+    playRect.width = canvasSize.width;
+    playRect.height = canvasSize.height;
+    const playerStatus = session.getPlayerStatus();
+    firstPersonRenderer.render(
+      ctx,
+      playRect,
+      session,
+      nowMs,
+      firstPersonFrame,
+      onAssetLoad,
+      playerWeaponSpec(playerStatus.selectedWeapon).range,
+    );
+    frameResult.needsFrame ||= firstPersonFrame.needsFrame;
+    frameResult.ambientOnly = firstPersonFrame.ambientOnly;
+    renderFirstPersonVignette(ctx, playRect);
+    renderWeaponHud(ctx, canvasSize, playerStatus.selectedWeapon, presentation.weaponHudPhase, onAssetLoad);
+    renderFirstPersonHud(
+      ctx,
+      canvasSize,
+      playerStatus,
+      { showKeys: presentation.showKeys, compassAngle: firstPersonFrame.cameraAngle },
+      onAssetLoad,
+    );
+    renderFirstPersonCombatFeedback(ctx, canvasSize, presentation.combatFeedback, onAssetLoad);
+    return;
+  }
+
+  renderMap(ctx, canvasSize, map, session.getVisibility(), scratch.mapMetrics);
+  renderDrawableEntities(ctx, session, scratch.mapMetrics);
+  renderCombatFeedback(ctx, scratch.mapMetrics, presentation.combatFeedback);
+  renderHud(ctx, canvasSize, session);
+}
+
+function finalizePlayingFrame(
+  frameResult: GameFrameResultScratch,
+  presentation: PresentationViewScratch,
+): GameFrameResult {
+  frameResult.needsFrame ||= presentation.needsFrame;
+  if (frameResult.needsFrame && frameResult.ambientOnly && presentation.needsFrame) {
+    frameResult.ambientOnly = false;
+  }
+  return frameResultFromScratch(frameResult);
+}
+
+function frameResultFromScratch(frameResult: GameFrameResultScratch): GameFrameResult {
+  if (!frameResult.needsFrame) return { needsFrame: false };
+  return frameResult.ambientOnly ? { needsFrame: true, ambientOnly: true } : { needsFrame: true, ambientOnly: false };
 }
 
 function renderOverlay(
@@ -229,7 +283,10 @@ function renderOverlay(
   ctx.restore();
 }
 
-function renderFirstPersonVignette(ctx: CanvasRenderingContext2D, rect: GameRenderRect): void {
+function renderFirstPersonVignette(
+  ctx: CanvasRenderingContext2D,
+  rect: { readonly width: number; readonly height: number; readonly x: number; readonly y: number },
+): void {
   const canvas = vignetteCanvasFor(rect.width, rect.height);
   if (canvas === undefined) {
     paintVignette(ctx, 0, 0, rect.width, rect.height);

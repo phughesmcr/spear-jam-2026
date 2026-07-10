@@ -1,5 +1,3 @@
-@import "tailwindcss";
-
 :root {
   --game-aspect-ratio: 0.625;
   --game-display-width: 720px;

@@ -23,7 +23,7 @@ import {
   type EntityPrefab,
   mapEntityPrefab,
   PREFAB_AUTHORING_PROPERTY_NAMES,
-} from "@/src/map/entity_content.ts";
+} from "@/src/map/entity_descriptors.ts";
 import { createGameMap, type EntityDef, type GameMap, type LightDef, type SoundDef } from "@/src/map/map.ts";
 import { TERRAIN_CATALOG } from "@/src/map/terrain_palettes.ts";
 import { flagsBlockAttack, flagsBlockMovement, flagsBlockSight, terrainFlags } from "@/src/map/tile_flags.ts";
@@ -231,6 +231,10 @@ function terrainIdFromGid(gid: number, registry: TilesetRegistry, context: strin
       requireMatchingTerrainString(properties, "floorTexture", catalogTile.floor_texture, terrainId, context);
       requireMatchingTerrainString(properties, "ceilingTexture", catalogTile.ceiling_texture, terrainId, context);
       break;
+    default: {
+      const _exhaustive: never = catalogTile;
+      return _exhaustive;
+    }
   }
   return terrainId;
 }

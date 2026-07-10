@@ -1,3 +1,4 @@
+import type { PresentationViewScratch } from "@/src/game/presentation.ts";
 import type { GameCanvasSize } from "@/src/render/canvas.ts";
 import { fitText, monoFont } from "@/src/render/text.ts";
 
@@ -16,12 +17,11 @@ export type MessageLogOptions = {
 export function renderMessageLog(
   ctx: CanvasRenderingContext2D,
   canvasSize: GameCanvasSize,
-  messages: readonly string[],
+  presentation: PresentationViewScratch,
   options: MessageLogOptions = {},
 ): void {
-  if (messages.length === 0) return;
-  const visibleMessages = visibleMessageLogLines(messages, options.maxLines ?? LOG_MAX_VISIBLE_LINES);
-  if (visibleMessages.length === 0) return;
+  const messageCount = visibleMessageLogCount(presentation.messageCount, options.maxLines ?? LOG_MAX_VISIBLE_LINES);
+  if (messageCount === 0) return;
 
   const maxTextWidth = canvasSize.width - LOG_MARGIN * 2;
   if (maxTextWidth <= 0) return;
@@ -31,16 +31,22 @@ export function renderMessageLog(
   ctx.textAlign = "left";
   ctx.textBaseline = "middle";
 
-  for (let i = 0; i < visibleMessages.length; i++) {
+  for (let i = 0; i < messageCount; i++) {
+    const sourceIndex = presentation.messageCount - 1 - i;
     const lineY = messageLogLineY(i);
-    const text = fitText(ctx, visibleMessages[i]!, maxTextWidth);
+    const text = fitText(ctx, presentation.messages[sourceIndex]!, maxTextWidth);
     ctx.fillStyle = LOG_SHADOW;
     ctx.fillText(text, LOG_MARGIN + 1, lineY + 1);
-    ctx.fillStyle = messageLogTextColor(i, visibleMessages.length);
+    ctx.fillStyle = messageLogTextColor(i, messageCount);
     ctx.fillText(text, LOG_MARGIN, lineY);
   }
 
   ctx.restore();
+}
+
+function visibleMessageLogCount(messageCount: number, maxLines: number): number {
+  if (maxLines <= 0 || messageCount <= 0) return 0;
+  return Math.min(messageCount, maxLines);
 }
 
 export function visibleMessageLogLines(messages: readonly string[], maxLines?: number): readonly string[] {

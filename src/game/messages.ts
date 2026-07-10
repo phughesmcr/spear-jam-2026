@@ -47,6 +47,10 @@ export function messageForEvent(playerEntity: Entity, event: GameEvent): string 
       return `Earned ${event.amount} credits.`;
     case "xpGained":
       return `Converted ${event.amount} credits to XP.`;
+    default: {
+      const _exhaustive: never = event;
+      return _exhaustive;
+    }
   }
 }
 
@@ -57,5 +61,9 @@ function verbFailureMessage(verb: InteractVerb): string {
     case "use":
     case "talk":
       return "That didn't work.";
+    default: {
+      const _exhaustive: never = verb;
+      return _exhaustive;
+    }
   }
 }

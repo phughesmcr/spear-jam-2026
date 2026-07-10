@@ -1,3 +1,4 @@
+import { VICTORY_GOTO } from "@/src/map/destinations.ts";
 import {
   DECORATION_KINDS,
   DOOR_SLIDES,
@@ -5,11 +6,13 @@ import {
   type EntityDef,
   KeyColor as ContentKeyColor,
   type KeyColor as KeyColorType,
-} from "@/src/map/entity_content.ts";
+} from "@/src/map/entity_descriptors.ts";
 import { dimensions, terrainAt as staticTerrainAt } from "@/src/map/static_grid.ts";
 import { SKY_CEILING_TEXTURE, TERRAIN_CATALOG } from "@/src/map/terrain_palettes.ts";
 import { flagsBlockAttack, flagsBlockMovement, flagsBlockSight, terrainFlags } from "@/src/map/tile_flags.ts";
 import { createCodeRegistry } from "@/src/utils/code_registry.ts";
+
+export { VICTORY_GOTO };
 
 export const KeyColor = ContentKeyColor;
 export { DECORATION_KINDS };
@@ -34,7 +37,8 @@ export type {
   UplinkCodeDef,
   UplinkTerminalDef,
   WeaponPickupDef,
-} from "@/src/map/entity_content.ts";
+} from "@/src/map/entity_descriptors.ts";
+export { SKY_CEILING_TEXTURE };
 
 export const TexturePack = {
   Pack1: "pack1",
@@ -46,7 +50,6 @@ export type TexturePack = (typeof TexturePack)[keyof typeof TexturePack];
 export type TexturePackRef = `${TexturePack}:${number},${number}`;
 export type WallTexture = "wall" | TexturePackRef;
 export type FloorTexture = "floor" | TexturePackRef;
-export { SKY_CEILING_TEXTURE };
 export type CeilingTexture = "ceiling" | typeof SKY_CEILING_TEXTURE | TexturePackRef;
 
 export const BarrierTexture = {
@@ -98,9 +101,6 @@ export function keyColorForCode(code: number): KeyColorType {
   return KEY_COLOR_REGISTRY.decode(code);
 }
 
-/** Sentinel `goto` for exits that end the game in victory instead of loading a map. */
-export const VICTORY_GOTO = "victory";
-
 /**
  * Which way a door slides open. Horizontal directions must lie along the
  * door's span (east/west for doors in north-south walls, north/south for
@@ -142,6 +142,14 @@ export type GameMapOptions = {
 
 export function mapDimensions(map: GameMap): MapDimensions {
   return dimensions(map);
+}
+
+export function authoredEnemyCount(map: GameMap): number {
+  let count = 0;
+  for (const entity of map.entities) {
+    if (entity.prefab === "enemy") count++;
+  }
+  return count;
 }
 
 export function terrainAt(map: GameMap, x: number, y: number): TerrainTile | undefined {

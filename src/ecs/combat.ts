@@ -182,6 +182,10 @@ export function attackTargets(
       return lineAttackTargets(world, attacker, attack, spatial, isTarget);
     case AttackPattern.Adjacent:
       return adjacentAttackTargets(world, attacker, attack, spatial, isTarget);
+    default: {
+      const _exhaustive: never = attack.pattern;
+      return _exhaustive;
+    }
   }
 }
 

@@ -89,5 +89,9 @@ export function isPlayerCommand(command: GameCommand): command is PlayerCommand 
     case "pause":
     case "toggleView":
       return false;
+    default: {
+      const _exhaustive: never = command;
+      return _exhaustive;
+    }
   }
 }

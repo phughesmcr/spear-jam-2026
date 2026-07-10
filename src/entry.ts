@@ -210,6 +210,10 @@ class Game implements Disposable {
         case "runPlayerCommand":
           this.handlePlayerCommand(effect.command);
           break;
+        default: {
+          const _exhaustive: never = effect;
+          return _exhaustive;
+        }
       }
     }
   }

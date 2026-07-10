@@ -1,8 +1,8 @@
-import { dialogueTreeCode, DialogueTreeId } from "@/src/dialogue/dialogue.ts";
+import { EnemyArchetypeCode } from "@/src/content/enemies.ts";
 import { SpriteId } from "@/src/content/sprite_ids.ts";
+import { dialogueTreeCode, DialogueTreeId } from "@/src/dialogue/dialogue.ts";
 import {
   Attack,
-  AttackFacingRequirement,
   AttackPattern,
   Blocking,
   Defense,
@@ -24,7 +24,6 @@ import {
   TerminalDestination,
 } from "@/src/ecs/components.ts";
 import { DrawableKind } from "@/src/ecs/drawable_kind.ts";
-import { EnemyArchetype } from "@/src/ecs/enemy_catalog.ts";
 import {
   createDecoration,
   createDoor,
@@ -188,57 +187,52 @@ Deno.test("enemy archetypes apply top-down tuning defaults", async () => {
     {
       archetype: "meleeDog",
       displayName: DisplayName.DigitalDog,
-      code: EnemyArchetype.MeleeDog,
+      code: EnemyArchetypeCode.MeleeDog,
       health: 2,
       hitDc: 10,
       damage: 1,
       range: 1,
       pattern: AttackPattern.Line,
-      requiresFacing: AttackFacingRequirement.Required,
     },
     {
       archetype: "gunslinger",
       displayName: DisplayName.GigabitGunslinger,
-      code: EnemyArchetype.Gunslinger,
+      code: EnemyArchetypeCode.Gunslinger,
       health: 4,
       hitDc: 10,
       damage: 1,
       range: 3,
       pattern: AttackPattern.Line,
-      requiresFacing: AttackFacingRequirement.Required,
     },
     {
       archetype: "networkNeophyte",
       displayName: DisplayName.NetworkNeophyte,
-      code: EnemyArchetype.NetworkNeophyte,
+      code: EnemyArchetypeCode.NetworkNeophyte,
       health: 6,
       hitDc: 10,
       damage: 1,
       range: 3,
       pattern: AttackPattern.Line,
-      requiresFacing: AttackFacingRequirement.Required,
     },
     {
       archetype: "systemSentinel",
       displayName: DisplayName.SystemSentinel,
-      code: EnemyArchetype.SystemSentinel,
+      code: EnemyArchetypeCode.SystemSentinel,
       health: 10,
       hitDc: 10,
       damage: 2,
       range: 1,
       pattern: AttackPattern.Line,
-      requiresFacing: AttackFacingRequirement.Required,
     },
     {
       archetype: "agenticAcolyte",
       displayName: DisplayName.AgenticAcolyte,
-      code: EnemyArchetype.AgenticAcolyte,
+      code: EnemyArchetypeCode.AgenticAcolyte,
       health: 6,
       hitDc: 10,
       damage: 2,
       range: 2,
       pattern: AttackPattern.Adjacent,
-      requiresFacing: AttackFacingRequirement.None,
     },
   ] as const;
 
@@ -268,6 +262,5 @@ Deno.test("enemy archetypes apply top-down tuning defaults", async () => {
     assertEquals(attack.maxDamage, expected.damage);
     assertEquals(attack.range, expected.range);
     assertEquals(attack.pattern, expected.pattern);
-    assertEquals(attack.requiresFacing, expected.requiresFacing);
   }
 });

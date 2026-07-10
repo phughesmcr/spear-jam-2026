@@ -1,7 +1,6 @@
-import { enemyArchetypeAuthoringKey } from "@/src/content/enemies.ts";
+import { enemyArchetypeAuthoringKey, EnemyArchetypeCode } from "@/src/content/enemies.ts";
 import type { AttackSchema, HealthSchema } from "@/src/ecs/components.ts";
 import {
-  AttackFacingRequirement,
   AttackPattern,
   AttackTargetMode,
   Defense,
@@ -11,18 +10,12 @@ import {
   IDLE_AWARENESS,
   TurnTaker,
 } from "@/src/ecs/components.ts";
-import { EnemyArchetype } from "@/src/ecs/enemy_catalog.ts";
 import { createEnemy, createNpc, createPlayer } from "@/src/ecs/prefabs.ts";
 import { applyItemPickupToPlayer } from "@/src/ecs/progression.ts";
 import { SpatialIndex } from "@/src/ecs/spatial.ts";
 import { runTurnTransaction } from "@/src/ecs/turn/transaction.ts";
 import { createWorld } from "@/src/ecs/world.ts";
-import {
-  attackFacingRequirementAuthoringKey,
-  attackPatternAuthoringKey,
-  attackTargetModeAuthoringKey,
-  type AuthoringAttackDef,
-} from "@/src/game/attack.ts";
+import { attackPatternAuthoringKey, attackTargetModeAuthoringKey, type AuthoringAttackDef } from "@/src/game/attack.ts";
 import type { PlayerCommand } from "@/src/game/commands.ts";
 import { DisplayName } from "@/src/game/names.ts";
 import { Direction } from "@/src/grid/direction.ts";
@@ -39,7 +32,7 @@ Deno.test("consumed player action commits before enemies decide", async () => {
     y: 1,
     dir: Direction.West,
     displayName: DisplayName.NetworkNeophyte,
-    archetype: EnemyArchetype.NetworkNeophyte,
+    archetype: EnemyArchetypeCode.NetworkNeophyte,
     attack: MELEE_ATTACK,
   });
   world.refresh();
@@ -60,7 +53,7 @@ Deno.test("free player action does not run enemies", async () => {
     y: 1,
     dir: Direction.West,
     displayName: DisplayName.NetworkNeophyte,
-    archetype: EnemyArchetype.NetworkNeophyte,
+    archetype: EnemyArchetypeCode.NetworkNeophyte,
     attack: MELEE_ATTACK,
   });
   world.refresh();
@@ -80,7 +73,7 @@ Deno.test("usable player attack consumes turn on hit, miss, and no target", asyn
     y: 1,
     dir: Direction.West,
     displayName: DisplayName.DigitalDog,
-    archetype: EnemyArchetype.MeleeDog,
+    archetype: EnemyArchetypeCode.MeleeDog,
     attack: MELEE_ATTACK,
   });
   hitWorld.refresh();
@@ -93,7 +86,7 @@ Deno.test("usable player attack consumes turn on hit, miss, and no target", asyn
     y: 1,
     dir: Direction.West,
     displayName: DisplayName.DigitalDog,
-    archetype: EnemyArchetype.MeleeDog,
+    archetype: EnemyArchetypeCode.MeleeDog,
     attack: MELEE_ATTACK,
   });
   missWorld.components.setEntityData(Defense, target, { hitDc: 30 });
@@ -131,7 +124,7 @@ Deno.test("enemy actor order is deterministic and later enemies see earlier chan
     y: 1,
     dir: Direction.East,
     displayName: DisplayName.GigabitGunslinger,
-    archetype: EnemyArchetype.Gunslinger,
+    archetype: EnemyArchetypeCode.Gunslinger,
     attack: MELEE_ATTACK,
   });
   const second = spawnEnemy(world, {
@@ -139,7 +132,7 @@ Deno.test("enemy actor order is deterministic and later enemies see earlier chan
     y: 1,
     dir: Direction.West,
     displayName: DisplayName.GigabitGunslinger,
-    archetype: EnemyArchetype.Gunslinger,
+    archetype: EnemyArchetypeCode.Gunslinger,
     attack: MELEE_ATTACK,
   });
   world.refresh();
@@ -160,7 +153,7 @@ Deno.test("enemy phase stops immediately after player defeat", async () => {
     y: 1,
     dir: Direction.East,
     displayName: DisplayName.DigitalDog,
-    archetype: EnemyArchetype.MeleeDog,
+    archetype: EnemyArchetypeCode.MeleeDog,
     attack: MELEE_ATTACK,
   });
   const later = spawnEnemy(world, {
@@ -168,7 +161,7 @@ Deno.test("enemy phase stops immediately after player defeat", async () => {
     y: 1,
     dir: Direction.West,
     displayName: DisplayName.NetworkNeophyte,
-    archetype: EnemyArchetype.NetworkNeophyte,
+    archetype: EnemyArchetypeCode.NetworkNeophyte,
     attack: MELEE_ATTACK,
   });
   world.refresh();
@@ -229,7 +222,7 @@ type SpawnEnemyOptions = {
   readonly y: number;
   readonly dir: number;
   readonly displayName: DisplayName;
-  readonly archetype: EnemyArchetype;
+  readonly archetype: EnemyArchetypeCode;
   readonly attack: Partial<AttackSchema>;
 };
 
@@ -249,9 +242,6 @@ function spawnEnemy(world: World, opts: SpawnEnemyOptions): Entity {
 function attackPrefabFor(attack: Partial<AttackSchema>): AuthoringAttackDef {
   return {
     ...attack,
-    requiresFacing: attack.requiresFacing === undefined ?
-      undefined :
-      attackFacingRequirementAuthoringKey(attack.requiresFacing),
     pattern: attack.pattern === undefined ? undefined : attackPatternAuthoringKey(attack.pattern),
     targets: attack.targets === undefined ? undefined : attackTargetModeAuthoringKey(attack.targets),
   };
@@ -261,7 +251,6 @@ const MELEE_ATTACK: AttackSchema = {
   minDamage: 1,
   maxDamage: 1,
   range: 1,
-  requiresFacing: AttackFacingRequirement.Required,
   attackBonus: 20,
   critThreshold: 21,
   critMultiplier: 2,

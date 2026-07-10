@@ -1,9 +1,9 @@
-import { z } from "zod";
-import { ENTITY_SCHEMA } from "@/src/map/entity_content.ts";
-import { createGameMap, type GameMap, VICTORY_GOTO } from "@/src/map/map.ts";
 import compiledMapsData from "@/src/map/compiled_maps.json" with { type: "json" };
+import { ENTITY_SCHEMA } from "@/src/map/entity_descriptors.ts";
+import { createGameMap, type GameMap, VICTORY_GOTO } from "@/src/map/map.ts";
 import { validateGameMaps } from "@/src/map/map_validation.ts";
 import { createCodeRegistry } from "@/src/utils/code_registry.ts";
+import { z } from "zod";
 
 export type LoadedGameMaps = {
   readonly startMapName: string;

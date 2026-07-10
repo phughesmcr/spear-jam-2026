@@ -1,12 +1,13 @@
-import { enemyArchetypeForAuthoringKey } from "@/src/content/enemies.ts";
+import {
+  DEFAULT_ENEMY_ARCHETYPE,
+  enemyArchetypeForAuthoringKey,
+  type EnemyCatalogEntry,
+  enemyCatalogEntry,
+  spriteIdForEnemyArchetype,
+} from "@/src/content/enemies.ts";
 import { ItemKind } from "@/src/content/items.ts";
 import { SpriteId } from "@/src/content/sprite_ids.ts";
-import {
-  spriteIdForDecoration,
-  spriteIdForDisplayName,
-  spriteIdForEnemyArchetype,
-  spriteIdForItem,
-} from "@/src/content/sprites.ts";
+import { spriteIdForDecoration, spriteIdForDisplayName, spriteIdForItem } from "@/src/content/sprites.ts";
 import { dialogueTreeCode } from "@/src/dialogue/dialogue.ts";
 import {
   Attack,
@@ -51,7 +52,6 @@ import {
   UplinkTerminal,
 } from "@/src/ecs/components.ts";
 import { DrawableKind } from "@/src/ecs/drawable_kind.ts";
-import { DEFAULT_ENEMY_ARCHETYPE, type EnemyCatalogEntry, enemyCatalogEntry } from "@/src/ecs/enemy_catalog.ts";
 import {
   DEFAULT_PLAYER_EQUIPMENT,
   DEFAULT_PLAYER_HEALTH,
@@ -394,6 +394,10 @@ function createMapEntityByPrefab(world: World, prefab: EntityDef): Entity {
       return createLight(world, prefab);
     case "sound":
       return createSound(world, prefab);
+    default: {
+      const _exhaustive: never = prefab;
+      return _exhaustive;
+    }
   }
 }
 

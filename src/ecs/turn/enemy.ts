@@ -1,4 +1,11 @@
 import {
+  DEFAULT_ENEMY_BEHAVIOR_POLICY,
+  DEFAULT_ENEMY_SENSES,
+  type EnemyBehaviorPolicy,
+  enemyCatalogEntry,
+  type EnemySenses,
+} from "@/src/content/enemies.ts";
+import {
   AwarenessState,
   enemyArchetypeFor,
   EnemyAwareness,
@@ -7,13 +14,6 @@ import {
   Health,
   IDLE_AWARENESS,
 } from "@/src/ecs/components.ts";
-import {
-  DEFAULT_ENEMY_BEHAVIOR_POLICY,
-  DEFAULT_ENEMY_SENSES,
-  type EnemyBehaviorPolicy,
-  enemyCatalogEntry,
-  type EnemySenses,
-} from "@/src/ecs/enemy_catalog.ts";
 import { type ActorIntent, playerPosition, resolveIntent, type TurnContext } from "@/src/ecs/turn/actions.ts";
 import type { GameEvent } from "@/src/game/events.ts";
 import { type BlocksSight, canHearNoise, canSeePoint, type NoiseStimulus } from "@/src/game/perception.ts";
@@ -53,13 +53,18 @@ export function enemyIntentsForActor(context: EnemyTurnContext, enemy: Entity): 
 
   const awareness = updateEnemyAwareness(context, enemy);
   const behavior = enemyBehaviorPolicyFor(context, enemy);
-  switch (awareness.state) {
+  const state = awareness.state;
+  switch (state) {
     case AwarenessState.Idle:
       return [];
     case AwarenessState.Alert:
       return alertIntentsFor(context, enemy, behavior);
     case AwarenessState.Investigating:
       return investigateIntentsFor(context, enemy, behavior, awareness.position);
+    default: {
+      const _exhaustive: never = state;
+      return _exhaustive;
+    }
   }
 }
 
@@ -80,6 +85,10 @@ function alertIntentsFor(
       return skirmishAtRange(context, enemy, behavior.alert.retreatRange, behavior.alert.advanceSteps);
     case "hold":
       return holdAndWatchPlayer(context, enemy);
+    default: {
+      const _exhaustive: never = behavior.alert;
+      return _exhaustive;
+    }
   }
 }
 
@@ -141,6 +150,10 @@ function investigateIntentsFor(
       return investigateTarget(context, enemy, target, behavior.investigate.steps);
     case "watch":
       return watchInvestigationTarget(context, enemy, target);
+    default: {
+      const _exhaustive: never = behavior.investigate;
+      return _exhaustive;
+    }
   }
 }
 

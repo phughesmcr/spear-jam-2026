@@ -30,6 +30,28 @@ export type PresentationView = {
   readonly needsFrame: boolean;
 };
 
+export type PresentationViewScratch = {
+  readonly messages: string[];
+  messageCount: number;
+  combatFeedback: readonly CombatFeedback[];
+  weaponHudPhase: WeaponHudPhase;
+  showKeys: boolean;
+  needsFrame: boolean;
+};
+
+const MESSAGE_CAPACITY = 2;
+
+export function createPresentationViewScratch(): PresentationViewScratch {
+  return {
+    messages: Array.from({ length: MESSAGE_CAPACITY }, () => ""),
+    messageCount: 0,
+    combatFeedback: [],
+    weaponHudPhase: "idle",
+    showKeys: false,
+    needsFrame: false,
+  };
+}
+
 export type ConsumeGameEventsInput = {
   readonly playerEntity: Entity;
   readonly events: readonly GameEvent[];
@@ -71,17 +93,42 @@ export function consumeGameEvents(
 }
 
 export function presentationView(state: PresentationState, nowMs: number): PresentationView {
-  const messages = activeMessages(state, nowMs).map((message) => message.text);
-  const weaponHudPhase: WeaponHudPhase = isVisible(state.weaponHudActiveUntilMs, nowMs) ? "active" : "idle";
-  const showKeys = isVisible(state.keyHudVisibleUntilMs, nowMs);
+  const scratch = createPresentationViewScratch();
+  fillPresentationView(state, nowMs, scratch);
+  return presentationViewFromScratch(scratch);
+}
 
+export function presentationViewFromScratch(scratch: PresentationViewScratch): PresentationView {
+  const messages: string[] = [];
+  for (let i = 0; i < scratch.messageCount; i++) {
+    messages.push(scratch.messages[i]!);
+  }
   return {
     messages,
-    combatFeedback: state.combatFeedback,
-    weaponHudPhase,
-    showKeys,
-    needsFrame: messages.length > 0 || weaponHudPhase === "active" || showKeys,
+    combatFeedback: scratch.combatFeedback,
+    weaponHudPhase: scratch.weaponHudPhase,
+    showKeys: scratch.showKeys,
+    needsFrame: scratch.needsFrame,
   };
+}
+
+export function fillPresentationView(
+  state: PresentationState,
+  nowMs: number,
+  out: PresentationViewScratch,
+): void {
+  const active = activeMessages(state, nowMs);
+  out.messageCount = active.length;
+  for (let i = 0; i < active.length; i++) {
+    out.messages[i] = active[i]!.text;
+  }
+
+  const weaponHudPhase: WeaponHudPhase = isVisible(state.weaponHudActiveUntilMs, nowMs) ? "active" : "idle";
+  const showKeys = isVisible(state.keyHudVisibleUntilMs, nowMs);
+  out.combatFeedback = state.combatFeedback;
+  out.weaponHudPhase = weaponHudPhase;
+  out.showKeys = showKeys;
+  out.needsFrame = active.length > 0 || weaponHudPhase === "active" || showKeys;
 }
 
 function activeMessages(state: PresentationState, nowMs: number): readonly PresentationMessage[] {

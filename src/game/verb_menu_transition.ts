@@ -10,8 +10,6 @@ type VerbMenuMode = Extract<GameModel["mode"], { readonly type: "verbMenu" }>;
 export function openVerbMenu(model: GameModel): GameModel {
   return {
     ...model,
-    dialoguePointerDownSlot: undefined,
-    verbPointerDownTarget: undefined,
     mode: { type: "verbMenu", selectedIndex: model.lastVerbIndex },
   };
 }
@@ -37,7 +35,7 @@ export function verbMenuCommand(model: GameModel, mode: VerbMenuMode, command: G
     },
     wait: () => confirmVerbSelection(model, mode),
     action: () => confirmVerbSelection(model, mode),
-    menu: () => done({ ...model, verbPointerDownTarget: undefined, mode: { type: "playing" } }, [{ type: "render" }]),
+    menu: () => done({ ...model, mode: { type: "playing" } }, [{ type: "render" }]),
   });
 }
 
@@ -52,15 +50,17 @@ export function verbPointer(
   return pointerGesture(model, phase, {
     move: () => hoverVerbMenuTarget(model, mode, target),
     down: () => {
-      const downModel = { ...model, verbPointerDownTarget: target };
+      const downMode = withVerbMenuPointerDown(mode, target);
+      const downModel = { ...model, mode: downMode };
       if (target?.kind === "verb" && target.verbIndex !== mode.selectedIndex) {
         return done(selectVerb(downModel, target.verbIndex), [{ type: "render" }]);
       }
       return done(downModel);
     },
     up: () => {
-      const downTarget = model.verbPointerDownTarget;
-      const upModel = { ...model, verbPointerDownTarget: undefined };
+      const downTarget = mode.pointerDownTarget;
+      const upMode = withoutVerbMenuPointerDown(mode);
+      const upModel = { ...model, mode: upMode };
       if (target === undefined) return done(upModel);
 
       if (target.kind === "weapon") {
@@ -72,12 +72,12 @@ export function verbPointer(
         return done(upModel);
       }
 
-      const selectedMode = { type: "verbMenu", selectedIndex: target.verbIndex } satisfies VerbMenuMode;
-      const selectedModel = { ...upModel, mode: selectedMode };
+      const selectedMode = { ...upMode, selectedIndex: target.verbIndex };
+      const selectedModel = { ...model, mode: selectedMode };
       if (sameVerbMenuTarget(downTarget, target)) return confirmVerbSelection(selectedModel, selectedMode);
       return done(selectedModel, [{ type: "render" }]);
     },
-    cancel: () => done({ ...model, verbPointerDownTarget: undefined }),
+    cancel: () => done({ ...model, mode: withoutVerbMenuPointerDown(mode) }),
   });
 }
 
@@ -109,8 +109,6 @@ function confirmVerbSelection(model: GameModel, mode: VerbMenuMode): GameTransit
   const selectedIndex = mode.selectedIndex;
   return done({
     ...model,
-    dialoguePointerDownSlot: undefined,
-    verbPointerDownTarget: undefined,
     lastVerbIndex: selectedIndex,
     mode: { type: "playing" },
   }, [{ type: "runPlayerCommand", command: verbToCommand(selectedIndex) }]);
@@ -119,8 +117,6 @@ function confirmVerbSelection(model: GameModel, mode: VerbMenuMode): GameTransit
 function confirmWeaponSelection(model: GameModel, slot: CommandSlot): GameTransition {
   return done({
     ...model,
-    dialoguePointerDownSlot: undefined,
-    verbPointerDownTarget: undefined,
     mode: { type: "playing" },
   }, [{ type: "runPlayerCommand", command: { type: "selectWeapon", slot } }]);
 }
@@ -130,16 +126,12 @@ function confirmControlSelection(model: GameModel, control: VerbMenuControl): Ga
     case "wait":
       return done({
         ...model,
-        dialoguePointerDownSlot: undefined,
-        verbPointerDownTarget: undefined,
         mode: { type: "playing" },
       }, [{ type: "runPlayerCommand", command: { type: "wait" } }]);
     case "toggleView": {
       const viewMode: ViewMode = model.viewMode === "firstPerson" ? "topDown" : "firstPerson";
       return done({
         ...model,
-        dialoguePointerDownSlot: undefined,
-        verbPointerDownTarget: undefined,
         mode: { type: "playing" },
         viewMode,
       }, [{ type: "render" }]);
@@ -147,17 +139,17 @@ function confirmControlSelection(model: GameModel, control: VerbMenuControl): Ga
     case "help":
       return done({
         ...model,
-        dialoguePointerDownSlot: undefined,
-        verbPointerDownTarget: undefined,
         mode: { type: "help", selectedIndex: helpReturnSelectedIndex(model) },
       }, [{ type: "render" }]);
     case "close":
       return done({
         ...model,
-        dialoguePointerDownSlot: undefined,
-        verbPointerDownTarget: undefined,
         mode: { type: "playing" },
       }, [{ type: "render" }]);
+    default: {
+      const _exhaustive: never = control;
+      return _exhaustive;
+    }
   }
 }
 
@@ -175,4 +167,15 @@ function sameVerbMenuTarget(a: VerbMenuTarget | undefined, b: VerbMenuTarget): b
 function sameOptionalVerbMenuTarget(a: VerbMenuTarget | undefined, b: VerbMenuTarget | undefined): boolean {
   if (a === undefined) return b === undefined;
   return b !== undefined && sameVerbMenuTarget(a, b);
+}
+
+function withVerbMenuPointerDown(mode: VerbMenuMode, target: VerbMenuTarget | undefined): VerbMenuMode {
+  if (target === undefined) return withoutVerbMenuPointerDown(mode);
+  return { ...mode, pointerDownTarget: target };
+}
+
+function withoutVerbMenuPointerDown(mode: VerbMenuMode): VerbMenuMode {
+  if (mode.pointerDownTarget === undefined) return mode;
+  const { pointerDownTarget: _, ...rest } = mode;
+  return rest;
 }

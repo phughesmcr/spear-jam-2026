@@ -1,8 +1,8 @@
 // Single downstream coupling point for the content modules whose ids are validated during
-// map authoring. The map schema (entity_content), the Tiled catalog, and the map compiler all
+// map authoring. The map schema (entity_descriptors), the Tiled catalog, and the map compiler all
 // need the same "known id" lists to reject unknown authored values; importing the underlying
 // content modules here (instead of in each consumer) keeps that fan-in to one place.
-import { ENEMY_ARCHETYPE_AUTHORING_KEYS, type EnemyArchetypeAuthoringKey } from "@/src/content/enemies.ts";
+import { ENEMY_ARCHETYPE_AUTHORING_KEYS, type EnemyArchetypeKey } from "@/src/content/enemies.ts";
 import { DialogueTreeId } from "@/src/dialogue/dialogue.ts";
 import { ExamineTextId } from "@/src/game/examine_content.ts";
 import { DisplayName } from "@/src/game/names.ts";
@@ -14,7 +14,7 @@ export type {
   AmbientSoundId,
   DialogueTreeId,
   DisplayName,
-  EnemyArchetypeAuthoringKey,
+  EnemyArchetypeKey,
   ExamineTextId,
   SoundId,
   StoryEventId,

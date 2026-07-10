@@ -3,11 +3,11 @@ import type { TileVisibility } from "@/src/game/visibility.ts";
 import { type GameMap, mapDimensions, terrainAt } from "@/src/map/map.ts";
 
 export interface MapRenderMetrics {
-  readonly mapWidth: number;
-  readonly mapHeight: number;
-  readonly tileSize: number;
-  readonly offsetX: number;
-  readonly offsetY: number;
+  mapWidth: number;
+  mapHeight: number;
+  tileSize: number;
+  offsetX: number;
+  offsetY: number;
 }
 
 export interface MapRenderOrigin {
@@ -30,31 +30,36 @@ export function renderMap(
   ctx: CanvasRenderingContext2D,
   canvasSize: GameCanvasSize,
   map: GameMap,
-  visibility?: TileVisibility,
-  origin: MapRenderOrigin = { x: 0, y: 0 },
-): MapRenderMetrics {
-  const metrics = mapRenderMetrics(canvasSize, map, origin);
-  for (let y = 0; y < metrics.mapHeight; y++) {
-    for (let x = 0; x < metrics.mapWidth; x++) {
-      renderTile(ctx, map, x, y, metrics, visibility);
+  visibility: TileVisibility | undefined,
+  out: MapRenderMetrics,
+  originX = 0,
+  originY = 0,
+): void {
+  fillMapRenderMetrics(canvasSize, map, out, originX, originY);
+  for (let y = 0; y < out.mapHeight; y++) {
+    for (let x = 0; x < out.mapWidth; x++) {
+      renderTile(ctx, map, x, y, out, visibility);
     }
   }
-  return metrics;
 }
 
-function mapRenderMetrics(canvasSize: GameCanvasSize, map: GameMap, origin: MapRenderOrigin): MapRenderMetrics {
+function fillMapRenderMetrics(
+  canvasSize: GameCanvasSize,
+  map: GameMap,
+  out: MapRenderMetrics,
+  originX: number,
+  originY: number,
+): void {
   const { width: mapWidth, height: mapHeight } = mapDimensions(map);
   const tileSize = Math.max(
     MIN_TILE_SIZE,
     Math.floor(Math.min(canvasSize.width / (mapWidth + 2), canvasSize.height / (mapHeight + 2))),
   );
-  return {
-    mapWidth,
-    mapHeight,
-    tileSize,
-    offsetX: origin.x + Math.floor((canvasSize.width - mapWidth * tileSize) / 2),
-    offsetY: origin.y + Math.floor((canvasSize.height - mapHeight * tileSize) / 2),
-  };
+  out.mapWidth = mapWidth;
+  out.mapHeight = mapHeight;
+  out.tileSize = tileSize;
+  out.offsetX = originX + Math.floor((canvasSize.width - mapWidth * tileSize) / 2);
+  out.offsetY = originY + Math.floor((canvasSize.height - mapHeight * tileSize) / 2);
 }
 
 function renderTile(
@@ -91,5 +96,9 @@ function tileColor(kind: "barrier" | "floor" | "wall", visible: boolean): string
       return visible ? FLOOR_COLOR : EXPLORED_FLOOR_COLOR;
     case "wall":
       return visible ? WALL_COLOR : EXPLORED_WALL_COLOR;
+    default: {
+      const _exhaustive: never = kind;
+      return _exhaustive;
+    }
   }
 }

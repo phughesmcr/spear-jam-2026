@@ -18,7 +18,6 @@ import {
   DrawableKind,
   type LightEntityVisitor,
 } from "@/src/ecs/drawables.ts";
-import type { TargetMarkerTone } from "@/src/game/state.ts";
 import { type CardinalDirection, directionDelta, normalizeDirection } from "@/src/grid/direction.ts";
 import type { GameMap, TexturePackRef } from "@/src/map/map.ts";
 import {
@@ -28,7 +27,7 @@ import {
   createAssetCatalog,
   preloadAssetCatalog,
 } from "@/src/render/first_person_assets.ts";
-import { addDrawable, drawTargetHighlight } from "@/src/render/first_person_drawables.ts";
+import { addDrawable } from "@/src/render/first_person_drawables.ts";
 import {
   addTerrainBarriers,
   createLightUpdateThrottle,
@@ -56,20 +55,16 @@ import {
   startNudgeTween,
 } from "@/src/render/tween.ts";
 
-/** Set true to draw the color-coded target reticle again. */
-const SHOW_TARGET_RETICLE = false;
-
 export interface FirstPersonRenderSession {
   getMap(): GameMap;
   forEachDrawable(visit: DrawableEntityVisitor): void;
   forEachLight(visit: LightEntityVisitor): void;
 }
 
-export type FirstPersonRenderResult = {
-  readonly needsFrame: boolean;
-  /** True when the only reason for needsFrame is ambient (sky/bob/flicker). */
-  readonly ambientOnly?: boolean;
-  readonly cameraAngle?: number;
+export type FirstPersonFrameScratch = {
+  needsFrame: boolean;
+  ambientOnly: boolean;
+  cameraAngle: number;
 };
 
 export interface FirstPersonRenderer {
@@ -82,10 +77,10 @@ export interface FirstPersonRenderer {
     rect: ViewRect,
     session: FirstPersonRenderSession,
     nowMs: number,
-    targetTone?: TargetMarkerTone,
+    out: FirstPersonFrameScratch,
     onAssetLoad?: () => void,
     healthBarMaxDistance?: number,
-  ): FirstPersonRenderResult;
+  ): void;
 }
 
 function createFirstPersonRendererState() {
@@ -132,8 +127,8 @@ export function createFirstPersonRenderer(): FirstPersonRenderer {
     bump(dirX, dirY, nowMs) {
       bumpFirstPersonRenderer(state, dirX, dirY, nowMs);
     },
-    render(ctx, rect, session, nowMs, targetTone, onAssetLoad, healthBarMaxDistance) {
-      return renderFirstPersonView(state, ctx, rect, session, nowMs, targetTone, onAssetLoad, healthBarMaxDistance);
+    render(ctx, rect, session, nowMs, out, onAssetLoad, healthBarMaxDistance) {
+      renderFirstPersonView(state, ctx, rect, session, nowMs, out, onAssetLoad, healthBarMaxDistance);
     },
   };
 }
@@ -166,10 +161,10 @@ function renderFirstPersonView(
   rect: ViewRect,
   session: FirstPersonRenderSession,
   nowMs: number,
-  targetTone?: TargetMarkerTone,
+  out: FirstPersonFrameScratch,
   onAssetLoad?: () => void,
   healthBarMaxDistance = 0,
-): FirstPersonRenderResult {
+): void {
   const map = session.getMap();
   const scene = sceneForMapForState(state, map);
   bakeLoadedAssets(state, ctx, onAssetLoad);
@@ -192,7 +187,12 @@ function renderFirstPersonView(
     }
     state.drawableScratch.push(drawable);
   });
-  if (playerDir === undefined) return { needsFrame: false };
+  if (playerDir === undefined) {
+    out.needsFrame = false;
+    out.ambientOnly = false;
+    out.cameraAngle = 0;
+    return;
+  }
 
   const forward = directionDelta(playerDir);
   const targetAngle = Math.atan2(forward.dy, forward.dx);
@@ -233,6 +233,7 @@ function renderFirstPersonView(
     healthBarMaxDistance,
   );
 
-  if (SHOW_TARGET_RETICLE && targetTone !== undefined) drawTargetHighlight(ctx, rect, targetTone);
-  return { needsFrame, ambientOnly: needsFrame && !interactive, cameraAngle: state.poseSample.angle };
+  out.needsFrame = needsFrame;
+  out.ambientOnly = needsFrame && !interactive;
+  out.cameraAngle = state.poseSample.angle;
 }

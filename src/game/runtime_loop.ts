@@ -1,6 +1,6 @@
 import { type AudioRuntime, createAudioRuntime } from "@/src/audio/audio_runtime.ts";
 import type { AudioSettings } from "@/src/game/audio_settings.ts";
-import { presentationView } from "@/src/game/presentation.ts";
+import { fillPresentationView } from "@/src/game/presentation.ts";
 import {
   AMBIENT_FPS,
   clampInteractiveFps,
@@ -13,6 +13,7 @@ import type { GameModel } from "@/src/game/transition.ts";
 import { DEFAULT_GAME_CANVAS_SIZE, type GameCanvasSize } from "@/src/render/canvas.ts";
 import { createFirstPersonRenderer, type FirstPersonRenderer } from "@/src/render/first_person.ts";
 import { preloadGameAssets, renderGameFrame } from "@/src/render/game.ts";
+import { createGameRenderScratch } from "@/src/render/render_scratch.ts";
 
 /** Cap ambient-only animation (sky/bob/flicker) to match light rebuild rate. */
 const AMBIENT_FRAME_MS = frameMsForFps(AMBIENT_FPS);
@@ -56,6 +57,7 @@ class RuntimeLoop implements GameRuntimeLoop {
   private readonly spec: GameRuntimeLoopSpec;
   private readonly audio: AudioRuntime;
   private readonly firstPersonRenderer: FirstPersonRenderer;
+  private readonly renderScratch = createGameRenderScratch();
   private readonly soundEmitters: SoundEmitterSnapshot[] = [];
   private readonly enemyIdleSources: EnemyIdleSoundSource[] = [];
   private currentCanvasSize: GameCanvasSize = DEFAULT_GAME_CANVAS_SIZE;
@@ -163,13 +165,14 @@ class RuntimeLoop implements GameRuntimeLoop {
     const session = this.spec.getSession();
     const tickResult = tickSession(session, model.mode.type, nowMs);
     this.updateAudioListenerFor(session);
-    const presentation = presentationView(model.presentation, nowMs);
+    fillPresentationView(model.presentation, nowMs, this.renderScratch.presentation);
     const renderResult = renderGameFrame({
       ctx: this.spec.ctx,
       canvasSize: this.currentCanvasSize,
+      scratch: this.renderScratch,
       session,
       mode: model.mode,
-      presentation,
+      presentation: this.renderScratch.presentation,
       viewMode: model.viewMode,
       audio: model.audio,
       interactiveFps: model.interactiveFps,
@@ -178,8 +181,8 @@ class RuntimeLoop implements GameRuntimeLoop {
       onAssetLoad: this.renderLoadedAssets,
     });
     this.lastRenderMs = nowMs;
-    this.wantsFrame = tickResult.needsFrame || presentation.needsFrame || renderResult.needsFrame;
-    this.ambientOnly = this.wantsFrame && !tickResult.needsFrame && !presentation.needsFrame &&
+    this.wantsFrame = tickResult.needsFrame || this.renderScratch.presentation.needsFrame || renderResult.needsFrame;
+    this.ambientOnly = this.wantsFrame && !tickResult.needsFrame && !this.renderScratch.presentation.needsFrame &&
       renderResult.ambientOnly === true;
     this.setFrameNeeded(this.wantsFrame);
   }

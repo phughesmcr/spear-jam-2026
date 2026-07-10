@@ -14,7 +14,11 @@ import type { GameMap } from "@/src/map/map.ts";
 import { createGameMap, SKY_CEILING_TEXTURE, TexturePack } from "@/src/map/map.ts";
 import { GAME_MAPS } from "@/src/map/maps.ts";
 import { DEFAULT_BARS_TERRAIN_ID, DEFAULT_WALL_TERRAIN_ID } from "@/src/map/terrain_palettes.ts";
-import type { FirstPersonRenderSession } from "@/src/render/first_person.ts";
+import type {
+  FirstPersonFrameScratch,
+  FirstPersonRenderer,
+  FirstPersonRenderSession,
+} from "@/src/render/first_person.ts";
 import { createFirstPersonRenderer } from "@/src/render/first_person.ts";
 import type { RaycastScene } from "@/src/render/raycast/scene.ts";
 import { TURN_TWEEN_MS } from "@/src/render/tween.ts";
@@ -25,6 +29,11 @@ type FakeImageListener = () => void;
 
 const SPRITE_JOHN = firstPersonSlot(SpriteId.John);
 const SPRITE_DECOR_CEILING_LIGHT = firstPersonSlot(SpriteId.DecorCeilingLight);
+const FIRST_PERSON_FRAME_SCRATCH: FirstPersonFrameScratch = {
+  needsFrame: false,
+  ambientOnly: false,
+  cameraAngle: 0,
+};
 const ENEMY_SHEET_COLUMNS = 4;
 const ROW_WALK = 1;
 const ROW_ATTACK = 2;
@@ -51,6 +60,21 @@ function firstPersonSlot(spriteId: SpriteIdType): number {
   const slot = spriteAppearance(spriteId).firstPersonSlot;
   if (slot === undefined) throw new Error(`Sprite ${spriteId} has no first-person slot.`);
   return slot;
+}
+
+function renderFirstPersonView(
+  renderer: FirstPersonRenderer,
+  ctx: CanvasRenderingContext2D,
+  rect: { x: number; y: number; width: number; height: number },
+  session: FirstPersonRenderSession,
+  nowMs: number,
+  onAssetLoad?: () => void,
+): FirstPersonFrameScratch {
+  FIRST_PERSON_FRAME_SCRATCH.needsFrame = false;
+  FIRST_PERSON_FRAME_SCRATCH.ambientOnly = false;
+  FIRST_PERSON_FRAME_SCRATCH.cameraAngle = 0;
+  renderer.render(ctx, rect, session, nowMs, FIRST_PERSON_FRAME_SCRATCH, onAssetLoad);
+  return FIRST_PERSON_FRAME_SCRATCH;
 }
 
 class FakeImage {
@@ -259,7 +283,8 @@ Deno.test("first-person rendering maps barrier terrain to a transparent thin wal
     ], []);
     const renderer = createFirstPersonRenderer();
 
-    renderer.render(
+    renderFirstPersonView(
+      renderer,
       new FakeCanvasContext() as unknown as CanvasRenderingContext2D,
       { x: 0, y: 0, width: 64, height: 64 },
       sessionFor(map, [playerDrawable(1, 1, Direction.East)]),
@@ -298,11 +323,18 @@ Deno.test("first-person renderer reports the tweened camera angle", () => {
     const ctx = new FakeCanvasContext() as unknown as CanvasRenderingContext2D;
     const rect = { x: 0, y: 0, width: 64, height: 64 };
 
-    const initial = renderer.render(ctx, rect, sessionFor(map, [playerDrawable(1, 1, Direction.East)]), 0);
+    const initial = renderFirstPersonView(
+      renderer,
+      ctx,
+      rect,
+      sessionFor(map, [playerDrawable(1, 1, Direction.East)]),
+      0,
+    );
     assertAlmostEquals(initial.cameraAngle!, 0);
 
-    renderer.render(ctx, rect, sessionFor(map, [playerDrawable(1, 1, Direction.South)]), 0);
-    const midTurn = renderer.render(
+    renderFirstPersonView(renderer, ctx, rect, sessionFor(map, [playerDrawable(1, 1, Direction.South)]), 0);
+    const midTurn = renderFirstPersonView(
+      renderer,
       ctx,
       rect,
       sessionFor(map, [playerDrawable(1, 1, Direction.South)]),
@@ -363,7 +395,8 @@ Deno.test("first-person renderer requests lightmap assets for every lit sprite",
     );
     const ctx = new FakeCanvasContext() as unknown as CanvasRenderingContext2D;
 
-    createFirstPersonRenderer().render(
+    renderFirstPersonView(
+      createFirstPersonRenderer(),
       ctx,
       { x: 0, y: 0, width: 64, height: 64 },
       sessionFor(map, [playerDrawable(1, 1, Direction.East)]),
@@ -399,7 +432,8 @@ Deno.test("first-person renderer requests the authored sky texture", () => {
     );
     const ctx = new FakeCanvasContext() as unknown as CanvasRenderingContext2D;
 
-    createFirstPersonRenderer().render(
+    renderFirstPersonView(
+      createFirstPersonRenderer(),
       ctx,
       { x: 0, y: 0, width: 64, height: 64 },
       sessionFor(map, [playerDrawable(1, 1, Direction.East)]),
@@ -434,12 +468,12 @@ Deno.test("first-person rendering requests another frame for scrolling sky ceili
     const renderer = createFirstPersonRenderer();
     const ctx = new FakeCanvasContext() as unknown as CanvasRenderingContext2D;
 
-    const result = renderer.render(
+    const result = renderFirstPersonView(
+      renderer,
       ctx,
       { x: 0, y: 0, width: 64, height: 64 },
       sessionFor(map, [playerDrawable(1, 1, Direction.East)]),
       0,
-      undefined,
       () => {},
     );
 
@@ -483,14 +517,14 @@ Deno.test("first-person rendering updates flickering lights and requests another
     const renderer = createFirstPersonRenderer();
     const ctx = new FakeCanvasContext() as unknown as CanvasRenderingContext2D;
 
-    const result = renderer.render(ctx, { x: 0, y: 0, width: 64, height: 64 }, session, 0, undefined, () => {});
+    const result = renderFirstPersonView(renderer, ctx, { x: 0, y: 0, width: 64, height: 64 }, session, 0, () => {});
     const scene = renderer.sceneForMap(map);
     const firstAdjacentLight = scene.lightRed[1 * 3 + 2]!;
 
-    renderer.render(ctx, { x: 0, y: 0, width: 64, height: 64 }, session, 16);
+    renderFirstPersonView(renderer, ctx, { x: 0, y: 0, width: 64, height: 64 }, session, 16);
     assertEquals(scene.lightRed[1 * 3 + 2], firstAdjacentLight);
 
-    renderer.render(ctx, { x: 0, y: 0, width: 64, height: 64 }, session, 250);
+    renderFirstPersonView(renderer, ctx, { x: 0, y: 0, width: 64, height: 64 }, session, 250);
 
     assertNotEquals(scene.lightRed[1 * 3 + 2], firstAdjacentLight);
     assertEquals(result.needsFrame, true);
@@ -520,7 +554,8 @@ Deno.test("first-person rendering resets cached scene lighting when active light
     const renderer = createFirstPersonRenderer();
     const ctx = new FakeCanvasContext() as unknown as CanvasRenderingContext2D;
 
-    renderer.render(
+    renderFirstPersonView(
+      renderer,
       ctx,
       { x: 0, y: 0, width: 64, height: 64 },
       sessionFor(map, drawables, [
@@ -542,7 +577,7 @@ Deno.test("first-person rendering resets cached scene lighting when active light
     const scene = renderer.sceneForMap(map);
     assertEquals(scene.lightGreen[1 * 3 + 1], 96);
 
-    renderer.render(ctx, { x: 0, y: 0, width: 64, height: 64 }, sessionFor(map, drawables), 16);
+    renderFirstPersonView(renderer, ctx, { x: 0, y: 0, width: 64, height: 64 }, sessionFor(map, drawables), 16);
 
     assertEquals([...scene.lightRed], Array(9).fill(255));
     assertEquals([...scene.lightGreen], Array(9).fill(255));
@@ -574,7 +609,8 @@ Deno.test("first-person rendering keeps open doors in the raycast scene for jamb
     const session = sessionFor(map, drawables);
     const renderer = createFirstPersonRenderer();
 
-    renderer.render(
+    renderFirstPersonView(
+      renderer,
       new FakeCanvasContext() as unknown as CanvasRenderingContext2D,
       { x: 0, y: 0, width: 64, height: 64 },
       session,
@@ -624,7 +660,8 @@ Deno.test("first-person rendering uses sliding solid walls for closed secret doo
     const session = sessionFor(map, drawables);
     const renderer = createFirstPersonRenderer();
 
-    renderer.render(
+    renderFirstPersonView(
+      renderer,
       new FakeCanvasContext() as unknown as CanvasRenderingContext2D,
       { x: 0, y: 0, width: 64, height: 64 },
       session,
@@ -665,7 +702,8 @@ Deno.test("first-person rendering keeps open secret doors out of the thin-wall p
     const session = sessionFor(map, drawables);
     const renderer = createFirstPersonRenderer();
 
-    renderer.render(
+    renderFirstPersonView(
+      renderer,
       new FakeCanvasContext() as unknown as CanvasRenderingContext2D,
       { x: 0, y: 0, width: 64, height: 64 },
       session,
@@ -716,7 +754,7 @@ Deno.test("first-person rendering uses John's single-frame NPC sprite", () => {
     const renderer = createFirstPersonRenderer();
     const ctx = new FakeCanvasContext() as unknown as CanvasRenderingContext2D;
 
-    renderer.render(ctx, { x: 0, y: 0, width: 64, height: 64 }, session, 0);
+    renderFirstPersonView(renderer, ctx, { x: 0, y: 0, width: 64, height: 64 }, session, 0);
 
     const scene = renderer.sceneForMap(map);
 
@@ -762,14 +800,14 @@ Deno.test("first-person rendering preserves loaded sprite source aspect ratios",
       },
     ]);
 
-    renderer.render(ctx, { x: 0, y: 0, width: 64, height: 64 }, session, 0);
+    renderFirstPersonView(renderer, ctx, { x: 0, y: 0, width: 64, height: 64 }, session, 0);
     const image = (ctx.canvas.ownerDocument as unknown as FakeDocument).images.find((image) =>
       image.src.includes("/assets/game/sprites/john.png")
     );
     assert(image !== undefined);
     image.load(1024, 1365);
 
-    renderer.render(ctx, { x: 0, y: 0, width: 64, height: 64 }, session, 0);
+    renderFirstPersonView(renderer, ctx, { x: 0, y: 0, width: 64, height: 64 }, session, 0);
     const scene = renderer.sceneForMap(map);
 
     assertEquals(scene.spriteCount, 1);
@@ -804,7 +842,7 @@ Deno.test("first-person rendering places ceiling decorations near the ceiling", 
     const renderer = createFirstPersonRenderer();
     const ctx = new FakeCanvasContext() as unknown as CanvasRenderingContext2D;
 
-    renderer.render(ctx, { x: 0, y: 0, width: 64, height: 64 }, session, 0);
+    renderFirstPersonView(renderer, ctx, { x: 0, y: 0, width: 64, height: 64 }, session, 0);
 
     const scene = renderer.sceneForMap(map);
 
@@ -853,7 +891,8 @@ Deno.test("first-person rendering uses ECS attack animation sheet row", () => {
     ]);
     const renderer = createFirstPersonRenderer();
 
-    renderer.render(
+    renderFirstPersonView(
+      renderer,
       new FakeCanvasContext() as unknown as CanvasRenderingContext2D,
       { x: 0, y: 0, width: 64, height: 64 },
       session,
@@ -898,7 +937,8 @@ Deno.test("first-person rendering passes enemy health to raycast sprites", () =>
     ]);
     const renderer = createFirstPersonRenderer();
 
-    renderer.render(
+    renderFirstPersonView(
+      renderer,
       new FakeCanvasContext() as unknown as CanvasRenderingContext2D,
       { x: 0, y: 0, width: 64, height: 64 },
       session,
@@ -946,7 +986,8 @@ Deno.test("first-person rendering uses ECS walk animation sheet row", () => {
     ]);
     const renderer = createFirstPersonRenderer();
 
-    renderer.render(
+    renderFirstPersonView(
+      renderer,
       new FakeCanvasContext() as unknown as CanvasRenderingContext2D,
       { x: 0, y: 0, width: 64, height: 64 },
       session,
@@ -992,7 +1033,8 @@ Deno.test("first-person rendering uses ECS death animation sheet frames", () => 
     ]);
     const renderer = createFirstPersonRenderer();
 
-    renderer.render(
+    renderFirstPersonView(
+      renderer,
       new FakeCanvasContext() as unknown as CanvasRenderingContext2D,
       { x: 0, y: 0, width: 64, height: 64 },
       session,
@@ -1031,7 +1073,8 @@ Deno.test("first-person rendering bobs pickup item sprites vertically", () => {
     const session = sessionFor(map, drawables);
     const renderer = createFirstPersonRenderer();
 
-    const result = renderer.render(
+    const result = renderFirstPersonView(
+      renderer,
       new FakeCanvasContext() as unknown as CanvasRenderingContext2D,
       { x: 0, y: 0, width: 64, height: 64 },
       session,

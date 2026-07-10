@@ -70,7 +70,7 @@ export function renderCombatFeedback(
 ): void {
   if (feedback.length === 0) return;
 
-  const entries = feedback.slice(-MAX_FEEDBACK);
+  const startIndex = Math.max(0, feedback.length - MAX_FEEDBACK);
   const mapLeft = metrics.offsetX;
   const mapRight = metrics.offsetX + metrics.mapWidth * metrics.tileSize;
   const y = metrics.offsetY + metrics.mapHeight * metrics.tileSize + FEEDBACK_GAP;
@@ -81,7 +81,8 @@ export function renderCombatFeedback(
   ctx.textBaseline = "middle";
 
   let x = mapLeft;
-  for (const entry of entries) {
+  for (let i = startIndex; i < feedback.length; i++) {
+    const entry = feedback[i]!;
     const width = Math.ceil(ctx.measureText(entry.text).width + FEEDBACK_PADDING_X * 2);
     if (x + width > mapRight) break;
 

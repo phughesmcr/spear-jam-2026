@@ -50,7 +50,8 @@ function renderDrawableEntity(
   drawable: DrawableEntity,
   metrics: MapRenderMetrics,
 ): void {
-  switch (drawable.kind) {
+  const kind = drawable.kind;
+  switch (kind) {
     case DrawableKind.Player:
       renderPlayer(ctx, drawable.x, drawable.y, drawable.dir, metrics);
       return;
@@ -63,6 +64,10 @@ function renderDrawableEntity(
     case DrawableKind.Sprite:
       renderSpriteDrawable(ctx, drawable, metrics);
       return;
+    default: {
+      const _exhaustive: never = kind;
+      return _exhaustive;
+    }
   }
 }
 

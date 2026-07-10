@@ -43,8 +43,6 @@ export type GameModel = {
   readonly audio: AudioSettings;
   readonly interactiveFps: number;
   readonly lastVerbIndex: number;
-  readonly verbPointerDownTarget?: VerbMenuTarget;
-  readonly dialoguePointerDownSlot?: number;
 };
 
 export type GameEffect =
@@ -160,6 +158,10 @@ export function transition(model: GameModel, event: GameTransitionEvent): GameTr
       return settingsPointer(model, event.phase, event.slider, event.volume);
     case "playerCommandResult":
       return playerCommandResult(model, event.result, event.playerEntity, event.nowMs ?? 0);
+    default: {
+      const _exhaustive: never = event;
+      return _exhaustive;
+    }
   }
 }
 
@@ -402,7 +404,6 @@ function selectDialogueChoice(model: GameModel, mode: DialogueMode, slot: number
   const node = dialogueTreeNode(mode.treeKey, choice.next);
   return done({
     ...model,
-    dialoguePointerDownSlot: undefined,
     mode: {
       type: "dialogue",
       title: mode.title,
@@ -442,16 +443,22 @@ function dialoguePointer(
   if (mode.type !== "dialogue") return done(model);
 
   return pointerGesture(model, phase, {
-    down: () => done({ ...model, dialoguePointerDownSlot: optionSlot }),
+    down: () => {
+      const downMode = optionSlot === undefined ?
+        withoutDialoguePointerDown(mode) :
+        { ...mode, pointerDownSlot: optionSlot };
+      return done({ ...model, mode: downMode });
+    },
     up: () => {
-      const downSlot = model.dialoguePointerDownSlot;
-      const upModel = { ...model, dialoguePointerDownSlot: undefined };
+      const downSlot = mode.pointerDownSlot;
+      const upMode = withoutDialoguePointerDown(mode);
+      const upModel = { ...model, mode: upMode };
       if (optionSlot !== undefined && downSlot === optionSlot) {
-        return selectDialogueChoice(upModel, mode, optionSlot);
+        return selectDialogueChoice(upModel, upMode, optionSlot);
       }
       return done(upModel);
     },
-    cancel: () => done({ ...model, dialoguePointerDownSlot: undefined }),
+    cancel: () => done({ ...model, mode: withoutDialoguePointerDown(mode) }),
   });
 }
 
@@ -480,9 +487,12 @@ function playerCommandResult(
     case "dialogue":
       return done({
         ...modelWithPresentation,
-        dialoguePointerDownSlot: undefined,
         mode: { type: "dialogue", ...result.dialogue },
       }, [{ type: "render" }]);
+    default: {
+      const _exhaustive: never = result;
+      return _exhaustive;
+    }
   }
 }
 
@@ -510,11 +520,13 @@ function togglePause(model: GameModel): GameTransition {
 }
 
 function closeDialogue(model: GameModel): GameTransition {
-  return done({
-    ...model,
-    dialoguePointerDownSlot: undefined,
-    mode: { type: "playing" },
-  }, [{ type: "closeDialogue" }, { type: "render" }]);
+  return done({ ...model, mode: { type: "playing" } }, [{ type: "closeDialogue" }, { type: "render" }]);
+}
+
+function withoutDialoguePointerDown(mode: DialogueMode): DialogueMode {
+  if (mode.pointerDownSlot === undefined) return mode;
+  const { pointerDownSlot: _, ...rest } = mode;
+  return rest;
 }
 
 function applyPresentation(

@@ -13,18 +13,10 @@ export const AttackTargetMode = {
 } as const;
 export type AttackTargetMode = (typeof AttackTargetMode)[keyof typeof AttackTargetMode];
 
-/** Facing requirement codes start at 0 so "none" is a clear zero-default in ECS storage. */
-export const AttackFacingRequirement = {
-  None: 0,
-  Required: 1,
-} as const;
-export type AttackFacingRequirement = (typeof AttackFacingRequirement)[keyof typeof AttackFacingRequirement];
-
 export type AttackDef = {
   minDamage: number;
   maxDamage: number;
   range: number;
-  requiresFacing: AttackFacingRequirement;
   attackBonus: number;
   critThreshold: number;
   critMultiplier: number;
@@ -36,7 +28,6 @@ export const DEFAULT_ATTACK: AttackDef = {
   minDamage: 1,
   maxDamage: 1,
   range: 1,
-  requiresFacing: AttackFacingRequirement.Required,
   attackBonus: 2,
   critThreshold: 20,
   critMultiplier: 2,
@@ -46,10 +37,6 @@ export const DEFAULT_ATTACK: AttackDef = {
 
 export const ATTACK_PATTERN_CODES = [AttackPattern.Line, AttackPattern.Adjacent] as const;
 export const ATTACK_TARGET_MODE_CODES = [AttackTargetMode.First, AttackTargetMode.All] as const;
-export const ATTACK_FACING_REQUIREMENT_CODES = [
-  AttackFacingRequirement.None,
-  AttackFacingRequirement.Required,
-] as const;
 
 const ATTACK_PATTERN_AUTHORING_BY_CODE = {
   [AttackPattern.Line]: "line",
@@ -61,11 +48,6 @@ const ATTACK_TARGET_MODE_AUTHORING_BY_CODE = {
   [AttackTargetMode.All]: "all",
 } as const satisfies Readonly<Record<AttackTargetMode, string>>;
 
-const ATTACK_FACING_REQUIREMENT_AUTHORING_BY_CODE = {
-  [AttackFacingRequirement.None]: "none",
-  [AttackFacingRequirement.Required]: "required",
-} as const satisfies Readonly<Record<AttackFacingRequirement, string>>;
-
 /** Tiled / EntityDef string values; order matches {@link ATTACK_PATTERN_CODES}. */
 export const ATTACK_PATTERN_AUTHORING_KEYS = ATTACK_PATTERN_CODES.map(
   (code) => ATTACK_PATTERN_AUTHORING_BY_CODE[code],
@@ -74,22 +56,15 @@ export const ATTACK_PATTERN_AUTHORING_KEYS = ATTACK_PATTERN_CODES.map(
 export const ATTACK_TARGET_MODE_AUTHORING_KEYS = ATTACK_TARGET_MODE_CODES.map(
   (code) => ATTACK_TARGET_MODE_AUTHORING_BY_CODE[code],
 );
-/** Tiled / EntityDef string values; order matches {@link ATTACK_FACING_REQUIREMENT_CODES}. */
-export const ATTACK_FACING_REQUIREMENT_AUTHORING_KEYS = ATTACK_FACING_REQUIREMENT_CODES.map(
-  (code) => ATTACK_FACING_REQUIREMENT_AUTHORING_BY_CODE[code],
-);
 
 export type AttackPatternAuthoring = (typeof ATTACK_PATTERN_AUTHORING_BY_CODE)[AttackPattern];
 export type AttackTargetModeAuthoring = (typeof ATTACK_TARGET_MODE_AUTHORING_BY_CODE)[AttackTargetMode];
-export type AttackFacingRequirementAuthoring =
-  (typeof ATTACK_FACING_REQUIREMENT_AUTHORING_BY_CODE)[AttackFacingRequirement];
 
 /** Authoring-side attack override; string enums map to {@link AttackDef} codes at spawn. */
 export type AuthoringAttackDef = {
   readonly minDamage?: number;
   readonly maxDamage?: number;
   readonly range?: number;
-  readonly requiresFacing?: AttackFacingRequirementAuthoring;
   readonly attackBonus?: number;
   readonly critThreshold?: number;
   readonly critMultiplier?: number;
@@ -97,14 +72,8 @@ export type AuthoringAttackDef = {
   readonly targets?: AttackTargetModeAuthoring;
 };
 
-// Pattern/target codes are 1-based and match createCodeRegistry positions.
 const ATTACK_PATTERN_REGISTRY = createCodeRegistry("attack pattern", ATTACK_PATTERN_AUTHORING_KEYS);
 const ATTACK_TARGET_MODE_REGISTRY = createCodeRegistry("attack target mode", ATTACK_TARGET_MODE_AUTHORING_KEYS);
-
-const ATTACK_FACING_REQUIREMENT_BY_AUTHORING = {
-  none: AttackFacingRequirement.None,
-  required: AttackFacingRequirement.Required,
-} as const satisfies Readonly<Record<AttackFacingRequirementAuthoring, AttackFacingRequirement>>;
 
 export function attackPatternAuthoringKey(pattern: AttackPattern): AttackPatternAuthoring {
   return ATTACK_PATTERN_AUTHORING_BY_CODE[pattern];
@@ -112,12 +81,6 @@ export function attackPatternAuthoringKey(pattern: AttackPattern): AttackPattern
 
 export function attackTargetModeAuthoringKey(targets: AttackTargetMode): AttackTargetModeAuthoring {
   return ATTACK_TARGET_MODE_AUTHORING_BY_CODE[targets];
-}
-
-export function attackFacingRequirementAuthoringKey(
-  requirement: AttackFacingRequirement,
-): AttackFacingRequirementAuthoring {
-  return ATTACK_FACING_REQUIREMENT_AUTHORING_BY_CODE[requirement];
 }
 
 export function attackPatternForAuthoringKey(authoringKey: string): AttackPattern {
@@ -132,13 +95,6 @@ export function attackTargetModeForAuthoringKey(authoringKey: string): AttackTar
   return ATTACK_TARGET_MODE_REGISTRY.encode(key) as AttackTargetMode;
 }
 
-export function attackFacingRequirementForAuthoringKey(authoringKey: string): AttackFacingRequirement {
-  const requirement = ATTACK_FACING_REQUIREMENT_BY_AUTHORING[authoringKey as AttackFacingRequirementAuthoring] ??
-    ATTACK_FACING_REQUIREMENT_BY_AUTHORING[lowerFirst(authoringKey) as AttackFacingRequirementAuthoring];
-  if (requirement === undefined) throw new Error(`Unknown attack facing requirement "${authoringKey}".`);
-  return requirement;
-}
-
 export function attackDefFromAuthoring(attack: AuthoringAttackDef | undefined): Partial<AttackDef> {
   if (attack === undefined) return {};
   const spec: Partial<AttackDef> = {};
@@ -148,9 +104,6 @@ export function attackDefFromAuthoring(attack: AuthoringAttackDef | undefined): 
   if (attack.attackBonus !== undefined) spec.attackBonus = attack.attackBonus;
   if (attack.critThreshold !== undefined) spec.critThreshold = attack.critThreshold;
   if (attack.critMultiplier !== undefined) spec.critMultiplier = attack.critMultiplier;
-  if (attack.requiresFacing !== undefined) {
-    spec.requiresFacing = attackFacingRequirementForAuthoringKey(attack.requiresFacing);
-  }
   if (attack.pattern !== undefined) spec.pattern = attackPatternForAuthoringKey(attack.pattern);
   if (attack.targets !== undefined) spec.targets = attackTargetModeForAuthoringKey(attack.targets);
   return spec;
