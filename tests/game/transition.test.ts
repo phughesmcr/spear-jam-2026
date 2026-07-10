@@ -502,12 +502,43 @@ Deno.test("transition opens help from the verb menu and closes it back to the ve
     target: { kind: "control", control: "help" },
   }));
   let result = transition(model, { type: "verbPointer", phase: "up", target: { kind: "control", control: "help" } });
-  assertEquals(result.model.mode, { type: "help", selectedIndex: 0 });
+  assertEquals(result.model.mode, {
+    type: "help",
+    returnTo: { kind: "verbMenu", selectedIndex: 0 },
+  });
   assertEquals(result.effects, [{ type: "render" }]);
 
   result = transition(result.model, { type: "gameCommand", command: { type: "wait" } });
   assertEquals(result.model.mode, { type: "verbMenu", selectedIndex: 0 });
   assertEquals(result.effects, [{ type: "render" }]);
+});
+
+Deno.test("title help opens help and closes back to the same title intent", () => {
+  const startTitle = transition(createGameModel("Level 1", { showTitle: true }), { type: "start" }).model;
+  const opened = transition(startTitle, { type: "gameCommand", command: { type: "help" } });
+  assertEquals(opened.model.mode, {
+    type: "help",
+    returnTo: { kind: "title", intent: "start" },
+  });
+  assertEquals(opened.effects, [{ type: "render" }]);
+
+  const closed = transition(opened.model, { type: "gameCommand", command: { type: "wait" } });
+  assertEquals(closed.model.mode, { type: "title", intent: "start" });
+  assertEquals(closed.effects, [{ type: "render" }]);
+
+  const playing = transition(createGameModel("Level 1"), {
+    type: "mapLoaded",
+    mapName: "Level 1",
+  }).model;
+  const resumeTitle = transition(playing, { type: "gameCommand", command: { type: "menu" } }).model;
+  const openedFromResume = transition(resumeTitle, { type: "gameCommand", command: { type: "help" } });
+  assertEquals(openedFromResume.model.mode, {
+    type: "help",
+    returnTo: { kind: "title", intent: "resume" },
+  });
+
+  const closedFromResume = transition(openedFromResume.model, { type: "gameCommand", command: { type: "menu" } });
+  assertEquals(closedFromResume.model.mode, { type: "title", intent: "resume" });
 });
 
 Deno.test("transition passes smart action through as a player command", () => {

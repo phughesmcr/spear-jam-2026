@@ -139,7 +139,10 @@ function confirmControlSelection(model: GameModel, control: VerbMenuControl): Ga
     case "help":
       return done({
         ...model,
-        mode: { type: "help", selectedIndex: helpReturnSelectedIndex(model) },
+        mode: {
+          type: "help",
+          returnTo: { kind: "verbMenu", selectedIndex: helpReturnSelectedIndex(model) },
+        },
       }, [{ type: "render" }]);
     case "close":
       return done({

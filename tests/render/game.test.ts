@@ -98,7 +98,7 @@ Deno.test("renderGameFrame requests the help image in help mode", () => {
   const result = renderWithScratch({
     ctx: ctx as unknown as CanvasRenderingContext2D,
     canvasSize: FULL_CANVAS,
-    mode: { type: "help", selectedIndex: 0 },
+    mode: { type: "help", returnTo: { kind: "verbMenu", selectedIndex: 0 } },
   });
 
   assertEquals(result, { needsFrame: false });

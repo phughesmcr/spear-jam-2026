@@ -30,6 +30,7 @@ const BUTTON_LABELS = {
   resume: "RESUME GAME",
 } as const satisfies Record<TitleIntent, string>;
 const SETTINGS_BUTTON_LABEL = "SETTINGS";
+const HELP_BUTTON_LABEL = "HELP";
 const BUTTON_GAP_RATIO = 0.18;
 const BUTTON_WIDTH_RATIO = 0.46;
 const BUTTON_WIDTH_MIN = 180;
@@ -47,6 +48,7 @@ type TitleGeometryCache = {
   height: number;
   startButton: TitleButtonRect;
   settingsButton: TitleButtonRect;
+  helpButton: TitleButtonRect;
 };
 
 let titleGeometryCache: TitleGeometryCache | undefined;
@@ -63,6 +65,10 @@ export function titleSettingsButtonRect(canvasSize: GameCanvasSize): TitleButton
   return titleGeometryFor(canvasSize).settingsButton;
 }
 
+export function titleHelpButtonRect(canvasSize: GameCanvasSize): TitleButtonRect {
+  return titleGeometryFor(canvasSize).helpButton;
+}
+
 function titleGeometryFor(canvasSize: GameCanvasSize): TitleGeometryCache {
   if (
     titleGeometryCache !== undefined &&
@@ -73,13 +79,18 @@ function titleGeometryFor(canvasSize: GameCanvasSize): TitleGeometryCache {
   }
   const startButton = titleButtonRect(canvasSize);
   const gap = Math.round(startButton.height * BUTTON_GAP_RATIO);
+  const settingsButton = {
+    ...startButton,
+    y: startButton.y - gap - startButton.height,
+  };
   titleGeometryCache = {
     width: canvasSize.width,
     height: canvasSize.height,
     startButton,
-    settingsButton: {
+    settingsButton,
+    helpButton: {
       ...startButton,
-      y: startButton.y - gap - startButton.height,
+      y: settingsButton.y - gap - startButton.height,
     },
   };
   return titleGeometryCache;
@@ -110,10 +121,15 @@ export function titleSettingsButtonHit(canvasSize: GameCanvasSize, point: TitleP
   return titleButtonHit(titleSettingsButtonRect(canvasSize), point);
 }
 
+export function titleHelpButtonHit(canvasSize: GameCanvasSize, point: TitlePoint): boolean {
+  return titleButtonHit(titleHelpButtonRect(canvasSize), point);
+}
+
 export function titleHoverButtonAt(
   canvasSize: GameCanvasSize,
   point: TitlePoint,
 ): TitleHoverButton | undefined {
+  if (titleHelpButtonHit(canvasSize, point)) return "help";
   if (titleSettingsButtonHit(canvasSize, point)) return "settings";
   if (titleStartButtonHit(canvasSize, point)) return "start";
   return undefined;
@@ -136,6 +152,7 @@ export function renderTitle(
   const geometry = titleGeometryFor(canvasSize);
   const startButton = geometry.startButton;
   const settingsButton = geometry.settingsButton;
+  const helpButton = geometry.helpButton;
   const image = loadedImage(ctx, titleBackgroundAsset, onAssetLoad);
 
   ctx.save();
@@ -150,6 +167,7 @@ export function renderTitle(
     ctx.drawImage(image, rect.x, rect.y, rect.width, rect.height);
   }
 
+  drawTitleButton(ctx, helpButton, HELP_BUTTON_LABEL, nowMs, "secondary", hoverButton === "help");
   drawTitleButton(ctx, settingsButton, SETTINGS_BUTTON_LABEL, nowMs, "secondary", hoverButton === "settings");
   drawTitleButton(ctx, startButton, BUTTON_LABELS[intent], nowMs, "primary", hoverButton === "start");
   ctx.restore();

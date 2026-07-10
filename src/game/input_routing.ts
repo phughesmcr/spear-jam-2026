@@ -5,7 +5,12 @@ import type { CanvasPointerInput } from "@/src/input/pointer.ts";
 import type { GameCanvasSize } from "@/src/render/canvas.ts";
 import { dialogueOptionSlotAt } from "@/src/render/dialogue.ts";
 import { settingsBackButtonHit, settingsSliderAt, settingsSliderUnit } from "@/src/render/settings.ts";
-import { titleHoverButtonAt, titleSettingsButtonHit, titleStartButtonHit } from "@/src/render/title.ts";
+import {
+  titleHelpButtonHit,
+  titleHoverButtonAt,
+  titleSettingsButtonHit,
+  titleStartButtonHit,
+} from "@/src/render/title.ts";
 import { verbMenuTargetAt } from "@/src/render/verb_menu.ts";
 
 export type PointerTransitionEvent = Extract<
@@ -93,6 +98,9 @@ function titlePointer(canvasSize: GameCanvasSize, input: CanvasPointerInput): Po
         },
       };
     case "up":
+      if (titleHelpButtonHit(canvasSize, input)) {
+        return { type: "command", command: { type: "help" } };
+      }
       if (titleSettingsButtonHit(canvasSize, input)) {
         return { type: "command", command: { type: "settings" } };
       }

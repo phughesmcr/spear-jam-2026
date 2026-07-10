@@ -1,6 +1,6 @@
-import type { CommandSlot, DialogueState } from "@/src/game/state.ts";
 import type { GameEvent } from "@/src/game/events.ts";
 import type { SoundCue } from "@/src/game/sound.ts";
+import type { CommandSlot, DialogueState } from "@/src/game/state.ts";
 
 export type RelativeMoveDirection = "forward" | "backward" | "left" | "right";
 export type TurnDirection = "left" | "right";
@@ -22,6 +22,7 @@ export type GameCommand =
   | { readonly type: "action" }
   | { readonly type: "menu" }
   | { readonly type: "settings" }
+  | { readonly type: "help" }
   | { readonly type: "pause" }
   | { readonly type: "toggleView" };
 
@@ -86,6 +87,7 @@ export function isPlayerCommand(command: GameCommand): command is PlayerCommand 
     case "action":
     case "menu":
     case "settings":
+    case "help":
     case "pause":
     case "toggleView":
       return false;

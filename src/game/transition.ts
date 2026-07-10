@@ -228,6 +228,11 @@ function titleCommand(model: GameModel, command: GameCommand, nowMs: number): Ga
         ...model,
         mode: { type: "settings", returnIntent: mode.intent },
       }, [{ type: "render" }]),
+    help: () =>
+      done({
+        ...model,
+        mode: { type: "help", returnTo: { kind: "title", intent: mode.intent } },
+      }, [{ type: "render" }]),
     wait: () => mode.intent === "resume" ? closeTitleMenu(model) : beginGame(model, nowMs),
   });
 }
@@ -384,11 +389,24 @@ function dialogueCommand(model: GameModel, mode: DialogueMode, command: GameComm
 }
 
 function helpCommand(model: GameModel, mode: HelpMode, command: GameCommand): GameTransition {
-  const close = (): GameTransition =>
-    done({
-      ...model,
-      mode: { type: "verbMenu", selectedIndex: mode.selectedIndex },
-    }, [{ type: "render" }]);
+  const close = (): GameTransition => {
+    switch (mode.returnTo.kind) {
+      case "verbMenu":
+        return done({
+          ...model,
+          mode: { type: "verbMenu", selectedIndex: mode.returnTo.selectedIndex },
+        }, [{ type: "render" }]);
+      case "title":
+        return done({
+          ...model,
+          mode: { type: "title", intent: mode.returnTo.intent },
+        }, [{ type: "render" }]);
+      default: {
+        const _exhaustive: never = mode.returnTo;
+        return _exhaustive;
+      }
+    }
+  };
   return dispatchCommand(model, command, {
     wait: close,
     action: close,

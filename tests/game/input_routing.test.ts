@@ -4,7 +4,7 @@ import type { CanvasPointerInput } from "@/src/input/pointer.ts";
 import { DEFAULT_GAME_CANVAS_SIZE } from "@/src/render/canvas.ts";
 import { dialogueLayout } from "@/src/render/dialogue.ts";
 import { settingsBackButtonRect, settingsSliderRects } from "@/src/render/settings.ts";
-import { titleSettingsButtonRect, titleStartButtonRect } from "@/src/render/title.ts";
+import { titleHelpButtonRect, titleSettingsButtonRect, titleStartButtonRect } from "@/src/render/title.ts";
 import { verbMenuButtonRects } from "@/src/render/verb_menu.ts";
 import { assertEquals } from "@std/assert";
 
@@ -28,10 +28,21 @@ Deno.test("routePointerInput maps title settings-button pointer up to settings",
   });
 });
 
+Deno.test("routePointerInput maps title help-button pointer up to help", () => {
+  const model = modelWithMode({ type: "title", intent: "start" });
+  const button = titleHelpButtonRect(CANVAS_SIZE);
+
+  assertEquals(routePointerInput(model, CANVAS_SIZE, pointer(centerOf(button, { phase: "up" }))), {
+    type: "command",
+    command: { type: "help" },
+  });
+});
+
 Deno.test("routePointerInput maps title pointer move to title hover events", () => {
   const model = modelWithMode({ type: "title", intent: "start" });
   const start = titleStartButtonRect(CANVAS_SIZE);
   const settings = titleSettingsButtonRect(CANVAS_SIZE);
+  const help = titleHelpButtonRect(CANVAS_SIZE);
 
   assertEquals(routePointerInput(model, CANVAS_SIZE, pointer(centerOf(start, { phase: "move" }))), {
     type: "transition",
@@ -40,6 +51,10 @@ Deno.test("routePointerInput maps title pointer move to title hover events", () 
   assertEquals(routePointerInput(model, CANVAS_SIZE, pointer(centerOf(settings, { phase: "move" }))), {
     type: "transition",
     event: { type: "titlePointer", phase: "move", hoverButton: "settings" },
+  });
+  assertEquals(routePointerInput(model, CANVAS_SIZE, pointer(centerOf(help, { phase: "move" }))), {
+    type: "transition",
+    event: { type: "titlePointer", phase: "move", hoverButton: "help" },
   });
   assertEquals(routePointerInput(model, CANVAS_SIZE, pointer({ phase: "move", x: 0, y: 0 })), {
     type: "transition",
@@ -173,7 +188,11 @@ Deno.test("routePointerInput maps outcome and help pointer up to wait", () => {
     command: { type: "wait" },
   });
   assertEquals(
-    routePointerInput(modelWithMode({ type: "help", selectedIndex: 2 }), CANVAS_SIZE, pointer({ phase: "up" })),
+    routePointerInput(
+      modelWithMode({ type: "help", returnTo: { kind: "verbMenu", selectedIndex: 2 } }),
+      CANVAS_SIZE,
+      pointer({ phase: "up" }),
+    ),
     {
       type: "command",
       command: { type: "wait" },

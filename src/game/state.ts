@@ -60,7 +60,11 @@ export type DialogueState = {
 };
 
 export type TitleIntent = "start" | "resume";
-export type TitleHoverButton = "start" | "settings";
+export type TitleHoverButton = "start" | "settings" | "help";
+
+export type HelpReturnTo =
+  | { readonly kind: "verbMenu"; readonly selectedIndex: number }
+  | { readonly kind: "title"; readonly intent: TitleIntent };
 
 export type GameMode =
   | { readonly type: "title"; readonly intent: TitleIntent; readonly hoverButton?: TitleHoverButton }
@@ -73,7 +77,7 @@ export type GameMode =
     readonly hoverTarget?: VerbMenuTarget;
     readonly pointerDownTarget?: VerbMenuTarget;
   }
-  | { readonly type: "help"; readonly selectedIndex: number }
+  | { readonly type: "help"; readonly returnTo: HelpReturnTo }
   | ({ readonly type: "dialogue" } & DialogueState & { readonly pointerDownSlot?: number })
   | {
     readonly type: "intermission";
