@@ -33,14 +33,12 @@ export function applyEvent(
   nowMs: number,
 ): boolean {
   const definition = storyEventDefinition(event);
-  if (playerHasStoryFlag(runtime.game, player, definition.flag) || !canApplyActions(runtime, definition.actions)) {
-    return false;
-  }
+  if (playerHasStoryFlag(runtime.game, player, definition.flag)) return false;
+  const actions = resolveActions(runtime, definition.actions);
+  if (actions === undefined) return false;
   const storyFlags = readComponent(runtime.game, player, "StoryFlags")?.mask ?? 0;
   runtime.crawler.transaction((mutation) => {
-    for (const action of definition.actions) {
-      const target = targetEntity(runtime, action.target);
-      if (target === undefined) throw new Error(`Story target "${action.target}" disappeared.`);
+    for (const { action, target } of actions) {
       mutation.teleport(target, action.destination.x, action.destination.y);
       const animation = { kind: SpriteAnimationKind.Walk, startedAtMs: nowMs, durationMs: STORY_MOVE_MS };
       if (runtime.game.entityHasComponent(target, runtime.game.components.SpriteAnimation)) {
@@ -67,16 +65,21 @@ export function assertUniqueTargets(runtime: GameRuntime): void {
   });
 }
 
-function canApplyActions(runtime: GameRuntime, actions: readonly StoryAction[]): boolean {
+function resolveActions(
+  runtime: GameRuntime,
+  actions: readonly StoryAction[],
+): readonly { readonly action: StoryAction; readonly target: Entity }[] | undefined {
+  const resolved: { action: StoryAction; target: Entity }[] = [];
   for (const action of actions) {
     const target = targetEntity(runtime, action.target);
-    if (target === undefined) return false;
+    if (target === undefined) return undefined;
     const blocker = runtime.crawler.entityAt(action.destination.x, action.destination.y, TerrainBlock.Movement);
     if (
       runtime.crawler.blocksAt(action.destination.x, action.destination.y, TerrainBlock.Movement) && blocker !== target
-    ) return false;
+    ) return undefined;
+    resolved.push({ action, target });
   }
-  return true;
+  return resolved;
 }
 
 function targetEntity(runtime: GameRuntime, targetId: StoryAction["target"]): Entity | undefined {

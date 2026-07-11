@@ -32,6 +32,7 @@ export type EnemyHearing = {
   readonly sources: readonly NoiseStimulus[];
 };
 
+/** Prepare phase-local hearing data. A later preparation on the same runtime invalidates earlier values. */
 export function prepareEnemyHearing(
   runtime: TurnContext["runtime"],
   noises: readonly NoiseStimulus[],
@@ -70,12 +71,6 @@ export function runEnemyActorTurn(context: EnemyTurnContext, enemy: Entity): rea
     if (intent.type === "move" && intent.stopAfterBlocked === true && resolution.acted !== true) break;
   }
   return events;
-}
-
-export function enemyIntentsForActor(context: EnemyTurnContext, enemy: Entity): readonly ActorIntent[] {
-  if (!context.runtime.game.isEntityAlive(enemy)) return [];
-  const { awareness } = updateEnemyAwareness(context, enemy);
-  return enemyIntentsForAwareness(context, enemy, awareness);
 }
 
 function enemyIntentsForAwareness(

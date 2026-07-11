@@ -15,14 +15,9 @@ Deno.test("alert enemies pursue through the engine pathfinder", () => {
   const runtime = createRuntime(flatTestMap(7, 3));
   const player = createPlayer(runtime, { x: 1, y: 1, dir: Direction.East });
   const enemy = spawnEnemy(runtime, EnemyArchetypeCode.NetworkNeophyte, 5, 1, Direction.West);
-  runtime.pathfinder.beginBatch();
-  try {
-    const events = runEnemyActorTurn({ runtime, player, random: () => 0 }, enemy);
-    assertEquals(events[0], { type: "enemyAlerted", entity: enemy });
-    assertEquals(runtime.crawler.entityPosition(enemy), { x: 4, y: 1 });
-  } finally {
-    runtime.pathfinder.endBatch();
-  }
+  const events = runtime.pathfinder.batch(() => runEnemyActorTurn({ runtime, player, random: () => 0 }, enemy));
+  assertEquals(events[0], { type: "enemyAlerted", entity: enemy });
+  assertEquals(runtime.crawler.entityPosition(enemy), { x: 4, y: 1 });
   runtime.crawler.assertInvariants();
 });
 
@@ -32,20 +27,17 @@ Deno.test("heard noise produces investigation without omniscient player pursuit"
   const enemy = spawnEnemy(runtime, EnemyArchetypeCode.MeleeDog, 6, 1, Direction.East);
   const noises = [{ x: 4, y: 1, radius: 6 }] as const;
   const hearing = prepareEnemyHearing(runtime, noises);
-  runtime.pathfinder.beginBatch();
-  try {
-    const events = runEnemyActorTurn({
+  const events = runtime.pathfinder.batch(() =>
+    runEnemyActorTurn({
       runtime,
       player,
       random: () => 0,
       hearing,
       blocksSight: () => true,
-    }, enemy);
-    assertEquals(events, [{ type: "enemyInvestigating", entity: enemy }]);
-    assertEquals(runtime.crawler.entityPosition(enemy), { x: 5, y: 1 });
-  } finally {
-    runtime.pathfinder.endBatch();
-  }
+    }, enemy)
+  );
+  assertEquals(events, [{ type: "enemyInvestigating", entity: enemy }]);
+  assertEquals(runtime.crawler.entityPosition(enemy), { x: 5, y: 1 });
 });
 
 Deno.test("hearing chooses the nearest audible source", () => {
@@ -122,12 +114,7 @@ Deno.test("gunslingers retreat when adjacent", () => {
   const runtime = createRuntime(flatTestMap(6, 3));
   const player = createPlayer(runtime, { x: 2, y: 1, dir: Direction.East });
   const enemy = spawnEnemy(runtime, EnemyArchetypeCode.Gunslinger, 3, 1, Direction.West);
-  runtime.pathfinder.beginBatch();
-  try {
-    runEnemyActorTurn({ runtime, player, random: () => 0 }, enemy);
-  } finally {
-    runtime.pathfinder.endBatch();
-  }
+  runtime.pathfinder.batch(() => runEnemyActorTurn({ runtime, player, random: () => 0 }, enemy));
   assertEquals(runtime.crawler.entityPosition(enemy), { x: 4, y: 1 });
   assertEquals(readComponent(runtime.game, player, "Health")?.current, 10);
 });
@@ -231,15 +218,12 @@ function runPhase(
   runtime.game.query(runtime.game.components.Enemy, runtime.game.components.TurnTaker).forEach((entity) => {
     enemies.push(entity);
   });
-  runtime.pathfinder.beginBatch();
-  try {
+  runtime.pathfinder.batch(() => {
     for (const enemy of enemies) {
       if (isPlayerDefeated(context)) break;
       events.push(...runEnemyActorTurn(context, enemy));
     }
-  } finally {
-    runtime.pathfinder.endBatch();
-  }
+  });
   return events;
 }
 

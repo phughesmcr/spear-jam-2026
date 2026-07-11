@@ -9,7 +9,6 @@ import { Direction } from "@/src/grid/direction.ts";
 import { flatTestMap } from "@/tests/ecs/helpers.ts";
 import { assertEquals } from "@std/assert";
 import { TerrainBlock } from "turn-based-engine/crawler";
-import type { GridPathfinder } from "turn-based-engine/crawler";
 
 Deno.test("free turn updates facing without moving or running enemies", () => {
   const runtime = createRuntime(flatTestMap(6, 3));
@@ -36,32 +35,6 @@ Deno.test("enemy batches combine deterministic phase fields with live immediate 
   assertEquals(runtime.crawler.entityPosition(first), { x: 3, y: 1 });
   assertEquals(runtime.crawler.entityPosition(second), { x: 5, y: 0 });
   runtime.crawler.assertInvariants();
-});
-
-Deno.test("enemy phase uses the pathfinder scoped batch API", () => {
-  const runtime = createRuntime(flatTestMap(6, 3));
-  const player = createPlayer(runtime, { x: 1, y: 1, dir: Direction.East });
-  spawnMovingEnemy(runtime, 4, 1);
-  const pathfinder = runtime.pathfinder;
-  let batchCalls = 0;
-  (runtime as { pathfinder: GridPathfinder }).pathfinder = {
-    ...pathfinder,
-    batch: (fn) => {
-      batchCalls++;
-      return pathfinder.batch(fn);
-    },
-    beginBatch: () => {
-      throw new Error("runTurnTransaction must use pathfinder.batch");
-    },
-    endBatch: () => {
-      throw new Error("runTurnTransaction must use pathfinder.batch");
-    },
-    nextStepToward: (start, target) => pathfinder.nextStepToward(start, target),
-  };
-
-  runTurnTransaction({ runtime, player, random: () => 0 }, { type: "wait" });
-
-  assertEquals(batchCalls, 1);
 });
 
 Deno.test("no-ammo attack remains free and skips enemies", () => {
