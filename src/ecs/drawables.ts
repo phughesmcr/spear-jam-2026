@@ -100,6 +100,7 @@ export function createDrawableReaders(runtime: GameRuntime): RuntimeReaders {
   const health = { current: 0, max: 0 };
   const light = createLightScratch();
   let drawableCount = 0;
+  let drawableRevision = -1;
   let lightVisitor: LightEntityVisitor;
 
   function ensureCapacity(count: number): void {
@@ -140,9 +141,16 @@ export function createDrawableReaders(runtime: GameRuntime): RuntimeReaders {
     lightVisitor(light);
   }
 
-  function forEachDrawable(visit: DrawableEntityVisitor): void {
+  function refreshDrawableOrder(): void {
+    const revision = runtime.game.storage.Drawable.revision;
+    if (revision === drawableRevision) return;
     drawableCount = 0;
     drawableQuery.forEach(collectDrawable);
+    drawableRevision = revision;
+  }
+
+  function forEachDrawable(visit: DrawableEntityVisitor): void {
+    refreshDrawableOrder();
     for (let index = 0; index < drawableCount; index++) {
       const entity = entities[index]! as Entity;
       if (writeDrawable(runtime, entity, slots[index]!, drawable, animation, health)) visit(drawable as DrawableEntity);

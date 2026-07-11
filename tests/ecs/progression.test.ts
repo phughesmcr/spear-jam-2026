@@ -16,7 +16,7 @@ import { Direction } from "@/src/grid/direction.ts";
 import { KeyColor } from "@/src/map/map.ts";
 import { StoryFlag } from "@/src/game/story.ts";
 import { flatTestMap } from "@/tests/ecs/helpers.ts";
-import { assertEquals } from "@std/assert";
+import { assertEquals, assertThrows } from "@std/assert";
 
 Deno.test("player progression reset and cheat loadout use custom engine storage", () => {
   const runtime = createRuntime(flatTestMap());
@@ -28,6 +28,22 @@ Deno.test("player progression reset and cheat loadout use custom engine storage"
   resetPlayerProgression(runtime.game, player);
   assertEquals(playerStatusSnapshotFor(runtime.game, player).ammo, { pistol: 0, cannon: 0 });
   assertEquals(playerStatusSnapshotFor(runtime.game, player).unlockedWeapons, [1]);
+});
+
+Deno.test("component writes validate the complete patch before changing storage", () => {
+  const runtime = createRuntime(flatTestMap());
+  const player = createPlayer(runtime, { x: 1, y: 0, dir: Direction.East });
+
+  assertThrows(
+    () => writeComponent(runtime.game, player, "PlayerProgress", { credits: 12, score: Number.NaN }),
+    TypeError,
+  );
+  assertEquals(playerStatusSnapshotFor(runtime.game, player).progress, {
+    credits: 0,
+    score: 0,
+    xp: 0,
+    levelCredits: 0,
+  });
 });
 
 Deno.test("progression checkpoint round-trips durable values and story flags", () => {

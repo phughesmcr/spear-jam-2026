@@ -185,10 +185,7 @@ export function writeComponent<Name extends GameComponentName>(
   name: Name,
   value: Partial<GameComponentValue<Name>>,
 ): void {
-  const storage = game.storage[name];
-  for (const [key, field] of Object.entries(value)) {
-    if (field !== undefined) storage.set(entity, key as never, field as number);
-  }
+  game.storage[name].patch(entity, value);
 }
 
 export function enemyArchetypeFor(game: GameEcs, entity: Entity): EnemyArchetypeCode | undefined {
