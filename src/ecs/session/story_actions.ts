@@ -1,9 +1,7 @@
-import type { Entity, World } from "@phughesmcr/miski";
-import { OnTalkEvent, SpriteAnimationKind, StoryTarget } from "@/src/ecs/components.ts";
+import { readComponent, SpriteAnimationKind } from "@/src/ecs/components.ts";
 import type { SpriteAnimationSchema } from "@/src/ecs/components.ts";
 import { addPlayerStoryFlag, playerHasStoryFlag } from "@/src/ecs/progression.ts";
-import { mapScopedQuery } from "@/src/ecs/queries.ts";
-import type { SpatialIndex } from "@/src/ecs/spatial.ts";
+import type { GameRuntime } from "@/src/ecs/runtime.ts";
 import {
   type StoryAction,
   storyEventDefinition,
@@ -11,102 +9,72 @@ import {
   type StoryEventId,
   storyTargetForCode,
 } from "@/src/game/story.ts";
+import { TerrainBlock } from "turn-based-engine/crawler";
+import type { Entity } from "turn-based-engine/ecs";
 
 const STORY_MOVE_MS = 260;
-
 type AnimationWriter = (entity: Entity, animation: SpriteAnimationSchema) => void;
 
 export function queueTalkEvent(
-  world: World,
-  playerEntity: Entity,
+  runtime: GameRuntime,
+  player: Entity,
   target: Entity | undefined,
 ): StoryEventId | undefined {
   if (target === undefined) return undefined;
-
-  const eventCode = world.components.readEntityData(OnTalkEvent, target)?.onTalkEvent;
-  if (eventCode === undefined) return undefined;
-
-  const event = storyEventForCode(eventCode);
-  const definition = storyEventDefinition(event);
-  return playerHasStoryFlag(world, playerEntity, definition.flag) ? undefined : event;
+  const code = readComponent(runtime.game, target, "OnTalkEvent")?.onTalkEvent;
+  if (code === undefined) return undefined;
+  const event = storyEventForCode(code);
+  return playerHasStoryFlag(runtime.game, player, storyEventDefinition(event).flag) ? undefined : event;
 }
 
 export function applyEvent(
-  world: World,
-  playerEntity: Entity,
-  spatial: SpatialIndex,
+  runtime: GameRuntime,
+  player: Entity,
   event: StoryEventId,
   nowMs: number,
   writeAnimation: AnimationWriter,
 ): boolean {
   const definition = storyEventDefinition(event);
-  if (playerHasStoryFlag(world, playerEntity, definition.flag)) return false;
-  if (!canApplyActions(world, spatial, definition.actions)) return false;
-
+  if (playerHasStoryFlag(runtime.game, player, definition.flag) || !canApplyActions(runtime, definition.actions)) {
+    return false;
+  }
   for (const action of definition.actions) {
-    switch (action.type) {
-      case "moveEntity": {
-        const target = targetEntity(world, action.target);
-        if (target === undefined) return false;
-        spatial.moveEntity(target, action.destination);
-        writeAnimation(target, {
-          kind: SpriteAnimationKind.Walk,
-          startedAtMs: nowMs,
-          durationMs: STORY_MOVE_MS,
-        });
-        break;
-      }
-      default: {
-        const _exhaustive: never = action.type;
-        return _exhaustive;
-      }
-    }
+    const target = targetEntity(runtime, action.target);
+    if (target === undefined) return false;
+    runtime.crawler.teleport(target, action.destination.x, action.destination.y);
+    writeAnimation(target, { kind: SpriteAnimationKind.Walk, startedAtMs: nowMs, durationMs: STORY_MOVE_MS });
   }
-
-  addPlayerStoryFlag(world, playerEntity, definition.flag);
-  world.refresh();
+  addPlayerStoryFlag(runtime.game, player, definition.flag);
+  runtime.crawler.assertInvariants();
   return true;
 }
 
-export function assertUniqueTargets(world: World): void {
+export function assertUniqueTargets(runtime: GameRuntime): void {
   const seen = new Set<string>();
-  for (const entity of world.entities.query(mapScopedQuery)) {
-    const storyCode = world.components.readEntityData(StoryTarget, entity)?.storyId;
-    if (storyCode === undefined) continue;
-    const storyId = storyTargetForCode(storyCode);
-    if (seen.has(storyId)) throw new Error(`Duplicate story target "${storyId}".`);
-    seen.add(storyId);
-  }
+  const query = runtime.game.query(runtime.game.components.StoryTarget);
+  query.forEach((_entity, slot) => {
+    const id = storyTargetForCode(runtime.game.storage.StoryTarget.getAt(slot, "storyId"));
+    if (seen.has(id)) throw new Error(`Duplicate story target "${id}".`);
+    seen.add(id);
+  });
 }
 
-function canApplyActions(world: World, spatial: SpatialIndex, actions: readonly StoryAction[]): boolean {
+function canApplyActions(runtime: GameRuntime, actions: readonly StoryAction[]): boolean {
   for (const action of actions) {
-    switch (action.type) {
-      case "moveEntity": {
-        const target = targetEntity(world, action.target);
-        if (target === undefined) return false;
-
-        const destination = action.destination;
-        if (spatial.tileBlocks(destination.x, destination.y)) return false;
-
-        const blocker = spatial.blockingEntityAt(destination.x, destination.y);
-        if (blocker !== undefined && blocker !== target) return false;
-        break;
-      }
-      default: {
-        const _exhaustive: never = action.type;
-        return _exhaustive;
-      }
-    }
+    const target = targetEntity(runtime, action.target);
+    if (target === undefined) return false;
+    const blocker = runtime.crawler.entityAt(action.destination.x, action.destination.y, TerrainBlock.Movement);
+    if (
+      runtime.crawler.blocksAt(action.destination.x, action.destination.y, TerrainBlock.Movement) && blocker !== target
+    ) return false;
   }
   return true;
 }
 
-function targetEntity(world: World, targetId: StoryAction["target"]): Entity | undefined {
-  for (const entity of world.entities.query(mapScopedQuery)) {
-    if (!world.entities.isActive(entity)) continue;
-    const storyCode = world.components.readEntityData(StoryTarget, entity)?.storyId;
-    if (storyCode !== undefined && storyTargetForCode(storyCode) === targetId) return entity;
-  }
-  return undefined;
+function targetEntity(runtime: GameRuntime, targetId: StoryAction["target"]): Entity | undefined {
+  let result: Entity | undefined;
+  runtime.game.query(runtime.game.components.StoryTarget).forEach((entity, slot) => {
+    if (storyTargetForCode(runtime.game.storage.StoryTarget.getAt(slot, "storyId")) === targetId) result = entity;
+  });
+  return result;
 }

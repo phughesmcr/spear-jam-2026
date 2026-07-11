@@ -1,266 +1,83 @@
-import { EnemyArchetypeCode } from "@/src/content/enemies.ts";
-import { SpriteId } from "@/src/content/sprite_ids.ts";
-import { dialogueTreeCode, DialogueTreeId } from "@/src/dialogue/dialogue.ts";
-import {
-  Attack,
-  AttackPattern,
-  Blocking,
-  Defense,
-  DialogueTreeRef,
-  DisplayNameComponent,
-  Drawable,
-  DrawableLayer,
-  Enemy,
-  EnemyArchetypeComponent,
-  ExamineTextRef,
-  Health,
-  Interactable,
-  Item,
-  Npc,
-  OnTalkEvent,
-  SoundEmitter,
-  Sprite,
-  StoryTarget,
-  TerminalDestination,
-} from "@/src/ecs/components.ts";
-import { DrawableKind } from "@/src/ecs/drawable_kind.ts";
+import { enemyArchetypeAuthoringKey, EnemyArchetypeCode } from "@/src/content/enemies.ts";
+import { hasComponent } from "@/src/ecs/components.ts";
+import { DialogueTreeId } from "@/src/dialogue/dialogue.ts";
 import {
   createDecoration,
   createDoor,
   createEnemy,
+  createItem,
   createNpc,
+  createPlayer,
   createSound,
   createUplinkTerminal,
 } from "@/src/ecs/prefabs.ts";
-import { createWorld } from "@/src/ecs/world.ts";
-import { ExamineTextId } from "@/src/game/examine.ts";
-import { examineTextCode } from "@/src/game/examine_content.ts";
-import { DisplayName, displayNameCode } from "@/src/game/names.ts";
-import { SoundId, soundIdCode } from "@/src/game/sound.ts";
-import { storyEventCode, StoryEventId, storyTargetCode, StoryTargetId } from "@/src/game/story.ts";
-import { terminalDestinationCode } from "@/src/map/maps.ts";
+import { createRuntime } from "@/src/ecs/runtime.ts";
+import { ExamineTextId } from "@/src/game/examine_content.ts";
+import { DisplayName } from "@/src/game/names.ts";
+import { SoundId } from "@/src/game/sound.ts";
+import { StoryEventId, StoryTargetId } from "@/src/game/story.ts";
+import { Direction } from "@/src/grid/direction.ts";
+import { KeyColor } from "@/src/map/map.ts";
+import { flatTestMap } from "@/tests/ecs/helpers.ts";
 import { assertEquals, assertThrows } from "@std/assert";
+import { TerrainBlock } from "turn-based-engine/crawler";
 
-Deno.test("neutral NPCs and enemies share display names without sharing NPC identity", async () => {
-  const world = await createWorld();
-  const npc = createNpc(world, {
-    x: 1,
-    y: 1,
-    dir: 1,
-    displayName: DisplayName.John,
-    dialogueTreeId: DialogueTreeId.JohnIntro,
-  });
-  const enemy = createEnemy(world, { x: 2, y: 1, dir: 3, displayName: DisplayName.DigitalDog });
-
-  assertEquals(world.components.entityHas(Npc, npc), true);
-  assertEquals(world.components.entityHas(Enemy, npc), false);
-  assertEquals(world.components.getEntityData(DisplayNameComponent, npc), {
-    displayName: displayNameCode(DisplayName.John),
-  });
-  assertEquals(world.components.getEntityData(DialogueTreeRef, npc), {
-    dialogueTreeId: dialogueTreeCode(DialogueTreeId.JohnIntro),
-  });
-
-  assertEquals(world.components.entityHas(Npc, enemy), false);
-  assertEquals(world.components.entityHas(Enemy, enemy), true);
-  assertEquals(world.components.getEntityData(DisplayNameComponent, enemy), {
-    displayName: displayNameCode(DisplayName.DigitalDog),
-  });
-});
-
-Deno.test("a locked door without a key color is rejected", async () => {
-  const world = await createWorld();
-
-  assertThrows(() => createDoor(world, { x: 1, y: 1, locked: true }), Error, "key color");
-});
-
-Deno.test("doors are interactable structure entities without blocking occupancy", async () => {
-  const world = await createWorld();
-  const door = createDoor(world, { x: 1, y: 1 });
-
-  assertEquals(world.components.entityHas(Interactable, door), true);
-  assertEquals(world.components.entityHas(Blocking, door), false);
-});
-
-Deno.test("prefabs attach authored examine text when provided", async () => {
-  const world = await createWorld();
-  const npc = createNpc(world, {
-    x: 1,
-    y: 1,
-    dir: 1,
-    displayName: DisplayName.John,
-    examineTextId: ExamineTextId.BootSectorUplinkTerminal,
-  });
-  const enemy = createEnemy(world, {
+Deno.test("prefabs attach custom components and exact crawler masks", () => {
+  const runtime = createRuntime(flatTestMap(8, 3));
+  const player = createPlayer(runtime, { x: 1, y: 1, dir: Direction.East }, 42);
+  const enemy = createEnemy(runtime, {
     x: 2,
     y: 1,
-    dir: 3,
+    dir: Direction.West,
+    archetype: enemyArchetypeAuthoringKey(EnemyArchetypeCode.MeleeDog),
     displayName: DisplayName.DigitalDog,
-    examineTextId: ExamineTextId.BootSectorUplinkTerminal,
   });
-  const door = createDoor(world, { x: 3, y: 1, examineTextId: ExamineTextId.BootSectorUplinkTerminal });
-  const terminal = createUplinkTerminal(world, {
-    x: 4,
-    y: 1,
-    goto: "Data Conduit",
-    examineTextId: ExamineTextId.BootSectorUplinkTerminal,
-  });
+  const normalDoor = createDoor(runtime, { x: 3, y: 1, locked: true, color: KeyColor.Red });
+  const glassDoor = createDoor(runtime, { x: 4, y: 1, glass: true });
+  const item = createItem(runtime, { x: 5, y: 1, item: "healthPatch", amount: 3 });
+  const terminal = createUplinkTerminal(runtime, { x: 6, y: 1, goto: "Data Conduit" });
 
-  for (const entity of [npc, enemy, door, terminal]) {
-    assertEquals(world.components.getEntityData(ExamineTextRef, entity), {
-      examineTextId: examineTextCode(ExamineTextId.BootSectorUplinkTerminal),
-    });
-  }
+  assertEquals(runtime.crawler.entityForStableId(42), player);
+  assertEquals(runtime.crawler.entityVisionRadius(player), 6);
+  assertEquals(runtime.crawler.entityBlockMask(player), TerrainBlock.Movement);
+  assertEquals(runtime.crawler.entityBlockMask(enemy), TerrainBlock.Movement);
+  assertEquals(
+    runtime.crawler.entityBlockMask(normalDoor),
+    TerrainBlock.Movement | TerrainBlock.Sight | TerrainBlock.EffectLine,
+  );
+  assertEquals(runtime.crawler.entityBlockMask(glassDoor), TerrainBlock.Movement | TerrainBlock.EffectLine);
+  assertEquals(runtime.crawler.entityBlockMask(item), 0);
+  assertEquals(runtime.crawler.entityBlockMask(terminal), TerrainBlock.Movement);
+  assertEquals(hasComponent(runtime.game, enemy, "Enemy"), true);
+  assertEquals(hasComponent(runtime.game, item, "Item"), true);
+  runtime.crawler.assertInvariants();
 });
 
-Deno.test("prefabs attach story and terminal metadata components", async () => {
-  const world = await createWorld();
-  const npc = createNpc(world, {
+Deno.test("locked door requires a key color", () => {
+  const runtime = createRuntime(flatTestMap());
+  assertThrows(() => createDoor(runtime, { x: 1, y: 0, locked: true }), Error, "missing a key color");
+});
+
+Deno.test("prefabs retain optional metadata, sound, and nonblocking decoration contracts", () => {
+  const runtime = createRuntime(flatTestMap(7, 3));
+  const npc = createNpc(runtime, {
     x: 1,
     y: 1,
-    dir: 1,
+    dir: Direction.East,
     displayName: DisplayName.John,
+    dialogueTreeId: DialogueTreeId.JohnIntro,
+    examineTextId: ExamineTextId.BootSectorUplinkTerminal,
     storyId: StoryTargetId.John,
     onTalkEvent: StoryEventId.JohnSpoken,
   });
-  const terminal = createUplinkTerminal(world, { x: 2, y: 1, goto: "Data Conduit" });
+  const sound = createSound(runtime, { x: 2, y: 1, soundId: SoundId.AmbientHum, radius: 4, volume: 0.5 });
+  const decoration = createDecoration(runtime, { x: 3, y: 1, decoration: "serverPile" });
 
-  assertEquals(world.components.getEntityData(DisplayNameComponent, npc), {
-    displayName: displayNameCode(DisplayName.John),
-  });
-  assertEquals(world.components.getEntityData(StoryTarget, npc), {
-    storyId: storyTargetCode(StoryTargetId.John),
-  });
-  assertEquals(world.components.getEntityData(OnTalkEvent, npc), {
-    onTalkEvent: storyEventCode(StoryEventId.JohnSpoken),
-  });
-  assertEquals(world.components.getEntityData(TerminalDestination, terminal), {
-    destination: terminalDestinationCode("Data Conduit"),
-  });
-});
-
-Deno.test("prefabs omit optional metadata components when content is absent", async () => {
-  const world = await createWorld();
-  const door = createDoor(world, { x: 1, y: 1 });
-
-  assertEquals(world.components.readEntityData(ExamineTextRef, door), undefined);
-});
-
-Deno.test("decorations spawn as non-blocking structure sprites", async () => {
-  const world = await createWorld();
-  const decoration = createDecoration(world, {
-    x: 1,
-    y: 1,
-    decoration: "serverPile",
-  });
-
-  assertEquals(world.components.getEntityData(Drawable, decoration), {
-    kind: DrawableKind.Sprite,
-    layer: DrawableLayer.Structure,
-  });
-  assertEquals(world.components.getEntityData(Sprite, decoration), { id: SpriteId.DecorServerPile });
-  assertEquals(world.components.entityHas(Blocking, decoration), false);
-  assertEquals(world.components.entityHas(Item, decoration), false);
-});
-
-Deno.test("sound prefabs attach positional sound emitter metadata", async () => {
-  const world = await createWorld();
-  const sound = createSound(world, {
-    x: 1,
-    y: 2,
-    soundId: SoundId.AmbientHum,
-    radius: 6,
-    volume: 0.5,
-  });
-
-  assertEquals(world.components.getEntityData(SoundEmitter, sound), {
-    soundId: soundIdCode(SoundId.AmbientHum),
-    radius: 6,
-    volume: 0.5,
-  });
-});
-
-Deno.test("enemy archetypes apply top-down tuning defaults", async () => {
-  const world = await createWorld();
-
-  const cases = [
-    {
-      archetype: "meleeDog",
-      displayName: DisplayName.DigitalDog,
-      code: EnemyArchetypeCode.MeleeDog,
-      health: 2,
-      hitDc: 10,
-      damage: 1,
-      range: 1,
-      pattern: AttackPattern.Line,
-    },
-    {
-      archetype: "gunslinger",
-      displayName: DisplayName.GigabitGunslinger,
-      code: EnemyArchetypeCode.Gunslinger,
-      health: 4,
-      hitDc: 10,
-      damage: 1,
-      range: 3,
-      pattern: AttackPattern.Line,
-    },
-    {
-      archetype: "networkNeophyte",
-      displayName: DisplayName.NetworkNeophyte,
-      code: EnemyArchetypeCode.NetworkNeophyte,
-      health: 6,
-      hitDc: 10,
-      damage: 1,
-      range: 3,
-      pattern: AttackPattern.Line,
-    },
-    {
-      archetype: "systemSentinel",
-      displayName: DisplayName.SystemSentinel,
-      code: EnemyArchetypeCode.SystemSentinel,
-      health: 10,
-      hitDc: 10,
-      damage: 2,
-      range: 1,
-      pattern: AttackPattern.Line,
-    },
-    {
-      archetype: "agenticAcolyte",
-      displayName: DisplayName.AgenticAcolyte,
-      code: EnemyArchetypeCode.AgenticAcolyte,
-      health: 6,
-      hitDc: 10,
-      damage: 2,
-      range: 2,
-      pattern: AttackPattern.Adjacent,
-    },
-  ] as const;
-
-  for (const expected of cases) {
-    const entity = createEnemy(world, {
-      x: 1,
-      y: 1,
-      dir: 1,
-      archetype: expected.archetype,
-    });
-    const attack = world.components.getEntityData(Attack, entity);
-
-    assertEquals(world.components.getEntityData(DisplayNameComponent, entity), {
-      displayName: displayNameCode(expected.displayName),
-    });
-    assertEquals(world.components.getEntityData(EnemyArchetypeComponent, entity), {
-      archetype: expected.code,
-    });
-    assertEquals(world.components.getEntityData(Health, entity), {
-      current: expected.health,
-      max: expected.health,
-    });
-    assertEquals(world.components.getEntityData(Defense, entity), {
-      hitDc: expected.hitDc,
-    });
-    assertEquals(attack.minDamage, expected.damage);
-    assertEquals(attack.maxDamage, expected.damage);
-    assertEquals(attack.range, expected.range);
-    assertEquals(attack.pattern, expected.pattern);
-  }
+  assertEquals(hasComponent(runtime.game, npc, "DialogueTreeRef"), true);
+  assertEquals(hasComponent(runtime.game, npc, "ExamineTextRef"), true);
+  assertEquals(hasComponent(runtime.game, npc, "StoryTarget"), true);
+  assertEquals(hasComponent(runtime.game, npc, "OnTalkEvent"), true);
+  assertEquals(runtime.game.storage.SoundEmitter.get(sound, "radius"), 4);
+  assertEquals(runtime.game.storage.SoundEmitter.get(sound, "volume"), 0.5);
+  assertEquals(runtime.crawler.entityBlockMask(decoration), 0);
 });

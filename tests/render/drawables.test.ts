@@ -6,6 +6,7 @@ import { createGameMap } from "@/src/map/map.ts";
 import { renderDrawableEntities } from "@/src/render/drawables.ts";
 import type { MapRenderMetrics } from "@/src/render/map.ts";
 import { assertEquals } from "@std/assert";
+import type { Entity } from "turn-based-engine/ecs";
 
 const METRICS: MapRenderMetrics = {
   mapWidth: 3,
@@ -18,9 +19,9 @@ const METRICS: MapRenderMetrics = {
 Deno.test("top-down drawable pass skips decorations and still draws items", () => {
   const ctx = new FakeDrawableContext();
   const drawables: DrawableEntity[] = [
-    { kind: DrawableKind.Sprite, entity: 1, x: 1, y: 1, spriteId: SpriteId.DecorCeilingLight },
-    { kind: DrawableKind.Sprite, entity: 2, x: 0, y: 1, spriteId: SpriteId.DecorServerPile },
-    { kind: DrawableKind.Sprite, entity: 3, x: 2, y: 1, spriteId: SpriteId.HealthPatch },
+    { kind: DrawableKind.Sprite, entity: 1 as Entity, x: 1, y: 1, spriteId: SpriteId.DecorCeilingLight },
+    { kind: DrawableKind.Sprite, entity: 2 as Entity, x: 0, y: 1, spriteId: SpriteId.DecorServerPile },
+    { kind: DrawableKind.Sprite, entity: 3 as Entity, x: 2, y: 1, spriteId: SpriteId.HealthPatch },
   ];
 
   renderDrawableEntities(ctx as unknown as CanvasRenderingContext2D, fakeSession(drawables), METRICS);

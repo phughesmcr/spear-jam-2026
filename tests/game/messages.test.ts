@@ -1,5 +1,5 @@
 import { messageForEvent } from "@/src/game/messages.ts";
-import type { Entity } from "@phughesmcr/miski";
+import type { Entity } from "turn-based-engine/ecs";
 import { assertEquals } from "@std/assert";
 
 const PLAYER = 1 as Entity;

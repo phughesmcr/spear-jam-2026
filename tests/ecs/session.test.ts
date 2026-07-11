@@ -109,6 +109,22 @@ Deno.test("opening a door consumes a turn and refreshes visibility through it", 
 
     assertEquals(eventTypes(result), ["doorOpened"]);
     assertEquals(session.getVisibility().isVisible(3, 1), true);
+    assertEquals(eventTypes(session.handlePlayerCommand({ type: "interact", verb: "open" })), ["doorAlreadyOpen"]);
+  } finally {
+    session[Symbol.dispose]();
+  }
+});
+
+Deno.test("faced mask-zero items remain examinable", async () => {
+  const session = await createGameSession(
+    testMap([{ prefab: "item", x: 2, y: 1, item: "healthPatch", amount: 1 }], 4),
+    () => 0,
+  );
+  try {
+    const result = session.handlePlayerCommand({ type: "examine" });
+    assertEquals(result.events[0]?.type, "examined");
+    if (result.events[0]?.type !== "examined") throw new Error("Expected examined event.");
+    assertEquals(result.events[0].entity === undefined, false);
   } finally {
     session[Symbol.dispose]();
   }
@@ -534,7 +550,7 @@ Deno.test("activating a victory uplink terminal reports the victory outcome", as
   }
 });
 
-Deno.test("normal map loads keep the same player entity and durable progression", async () => {
+Deno.test("normal map loads keep durable progression and use the destination spawn pose", async () => {
   const session = await createGameSession(
     testMap([
       { prefab: "key", x: 2, y: 1, color: KeyColor.Red },
@@ -545,7 +561,6 @@ Deno.test("normal map loads keep the same player entity and durable progression"
     () => 0,
   );
   try {
-    const playerEntity = session.getPlayerEntity();
     session.handlePlayerCommand({ type: "move", direction: "forward" });
     session.handlePlayerCommand({ type: "move", direction: "forward" });
     session.handlePlayerCommand({ type: "move", direction: "forward" });
@@ -553,7 +568,6 @@ Deno.test("normal map loads keep the same player entity and durable progression"
 
     session.loadMap(flatTestMap(5, 3, [{ prefab: "player", x: 3, y: 1, dir: Direction.West }]));
 
-    assertEquals(session.getPlayerEntity(), playerEntity);
     assertEquals(playerPosition(session), { x: 3, y: 1 });
     assertEquals(session.getPlayerFacing(), { dir: Direction.West });
     assertEquals(session.getPlayerStatus(), {

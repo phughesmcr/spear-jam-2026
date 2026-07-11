@@ -1,24 +1,9 @@
-import { enemyCatalogEntry, type EnemySoundProfile } from "@/src/content/enemies.ts";
+import { enemyArchetypeFor, readComponent } from "@/src/ecs/components.ts";
 import {
-  DialogueTreeRef,
-  DisplayNameComponent,
-  enemyArchetypeFor,
-  ExamineTextRef,
-  Facing,
-  type FacingSchema,
-  GridPos,
-  type GridPosSchema,
-  OnTalkEvent,
-  StoryTarget,
-  TerminalDestination,
-} from "@/src/ecs/components.ts";
-import {
-  createDrawableRenderScratch,
-  createLightEntityScratch,
+  createDrawableReaders,
   type DrawableEntityVisitor,
-  drawableSystem,
   type LightEntityVisitor,
-  lightSystem,
+  type RuntimeReaders,
 } from "@/src/ecs/drawables.ts";
 import { createPlayer } from "@/src/ecs/prefabs.ts";
 import {
@@ -29,39 +14,21 @@ import {
   type PlayerProgressionCheckpoint,
   playerStatusSnapshotFor,
   playerStoryFlags,
-  resetPlayerProgression,
   restorePlayerProgressionCheckpoint,
   selectedPlayerWeapon,
 } from "@/src/ecs/progression.ts";
-import { mapScopedQuery, positionedQuery } from "@/src/ecs/queries.ts";
+import { createRuntime, type GameRuntime } from "@/src/ecs/runtime.ts";
+import { playerSpawnFor, spawnMapEntities } from "@/src/ecs/session/lifecycle.ts";
+import { type AnimationController, createAnimationController } from "@/src/ecs/session/sprite_animations.ts";
+import { applyEvent, queueTalkEvent } from "@/src/ecs/session/story_actions.ts";
 import {
-  playerSpawnFor,
-  rebuildRuntimeState,
-  refreshVisibility,
-  replaceMapContent,
-  spawnMapScopedEntities,
-} from "@/src/ecs/session/lifecycle.ts";
-import {
-  actorPositionSnapshot,
-  advanceAnimations,
-  applyEventAnimations,
-  applyWalkAnimations,
-  setAnimation,
-  writeDefeatEffect,
-} from "@/src/ecs/session/sprite_animations.ts";
-import { applyEvent, assertUniqueTargets, queueTalkEvent } from "@/src/ecs/session/story_actions.ts";
-import {
-  createEnemyIdleSoundSourceScratch,
-  createSoundEmitterScratch,
-  enemyIdleSoundSourceSystem,
+  createSoundReaders,
   type EnemyIdleSoundSourceVisitor,
-  soundEmitterSystem,
   type SoundEmitterVisitor,
+  type SoundReaders,
 } from "@/src/ecs/sounds.ts";
-import type { SpatialIndex } from "@/src/ecs/spatial.ts";
 import type { TurnContext } from "@/src/ecs/turn/actions.ts";
 import { runTurnTransaction, type TurnTransactionResult } from "@/src/ecs/turn/transaction.ts";
-import { createWorld } from "@/src/ecs/world.ts";
 import type { PlayerCommand, PlayerCommandResult } from "@/src/game/commands.ts";
 import type { GameEvent } from "@/src/game/events.ts";
 import type { RandomSource } from "@/src/game/rng.ts";
@@ -69,31 +36,18 @@ import type { SoundCue } from "@/src/game/sound.ts";
 import { soundCuesForEvents } from "@/src/game/sound_cues.ts";
 import type { PlayerStatusSnapshot } from "@/src/game/state.ts";
 import type { StoryEventId, StoryFlag } from "@/src/game/story.ts";
-import type { TileVisibility, VisibilityMap } from "@/src/game/visibility.ts";
+import type { TileVisibility } from "@/src/game/visibility.ts";
 import { playerWeaponSpec } from "@/src/game/weapons.ts";
-import { normalizeDirection } from "@/src/grid/direction.ts";
+import type { CardinalDirection, GridPoint } from "@/src/grid/direction.ts";
 import { type GameMap, VICTORY_GOTO } from "@/src/map/map.ts";
 import { terminalDestinationForCode } from "@/src/map/maps.ts";
-import type { Entity, World } from "@phughesmcr/miski";
+import { enemyCatalogEntry, type EnemySoundProfile } from "@/src/content/enemies.ts";
+import type { Entity } from "turn-based-engine/ecs";
 
-const UNCHANGED_PLAYER_COMMAND: PlayerCommandResult = Object.freeze({
-  type: "continue",
-  events: [],
-});
-
-/** Binds a render/audio system to its reused scratch, yielding a ready-to-call `forEach`. */
-function boundScratchSystem<Scratch, Visitor>(
-  system: (context: { readonly scratch: Scratch; readonly visit: Visitor }) => void,
-  scratch: Scratch,
-): (visit: Visitor) => void {
-  return (visit: Visitor): void => system({ scratch, visit });
-}
-
-type EntityPositionSnapshot = ReadonlyMap<Entity, { readonly x: number; readonly y: number }>;
-export type GameSessionTickResult = {
-  readonly needsFrame: boolean;
-};
-
+const PLAYER_STABLE_ID = 1;
+const UNCHANGED_PLAYER_COMMAND: PlayerCommandResult = Object.freeze({ type: "continue", events: [] });
+type EntityPositionSnapshot = ReadonlyMap<Entity, GridPoint>;
+export type GameSessionTickResult = { readonly needsFrame: boolean };
 export type MapScopedMetadataSnapshot = Partial<{
   readonly displayName: number;
   readonly dialogueTreeId: number;
@@ -102,81 +56,50 @@ export type MapScopedMetadataSnapshot = Partial<{
   readonly onTalkEvent: number;
   readonly terminalDestination: number;
 }>;
+export type GameSessionOptions = { readonly cheat?: boolean };
 
-export type GameSessionOptions = {
-  readonly cheat?: boolean;
-};
-
-export async function createGameSession(
+export function createGameSession(
   map: GameMap,
   random: RandomSource,
   options: GameSessionOptions = {},
 ): Promise<GameSession> {
-  const world = await createWorld();
-
-  try {
-    const playerEntity = createPlayer(world, playerSpawnFor(map));
-    if (options.cheat) {
-      applyCheatPlayerLoadout(world, playerEntity);
-    }
-    spawnMapScopedEntities(world, map);
-
-    world.refresh();
-    assertUniqueTargets(world);
-
-    return new GameSession(world, playerEntity, map, random, options);
-  } catch (error) {
-    await world.destroy();
-    throw error;
-  }
+  return Promise.try(() => new GameSession(map, random, options));
 }
 
 export class GameSession implements Disposable {
-  private readonly world: World;
-  private readonly playerEntity: Entity;
+  private runtime: GameRuntime;
+  private playerEntity: Entity;
   private currentMap: GameMap;
   private readonly random: RandomSource;
   private readonly cheat: boolean;
-  readonly forEachDrawable: (visit: DrawableEntityVisitor) => void;
-  readonly forEachLight: (visit: LightEntityVisitor) => void;
-  readonly forEachSoundEmitter: (visit: SoundEmitterVisitor) => void;
-  readonly forEachEnemyIdleSoundSource: (visit: EnemyIdleSoundSourceVisitor) => void;
-  private spatial: SpatialIndex;
-  private visibility: VisibilityMap;
+  private readers: RuntimeReaders;
+  private soundReaders: SoundReaders;
+  private animations: AnimationController;
   private levelEntryCheckpoint: PlayerProgressionCheckpoint;
   private pendingDialogueStoryEvent?: StoryEventId;
   private disposed = false;
+  private readonly visibility: TileVisibility;
 
-  constructor(
-    world: World,
-    playerEntity: Entity,
-    map: GameMap,
-    random: RandomSource,
-    options: GameSessionOptions = {},
-  ) {
-    this.world = world;
-    this.playerEntity = playerEntity;
+  constructor(map: GameMap, random: RandomSource, options: GameSessionOptions = {}) {
     this.currentMap = map;
     this.random = random;
     this.cheat = options.cheat === true;
-    this.forEachDrawable = boundScratchSystem(world.systems.create(drawableSystem), createDrawableRenderScratch());
-    this.forEachLight = boundScratchSystem(world.systems.create(lightSystem), createLightEntityScratch());
-    this.forEachSoundEmitter = boundScratchSystem(
-      world.systems.create(soundEmitterSystem),
-      createSoundEmitterScratch(),
-    );
-    this.forEachEnemyIdleSoundSource = boundScratchSystem(
-      world.systems.create(enemyIdleSoundSourceSystem),
-      createEnemyIdleSoundSourceScratch(),
-    );
-    const runtimeState = rebuildRuntimeState(world, playerEntity, map);
-    this.spatial = runtimeState.spatial;
-    this.visibility = runtimeState.visibility;
-    this.levelEntryCheckpoint = capturePlayerProgressionCheckpoint(this.world, this.playerEntity);
+    const state = createMapRuntime(map);
+    this.runtime = state.runtime;
+    this.playerEntity = state.player;
+    if (this.cheat) applyCheatPlayerLoadout(this.runtime.game, this.playerEntity);
+    this.readers = createDrawableReaders(this.runtime);
+    this.soundReaders = createSoundReaders(this.runtime);
+    this.animations = createAnimationController(this.runtime);
+    this.levelEntryCheckpoint = capturePlayerProgressionCheckpoint(this.runtime.game, this.playerEntity);
+    this.visibility = {
+      isVisible: (x, y) => this.runtime.crawler.isVisibleTo(this.playerEntity, x, y),
+      isExplored: (x, y) => this.runtime.crawler.isDiscoveredBy(this.playerEntity, x, y),
+    };
   }
 
   getPlayerStatus(): PlayerStatusSnapshot {
-    return playerStatusSnapshotFor(this.world, this.playerEntity);
+    return playerStatusSnapshotFor(this.runtime.game, this.playerEntity);
   }
 
   getMap(): GameMap {
@@ -188,97 +111,91 @@ export class GameSession implements Disposable {
   }
 
   getStoryFlags(): readonly StoryFlag[] {
-    return playerStoryFlags(this.world, this.playerEntity);
+    return playerStoryFlags(this.runtime.game, this.playerEntity);
   }
 
   getMapScopedMetadata(): readonly MapScopedMetadataSnapshot[] {
     const metadata: MapScopedMetadataSnapshot[] = [];
-    for (const entity of this.world.entities.query(mapScopedQuery)) {
-      const displayName = this.world.components.readEntityData(DisplayNameComponent, entity)?.displayName;
-      const dialogueTreeId = this.world.components.readEntityData(DialogueTreeRef, entity)?.dialogueTreeId;
-      const examineTextId = this.world.components.readEntityData(ExamineTextRef, entity)?.examineTextId;
-      const storyId = this.world.components.readEntityData(StoryTarget, entity)?.storyId;
-      const onTalkEvent = this.world.components.readEntityData(OnTalkEvent, entity)?.onTalkEvent;
-      const terminalDestination = this.world.components.readEntityData(TerminalDestination, entity)?.destination;
-      const entry: MapScopedMetadataSnapshot = {
-        ...(displayName === undefined ? {} : { displayName }),
-        ...(dialogueTreeId === undefined ? {} : { dialogueTreeId }),
-        ...(examineTextId === undefined ? {} : { examineTextId }),
-        ...(storyId === undefined ? {} : { storyId }),
-        ...(onTalkEvent === undefined ? {} : { onTalkEvent }),
-        ...(terminalDestination === undefined ? {} : { terminalDestination }),
-      };
+    for (const entity of this.runtime.crawler.entities()) {
+      if (entity === this.playerEntity) continue;
+      const entry: MapScopedMetadataSnapshot = {};
+      copyMetadata(this.runtime, entity, entry);
       if (Object.keys(entry).length > 0) metadata.push(entry);
     }
     return metadata;
   }
 
-  getPlayerPosition(): GridPosSchema {
-    return this.world.components.getEntityData(GridPos, this.playerEntity);
+  getPlayerPosition(): GridPoint {
+    return this.runtime.crawler.entityPosition(this.playerEntity);
   }
 
-  getPlayerFacing(): FacingSchema {
-    const facing = this.world.components.getEntityData(Facing, this.playerEntity);
-    return { dir: normalizeDirection(facing.dir) };
+  getPlayerFacing(): { readonly dir: CardinalDirection } {
+    const direction = this.runtime.crawler.entityFacing(this.playerEntity);
+    if (direction === undefined) throw new Error("Player is missing a facing direction.");
+    return { dir: direction };
   }
 
   getVisibility(): TileVisibility {
     return this.visibility;
   }
 
+  forEachDrawable(visit: DrawableEntityVisitor): void {
+    this.readers.forEachDrawable(visit);
+  }
+
+  forEachLight(visit: LightEntityVisitor): void {
+    this.readers.forEachLight(visit);
+  }
+
+  forEachSoundEmitter(visit: SoundEmitterVisitor): void {
+    this.soundReaders.forEachSoundEmitter(visit);
+  }
+
+  forEachEnemyIdleSoundSource(visit: EnemyIdleSoundSourceVisitor): void {
+    this.soundReaders.forEachEnemyIdleSoundSource(visit);
+  }
+
   loadMap(map: GameMap): void {
-    this.pendingDialogueStoryEvent = undefined;
-    this.currentMap = map;
-    this.replaceMapContent(map);
-    this.levelEntryCheckpoint = capturePlayerProgressionCheckpoint(this.world, this.playerEntity);
+    const checkpoint = capturePlayerProgressionCheckpoint(this.runtime.game, this.playerEntity);
+    this.replaceRuntime(map, checkpoint);
+    this.levelEntryCheckpoint = capturePlayerProgressionCheckpoint(this.runtime.game, this.playerEntity);
   }
 
   retryMap(map: GameMap): void {
-    restorePlayerProgressionCheckpoint(this.world, this.playerEntity, this.levelEntryCheckpoint);
-    this.pendingDialogueStoryEvent = undefined;
-    this.currentMap = map;
-    this.replaceMapContent(map);
+    this.replaceRuntime(map, this.levelEntryCheckpoint);
   }
 
   resetRun(map: GameMap): void {
-    resetPlayerProgression(this.world, this.playerEntity);
-    if (this.cheat) {
-      applyCheatPlayerLoadout(this.world, this.playerEntity);
-    }
-    this.pendingDialogueStoryEvent = undefined;
-    this.currentMap = map;
-    this.replaceMapContent(map);
-    this.levelEntryCheckpoint = capturePlayerProgressionCheckpoint(this.world, this.playerEntity);
+    this.replaceRuntime(map);
+    if (this.cheat) applyCheatPlayerLoadout(this.runtime.game, this.playerEntity);
+    this.levelEntryCheckpoint = capturePlayerProgressionCheckpoint(this.runtime.game, this.playerEntity);
   }
 
   tick(nowMs: number): GameSessionTickResult {
-    return { needsFrame: advanceAnimations(this.world, nowMs) };
+    return { needsFrame: this.animations.advance(nowMs) };
   }
 
   handlePlayerCommand(command: PlayerCommand): PlayerCommandResult {
     const positionsBefore = this.entityPositionSnapshot();
     const enemySounds = this.enemySoundSnapshot();
     const playerPositionBefore = this.getPlayerPosition();
-    const playerWeaponSlot = selectedPlayerWeapon(this.world, this.playerEntity);
-    const playerWeapon = playerWeaponSpec(playerWeaponSlot);
-    const actorPositions = actorPositionSnapshot(this.world);
+    const playerWeaponSlot = selectedPlayerWeapon(this.runtime.game, this.playerEntity);
+    const actorPositions = this.animations.actorPositions();
     const transaction = runTurnTransaction(this.turnContext(), command);
     const dialogueTarget = transaction.dialogue?.target;
     const result = this.commitTurnTransaction(transaction, actorPositions);
     const playerPositionAfter = this.getPlayerPosition();
-    const blockedMove = command.type === "move" &&
-      samePosition(playerPositionBefore, playerPositionAfter) &&
-      result.events.length === 0;
     const soundCues = soundCuesForEvents(result.events, {
       playerEntity: this.playerEntity,
       playerPosition: playerPositionAfter,
       positionsBefore,
       positionsAfter: this.entityPositionSnapshot(),
       enemySounds,
-      blockedMove,
+      blockedMove: command.type === "move" && samePosition(playerPositionBefore, playerPositionAfter) &&
+        result.events.length === 0,
       dialogueTarget,
       playerWeaponSlot,
-      playerWeaponRadius: playerWeapon.noiseRadius,
+      playerWeaponRadius: playerWeaponSpec(playerWeaponSlot).noiseRadius,
     });
     return withSoundCues(result, soundCues);
   }
@@ -286,99 +203,70 @@ export class GameSession implements Disposable {
   closeDialogue(): void {
     const event = this.pendingDialogueStoryEvent;
     this.pendingDialogueStoryEvent = undefined;
-    if (event !== undefined) this.applyStoryEvent(event);
+    if (event !== undefined) {
+      applyEvent(this.runtime, this.playerEntity, event, performance.now(), this.animations.set);
+    }
   }
 
-  private replaceMapContent(map: GameMap): void {
-    const runtimeState = replaceMapContent(this.world, this.playerEntity, map);
-    this.spatial = runtimeState.spatial;
-    this.visibility = runtimeState.visibility;
+  private replaceRuntime(map: GameMap, checkpoint?: PlayerProgressionCheckpoint): void {
+    this.pendingDialogueStoryEvent = undefined;
+    this.currentMap = map;
+    const state = createMapRuntime(map, checkpoint);
+    this.runtime = state.runtime;
+    this.playerEntity = state.player;
+    this.readers = createDrawableReaders(this.runtime);
+    this.soundReaders = createSoundReaders(this.runtime);
+    this.animations = createAnimationController(this.runtime);
   }
 
   private turnContext(): TurnContext {
     return {
-      world: this.world,
+      runtime: this.runtime,
       player: this.playerEntity,
-      spatial: this.spatial,
       random: this.random,
-      writeDefeatEffect: (effect) => writeDefeatEffect(this.world, effect),
+      writeDefeatEffect: this.animations.writeDefeatEffect,
     };
-  }
-
-  private queueTalkStoryEvent(target: Entity | undefined): void {
-    const event = queueTalkEvent(this.world, this.playerEntity, target);
-    if (event !== undefined) this.pendingDialogueStoryEvent = event;
-  }
-
-  private applyStoryEvent(event: StoryEventId): void {
-    const applied = applyEvent(
-      this.world,
-      this.playerEntity,
-      this.spatial,
-      event,
-      performance.now(),
-      (entity, animation) => setAnimation(this.world, entity, animation),
-    );
-    if (applied) this.refreshVisibility();
   }
 
   private commitUplinkTerminalActivation(terminal: Entity, events: readonly GameEvent[]): PlayerCommandResult {
-    const destinationCode = this.world.components.readEntityData(TerminalDestination, terminal)?.destination;
-    if (destinationCode === undefined) {
-      throw new Error(`Uplink terminal ${terminal} is missing a map destination.`);
-    }
+    const destinationCode = readComponent(this.runtime.game, terminal, "TerminalDestination")?.destination;
+    if (destinationCode === undefined) throw new Error(`Uplink terminal ${terminal} is missing a map destination.`);
     const goto = terminalDestinationForCode(destinationCode);
-
-    const levelCompleteEvents = completePlayerLevel(this.world, this.playerEntity, events);
-    clearTransientPlayerState(this.world, this.playerEntity);
-    this.world.refresh();
-    if (goto === VICTORY_GOTO) {
-      return { type: "outcome", events: levelCompleteEvents, outcome: "victory" };
-    }
-    return {
-      type: "mapChange",
-      events: levelCompleteEvents,
-      mapChange: { goto },
-    };
+    const levelCompleteEvents = completePlayerLevel(this.runtime.game, this.playerEntity, events);
+    clearTransientPlayerState(this.runtime.game, this.playerEntity);
+    return goto === VICTORY_GOTO ?
+      { type: "outcome", events: levelCompleteEvents, outcome: "victory" } :
+      { type: "mapChange", events: levelCompleteEvents, mapChange: { goto } };
   }
 
   private commitTurnTransaction(
     transaction: TurnTransactionResult,
-    actorPositions: ReturnType<typeof actorPositionSnapshot>,
+    actorPositions: ReturnType<AnimationController["actorPositions"]>,
   ): PlayerCommandResult {
     if (transaction.dialogue !== undefined) {
-      this.queueTalkStoryEvent(transaction.dialogue.target);
-      return {
-        type: "dialogue",
-        events: transaction.events,
-        dialogue: transaction.dialogue.dialogue,
-      };
+      const event = queueTalkEvent(this.runtime, this.playerEntity, transaction.dialogue.target);
+      if (event !== undefined) this.pendingDialogueStoryEvent = event;
+      return { type: "dialogue", events: transaction.events, dialogue: transaction.dialogue.dialogue };
     }
-
     if (transaction.terminal !== undefined) {
       return this.commitUplinkTerminalActivation(transaction.terminal, transaction.events);
     }
-
     if (transaction.cost === "turn") {
       const nowMs = performance.now();
-      applyWalkAnimations(this.world, actorPositions, nowMs);
-      applyEventAnimations(this.world, this.playerEntity, transaction.events, nowMs);
-      this.world.refresh();
-      advanceAnimations(this.world, nowMs);
+      this.animations.applyWalks(actorPositions, nowMs);
+      this.animations.applyEvents(this.playerEntity, transaction.events, nowMs);
+      this.animations.advance(nowMs);
     }
-
-    if (transaction.refreshVisibility) this.refreshVisibility();
-    if (transaction.outcome === "defeat") {
-      return { type: "outcome", events: transaction.events, outcome: "defeat" };
-    }
-    return this.playerCommandResult(transaction.events);
+    if (transaction.outcome === "defeat") return { type: "outcome", events: transaction.events, outcome: "defeat" };
+    return transaction.events.length === 0 ?
+      UNCHANGED_PLAYER_COMMAND :
+      { type: "continue", events: transaction.events };
   }
 
   private entityPositionSnapshot(): EntityPositionSnapshot {
-    const positions = new Map<Entity, { readonly x: number; readonly y: number }>();
-    for (const entity of this.world.entities.query(positionedQuery)) {
-      const position = this.world.components.readEntityData(GridPos, entity);
-      if (position !== undefined) positions.set(entity, { x: position.x, y: position.y });
+    const positions = new Map<Entity, GridPoint>();
+    for (const entity of this.runtime.crawler.entities()) {
+      positions.set(entity, this.runtime.crawler.entityPosition(entity));
     }
     return positions;
   }
@@ -386,31 +274,47 @@ export class GameSession implements Disposable {
   private enemySoundSnapshot(): ReadonlyMap<Entity, EnemySoundProfile> {
     const sounds = new Map<Entity, EnemySoundProfile>();
     this.forEachEnemyIdleSoundSource((source) => {
-      const archetype = enemyArchetypeFor(this.world, source.entity);
-      if (archetype === undefined) return;
-      sounds.set(source.entity, enemyCatalogEntry(archetype).sounds);
+      const archetype = enemyArchetypeFor(this.runtime.game, source.entity);
+      if (archetype !== undefined) sounds.set(source.entity, enemyCatalogEntry(archetype).sounds);
     });
     return sounds;
-  }
-
-  private refreshVisibility(): void {
-    refreshVisibility(this.world, this.playerEntity, this.spatial, this.visibility);
-  }
-
-  private playerCommandResult(events: readonly GameEvent[]): PlayerCommandResult {
-    return events.length === 0 ? UNCHANGED_PLAYER_COMMAND : { type: "continue", events };
   }
 
   [Symbol.dispose](): void {
     if (this.disposed) return;
     this.disposed = true;
-    void this.world.destroy();
+  }
+}
+
+function createMapRuntime(
+  map: GameMap,
+  checkpoint?: PlayerProgressionCheckpoint,
+): { runtime: GameRuntime; player: Entity } {
+  const runtime = createRuntime(map);
+  const player = createPlayer(runtime, playerSpawnFor(map), PLAYER_STABLE_ID);
+  if (checkpoint !== undefined) restorePlayerProgressionCheckpoint(runtime.game, player, checkpoint);
+  spawnMapEntities(runtime, map);
+  return { runtime, player };
+}
+
+function copyMetadata(runtime: GameRuntime, entity: Entity, target: MapScopedMetadataSnapshot): void {
+  const game = runtime.game;
+  const values = [
+    ["displayName", "DisplayName", "displayName"],
+    ["dialogueTreeId", "DialogueTreeRef", "dialogueTreeId"],
+    ["examineTextId", "ExamineTextRef", "examineTextId"],
+    ["storyId", "StoryTarget", "storyId"],
+    ["onTalkEvent", "OnTalkEvent", "onTalkEvent"],
+    ["terminalDestination", "TerminalDestination", "destination"],
+  ] as const;
+  for (const [targetKey, component, field] of values) {
+    if (!game.entityHasComponent(entity, game.components[component])) continue;
+    (target as Record<string, number>)[targetKey] = game.storage[component].get(entity, field as never);
   }
 }
 
 function withSoundCues(result: PlayerCommandResult, soundCues: readonly SoundCue[]): PlayerCommandResult {
   if (soundCues.length === 0) return result;
-
   switch (result.type) {
     case "continue":
       return { type: "continue", events: result.events, soundCues };
@@ -420,16 +324,9 @@ function withSoundCues(result: PlayerCommandResult, soundCues: readonly SoundCue
       return { type: "mapChange", events: result.events, mapChange: result.mapChange, soundCues };
     case "outcome":
       return { type: "outcome", events: result.events, outcome: result.outcome, soundCues };
-    default: {
-      const _exhaustive: never = result;
-      return _exhaustive;
-    }
   }
 }
 
-function samePosition(
-  a: { readonly x: number; readonly y: number },
-  b: { readonly x: number; readonly y: number },
-): boolean {
+function samePosition(a: GridPoint, b: GridPoint): boolean {
   return a.x === b.x && a.y === b.y;
 }

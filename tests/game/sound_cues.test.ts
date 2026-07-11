@@ -1,7 +1,7 @@
 import { EnemyArchetypeCode, enemyCatalogEntry } from "@/src/content/enemies.ts";
 import { SoundId } from "@/src/game/sound.ts";
 import { soundCuesForEvents } from "@/src/game/sound_cues.ts";
-import type { Entity } from "@phughesmcr/miski";
+import type { Entity } from "turn-based-engine/ecs";
 import { assertEquals } from "@std/assert";
 
 const PLAYER = 1 as Entity;

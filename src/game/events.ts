@@ -1,6 +1,6 @@
 import type { InteractVerb } from "@/src/game/commands.ts";
 import type { AmmoKind, CommandSlot } from "@/src/game/state.ts";
-import type { Entity } from "@phughesmcr/miski";
+import type { Entity } from "turn-based-engine/ecs";
 
 /**
  * Structured facts about what happened during a turn.

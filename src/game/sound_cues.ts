@@ -3,7 +3,7 @@ import type { GameEvent } from "@/src/game/events.ts";
 import { type SoundCue, SoundId, weaponSoundId } from "@/src/game/sound.ts";
 import type { CommandSlot } from "@/src/game/state.ts";
 import type { GridPoint } from "@/src/grid/direction.ts";
-import type { Entity } from "@phughesmcr/miski";
+import type { Entity } from "turn-based-engine/ecs";
 
 export type SoundCueContext = {
   readonly playerEntity: Entity;

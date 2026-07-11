@@ -1,7 +1,7 @@
 import { type CombatFeedback, combatFeedbackForEvents } from "@/src/game/combat_feedback.ts";
 import type { GameEvent } from "@/src/game/events.ts";
 import { messageForEvent } from "@/src/game/messages.ts";
-import type { Entity } from "@phughesmcr/miski";
+import type { Entity } from "turn-based-engine/ecs";
 
 const WEAPON_HUD_ACTIVE_MS = 140;
 const KEY_HUD_VISIBLE_MS = 1400;

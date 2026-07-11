@@ -8,10 +8,6 @@
     "jsr:@fresh/core@2": "2.3.3",
     "jsr:@fresh/core@^2.3.3": "2.3.3",
     "jsr:@fresh/plugin-vite@^1.1.2": "1.1.2",
-    "jsr:@phughesmcr/bitpool@~0.9.1": "0.9.1",
-    "jsr:@phughesmcr/booleanarray@0.13": "0.13.0",
-    "jsr:@phughesmcr/miski@^1.0.0-alpha.3": "1.0.0-alpha.3",
-    "jsr:@phughesmcr/partitionedbuffer@~0.4.1": "0.4.1",
     "jsr:@std/assert@^1.0.13": "1.0.19",
     "jsr:@std/bytes@^1.0.6": "1.0.6",
     "jsr:@std/dotenv@~0.225.5": "0.225.7",
@@ -118,29 +114,6 @@
         "npm:@types/babel__core",
         "npm:rollup",
         "npm:vite@^7.1.4"
-      ]
-    },
-    "@phughesmcr/bitpool@0.9.1": {
-      "integrity": "07519ef3646f6c7e6cc91171471b9db8bee20b52d69c41685a78ef9f2f256d96",
-      "dependencies": [
-        "jsr:@phughesmcr/booleanarray"
-      ]
-    },
-    "@phughesmcr/booleanarray@0.13.0": {
-      "integrity": "43ecfacfc0ec1044a60a3d2fe7163b5d2a3ed7b750c590336c650f124978b98d"
-    },
-    "@phughesmcr/miski@1.0.0-alpha.3": {
-      "integrity": "ea8f8b035121fb58a8eec88489627f673f74966b6a7c2c60c636b89ab5de7278",
-      "dependencies": [
-        "jsr:@phughesmcr/bitpool",
-        "jsr:@phughesmcr/booleanarray",
-        "jsr:@phughesmcr/partitionedbuffer"
-      ]
-    },
-    "@phughesmcr/partitionedbuffer@0.4.1": {
-      "integrity": "d055c3f99df9f5b7fc470567a349ae113b33dba4c7f1ec38298739e9affcb66e",
-      "dependencies": [
-        "jsr:@phughesmcr/bitpool"
       ]
     },
     "@std/assert@1.0.19": {
@@ -1306,7 +1279,6 @@
     "dependencies": [
       "jsr:@fresh/core@^2.3.3",
       "jsr:@fresh/plugin-vite@^1.1.2",
-      "jsr:@phughesmcr/miski@^1.0.0-alpha.3",
       "jsr:@std/assert@^1.0.13",
       "npm:@preact/signals@^2.9.0",
       "npm:@types/babel__core@^7.20.5",

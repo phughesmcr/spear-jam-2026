@@ -8,17 +8,17 @@ import {
 import {
   AwarenessState,
   enemyArchetypeFor,
-  EnemyAwareness,
-  Facing,
-  GridPos,
-  Health,
   IDLE_AWARENESS,
+  readComponent,
+  requireComponent,
+  writeComponent,
 } from "@/src/ecs/components.ts";
 import { type ActorIntent, playerPosition, resolveIntent, type TurnContext } from "@/src/ecs/turn/actions.ts";
 import type { GameEvent } from "@/src/game/events.ts";
 import { type BlocksSight, canHearNoise, canSeePoint, type NoiseStimulus } from "@/src/game/perception.ts";
 import type { CardinalDirection, GridPoint } from "@/src/grid/direction.ts";
-import type { Entity } from "@phughesmcr/miski";
+import { TerrainBlock } from "turn-based-engine/crawler";
+import type { Entity } from "turn-based-engine/ecs";
 
 const MAX_INVESTIGATION_TURNS = 5;
 
@@ -33,7 +33,7 @@ type AwarenessResult =
   | { readonly state: typeof AwarenessState.Investigating; readonly position: GridPoint };
 
 export function runEnemyActorTurn(context: EnemyTurnContext, enemy: Entity): readonly GameEvent[] {
-  if (!context.world.entities.isActive(enemy)) return [];
+  if (!context.runtime.game.isEntityAlive(enemy)) return [];
 
   const { awareness, events: awarenessEvents } = updateEnemyAwareness(context, enemy);
   const events: GameEvent[] = [...awarenessEvents];
@@ -50,7 +50,7 @@ export function runEnemyActorTurn(context: EnemyTurnContext, enemy: Entity): rea
 }
 
 export function enemyIntentsForActor(context: EnemyTurnContext, enemy: Entity): readonly ActorIntent[] {
-  if (!context.world.entities.isActive(enemy)) return [];
+  if (!context.runtime.game.isEntityAlive(enemy)) return [];
   const { awareness } = updateEnemyAwareness(context, enemy);
   return enemyIntentsForAwareness(context, enemy, awareness);
 }
@@ -76,8 +76,8 @@ function enemyIntentsForAwareness(
   }
 }
 
-export function isPlayerDefeated(context: Pick<TurnContext, "world" | "player">): boolean {
-  const health = context.world.components.readEntityData(Health, context.player);
+export function isPlayerDefeated(context: Pick<TurnContext, "runtime" | "player">): boolean {
+  const health = readComponent(context.runtime.game, context.player, "Health");
   return health !== undefined && health.current <= 0;
 }
 
@@ -194,12 +194,12 @@ function investigateTarget(
 }
 
 function enemyBehaviorPolicyFor(context: EnemyTurnContext, enemy: Entity): EnemyBehaviorPolicy {
-  const archetype = enemyArchetypeFor(context.world, enemy);
+  const archetype = enemyArchetypeFor(context.runtime.game, enemy);
   return archetype === undefined ? DEFAULT_ENEMY_BEHAVIOR_POLICY : enemyCatalogEntry(archetype).behavior;
 }
 
 function enemySensesFor(context: EnemyTurnContext, enemy: Entity): EnemySenses {
-  const archetype = enemyArchetypeFor(context.world, enemy);
+  const archetype = enemyArchetypeFor(context.runtime.game, enemy);
   return archetype === undefined ? DEFAULT_ENEMY_SENSES : enemyCatalogEntry(archetype).senses;
 }
 
@@ -215,8 +215,8 @@ function updateEnemyAwareness(
 ): { readonly awareness: AwarenessResult; readonly events: readonly GameEvent[] } {
   const position = entityPosition(context, enemy);
   const target = playerPosition(context);
-  const facing = context.world.components.getEntityData(Facing, enemy).dir as CardinalDirection;
-  const blocksSight = context.blocksSight ?? ((x, y) => context.spatial.tileBlocksSight(x, y));
+  const facing = context.runtime.crawler.entityFacing(enemy) as CardinalDirection;
+  const blocksSight = context.blocksSight ?? ((x, y) => context.runtime.crawler.blocksAt(x, y, TerrainBlock.Sight));
   const senses = enemySensesFor(context, enemy);
 
   if (
@@ -252,7 +252,7 @@ function updateEnemyAwareness(
     };
   }
 
-  const current = context.world.components.getEntityData(EnemyAwareness, enemy);
+  const current = requireComponent(context.runtime.game, enemy, "EnemyAwareness");
   if (hasLastKnownPosition(current) && current.state !== AwarenessState.Idle) {
     const lastKnown = { x: current.lastKnownX, y: current.lastKnownY };
     const turnsSinceSeen = current.turnsSinceSeen + 1;
@@ -276,7 +276,7 @@ function updateEnemyAwareness(
 }
 
 function entityPosition(context: EnemyTurnContext, enemy: Entity): GridPoint {
-  return context.world.components.getEntityData(GridPos, enemy);
+  return context.runtime.crawler.entityPosition(enemy);
 }
 
 function nearestHeardNoise(
@@ -314,7 +314,7 @@ function setEnemyAwareness(
     readonly turnsSinceSeen: number;
   },
 ): readonly GameEvent[] {
-  const current = context.world.components.getEntityData(EnemyAwareness, enemy);
+  const current = requireComponent(context.runtime.game, enemy, "EnemyAwareness");
   if (
     current.state === awareness.state &&
     current.lastKnownX === awareness.lastKnownX &&
@@ -333,7 +333,7 @@ function setEnemyAwareness(
     events.push({ type: "enemyInvestigating", entity: enemy });
   }
 
-  context.world.components.setEntityData(EnemyAwareness, enemy, awareness);
+  writeComponent(context.runtime.game, enemy, "EnemyAwareness", awareness);
   return events;
 }
 

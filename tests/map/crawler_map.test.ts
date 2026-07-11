@@ -1,0 +1,57 @@
+import { assertEquals, assertThrows } from "@std/assert";
+import { mapBlocks, TerrainBlock } from "turn-based-engine/crawler";
+import { createCrawlerMap } from "@/src/map/crawler_map.ts";
+import { BarrierTexture, createGameMap } from "@/src/map/map.ts";
+import { DEFAULT_BARS_TERRAIN_ID, DEFAULT_WALL_TERRAIN_ID } from "@/src/map/terrain_palettes.ts";
+
+Deno.test("createCrawlerMap preserves row order and maps every terrain blocking channel", () => {
+  const source = createGameMap("Physics", [
+    [0, DEFAULT_WALL_TERRAIN_ID],
+    [DEFAULT_BARS_TERRAIN_ID, 0],
+  ], []);
+
+  const map = createCrawlerMap(source);
+
+  assertEquals(map.width, 2);
+  assertEquals(map.height, 2);
+  assertEquals(map.terrain, [
+    0,
+    TerrainBlock.Movement | TerrainBlock.Sight | TerrainBlock.EffectLine,
+    TerrainBlock.Movement | TerrainBlock.EffectLine,
+    0,
+  ]);
+  assertEquals(mapBlocks(map, -1, 0, TerrainBlock.Movement), true);
+  assertEquals(mapBlocks(map, 2, 0, TerrainBlock.Sight), true);
+});
+
+Deno.test("createCrawlerMap derives channels from tile flags rather than terrain kind", () => {
+  const source = createGameMap("Custom Barrier", [[7]], [], {
+    palette: [{
+      kind: "barrier",
+      id: 7,
+      color: "#fff",
+      barrier_texture: BarrierTexture.Glass,
+      floor_texture: "floor",
+      ceiling_texture: "ceiling",
+    }],
+  });
+
+  assertEquals(
+    createCrawlerMap(source).terrain,
+    [TerrainBlock.Movement | TerrainBlock.EffectLine],
+  );
+});
+
+Deno.test("createCrawlerMap requires authored doors to occupy open terrain", () => {
+  const open = createGameMap("Open Door", [[0]], [{ prefab: "door", x: 0, y: 0 }]);
+  assertEquals(createCrawlerMap(open).terrain, [0]);
+
+  const blocked = createGameMap("Blocked Door", [[DEFAULT_WALL_TERRAIN_ID]], [
+    { prefab: "door", x: 0, y: 0 },
+  ]);
+  assertThrows(
+    () => createCrawlerMap(blocked),
+    Error,
+    'Door at (0,0) in map "Blocked Door" must be authored on open terrain.',
+  );
+});

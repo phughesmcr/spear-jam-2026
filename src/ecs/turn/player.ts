@@ -1,7 +1,7 @@
-import { Door, Glass, Interactable, Npc, Secret, UplinkTerminal } from "@/src/ecs/components.ts";
+import { hasComponent, readComponent } from "@/src/ecs/components.ts";
 import { type ActorIntent, facedEntity, type TurnContext } from "@/src/ecs/turn/actions.ts";
-import { type PlayerCommand, relativeMoveDirectionOffset, turnDirectionDelta } from "@/src/game/commands.ts";
-import type { Entity } from "@phughesmcr/miski";
+import type { PlayerCommand } from "@/src/game/commands.ts";
+import type { Entity } from "turn-based-engine/ecs";
 
 export function playerIntentsForCommand(context: TurnContext, command: PlayerCommand): readonly ActorIntent[] {
   switch (command.type) {
@@ -9,13 +9,13 @@ export function playerIntentsForCommand(context: TurnContext, command: PlayerCom
       return [{
         type: "move",
         actor: context.player,
-        mode: { type: "relative", directionOffset: relativeMoveDirectionOffset(command.direction) },
+        mode: { type: "relative", direction: command.direction },
       }];
     case "turn":
       return [{
         type: "face",
         actor: context.player,
-        mode: { type: "turn", directionDelta: turnDirectionDelta(command.direction) },
+        mode: { type: "turn", direction: command.direction },
       }];
     case "wait":
       return [{ type: "wait", actor: context.player }];
@@ -45,14 +45,14 @@ function smartActionIntents(context: TurnContext): readonly ActorIntent[] {
 
 function smartActionInteractionTarget(context: TurnContext): Entity | undefined {
   const target = facedEntity(context);
-  if (target === undefined || !context.world.components.entityHas(Interactable, target)) return undefined;
-  if (context.world.components.entityHas(Secret, target)) return undefined;
-  if (context.world.components.entityHas(Glass, target)) return undefined;
+  if (target === undefined || !hasComponent(context.runtime.game, target, "Interactable")) return undefined;
+  if (hasComponent(context.runtime.game, target, "Secret")) return undefined;
+  if (hasComponent(context.runtime.game, target, "Glass")) return undefined;
 
-  const door = context.world.components.readEntityData(Door, target);
+  const door = readComponent(context.runtime.game, target, "Door");
   if (door !== undefined) return door.open === 0 ? target : undefined;
 
-  if (context.world.components.entityHas(Npc, target)) return target;
-  if (context.world.components.entityHas(UplinkTerminal, target)) return target;
+  if (hasComponent(context.runtime.game, target, "Npc")) return target;
+  if (hasComponent(context.runtime.game, target, "UplinkTerminal")) return target;
   return undefined;
 }

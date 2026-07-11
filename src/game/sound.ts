@@ -1,7 +1,7 @@
 import type { CommandSlot } from "@/src/game/state.ts";
 import type { CardinalDirection, GridPoint } from "@/src/grid/direction.ts";
 import { createCodeRegistry } from "@/src/utils/code_registry.ts";
-import type { Entity } from "@phughesmcr/miski";
+import type { Entity } from "turn-based-engine/ecs";
 
 export const SoundId = {
   BlockedMove: "blockedMove",

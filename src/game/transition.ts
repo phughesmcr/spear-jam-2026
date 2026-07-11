@@ -21,7 +21,7 @@ import {
 import type { GameMode, TitleHoverButton, VerbMenuTarget, ViewMode } from "@/src/game/state.ts";
 import { openVerbMenu, verbMenuCommand, verbPointer } from "@/src/game/verb_menu_transition.ts";
 import type { PointerPhase } from "@/src/input/pointer.ts";
-import type { Entity } from "@phughesmcr/miski";
+import type { Entity } from "turn-based-engine/ecs";
 
 type DialogueMode = Extract<GameMode, { readonly type: "dialogue" }>;
 type HelpMode = Extract<GameMode, { readonly type: "help" }>;

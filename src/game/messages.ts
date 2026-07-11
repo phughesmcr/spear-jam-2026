@@ -1,6 +1,6 @@
 import type { InteractVerb } from "@/src/game/commands.ts";
 import type { GameEvent } from "@/src/game/events.ts";
-import type { Entity } from "@phughesmcr/miski";
+import type { Entity } from "turn-based-engine/ecs";
 
 /** Derives the message-log line for an event. Events are pure facts; wording lives here. */
 export function messageForEvent(playerEntity: Entity, event: GameEvent): string {

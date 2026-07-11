@@ -1,5 +1,5 @@
-import type { Entity } from "@phughesmcr/miski";
 import type { GameEvent } from "@/src/game/events.ts";
+import type { Entity } from "turn-based-engine/ecs";
 
 export type CombatFeedbackTone = "hit" | "crit" | "miss" | "hurt" | "defeat";
 export type CombatFeedbackSide = "player" | "enemy";

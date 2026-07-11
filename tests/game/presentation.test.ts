@@ -1,5 +1,5 @@
 import { assertEquals } from "@std/assert";
-import type { Entity } from "@phughesmcr/miski";
+import type { Entity } from "turn-based-engine/ecs";
 import {
   consumeGameEvents,
   createPresentationState,

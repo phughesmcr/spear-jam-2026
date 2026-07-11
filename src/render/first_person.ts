@@ -18,7 +18,7 @@ import {
   DrawableKind,
   type LightEntityVisitor,
 } from "@/src/ecs/drawables.ts";
-import { type CardinalDirection, directionDelta, normalizeDirection } from "@/src/grid/direction.ts";
+import { type CardinalDirection, Direction, directionDelta, normalizeDirection } from "@/src/grid/direction.ts";
 import type { GameMap, TexturePackRef } from "@/src/map/map.ts";
 import {
   bakeLoadedAssets,
@@ -84,7 +84,7 @@ export interface FirstPersonRenderer {
 }
 
 function createFirstPersonRendererState() {
-  return {
+  const state = {
     atlas: buildAtlas(),
     view: createRaycastView(),
     assetCatalog: createAssetCatalog(),
@@ -95,7 +95,17 @@ function createFirstPersonRendererState() {
     spriteCropBySlot: new Map<number, ContentCrop | undefined>(),
     spriteCropReady: new Set<number>(),
     spriteAspectBySlot: new Map<number, number>(),
-    drawableScratch: [] as DrawableEntity[],
+    drawableMap: undefined as GameMap | undefined,
+    drawableScene: undefined as RaycastScene | undefined,
+    drawableNowMs: 0,
+    drawableCameraDir: Direction.North as CardinalDirection,
+    playerX: 0,
+    playerY: 0,
+    playerDir: undefined as CardinalDirection | undefined,
+    spritesInteractive: false,
+    spritesAmbient: false,
+    visitPlayerDrawable: (_drawable: DrawableEntity): void => {},
+    visitSceneDrawable: (_drawable: DrawableEntity): void => {},
     rasterCanvas: undefined as OffscreenCanvas | undefined,
     poseTween: createPoseTween(),
     poseSample: { x: 0, y: 0, angle: 0, progress: 1, moving: false, settled: true } satisfies PoseSample,
@@ -108,6 +118,26 @@ function createFirstPersonRendererState() {
     poseInitialized: false,
     lightThrottle: createLightUpdateThrottle(),
   };
+  state.visitPlayerDrawable = (drawable): void => {
+    if (drawable.kind !== DrawableKind.Player) return;
+    state.playerX = drawable.x;
+    state.playerY = drawable.y;
+    state.playerDir = normalizeDirection(drawable.dir);
+  };
+  state.visitSceneDrawable = (drawable): void => {
+    if (drawable.kind === DrawableKind.Player) return;
+    const demand = addDrawable(
+      state,
+      state.drawableScene!,
+      state.drawableMap!,
+      drawable,
+      state.drawableCameraDir,
+      state.drawableNowMs,
+    );
+    state.spritesInteractive ||= demand.interactive;
+    state.spritesAmbient ||= demand.ambient;
+  };
+  return state;
 }
 
 type FirstPersonRendererState = ReturnType<typeof createFirstPersonRendererState>;
@@ -136,7 +166,6 @@ export function createFirstPersonRenderer(): FirstPersonRenderer {
 function resetFirstPersonRendererState(state: FirstPersonRendererState): void {
   state.sceneByMap = new WeakMap<GameMap, RaycastScene>();
   state.terrainBarriersByScene = new WeakMap<RaycastScene, readonly TerrainBarrier[]>();
-  state.drawableScratch.length = 0;
   state.poseInitialized = false;
   state.nudgeTween.active = false;
   state.spriteTweens.clear();
@@ -174,19 +203,9 @@ function renderFirstPersonView(
 
   // Two passes over the drawables: the camera pose must be known before
   // enemies pick a directional sprite.
-  state.drawableScratch.length = 0;
-  let playerX = 0;
-  let playerY = 0;
-  let playerDir: CardinalDirection | undefined;
-  session.forEachDrawable((drawable): void => {
-    if (drawable.kind === DrawableKind.Player) {
-      playerX = drawable.x;
-      playerY = drawable.y;
-      playerDir = normalizeDirection(drawable.dir);
-      return;
-    }
-    state.drawableScratch.push(drawable);
-  });
+  state.playerDir = undefined;
+  session.forEachDrawable(state.visitPlayerDrawable);
+  const playerDir = state.playerDir;
   if (playerDir === undefined) {
     out.needsFrame = false;
     out.ambientOnly = false;
@@ -198,24 +217,24 @@ function renderFirstPersonView(
   const targetAngle = Math.atan2(forward.dy, forward.dx);
   if (!state.poseInitialized) {
     state.poseInitialized = true;
-    snapPoseTween(state.poseTween, playerX + 0.5, playerY + 0.5, targetAngle);
+    snapPoseTween(state.poseTween, state.playerX + 0.5, state.playerY + 0.5, targetAngle);
   } else {
-    retargetPoseTween(state.poseTween, playerX + 0.5, playerY + 0.5, targetAngle, nowMs);
+    retargetPoseTween(state.poseTween, state.playerX + 0.5, state.playerY + 0.5, targetAngle, nowMs);
   }
 
-  let spritesInteractive = false;
-  let spritesAmbient = false;
-  for (const drawable of state.drawableScratch) {
-    const demand = addDrawable(state, scene, map, drawable, playerDir, nowMs);
-    spritesInteractive ||= demand.interactive;
-    spritesAmbient ||= demand.ambient;
-  }
+  state.drawableScene = scene;
+  state.drawableMap = map;
+  state.drawableNowMs = nowMs;
+  state.drawableCameraDir = playerDir;
+  state.spritesInteractive = false;
+  state.spritesAmbient = false;
+  session.forEachDrawable(state.visitSceneDrawable);
 
   samplePoseTween(state.poseTween, nowMs, state.poseSample);
   sampleNudgeTween(state.nudgeTween, nowMs, state.nudgeSample);
   const skyAnimating = sceneHasSkyCeiling(scene, state.atlas);
-  const interactive = !state.poseSample.settled || !state.nudgeSample.settled || spritesInteractive;
-  const ambient = spritesAmbient || lightsAnimating || skyAnimating;
+  const interactive = !state.poseSample.settled || !state.nudgeSample.settled || state.spritesInteractive;
+  const ambient = state.spritesAmbient || lightsAnimating || skyAnimating;
   const needsFrame = interactive || ambient;
 
   state.view.render(

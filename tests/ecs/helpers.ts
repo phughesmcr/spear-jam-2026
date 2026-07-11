@@ -1,9 +1,4 @@
-import type { Entity, World } from "@phughesmcr/miski";
 import type { EntityDef, GameMap } from "@/src/map/map.ts";
-
-export function createEntity(world: World): Entity {
-  return world.entities.createOrThrow();
-}
 
 export function flatTestMap(
   width = 3,

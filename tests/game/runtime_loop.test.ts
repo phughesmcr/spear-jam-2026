@@ -9,7 +9,7 @@ import { createGameModel, type GameModel } from "@/src/game/transition.ts";
 import { Direction } from "@/src/grid/direction.ts";
 import { createGameMap } from "@/src/map/map.ts";
 import type { FirstPersonRenderer } from "@/src/render/first_person.ts";
-import type { Entity } from "@phughesmcr/miski";
+import type { Entity } from "turn-based-engine/ecs";
 import { assertEquals } from "@std/assert";
 
 const EMITTER = 2 as Entity;

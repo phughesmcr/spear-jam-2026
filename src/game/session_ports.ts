@@ -1,4 +1,4 @@
-import type { Entity } from "@phughesmcr/miski";
+import type { Entity } from "turn-based-engine/ecs";
 import type { DrawableEntityVisitor, LightEntityVisitor } from "@/src/ecs/drawables.ts";
 import type { EnemyIdleSoundSourceVisitor, SoundEmitterVisitor } from "@/src/ecs/sounds.ts";
 import type { PlayerStatusSnapshot } from "@/src/game/state.ts";

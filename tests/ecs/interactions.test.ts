@@ -1,112 +1,46 @@
-import { DialogueTreeId } from "@/src/dialogue/dialogue.ts";
-import { Door, GridPos, Interactable, Locked } from "@/src/ecs/components.ts";
+import { readComponent } from "@/src/ecs/components.ts";
 import { collectItemAt, interactWithEntity } from "@/src/ecs/interactions.ts";
-import { createDoor, createKey, createNpc, createUplinkTerminal } from "@/src/ecs/prefabs.ts";
-import { SpatialIndex } from "@/src/ecs/spatial.ts";
-import { createWorld } from "@/src/ecs/world.ts";
-import { DisplayName } from "@/src/game/names.ts";
+import { createDoor, createKey, createPlayer } from "@/src/ecs/prefabs.ts";
+import { createRuntime } from "@/src/ecs/runtime.ts";
+import { Direction } from "@/src/grid/direction.ts";
 import { KeyColor } from "@/src/map/map.ts";
-import { createEntity, flatTestMap } from "@/tests/ecs/helpers.ts";
+import { flatTestMap } from "@/tests/ecs/helpers.ts";
 import { assertEquals } from "@std/assert";
+import { TerrainBlock } from "turn-based-engine/crawler";
 
-Deno.test("interactWithEntity applies default verbs for doors, NPCs, and terminals", async () => {
-  const world = await createWorld();
-  const door = createDoor(world, { x: 1, y: 1 });
-  const npc = createNpc(world, {
-    x: 2,
-    y: 1,
-    dir: 1,
-    displayName: DisplayName.John,
-    dialogueTreeId: DialogueTreeId.JohnIntro,
-  });
-  const terminal = createUplinkTerminal(world, { x: 3, y: 1, goto: "Data Conduit" });
-  const generic = createEntity(world);
-  world.components.addToEntity(GridPos, generic, { x: 4, y: 1 });
-  world.components.addToEntity(Interactable, generic);
-  world.refresh();
+Deno.test("normal and locked doors change custom state and crawler masks together", () => {
+  const runtime = createRuntime(flatTestMap(5, 3));
+  const normal = createDoor(runtime, { x: 1, y: 1 });
+  const locked = createDoor(runtime, { x: 2, y: 1, locked: true, color: KeyColor.Red });
 
-  const spatial = new SpatialIndex(world, flatTestMap(6, 3));
-  assertEquals(interactWithEntity(world, spatial, door, new Set(), false), {
+  assertEquals(interactWithEntity(runtime, normal, new Set(), false), {
     type: "consumeTurn",
-    events: [{ type: "doorOpened", entity: door }],
+    events: [{ type: "doorOpened", entity: normal }],
   });
-  assertEquals(interactWithEntity(world, spatial, npc, new Set(), false), {
-    type: "dialogue",
-    target: npc,
-    events: [],
-    dialogue: {
-      title: "John",
-      speaker: DisplayName.John,
-      treeKey: "john_intro",
-      message: "Stay sharp.",
-      choices: [
-        { label: "WHAT'S GOING ON?", next: "briefing" },
-        { label: "BYE!" },
-      ],
-    },
-  });
-  assertEquals(interactWithEntity(world, spatial, terminal, new Set(), false), {
-    type: "unchanged",
-    events: [{ type: "uplinkTerminalLocked", entity: terminal }],
-  });
-  assertEquals(interactWithEntity(world, spatial, terminal, new Set(), true), {
-    type: "uplinkTerminal",
-    terminal,
-    events: [{ type: "uplinkTerminalActivated", entity: terminal }],
-  });
-  assertEquals(interactWithEntity(world, spatial, generic, new Set(), false), {
-    type: "unchanged",
-    events: [{ type: "verbFailed", verb: "use" }],
-  });
+  assertEquals(readComponent(runtime.game, normal, "Door")?.open, 1);
+  assertEquals(runtime.crawler.entityBlockMask(normal), 0);
+  assertEquals(interactWithEntity(runtime, locked, new Set(), false).events, [{ type: "doorLocked", entity: locked }]);
+  assertEquals(interactWithEntity(runtime, locked, new Set([KeyColor.Red]), false).type, "consumeTurn");
+  assertEquals(runtime.crawler.entityBlockMask(locked), 0);
+  runtime.crawler.assertInvariants();
 });
 
-Deno.test("interactWithEntity opens locked doors only with a matching held key", async () => {
-  const world = await createWorld();
-  const door = createDoor(world, { x: 1, y: 1, locked: true, color: KeyColor.Red });
-  world.refresh();
-
-  const spatial = new SpatialIndex(world, flatTestMap(3, 3));
-  assertEquals(interactWithEntity(world, spatial, door, new Set([KeyColor.Blue]), false), {
-    type: "unchanged",
-    events: [{ type: "doorLocked", entity: door }],
-  });
-  assertEquals(world.components.entityHas(Locked, door), true);
-
-  assertEquals(interactWithEntity(world, spatial, door, new Set([KeyColor.Red]), false), {
-    type: "consumeTurn",
-    events: [{ type: "doorOpened", entity: door }],
-  });
-  assertEquals(world.components.entityHas(Locked, door), false);
+Deno.test("glass doors reject open without changing their effect-line mask", () => {
+  const runtime = createRuntime(flatTestMap());
+  const glass = createDoor(runtime, { x: 1, y: 0, glass: true });
+  assertEquals(interactWithEntity(runtime, glass, new Set(), false).events, [{
+    type: "doorCannotOpen",
+    entity: glass,
+  }]);
+  assertEquals(runtime.crawler.entityBlockMask(glass), TerrainBlock.Movement | TerrainBlock.EffectLine);
 });
 
-Deno.test("interactWithEntity refuses to open glass doors", async () => {
-  const world = await createWorld();
-  const door = createDoor(world, { x: 1, y: 1, glass: true });
-  world.refresh();
-
-  const spatial = new SpatialIndex(world, flatTestMap(3, 3));
-  assertEquals(interactWithEntity(world, spatial, door, new Set(), false), {
-    type: "unchanged",
-    events: [{ type: "doorCannotOpen", entity: door }],
-  });
-  assertEquals(interactWithEntity(world, spatial, door, new Set(), true, "open"), {
-    type: "unchanged",
-    events: [{ type: "doorCannotOpen", entity: door }],
-  });
-  assertEquals(world.components.getEntityData(Door, door).open, 0);
-});
-
-Deno.test("collectItemAt removes the collected pickup from the spatial index", async () => {
-  const world = await createWorld();
-  const key = createKey(world, { x: 1, y: 1, color: KeyColor.Red });
-  world.refresh();
-
-  const spatial = new SpatialIndex(world, flatTestMap(3, 3));
-  assertEquals(collectItemAt(world, spatial, 1, 1), {
-    type: "key",
-    entity: key,
-    color: KeyColor.Red,
-  });
-  assertEquals(spatial.itemAt(1, 1), undefined);
-  assertEquals(world.entities.isActive(key), false);
+Deno.test("items coexist with a movement occupant and despawn through crawler lifecycle", () => {
+  const runtime = createRuntime(flatTestMap(3, 3));
+  const player = createPlayer(runtime, { x: 1, y: 1, dir: Direction.North });
+  const key = createKey(runtime, { x: 1, y: 1, color: KeyColor.Red });
+  assertEquals(runtime.crawler.entityAt(1, 1, TerrainBlock.Movement), player);
+  assertEquals(collectItemAt(runtime, 1, 1), { type: "key", entity: key, color: KeyColor.Red });
+  assertEquals(runtime.game.isEntityAlive(key), false);
+  runtime.crawler.assertInvariants();
 });

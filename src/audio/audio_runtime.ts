@@ -11,7 +11,7 @@ import {
   soundPointForGrid,
 } from "@/src/game/sound.ts";
 import type { CardinalDirection, GridPoint } from "@/src/grid/direction.ts";
-import type { Entity } from "@phughesmcr/miski";
+import type { Entity } from "turn-based-engine/ecs";
 
 export type AudioVolumes = {
   readonly musicVolume: number;

@@ -2,7 +2,7 @@ import { DisplayName } from "@/src/game/names.ts";
 import { VoiceId } from "@/src/dialogue/voice.ts";
 import { TrackId } from "@/src/audio/music_catalog.ts";
 import { createGameModel, type GameModel, transition } from "@/src/game/transition.ts";
-import type { Entity } from "@phughesmcr/miski";
+import type { Entity } from "turn-based-engine/ecs";
 import { assertEquals } from "@std/assert";
 
 const PLAYER = 1 as Entity;

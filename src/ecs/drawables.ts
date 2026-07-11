@@ -8,7 +8,8 @@ import {
   type SpriteAnimationSchema,
 } from "@/src/ecs/components.ts";
 import { DrawableKind } from "@/src/ecs/drawable_kind.ts";
-import { drawableRenderQuery, lightRenderQuery } from "@/src/ecs/queries.ts";
+import type { GameRuntime } from "@/src/ecs/runtime.ts";
+import { Direction } from "@/src/grid/direction.ts";
 import {
   DEFAULT_DOOR_OPEN_MS,
   type DoorSlide,
@@ -16,87 +17,55 @@ import {
   type KeyColor as KeyColorType,
   keyColorForCode,
 } from "@/src/map/map.ts";
-import { type Entity, System } from "@phughesmcr/miski";
+import type { Entity, SlotIndex } from "turn-based-engine/ecs";
 
 export { DrawableKind, SPRITE_ATTACK_MS, SPRITE_DEATH_MS, SPRITE_WALK_MS, SpriteAnimationKind };
 export const SpriteId = SpriteIdValues;
 export type SpriteId = SpriteIdType;
 export type { SpriteAnimationSchema };
 
-type DrawableBase = {
-  readonly entity: Entity;
-  readonly x: number;
-  readonly y: number;
-};
-
+type DrawableBase = { readonly entity: Entity; readonly x: number; readonly y: number };
 export type PlayerDrawableEntity = DrawableBase & {
   readonly kind: typeof DrawableKind.Player;
   readonly dir: number;
   readonly spriteId: SpriteIdType;
 };
-
 export type ActorDrawableEntity = DrawableBase & {
   readonly kind: typeof DrawableKind.Actor;
   readonly dir: number;
   readonly spriteId: SpriteIdType;
   readonly animation?: SpriteAnimationSchema;
-  readonly health?: {
-    readonly current: number;
-    readonly max: number;
-  };
+  readonly health?: { readonly current: number; readonly max: number };
 };
-
 export type DoorDrawableEntity = DrawableBase & {
   readonly kind: typeof DrawableKind.Door;
   readonly open: boolean;
   readonly locked: boolean;
-  /** Disguised as a wall until the player reveals it; hides door styling and prompts. */
   readonly secret: boolean;
-  /** Shatterable glass pane; stays in place and swaps texture when smashed. */
   readonly glass: boolean;
   readonly color?: KeyColorType;
-  /** Slide direction for open/close animation; undefined = renderer default. */
   readonly slide?: DoorSlide;
-  /** Milliseconds for a full open/close slide. */
   readonly openMs: number;
 };
-
 export type SpriteDrawableEntity = DrawableBase & {
   readonly kind: typeof DrawableKind.Sprite;
   readonly spriteId: SpriteIdType;
   readonly animation?: SpriteAnimationSchema;
 };
-
-export type DrawableEntity =
-  | ActorDrawableEntity
-  | DoorDrawableEntity
-  | PlayerDrawableEntity
-  | SpriteDrawableEntity;
-
+export type DrawableEntity = ActorDrawableEntity | DoorDrawableEntity | PlayerDrawableEntity | SpriteDrawableEntity;
 export type LightEntity = DrawableBase & LightEmitterSchema;
-
-/** Receives a reused scratch object; copy fields before storing it past the callback. */
 export type DrawableEntityVisitor = (drawable: DrawableEntity) => void;
-
-/** Receives a reused scratch object; copy fields before storing it past the callback. */
 export type LightEntityVisitor = (light: LightEntity) => void;
 
-type DrawableHealthScratch = {
-  current: number;
-  max: number;
-};
-
-type DrawableAnimationScratch = SpriteAnimationSchema;
-
-type DrawableEntityScratch = {
+type DrawableScratch = {
   entity: Entity;
   x: number;
   y: number;
   kind: DrawableKind;
   dir: number;
   spriteId: SpriteIdType;
-  animation: DrawableAnimationScratch | undefined;
-  health: DrawableHealthScratch | undefined;
+  animation: { kind: SpriteAnimationSchema["kind"]; startedAtMs: number; durationMs: number } | undefined;
+  health: { current: number; max: number } | undefined;
   open: boolean;
   locked: boolean;
   secret: boolean;
@@ -105,15 +74,7 @@ type DrawableEntityScratch = {
   slide: DoorSlide | undefined;
   openMs: number;
 };
-
-type DrawableRenderScratch = {
-  orderedEntities: Uint32Array;
-  readonly drawables: DrawableEntityScratch[];
-  readonly health: DrawableHealthScratch[];
-  readonly animations: DrawableAnimationScratch[];
-};
-
-type LightEntityScratch = {
+type LightScratch = {
   entity: Entity;
   x: number;
   y: number;
@@ -124,138 +85,156 @@ type LightEntityScratch = {
   flickerAmount: number;
   flickerSpeed: number;
 };
-
-type EntityIndexLookup = {
-  readonly [index: number]: Entity | undefined;
+export type RuntimeReaders = {
+  readonly forEachDrawable: (visit: DrawableEntityVisitor) => void;
+  readonly forEachLight: (visit: LightEntityVisitor) => void;
 };
 
-type NumericPartition = {
-  readonly [index: number]: number | undefined;
-};
+export function createDrawableReaders(runtime: GameRuntime): RuntimeReaders {
+  const drawableQuery = runtime.game.query(runtime.crawler.components.GridPosition, runtime.game.components.Drawable);
+  const lightQuery = runtime.game.query(runtime.crawler.components.GridPosition, runtime.game.components.LightEmitter);
+  let entities = new Uint32Array(64);
+  let slots = new Array<SlotIndex>(64);
+  const drawable = createDrawableScratch();
+  const animation = { kind: 0 as SpriteAnimationSchema["kind"], startedAtMs: 0, durationMs: 0 };
+  const health = { current: 0, max: 0 };
+  const light = createLightScratch();
+  let drawableCount = 0;
+  let lightVisitor: LightEntityVisitor;
 
-type DrawableRenderContext = {
-  readonly visit: DrawableEntityVisitor;
-  readonly scratch: DrawableRenderScratch;
-};
-type LightRenderContext = {
-  readonly visit: LightEntityVisitor;
-  readonly scratch: LightEntityScratch;
-};
-export type DrawableSystem = (context: DrawableRenderContext) => void;
-export type LightSystem = (context: LightRenderContext) => void;
-type DrawableComponents = typeof drawableRenderQuery["$inferComponents"];
-
-const INITIAL_DRAWABLE_CAPACITY = 64;
-
-export function createDrawableRenderScratch(): DrawableRenderScratch {
-  const scratch: DrawableRenderScratch = {
-    orderedEntities: new Uint32Array(INITIAL_DRAWABLE_CAPACITY),
-    drawables: [],
-    health: [],
-    animations: [],
-  };
-  ensureDrawableScratchCapacity(scratch, INITIAL_DRAWABLE_CAPACITY);
-  return scratch;
-}
-
-export function createLightEntityScratch(): LightEntityScratch {
-  return {
-    entity: 0 as Entity,
-    x: 0,
-    y: 0,
-    red: 255,
-    green: 255,
-    blue: 255,
-    radius: 0,
-    flickerAmount: 0,
-    flickerSpeed: 0,
-  };
-}
-
-export const drawableSystem = new System({
-  name: "drawableSystem",
-  query: drawableRenderQuery,
-  callback: (components, entities, context: DrawableRenderContext): void => {
-    const positionX = components.gridPos.partitions.x;
-    const positionY = components.gridPos.partitions.y;
-    const kind = components.drawable.partitions.kind;
-    const layer = components.drawable.partitions.layer;
-    const indices = entities.indices;
-    const count = entities.count;
-    const scratch = context.scratch;
-    ensureDrawableScratchCapacity(scratch, count);
-
-    writeOrderedEntities(scratch.orderedEntities, indices, count, layer);
-
-    for (let i = 0; i < count; i++) {
-      const entity = scratch.orderedEntities[i]! as Entity;
-      const drawable = drawableEntityFor(
-        components,
-        entity,
-        kind[entity]! as DrawableKind,
-        positionX[entity]!,
-        positionY[entity]!,
-        scratch.drawables[i]!,
-        scratch.health[i]!,
-        scratch.animations[i]!,
-      );
-      if (drawable !== undefined) context.visit(drawable);
-    }
-  },
-});
-
-export const lightSystem = new System({
-  name: "lightSystem",
-  query: lightRenderQuery,
-  callback: (components, entities, context: LightRenderContext): void => {
-    const positionX = components.gridPos.partitions.x;
-    const positionY = components.gridPos.partitions.y;
-    const light = components.lightEmitter.partitions;
-    for (let i = 0; i < entities.count; i++) {
-      const entity = entities.indices[i]! as Entity;
-      const scratch = context.scratch;
-      scratch.entity = entity;
-      scratch.x = positionX[entity]!;
-      scratch.y = positionY[entity]!;
-      scratch.red = light.red[entity]!;
-      scratch.green = light.green[entity]!;
-      scratch.blue = light.blue[entity]!;
-      scratch.radius = light.radius[entity]!;
-      scratch.flickerAmount = light.flickerAmount[entity]!;
-      scratch.flickerSpeed = light.flickerSpeed[entity]!;
-      context.visit(scratch);
-    }
-  },
-});
-
-function ensureDrawableScratchCapacity(scratch: DrawableRenderScratch, count: number): void {
-  if (scratch.orderedEntities.length < count) {
-    let capacity = scratch.orderedEntities.length;
+  function ensureCapacity(count: number): void {
+    if (entities.length >= count) return;
+    let capacity = entities.length;
     while (capacity < count) capacity *= 2;
-
-    const orderedEntities = new Uint32Array(capacity);
-    orderedEntities.set(scratch.orderedEntities);
-    scratch.orderedEntities = orderedEntities;
+    entities = new Uint32Array(capacity);
+    slots = new Array<SlotIndex>(capacity);
   }
 
-  for (let i = scratch.drawables.length; i < count; i++) {
-    scratch.drawables[i] = createDrawableEntityScratch();
-    scratch.health[i] = { current: 0, max: 0 };
-    scratch.animations[i] = createDrawableAnimationScratch();
+  function collectDrawable(entity: Entity, slot: SlotIndex): void {
+    ensureCapacity(drawableCount + 1);
+    const layer = runtime.game.storage.Drawable.getAt(slot, "layer");
+    let insertion = drawableCount;
+    while (
+      insertion > 0 &&
+      compareOrder(entity, layer, entities[insertion - 1]! as Entity, slots[insertion - 1]!, runtime) < 0
+    ) {
+      entities[insertion] = entities[insertion - 1]!;
+      slots[insertion] = slots[insertion - 1]!;
+      insertion--;
+    }
+    entities[insertion] = entity;
+    slots[insertion] = slot;
+    drawableCount++;
   }
+
+  function visitLight(entity: Entity, slot: SlotIndex): void {
+    light.entity = entity;
+    light.x = runtime.crawler.storage.GridPosition.getAt(slot, "x");
+    light.y = runtime.crawler.storage.GridPosition.getAt(slot, "y");
+    light.red = runtime.game.storage.LightEmitter.getAt(slot, "red");
+    light.green = runtime.game.storage.LightEmitter.getAt(slot, "green");
+    light.blue = runtime.game.storage.LightEmitter.getAt(slot, "blue");
+    light.radius = runtime.game.storage.LightEmitter.getAt(slot, "radius");
+    light.flickerAmount = runtime.game.storage.LightEmitter.getAt(slot, "flickerAmount");
+    light.flickerSpeed = runtime.game.storage.LightEmitter.getAt(slot, "flickerSpeed");
+    lightVisitor(light);
+  }
+
+  function forEachDrawable(visit: DrawableEntityVisitor): void {
+    drawableCount = 0;
+    drawableQuery.forEach(collectDrawable);
+    for (let index = 0; index < drawableCount; index++) {
+      const entity = entities[index]! as Entity;
+      if (writeDrawable(runtime, entity, slots[index]!, drawable, animation, health)) visit(drawable as DrawableEntity);
+    }
+  }
+
+  function forEachLight(visit: LightEntityVisitor): void {
+    lightVisitor = visit;
+    lightQuery.forEach(visitLight);
+  }
+
+  return { forEachDrawable, forEachLight };
 }
 
-function createDrawableAnimationScratch(): DrawableAnimationScratch {
-  return { kind: 0 as SpriteAnimationSchema["kind"], startedAtMs: 0, durationMs: 0 };
+function compareOrder(a: Entity, aLayer: number, b: Entity, bSlot: SlotIndex, runtime: GameRuntime): number {
+  return aLayer - runtime.game.storage.Drawable.getAt(bSlot, "layer") || a - b;
 }
 
-function createDrawableEntityScratch(): DrawableEntityScratch {
+function writeDrawable(
+  runtime: GameRuntime,
+  entity: Entity,
+  slot: SlotIndex,
+  drawable: DrawableScratch,
+  animation: NonNullable<DrawableScratch["animation"]>,
+  health: NonNullable<DrawableScratch["health"]>,
+): boolean {
+  const kind = runtime.game.storage.Drawable.getAt(slot, "kind") as DrawableKind;
+  drawable.entity = entity;
+  drawable.x = runtime.crawler.storage.GridPosition.getAt(slot, "x");
+  drawable.y = runtime.crawler.storage.GridPosition.getAt(slot, "y");
+  drawable.kind = kind;
+  drawable.animation = undefined;
+  drawable.health = undefined;
+  drawable.color = undefined;
+  drawable.slide = undefined;
+  drawable.openMs = DEFAULT_DOOR_OPEN_MS;
+  if (kind === DrawableKind.Player || kind === DrawableKind.Actor) {
+    if (!has(runtime, entity, "Sprite") || runtime.crawler.entityFacing(entity) === undefined) return false;
+    drawable.dir = runtime.crawler.storage.Facing.getAt(slot, "dir");
+    drawable.spriteId = runtime.game.storage.Sprite.getAt(slot, "id") as SpriteIdType;
+    if (kind === DrawableKind.Actor) {
+      if (has(runtime, entity, "SpriteAnimation")) {
+        animation.kind = runtime.game.storage.SpriteAnimation.getAt(slot, "kind") as SpriteAnimationSchema["kind"];
+        animation.startedAtMs = runtime.game.storage.SpriteAnimation.getAt(slot, "startedAtMs");
+        animation.durationMs = runtime.game.storage.SpriteAnimation.getAt(slot, "durationMs");
+        drawable.animation = animation;
+      }
+      if (has(runtime, entity, "Health")) {
+        health.current = runtime.game.storage.Health.getAt(slot, "current");
+        health.max = runtime.game.storage.Health.getAt(slot, "max");
+        drawable.health = health;
+      }
+    }
+    return true;
+  }
+  if (kind === DrawableKind.Door) {
+    if (!has(runtime, entity, "Door")) return false;
+    const locked = has(runtime, entity, "Locked");
+    const openMs = runtime.game.storage.Door.getAt(slot, "openMs");
+    drawable.open = runtime.game.storage.Door.getAt(slot, "open") === 1;
+    drawable.locked = locked;
+    drawable.secret = has(runtime, entity, "Secret");
+    drawable.glass = has(runtime, entity, "Glass");
+    drawable.color = locked ? keyColorForCode(runtime.game.storage.Locked.getAt(slot, "color")) : undefined;
+    drawable.slide = doorSlideForCode(runtime.game.storage.Door.getAt(slot, "slide"));
+    drawable.openMs = openMs === 0 ? DEFAULT_DOOR_OPEN_MS : openMs;
+    return true;
+  }
+  if (kind === DrawableKind.Sprite && has(runtime, entity, "Sprite")) {
+    drawable.spriteId = runtime.game.storage.Sprite.getAt(slot, "id") as SpriteIdType;
+    if (has(runtime, entity, "SpriteAnimation")) {
+      animation.kind = runtime.game.storage.SpriteAnimation.getAt(slot, "kind") as SpriteAnimationSchema["kind"];
+      animation.startedAtMs = runtime.game.storage.SpriteAnimation.getAt(slot, "startedAtMs");
+      animation.durationMs = runtime.game.storage.SpriteAnimation.getAt(slot, "durationMs");
+      drawable.animation = animation;
+    }
+    return true;
+  }
+  return false;
+}
+
+function has(runtime: GameRuntime, entity: Entity, name: keyof typeof runtime.game.components): boolean {
+  return runtime.game.entityHasComponent(entity, runtime.game.components[name]);
+}
+
+function createDrawableScratch(): DrawableScratch {
   return {
     entity: 0 as Entity,
     x: 0,
     y: 0,
     kind: DrawableKind.Sprite,
-    dir: 0,
+    dir: Direction.North,
     spriteId: SpriteId.Npc,
     animation: undefined,
     health: undefined,
@@ -269,156 +248,16 @@ function createDrawableEntityScratch(): DrawableEntityScratch {
   };
 }
 
-function writeOrderedEntities(
-  ordered: Uint32Array,
-  indices: EntityIndexLookup,
-  count: number,
-  layer: NumericPartition,
-): void {
-  // Sort back-to-front by layer; ties break on entity id for stable output.
-  for (let i = 0; i < count; i++) {
-    const entity = indices[i]!;
-    let insertionIndex = i;
-    while (insertionIndex > 0 && compareDrawableOrder(entity, ordered[insertionIndex - 1]! as Entity, layer) < 0) {
-      ordered[insertionIndex] = ordered[insertionIndex - 1]!;
-      insertionIndex--;
-    }
-    ordered[insertionIndex] = entity;
-  }
-}
-
-function compareDrawableOrder(a: Entity, b: Entity, layer: NumericPartition): number {
-  return layer[a]! - layer[b]! || a - b;
-}
-
-function resetDrawableScratch(
-  drawable: DrawableEntityScratch,
-  entity: Entity,
-  kind: DrawableKind,
-  x: number,
-  y: number,
-): void {
-  drawable.entity = entity;
-  drawable.kind = kind;
-  drawable.x = x;
-  drawable.y = y;
-  drawable.dir = 0;
-  drawable.spriteId = SpriteId.Npc;
-  drawable.animation = undefined;
-  drawable.health = undefined;
-  drawable.open = false;
-  drawable.locked = false;
-  drawable.secret = false;
-  drawable.glass = false;
-  drawable.color = undefined;
-  drawable.slide = undefined;
-  drawable.openMs = DEFAULT_DOOR_OPEN_MS;
-}
-
-function drawableEntityFor(
-  components: DrawableComponents,
-  entity: Entity,
-  kind: DrawableKind,
-  x: number,
-  y: number,
-  drawable: DrawableEntityScratch,
-  health: DrawableHealthScratch,
-  animation: DrawableAnimationScratch,
-): DrawableEntity | undefined {
-  resetDrawableScratch(drawable, entity, kind, x, y);
-
-  switch (kind) {
-    case DrawableKind.Player:
-      return playerDrawableEntityFor(components, entity, drawable);
-    case DrawableKind.Actor:
-      return actorDrawableEntityFor(components, entity, drawable, health, animation);
-    case DrawableKind.Door:
-      return doorDrawableEntityFor(components, entity, drawable);
-    case DrawableKind.Sprite:
-      return spriteDrawableEntityFor(components, entity, drawable, animation);
-    default:
-      return undefined;
-  }
-}
-
-function playerDrawableEntityFor(
-  components: DrawableComponents,
-  entity: Entity,
-  drawable: DrawableEntityScratch,
-): PlayerDrawableEntity | undefined {
-  if (!components.facing.has(entity) || !components.sprite.has(entity)) return undefined;
-  drawable.dir = components.facing.partitions.dir[entity]!;
-  drawable.spriteId = components.sprite.partitions.id[entity]! as SpriteIdType;
-  return drawable as PlayerDrawableEntity;
-}
-
-function actorDrawableEntityFor(
-  components: DrawableComponents,
-  entity: Entity,
-  drawable: DrawableEntityScratch,
-  health: DrawableHealthScratch,
-  animation: DrawableAnimationScratch,
-): ActorDrawableEntity | undefined {
-  if (!components.facing.has(entity) || !components.sprite.has(entity)) return undefined;
-
-  drawable.dir = components.facing.partitions.dir[entity]!;
-  drawable.spriteId = components.sprite.partitions.id[entity]! as SpriteIdType;
-  drawable.animation = writeAnimationForEntity(components, entity, animation) ? animation : undefined;
-  drawable.health = writeHealthForEntity(components, entity, health) ? health : undefined;
-  return drawable as ActorDrawableEntity;
-}
-
-function doorDrawableEntityFor(
-  components: DrawableComponents,
-  entity: Entity,
-  drawable: DrawableEntityScratch,
-): DoorDrawableEntity | undefined {
-  if (!components.door.has(entity)) return undefined;
-
-  const locked = components.locked.has(entity);
-  const slide = doorSlideForCode(components.door.partitions.slide[entity]!);
-  const openMs = components.door.partitions.openMs[entity]!;
-  drawable.open = components.door.partitions.open[entity]! === 1;
-  drawable.locked = locked;
-  drawable.secret = components.secret.has(entity);
-  drawable.glass = components.glass.has(entity);
-  drawable.color = locked ? keyColorForCode(components.locked.partitions.color[entity]!) : undefined;
-  drawable.slide = slide;
-  drawable.openMs = openMs === 0 ? DEFAULT_DOOR_OPEN_MS : openMs;
-  return drawable as DoorDrawableEntity;
-}
-
-function spriteDrawableEntityFor(
-  components: DrawableComponents,
-  entity: Entity,
-  drawable: DrawableEntityScratch,
-  animation: DrawableAnimationScratch,
-): SpriteDrawableEntity | undefined {
-  if (!components.sprite.has(entity)) return undefined;
-  drawable.spriteId = components.sprite.partitions.id[entity]! as SpriteIdType;
-  drawable.animation = writeAnimationForEntity(components, entity, animation) ? animation : undefined;
-  return drawable as SpriteDrawableEntity;
-}
-
-function writeAnimationForEntity(
-  components: DrawableComponents,
-  entity: Entity,
-  animation: DrawableAnimationScratch,
-): boolean {
-  if (!components.spriteAnimation.has(entity)) return false;
-  animation.kind = components.spriteAnimation.partitions.kind[entity]! as SpriteAnimationSchema["kind"];
-  animation.startedAtMs = components.spriteAnimation.partitions.startedAtMs[entity]!;
-  animation.durationMs = components.spriteAnimation.partitions.durationMs[entity]!;
-  return true;
-}
-
-function writeHealthForEntity(
-  components: DrawableComponents,
-  entity: Entity,
-  health: DrawableHealthScratch,
-): boolean {
-  if (!components.health.has(entity)) return false;
-  health.current = components.health.partitions.current[entity]!;
-  health.max = components.health.partitions.max[entity]!;
-  return true;
+function createLightScratch(): LightScratch {
+  return {
+    entity: 0 as Entity,
+    x: 0,
+    y: 0,
+    red: 255,
+    green: 255,
+    blue: 255,
+    radius: 0,
+    flickerAmount: 0,
+    flickerSpeed: 0,
+  };
 }

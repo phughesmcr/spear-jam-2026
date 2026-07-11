@@ -23,6 +23,7 @@ import { createFirstPersonRenderer } from "@/src/render/first_person.ts";
 import type { RaycastScene } from "@/src/render/raycast/scene.ts";
 import { TURN_TWEEN_MS } from "@/src/render/tween.ts";
 import { assert, assertAlmostEquals, assertEquals, assertNotEquals, assertThrows } from "@std/assert";
+import type { Entity } from "turn-based-engine/ecs";
 
 type FakeImageEvent = "load" | "error";
 type FakeImageListener = () => void;
@@ -194,7 +195,7 @@ function withFakeOffscreenCanvas(run: () => void): void {
 }
 
 function playerDrawable(x: number, y: number, dir: CardinalDirection): DrawableEntity {
-  return { kind: DrawableKind.Player, entity: 1, x, y, dir, spriteId: SpriteId.Player };
+  return { kind: DrawableKind.Player, entity: 1 as Entity, x, y, dir, spriteId: SpriteId.Player };
 }
 
 function sessionFor(
@@ -210,6 +211,23 @@ function sessionFor(
     forEachLight(visit): void {
       for (const light of lights) visit(light);
     },
+  };
+}
+
+function scratchReusingSession(
+  map: ReturnType<typeof createGameMap>,
+  drawables: readonly DrawableEntity[],
+): FirstPersonRenderSession {
+  const scratch = {} as DrawableEntity;
+  return {
+    getMap: () => map,
+    forEachDrawable(visit): void {
+      for (const drawable of drawables) {
+        Object.assign(scratch, drawable);
+        visit(scratch);
+      }
+    },
+    forEachLight(): void {},
   };
 }
 
@@ -503,7 +521,7 @@ Deno.test("first-person rendering updates flickering lights and requests another
     ];
     const session = sessionFor(map, drawables, [
       {
-        entity: 2,
+        entity: 2 as Entity,
         x: 1,
         y: 1,
         red: 255,
@@ -560,7 +578,7 @@ Deno.test("first-person rendering resets cached scene lighting when active light
       { x: 0, y: 0, width: 64, height: 64 },
       sessionFor(map, drawables, [
         {
-          entity: 2,
+          entity: 2 as Entity,
           x: 1,
           y: 1,
           red: 255,
@@ -606,7 +624,7 @@ Deno.test("first-person rendering keeps open doors in the raycast scene for jamb
       playerDrawable(1, 1, Direction.East),
       {
         kind: DrawableKind.Door,
-        entity: 2,
+        entity: 2 as Entity,
         x: 2,
         y: 1,
         open: true,
@@ -658,7 +676,7 @@ Deno.test("first-person rendering uses sliding solid walls for closed secret doo
       playerDrawable(1, 1, Direction.East),
       {
         kind: DrawableKind.Door,
-        entity: 2,
+        entity: 2 as Entity,
         x: 2,
         y: 1,
         open: false,
@@ -710,7 +728,7 @@ Deno.test("first-person rendering keeps open secret doors out of the thin-wall p
       playerDrawable(1, 1, Direction.East),
       {
         kind: DrawableKind.Door,
-        entity: 2,
+        entity: 2 as Entity,
         x: 2,
         y: 1,
         open: true,
@@ -764,7 +782,7 @@ Deno.test("first-person rendering uses John's single-frame NPC sprite", () => {
       playerDrawable(1, 2, Direction.North),
       {
         kind: DrawableKind.Actor,
-        entity: 2,
+        entity: 2 as Entity,
         x: 1,
         y: 1,
         dir: Direction.South,
@@ -813,7 +831,7 @@ Deno.test("first-person rendering preserves loaded sprite source aspect ratios",
       playerDrawable(1, 2, Direction.North),
       {
         kind: DrawableKind.Actor,
-        entity: 2,
+        entity: 2 as Entity,
         x: 1,
         y: 1,
         dir: Direction.South,
@@ -857,7 +875,7 @@ Deno.test("first-person rendering places ceiling decorations near the ceiling", 
     );
     const drawables: DrawableEntity[] = [
       playerDrawable(1, 2, Direction.North),
-      { kind: DrawableKind.Sprite, entity: 2, x: 1, y: 1, spriteId: SpriteId.DecorCeilingLight },
+      { kind: DrawableKind.Sprite, entity: 2 as Entity, x: 1, y: 1, spriteId: SpriteId.DecorCeilingLight },
     ];
     const session = sessionFor(map, drawables);
     const renderer = createFirstPersonRenderer();
@@ -902,7 +920,7 @@ Deno.test("first-person rendering uses ECS attack animation sheet row", () => {
       playerDrawable(1, 2, Direction.North),
       {
         kind: DrawableKind.Actor,
-        entity: 2,
+        entity: 2 as Entity,
         x: 1,
         y: 1,
         dir: Direction.South,
@@ -948,7 +966,7 @@ Deno.test("first-person rendering passes enemy health to raycast sprites", () =>
       playerDrawable(1, 2, Direction.North),
       {
         kind: DrawableKind.Actor,
-        entity: 2,
+        entity: 2 as Entity,
         x: 1,
         y: 1,
         dir: Direction.South,
@@ -997,7 +1015,7 @@ Deno.test("first-person rendering uses ECS walk animation sheet row", () => {
       playerDrawable(1, 2, Direction.North),
       {
         kind: DrawableKind.Actor,
-        entity: 2,
+        entity: 2 as Entity,
         x: 1,
         y: 1,
         dir: Direction.South,
@@ -1045,7 +1063,7 @@ Deno.test("first-person rendering uses ECS death animation sheet frames", () => 
       playerDrawable(1, 2, Direction.North),
       {
         kind: DrawableKind.Sprite,
-        entity: 2,
+        entity: 2 as Entity,
         x: 1,
         y: 1,
         spriteId: SpriteId.DigitalDog,
@@ -1089,7 +1107,7 @@ Deno.test("first-person rendering bobs pickup item sprites vertically", () => {
     );
     const drawables: DrawableEntity[] = [
       playerDrawable(1, 2, Direction.North),
-      { kind: DrawableKind.Sprite, entity: 2, x: 1, y: 1, spriteId: SpriteId.HealthPatch },
+      { kind: DrawableKind.Sprite, entity: 2 as Entity, x: 1, y: 1, spriteId: SpriteId.HealthPatch },
     ];
     const session = sessionFor(map, drawables);
     const renderer = createFirstPersonRenderer();
@@ -1107,5 +1125,41 @@ Deno.test("first-person rendering bobs pickup item sprites vertically", () => {
     assertAlmostEquals(scene.spriteElevation[0]!, 0.055, 1e-6);
     assertEquals(result.needsFrame, true);
     assertEquals(result.ambientOnly, true);
+  });
+});
+
+Deno.test("first-person rendering does not retain reusable drawable snapshots", () => {
+  withFakeOffscreenCanvas((): void => {
+    const map = createGameMap(
+      "Reusable Drawables",
+      [
+        [2, 2, 2],
+        [2, 1, 2],
+        [2, 1, 2],
+        [2, 2, 2],
+      ],
+      [],
+      {
+        palette: [
+          { kind: "floor", id: 1, color: "#000000", floor_texture: "floor", ceiling_texture: "ceiling" },
+          { kind: "wall", id: 2, color: "#ffffff", wall_texture: "wall" },
+        ],
+      },
+    );
+    const session = scratchReusingSession(map, [
+      { kind: DrawableKind.Sprite, entity: 2 as Entity, x: 1, y: 1, spriteId: SpriteId.HealthPatch },
+      playerDrawable(1, 2, Direction.North),
+    ]);
+    const renderer = createFirstPersonRenderer();
+
+    renderFirstPersonView(
+      renderer,
+      new FakeCanvasContext() as unknown as CanvasRenderingContext2D,
+      { x: 0, y: 0, width: 64, height: 64 },
+      session,
+      0,
+    );
+
+    assertEquals(renderer.sceneForMap(map).spriteCount, 1);
   });
 });

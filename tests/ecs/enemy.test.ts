@@ -1,626 +1,199 @@
 import { enemyArchetypeAuthoringKey, EnemyArchetypeCode } from "@/src/content/enemies.ts";
-import type { AttackSchema, HealthSchema } from "@/src/ecs/components.ts";
-import {
-  AttackPattern,
-  AttackTargetMode,
-  Blocking,
-  Enemy,
-  EnemyAwareness,
-  Facing,
-  GridPos,
-  Health,
-  IDLE_AWARENESS,
-  TurnTaker,
-} from "@/src/ecs/components.ts";
+import { readComponent, writeComponent } from "@/src/ecs/components.ts";
 import { createEnemy, createPlayer } from "@/src/ecs/prefabs.ts";
-import { enemyTurnQuery } from "@/src/ecs/queries.ts";
-import { SpatialIndex } from "@/src/ecs/spatial.ts";
+import { createRuntime } from "@/src/ecs/runtime.ts";
 import { isPlayerDefeated, runEnemyActorTurn } from "@/src/ecs/turn/enemy.ts";
-import { createWorld } from "@/src/ecs/world.ts";
-import { attackPatternAuthoringKey, attackTargetModeAuthoringKey, type AuthoringAttackDef } from "@/src/game/attack.ts";
-import type { GameEvent } from "@/src/game/events.ts";
 import { DisplayName } from "@/src/game/names.ts";
-import type { NoiseStimulus } from "@/src/game/perception.ts";
-import { Direction } from "@/src/grid/direction.ts";
+import { type CardinalDirection, Direction } from "@/src/grid/direction.ts";
 import { createGameMap } from "@/src/map/map.ts";
 import { DEFAULT_BARS_TERRAIN_ID } from "@/src/map/terrain_palettes.ts";
-import { createEntity, flatTestMap } from "@/tests/ecs/helpers.ts";
-import type { Entity, World } from "@phughesmcr/miski";
+import { flatTestMap } from "@/tests/ecs/helpers.ts";
 import { assertEquals } from "@std/assert";
+import type { Entity } from "turn-based-engine/ecs";
 
-Deno.test("enemy actor turns move enemies without an attack component", async () => {
-  const world = await createWorld();
-  const playerEntity = createEntity(world);
-  const enemy = createEntity(world);
-
-  world.components.addToEntity(GridPos, playerEntity, { x: 4, y: 1 });
-  world.components.addToEntity(Facing, playerEntity, { dir: 3 });
-
-  world.components.addToEntity(GridPos, enemy, { x: 1, y: 1 });
-  world.components.addToEntity(Facing, enemy, { dir: Direction.East });
-  world.components.addToEntity(Blocking, enemy);
-  world.components.addToEntity(Enemy, enemy);
-  world.components.addToEntity(EnemyAwareness, enemy, IDLE_AWARENESS);
-  world.components.addToEntity(TurnTaker, enemy);
-  world.refresh();
-
-  const spatial = new SpatialIndex(world, TEST_MAP);
-  runEnemyPhase(world, playerEntity, TEST_MAP, [], () => 0, spatial);
-
-  assertEquals(world.components.getEntityData(GridPos, enemy), { x: 2, y: 1 });
-  assertEquals(world.components.getEntityData(Facing, enemy), { dir: 1 });
-  assertEquals(spatial.blockingEntityAt(1, 1), undefined);
-  assertEquals(spatial.blockingEntityAt(2, 1), enemy);
-});
-
-Deno.test("enemy actor turns route around blocking terrain when pursuing", async () => {
-  const world = await createWorld();
-  const playerEntity = spawnPlayer(world, {
-    x: 5,
-    y: 1,
-  });
-  const enemy = spawnEnemy(world, {
-    x: 1,
-    y: 1,
-    dir: Direction.East,
-    displayName: DisplayName.NetworkNeophyte,
-    attack: MELEE_ATTACK,
-    archetype: EnemyArchetypeCode.NetworkNeophyte,
-  });
-  world.refresh();
-
-  const events = runEnemyPhase(
-    world,
-    playerEntity,
-    createGameMap("Routing Test Map", [
-      [0, 0, 0, 0, 0, 0, 0],
-      [0, 0, DEFAULT_BARS_TERRAIN_ID, 0, 0, 0, 0],
-      [0, 0, 0, 0, 0, 0, 0],
-    ], []),
-  );
-
-  assertEquals(events, [{ type: "enemyAlerted", entity: enemy }]);
-  assertEquals(world.components.getEntityData(GridPos, enemy), { x: 1, y: 0 });
-  assertEquals(world.components.getEntityData(Facing, enemy), { dir: Direction.North });
-});
-
-Deno.test("enemy actor turns leave unaware enemies idle", async () => {
-  const world = await createWorld();
-  const playerEntity = spawnPlayer(world, {
-    x: 4,
-    y: 1,
-    dir: Direction.West,
-    health: { current: 5, max: 5 },
-  });
-  const enemy = spawnEnemy(world, {
-    x: 1,
-    y: 1,
-    dir: Direction.West,
-    displayName: DisplayName.NetworkNeophyte,
-    attack: MELEE_ATTACK,
-    archetype: EnemyArchetypeCode.NetworkNeophyte,
-  });
-  world.refresh();
-
-  const events = runEnemyPhase(world, playerEntity, flatTestMap(6, 3));
-
-  assertEquals(world.components.getEntityData(GridPos, enemy), { x: 1, y: 1 });
-  assertEquals(world.components.getEntityData(Facing, enemy), { dir: Direction.West });
-  assertEquals(events, []);
-});
-
-Deno.test("enemy sight radius from the catalog gates alert pursuit", async () => {
-  const world = await createWorld();
-  const playerEntity = spawnPlayer(world, {
-    x: 4,
-    y: 1,
-    dir: Direction.West,
-    health: { current: 5, max: 5 },
-  });
-  const enemy = spawnEnemy(world, {
-    x: 1,
-    y: 1,
-    dir: Direction.East,
-    displayName: DisplayName.SystemSentinel,
-    attack: MELEE_ATTACK,
-    archetype: EnemyArchetypeCode.SystemSentinel,
-  });
-  world.refresh();
-
-  const events = runEnemyPhase(world, playerEntity, flatTestMap(6, 3));
-
-  assertEquals(world.components.getEntityData(GridPos, enemy), { x: 1, y: 1 });
-  assertEquals(world.components.getEntityData(Facing, enemy), { dir: Direction.East });
-  assertEquals(events, []);
-});
-
-Deno.test("enemy hearing radius from the catalog gates noise investigation", async () => {
-  const world = await createWorld();
-  const playerEntity = spawnPlayer(world, {
-    x: 5,
-    y: 1,
-    dir: Direction.West,
-    health: { current: 5, max: 5 },
-  });
-  const enemy = spawnEnemy(world, {
-    x: 1,
-    y: 1,
-    dir: Direction.West,
-    displayName: DisplayName.SystemSentinel,
-    attack: MELEE_ATTACK,
-    archetype: EnemyArchetypeCode.SystemSentinel,
-  });
-  world.refresh();
-
-  const events = runEnemyPhase(world, playerEntity, flatTestMap(7, 3), [{ x: 3, y: 1, radius: 5 }]);
-
-  assertEquals(world.components.getEntityData(GridPos, enemy), { x: 1, y: 1 });
-  assertEquals(world.components.getEntityData(Facing, enemy), { dir: Direction.West });
-  assertEquals(events, []);
-});
-
-Deno.test("enemy actor turns investigate heard noises instead of omniscient player position", async () => {
-  const world = await createWorld();
-  const playerEntity = spawnPlayer(world, {
-    x: 4,
-    y: 1,
-    dir: Direction.West,
-    health: { current: 5, max: 5 },
-  });
-  const enemy = spawnEnemy(world, {
-    x: 1,
-    y: 1,
-    dir: Direction.West,
-    displayName: DisplayName.NetworkNeophyte,
-    attack: MELEE_ATTACK,
-    archetype: EnemyArchetypeCode.NetworkNeophyte,
-  });
-  world.refresh();
-
-  const events = runEnemyPhase(world, playerEntity, flatTestMap(6, 3), [{ x: 1, y: 2, radius: 2 }]);
-
-  assertEquals(world.components.getEntityData(GridPos, enemy), { x: 1, y: 2 });
-  assertEquals(world.components.getEntityData(Facing, enemy), { dir: Direction.South });
-  assertEquals(events, [{ type: "enemyInvestigating", entity: enemy }]);
-});
-
-Deno.test("melee dogs investigate noise with a one-step pounce", async () => {
-  const world = await createWorld();
-  const playerEntity = spawnPlayer(world, {
-    x: 5,
-    y: 1,
-    dir: Direction.West,
-    health: { current: 5, max: 5 },
-  });
-  const dog = spawnEnemy(world, {
-    x: 1,
-    y: 1,
-    dir: Direction.West,
-    displayName: DisplayName.DigitalDog,
-    attack: MELEE_ATTACK,
-    archetype: EnemyArchetypeCode.MeleeDog,
-  });
-  world.refresh();
-
-  const events = runEnemyPhase(world, playerEntity, flatTestMap(7, 3), [{ x: 3, y: 1, radius: 3 }]);
-
-  assertEquals(world.components.getEntityData(GridPos, dog), { x: 2, y: 1 });
-  assertEquals(world.components.getEntityData(Facing, dog), { dir: Direction.East });
-  assertEquals(events, [{ type: "enemyInvestigating", entity: dog }]);
-});
-
-Deno.test("system sentinels investigate noise by watching without moving", async () => {
-  const world = await createWorld();
-  const playerEntity = spawnPlayer(world, {
-    x: 5,
-    y: 1,
-    dir: Direction.West,
-    health: { current: 5, max: 5 },
-  });
-  const sentinel = spawnEnemy(world, {
-    x: 1,
-    y: 1,
-    dir: Direction.West,
-    displayName: DisplayName.SystemSentinel,
-    attack: MELEE_ATTACK,
-    archetype: EnemyArchetypeCode.SystemSentinel,
-  });
-  world.refresh();
-
-  const events = runEnemyPhase(world, playerEntity, flatTestMap(7, 3), [{ x: 2, y: 1, radius: 3 }]);
-
-  assertEquals(world.components.getEntityData(GridPos, sentinel), { x: 1, y: 1 });
-  assertEquals(world.components.getEntityData(Facing, sentinel), { dir: Direction.East });
-  assertEquals(events, [{ type: "enemyInvestigating", entity: sentinel }]);
-});
-
-Deno.test("system sentinels face the dominant axis when watching a noise", async () => {
-  const world = await createWorld();
-  const playerEntity = spawnPlayer(world, {
-    x: 0,
-    y: 5,
-    dir: Direction.North,
-    health: { current: 5, max: 5 },
-  });
-  const sentinel = spawnEnemy(world, {
-    x: 1,
-    y: 1,
-    dir: Direction.West,
-    displayName: DisplayName.SystemSentinel,
-    attack: MELEE_ATTACK,
-    archetype: EnemyArchetypeCode.SystemSentinel,
-  });
-  world.refresh();
-
-  const events = runEnemyPhase(world, playerEntity, flatTestMap(4, 6), [{ x: 1, y: 2, radius: 5 }]);
-
-  assertEquals(world.components.getEntityData(GridPos, sentinel), { x: 1, y: 1 });
-  assertEquals(world.components.getEntityData(Facing, sentinel), { dir: Direction.South });
-  assertEquals(events, [{ type: "enemyInvestigating", entity: sentinel }]);
-});
-
-Deno.test("enemy actor turns keep investigating the last known position after noise stops", async () => {
-  const world = await createWorld();
-  const playerEntity = spawnPlayer(world, {
-    x: 5,
-    y: 1,
-    dir: Direction.West,
-    health: { current: 5, max: 5 },
-  });
-  const enemy = spawnEnemy(world, {
-    x: 1,
-    y: 1,
-    dir: Direction.West,
-    displayName: DisplayName.NetworkNeophyte,
-    attack: MELEE_ATTACK,
-    archetype: EnemyArchetypeCode.NetworkNeophyte,
-  });
-  world.refresh();
-
-  const spatial = new SpatialIndex(world, flatTestMap(7, 3));
-
-  runEnemyPhase(world, playerEntity, flatTestMap(7, 3), [{ x: 4, y: 1, radius: 4 }], () => 0, spatial);
-  assertEquals(world.components.getEntityData(GridPos, enemy), { x: 2, y: 1 });
-
-  runEnemyPhase(world, playerEntity, flatTestMap(7, 3), [], () => 0, spatial);
-  assertEquals(world.components.getEntityData(GridPos, enemy), { x: 3, y: 1 });
-  assertEquals(world.components.getEntityData(Facing, enemy), { dir: Direction.East });
-});
-
-Deno.test("enemy pathing alternates alert pursuit and noise investigation across turns", async () => {
-  const world = await createWorld();
-  const map = flatTestMap(12, 3);
-  const spatial = new SpatialIndex(world, map);
-  const playerEntity = spawnPlayer(world, {
-    x: 4,
-    y: 1,
-    dir: Direction.West,
-    health: { current: 5, max: 5 },
-  });
-  const enemy = spawnEnemy(world, {
-    x: 1,
-    y: 1,
-    dir: Direction.East,
-    displayName: DisplayName.NetworkNeophyte,
-    attack: MELEE_ATTACK,
-    archetype: EnemyArchetypeCode.NetworkNeophyte,
-  });
-  world.refresh();
-
-  runEnemyPhase(world, playerEntity, map, [], () => 0, spatial);
-  assertEquals(world.components.getEntityData(GridPos, enemy), { x: 2, y: 1 });
-
-  world.components.setEntityData(GridPos, playerEntity, { x: 10, y: 1 });
-  world.refresh();
-  runEnemyPhase(world, playerEntity, map, [{ x: 1, y: 2, radius: 2 }], () => 0, spatial);
-  assertEquals(world.components.getEntityData(GridPos, enemy), { x: 2, y: 2 });
-
-  world.components.setEntityData(GridPos, playerEntity, { x: 4, y: 1 });
-  world.components.setEntityData(Facing, enemy, { dir: Direction.East });
-  world.refresh();
-  runEnemyPhase(world, playerEntity, map, [], () => 0, spatial);
-  assertEquals(world.components.getEntityData(GridPos, enemy), { x: 2, y: 1 });
-  assertEquals(world.components.getEntityData(Facing, enemy), { dir: Direction.North });
-});
-
-Deno.test("melee dogs close two tiles and bite when they reach the player", async () => {
-  const world = await createWorld();
-  const playerEntity = spawnPlayer(world, {
-    x: 4,
-    y: 1,
-    dir: 3,
-    health: { current: 5, max: 5 },
-  });
-  const dog = spawnEnemy(world, {
-    x: 1,
-    y: 1,
-    dir: 1,
-    displayName: DisplayName.DigitalDog,
-    attack: MELEE_ATTACK,
-    archetype: EnemyArchetypeCode.MeleeDog,
-  });
-  world.refresh();
-
-  const events = runEnemyPhase(world, playerEntity, flatTestMap(6, 3));
-
-  assertEquals(world.components.getEntityData(GridPos, dog), { x: 3, y: 1 });
-  assertEquals(world.components.getEntityData(Facing, dog), { dir: 1 });
-  assertEquals(world.components.getEntityData(Health, playerEntity), { current: 4, max: 5 });
-  assertEquals(events.map((event) => event.type), ["enemyAlerted", "damageDealt"]);
-});
-
-Deno.test("gunslingers shoot from range instead of closing", async () => {
-  const world = await createWorld();
-  const playerEntity = spawnPlayer(world, {
-    x: 4,
-    y: 1,
-    dir: 3,
-    health: { current: 5, max: 5 },
-  });
-  const gunslinger = spawnEnemy(world, {
-    x: 1,
-    y: 1,
-    dir: Direction.East,
-    displayName: DisplayName.GigabitGunslinger,
-    attack: { ...MELEE_ATTACK, range: 4 },
-    archetype: EnemyArchetypeCode.Gunslinger,
-  });
-  world.refresh();
-
-  const events = runEnemyPhase(world, playerEntity, flatTestMap(6, 3));
-
-  assertEquals(world.components.getEntityData(GridPos, gunslinger), { x: 1, y: 1 });
-  assertEquals(world.components.getEntityData(Facing, gunslinger), { dir: 1 });
-  assertEquals(world.components.getEntityData(Health, playerEntity), { current: 4, max: 5 });
-  assertEquals(events.map((event) => event.type), ["enemyAlerted", "damageDealt"]);
-});
-
-Deno.test("enemy actor turns stop the enemy phase after player defeat", async () => {
-  const world = await createWorld();
-  const playerEntity = spawnPlayer(world, {
-    x: 2,
-    y: 1,
-    dir: Direction.West,
-    health: { current: 1, max: 1 },
-  });
-  const killingEnemy = spawnEnemy(world, {
-    x: 1,
-    y: 1,
-    dir: Direction.East,
-    displayName: DisplayName.DigitalDog,
-    attack: MELEE_ATTACK,
-    archetype: EnemyArchetypeCode.MeleeDog,
-  });
-  const laterEnemy = spawnEnemy(world, {
-    x: 4,
-    y: 1,
-    dir: Direction.West,
-    displayName: DisplayName.NetworkNeophyte,
-    attack: MELEE_ATTACK,
-    archetype: EnemyArchetypeCode.NetworkNeophyte,
-  });
-  world.refresh();
-
-  const events = runEnemyPhase(world, playerEntity, flatTestMap(6, 3));
-
-  assertEquals(events, [
-    { type: "enemyAlerted", entity: killingEnemy },
-    {
-      type: "damageDealt",
-      actor: killingEnemy,
-      actorName: "Digital Dog",
-      target: playerEntity,
-      targetName: "You",
-      roll: 1,
-      total: 21,
-      amount: 1,
-      critical: false,
-    },
-    {
-      type: "entityDefeated",
-      actor: killingEnemy,
-      entity: playerEntity,
-      entityName: "You",
-    },
-  ]);
-  assertEquals(world.components.getEntityData(Health, playerEntity), { current: 0, max: 1 });
-  assertEquals(world.components.getEntityData(GridPos, laterEnemy), { x: 4, y: 1 });
-  assertEquals(world.components.getEntityData(Facing, laterEnemy), { dir: Direction.West });
-});
-
-Deno.test("gunslingers back away when adjacent", async () => {
-  const world = await createWorld();
-  const playerEntity = spawnPlayer(world, {
-    x: 3,
-    y: 1,
-    dir: 3,
-    health: { current: 5, max: 5 },
-  });
-  const gunslinger = spawnEnemy(world, {
-    x: 2,
-    y: 1,
-    dir: 1,
-    displayName: DisplayName.GigabitGunslinger,
-    attack: { ...MELEE_ATTACK, range: 4 },
-    archetype: EnemyArchetypeCode.Gunslinger,
-  });
-  world.refresh();
-
-  const events = runEnemyPhase(world, playerEntity, flatTestMap(6, 3));
-
-  assertEquals(world.components.getEntityData(GridPos, gunslinger), { x: 1, y: 1 });
-  assertEquals(world.components.getEntityData(Facing, gunslinger), { dir: 3 });
-  assertEquals(world.components.getEntityData(Health, playerEntity), { current: 5, max: 5 });
-  assertEquals(events, [{ type: "enemyAlerted", entity: gunslinger }]);
-});
-
-Deno.test("network neophytes skirmish: advance when out of melee range", async () => {
-  const world = await createWorld();
-  const playerEntity = spawnPlayer(world, {
-    x: 4,
-    y: 1,
-    dir: 3,
-    health: { current: 5, max: 5 },
-  });
-  const neophyte = spawnEnemy(world, {
-    x: 1,
-    y: 1,
-    dir: Direction.East,
-    displayName: DisplayName.NetworkNeophyte,
-    attack: MELEE_ATTACK,
-    archetype: EnemyArchetypeCode.NetworkNeophyte,
-  });
-  world.refresh();
-
-  const events = runEnemyPhase(world, playerEntity, flatTestMap(6, 3));
-
-  assertEquals(world.components.getEntityData(GridPos, neophyte), { x: 2, y: 1 });
-  assertEquals(world.components.getEntityData(Facing, neophyte), { dir: 1 });
-  assertEquals(world.components.getEntityData(Health, playerEntity), { current: 5, max: 5 });
-  assertEquals(events, [{ type: "enemyAlerted", entity: neophyte }]);
-});
-
-Deno.test("system sentinels hold position and face the player when out of range", async () => {
-  const world = await createWorld();
-  const playerEntity = spawnPlayer(world, {
-    x: 4,
-    y: 1,
-    dir: 3,
-    health: { current: 5, max: 5 },
-  });
-  const sentinel = spawnEnemy(world, {
-    x: 1,
-    y: 1,
-    dir: Direction.East,
-    displayName: DisplayName.SystemSentinel,
-    attack: MELEE_ATTACK,
-    archetype: EnemyArchetypeCode.SystemSentinel,
-  });
-  world.refresh();
-
-  const events = runEnemyPhase(world, playerEntity, flatTestMap(6, 3));
-
-  assertEquals(world.components.getEntityData(GridPos, sentinel), { x: 1, y: 1 });
-  assertEquals(world.components.getEntityData(Facing, sentinel), { dir: 1 });
-  assertEquals(world.components.getEntityData(Health, playerEntity), { current: 5, max: 5 });
-  assertEquals(events, []);
-});
-
-Deno.test("agentic acolytes attack nearby cardinal targets without facing first", async () => {
-  const world = await createWorld();
-  const playerEntity = spawnPlayer(world, {
-    x: 3,
-    y: 1,
-    dir: 3,
-    health: { current: 5, max: 5 },
-  });
-  const acolyte = spawnEnemy(world, {
-    x: 1,
-    y: 1,
-    dir: Direction.East,
-    displayName: DisplayName.AgenticAcolyte,
-    attack: {
-      ...MELEE_ATTACK,
-      range: 2,
-      pattern: AttackPattern.Adjacent,
-      targets: AttackTargetMode.All,
-    },
-    archetype: EnemyArchetypeCode.AgenticAcolyte,
-  });
-  world.refresh();
-
-  const events = runEnemyPhase(world, playerEntity, flatTestMap(6, 3));
-
-  assertEquals(world.components.getEntityData(GridPos, acolyte), { x: 1, y: 1 });
-  assertEquals(world.components.getEntityData(Facing, acolyte), { dir: Direction.East });
-  assertEquals(world.components.getEntityData(Health, playerEntity), { current: 4, max: 5 });
-  assertEquals(events.map((event) => event.type), ["enemyAlerted", "damageDealt"]);
-});
-
-function runEnemyPhase(
-  world: World,
-  playerEntity: Entity,
-  map = TEST_MAP,
-  noises: readonly NoiseStimulus[] = [],
-  random = () => 0,
-  spatial = new SpatialIndex(world, map),
-): readonly GameEvent[] {
-  const context = {
-    world,
-    player: playerEntity,
-    spatial,
-    random,
-    noises,
-  };
-  const events: GameEvent[] = [];
-  spatial.beginEnemyPathingPhase();
+Deno.test("alert enemies pursue through the engine pathfinder", () => {
+  const runtime = createRuntime(flatTestMap(7, 3));
+  const player = createPlayer(runtime, { x: 1, y: 1, dir: Direction.East });
+  const enemy = spawnEnemy(runtime, EnemyArchetypeCode.NetworkNeophyte, 5, 1, Direction.West);
+  runtime.pathfinder.beginBatch();
   try {
-    for (const enemy of world.entities.query(enemyTurnQuery)) {
+    const events = runEnemyActorTurn({ runtime, player, random: () => 0 }, enemy);
+    assertEquals(events[0], { type: "enemyAlerted", entity: enemy });
+    assertEquals(runtime.crawler.entityPosition(enemy), { x: 4, y: 1 });
+  } finally {
+    runtime.pathfinder.endBatch();
+  }
+  runtime.crawler.assertInvariants();
+});
+
+Deno.test("heard noise produces investigation without omniscient player pursuit", () => {
+  const runtime = createRuntime(flatTestMap(8, 3));
+  const player = createPlayer(runtime, { x: 1, y: 1, dir: Direction.East });
+  const enemy = spawnEnemy(runtime, EnemyArchetypeCode.MeleeDog, 6, 1, Direction.East);
+  runtime.pathfinder.beginBatch();
+  try {
+    const events = runEnemyActorTurn({
+      runtime,
+      player,
+      random: () => 0,
+      noises: [{ x: 4, y: 1, radius: 6 }],
+      blocksSight: () => true,
+    }, enemy);
+    assertEquals(events, [{ type: "enemyInvestigating", entity: enemy }]);
+    assertEquals(runtime.crawler.entityPosition(enemy), { x: 5, y: 1 });
+  } finally {
+    runtime.pathfinder.endBatch();
+  }
+});
+
+Deno.test("gunslingers retreat when adjacent", () => {
+  const runtime = createRuntime(flatTestMap(6, 3));
+  const player = createPlayer(runtime, { x: 2, y: 1, dir: Direction.East });
+  const enemy = spawnEnemy(runtime, EnemyArchetypeCode.Gunslinger, 3, 1, Direction.West);
+  runtime.pathfinder.beginBatch();
+  try {
+    runEnemyActorTurn({ runtime, player, random: () => 0 }, enemy);
+  } finally {
+    runtime.pathfinder.endBatch();
+  }
+  assertEquals(runtime.crawler.entityPosition(enemy), { x: 4, y: 1 });
+  assertEquals(readComponent(runtime.game, player, "Health")?.current, 10);
+});
+
+Deno.test("pursuit routes around blocking terrain", () => {
+  const map = createGameMap("Route", [
+    [0, 0, 0, 0, 0, 0, 0],
+    [0, 0, DEFAULT_BARS_TERRAIN_ID, 0, 0, 0, 0],
+    [0, 0, 0, 0, 0, 0, 0],
+  ], []);
+  const runtime = createRuntime(map);
+  const player = createPlayer(runtime, { x: 5, y: 1, dir: Direction.West });
+  const enemy = spawnEnemy(runtime, EnemyArchetypeCode.NetworkNeophyte, 1, 1, Direction.East);
+  runPhase(runtime, player);
+  assertEquals(runtime.crawler.entityPosition(enemy), { x: 1, y: 0 });
+  assertEquals(runtime.crawler.entityFacing(enemy), Direction.North);
+});
+
+Deno.test("unaware enemies and out-of-range sentinel senses remain idle", () => {
+  const runtime = createRuntime(flatTestMap(7, 3));
+  const player = createPlayer(runtime, { x: 5, y: 1, dir: Direction.West });
+  const unaware = spawnEnemy(runtime, EnemyArchetypeCode.NetworkNeophyte, 1, 1, Direction.West);
+  const sentinel = spawnEnemy(runtime, EnemyArchetypeCode.SystemSentinel, 2, 1, Direction.East);
+  const events = runPhase(runtime, player, [{ x: 4, y: 2, radius: 1 }]);
+  assertEquals(events, []);
+  assertEquals(runtime.crawler.entityPosition(unaware), { x: 1, y: 1 });
+  assertEquals(runtime.crawler.entityPosition(sentinel), { x: 2, y: 1 });
+});
+
+Deno.test("sentinels investigate by watching and facing the dominant axis", () => {
+  const runtime = createRuntime(flatTestMap(5, 5));
+  const player = createPlayer(runtime, { x: 4, y: 4, dir: Direction.West });
+  const sentinel = spawnEnemy(runtime, EnemyArchetypeCode.SystemSentinel, 1, 1, Direction.West);
+  const events = runPhase(runtime, player, [{ x: 1, y: 2, radius: 3 }]);
+  assertEquals(events, [{ type: "enemyInvestigating", entity: sentinel }]);
+  assertEquals(runtime.crawler.entityPosition(sentinel), { x: 1, y: 1 });
+  assertEquals(runtime.crawler.entityFacing(sentinel), Direction.South);
+});
+
+Deno.test("enemies keep investigating their last known noise position", () => {
+  const runtime = createRuntime(flatTestMap(8, 3));
+  const player = createPlayer(runtime, { x: 7, y: 1, dir: Direction.West });
+  const enemy = spawnEnemy(runtime, EnemyArchetypeCode.NetworkNeophyte, 1, 1, Direction.West);
+  runPhase(runtime, player, [{ x: 4, y: 1, radius: 4 }]);
+  assertEquals(runtime.crawler.entityPosition(enemy), { x: 2, y: 1 });
+  runPhase(runtime, player);
+  assertEquals(runtime.crawler.entityPosition(enemy), { x: 3, y: 1 });
+});
+
+Deno.test("melee dogs pounce and attack after closing two tiles", () => {
+  const runtime = createRuntime(flatTestMap(6, 3));
+  const player = createPlayer(runtime, { x: 4, y: 1, dir: Direction.West });
+  const dog = spawnEnemy(runtime, EnemyArchetypeCode.MeleeDog, 1, 1, Direction.East);
+  const events = runPhase(runtime, player, [], () => 0.999);
+  assertEquals(runtime.crawler.entityPosition(dog), { x: 3, y: 1 });
+  assertEquals(events.map((event) => event.type), ["enemyAlerted", "damageDealt"]);
+});
+
+Deno.test("gunslingers shoot from range while sentinels hold position", () => {
+  const runtime = createRuntime(flatTestMap(8, 3));
+  const player = createPlayer(runtime, { x: 5, y: 1, dir: Direction.West });
+  const gunslinger = spawnEnemy(runtime, EnemyArchetypeCode.Gunslinger, 2, 1, Direction.East);
+  const sentinel = spawnEnemy(runtime, EnemyArchetypeCode.SystemSentinel, 1, 2, Direction.East);
+  const events = runPhase(runtime, player, [], () => 0.999);
+  assertEquals(runtime.crawler.entityPosition(gunslinger), { x: 2, y: 1 });
+  assertEquals(runtime.crawler.entityPosition(sentinel), { x: 1, y: 2 });
+  assertEquals(events.some((event) => event.type === "damageDealt" && event.actor === gunslinger), true);
+});
+
+Deno.test("player defeat stops later enemies in the same phase", () => {
+  const runtime = createRuntime(flatTestMap(7, 3));
+  const player = createPlayer(runtime, { x: 2, y: 1, dir: Direction.West });
+  writeComponent(runtime.game, player, "Health", { current: 1, max: 1 });
+  spawnEnemy(runtime, EnemyArchetypeCode.MeleeDog, 1, 1, Direction.East);
+  const later = spawnEnemy(runtime, EnemyArchetypeCode.NetworkNeophyte, 5, 1, Direction.West);
+  runPhase(runtime, player, [], () => 0.999);
+  assertEquals(readComponent(runtime.game, player, "Health")?.current, 0);
+  assertEquals(runtime.crawler.entityPosition(later), { x: 5, y: 1 });
+});
+
+Deno.test("agentic acolytes attack nearby cardinal targets without turning first", () => {
+  const runtime = createRuntime(flatTestMap(6, 3));
+  const player = createPlayer(runtime, { x: 3, y: 1, dir: Direction.West });
+  const acolyte = spawnEnemy(runtime, EnemyArchetypeCode.AgenticAcolyte, 1, 1, Direction.East);
+  const events = runPhase(runtime, player, [], () => 0.999);
+  assertEquals(runtime.crawler.entityPosition(acolyte), { x: 1, y: 1 });
+  assertEquals(events.map((event) => event.type), ["enemyAlerted", "damageDealt"]);
+});
+
+function runPhase(
+  runtime: ReturnType<typeof createRuntime>,
+  player: Entity,
+  noises: readonly { readonly x: number; readonly y: number; readonly radius: number }[] = [],
+  random = () => 0,
+) {
+  const context = { runtime, player, noises, random };
+  const events = [] as ReturnType<typeof runEnemyActorTurn>[number][];
+  const enemies: Entity[] = [];
+  runtime.game.query(runtime.game.components.Enemy, runtime.game.components.TurnTaker).forEach((entity) => {
+    enemies.push(entity);
+  });
+  runtime.pathfinder.beginBatch();
+  try {
+    for (const enemy of enemies) {
       if (isPlayerDefeated(context)) break;
       events.push(...runEnemyActorTurn(context, enemy));
     }
   } finally {
-    spatial.endEnemyPathingPhase();
+    runtime.pathfinder.endBatch();
   }
   return events;
 }
 
-type SpawnPlayerOptions = {
-  readonly x?: number;
-  readonly y?: number;
-  readonly dir?: number;
-  readonly health?: HealthSchema;
-};
-
-function spawnPlayer(world: World, opts: SpawnPlayerOptions = {}): Entity {
-  const entity = createPlayer(world, {
-    x: opts.x ?? 1,
-    y: opts.y ?? 1,
-    dir: opts.dir ?? Direction.East,
+function spawnEnemy(
+  runtime: ReturnType<typeof createRuntime>,
+  archetype: EnemyArchetypeCode,
+  x: number,
+  y: number,
+  dir: CardinalDirection,
+) {
+  return createEnemy(runtime, {
+    x,
+    y,
+    dir,
+    archetype: enemyArchetypeAuthoringKey(archetype),
+    displayName: displayNameFor(archetype),
   });
-  if (opts.health !== undefined) {
-    world.components.setEntityData(Health, entity, opts.health);
+}
+
+function displayNameFor(archetype: EnemyArchetypeCode): DisplayName {
+  switch (archetype) {
+    case EnemyArchetypeCode.MeleeDog:
+      return DisplayName.DigitalDog;
+    case EnemyArchetypeCode.Gunslinger:
+      return DisplayName.GigabitGunslinger;
+    case EnemyArchetypeCode.AgenticAcolyte:
+      return DisplayName.AgenticAcolyte;
+    default:
+      return DisplayName.NetworkNeophyte;
   }
-  return entity;
 }
-
-type SpawnEnemyOptions = {
-  readonly x: number;
-  readonly y: number;
-  readonly dir?: number;
-  readonly displayName: DisplayName;
-  readonly attack: Partial<AttackSchema>;
-  readonly archetype?: EnemyArchetypeCode;
-};
-
-function spawnEnemy(world: World, opts: SpawnEnemyOptions): Entity {
-  return createEnemy(world, {
-    x: opts.x,
-    y: opts.y,
-    dir: opts.dir ?? Direction.East,
-    displayName: opts.displayName,
-    attack: attackPrefabFor(opts.attack),
-    archetype: opts.archetype === undefined ? undefined : enemyArchetypeAuthoringKey(opts.archetype),
-  });
-}
-
-function attackPrefabFor(attack: Partial<AttackSchema>): AuthoringAttackDef {
-  return {
-    ...attack,
-    pattern: attack.pattern === undefined ? undefined : attackPatternAuthoringKey(attack.pattern),
-    targets: attack.targets === undefined ? undefined : attackTargetModeAuthoringKey(attack.targets),
-  };
-}
-
-const TEST_MAP = flatTestMap(5, 2);
-
-const MELEE_ATTACK: AttackSchema = {
-  minDamage: 1,
-  maxDamage: 1,
-  range: 1,
-  attackBonus: 20,
-  critThreshold: 21,
-  critMultiplier: 2,
-  pattern: AttackPattern.Line,
-  targets: AttackTargetMode.First,
-};

@@ -1,8 +1,10 @@
 import { assertEquals } from "@std/assert";
 import { combatFeedbackForEvents } from "@/src/game/combat_feedback.ts";
+import type { Entity } from "turn-based-engine/ecs";
 
-const PLAYER = 1;
-const ENEMY = 2;
+const PLAYER = 1 as Entity;
+const ENEMY = 2 as Entity;
+const PICKUP = 3 as Entity;
 
 Deno.test("combatFeedbackForEvents reports misses, hits, crits, and defeats", () => {
   assertEquals(
@@ -61,5 +63,5 @@ Deno.test("combatFeedbackForEvents marks enemy damage as hurt", () => {
 });
 
 Deno.test("combatFeedbackForEvents ignores non-combat events", () => {
-  assertEquals(combatFeedbackForEvents(PLAYER, [{ type: "keyPickedUp", entity: 3 }]), []);
+  assertEquals(combatFeedbackForEvents(PLAYER, [{ type: "keyPickedUp", entity: PICKUP }]), []);
 });
