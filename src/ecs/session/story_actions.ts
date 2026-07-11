@@ -1,8 +1,8 @@
 import { readComponent, SpriteAnimationKind } from "@/src/ecs/components.ts";
-import type { SpriteAnimationSchema } from "@/src/ecs/components.ts";
-import { addPlayerStoryFlag, playerHasStoryFlag } from "@/src/ecs/progression.ts";
+import { playerHasStoryFlag } from "@/src/ecs/progression.ts";
 import type { GameRuntime } from "@/src/ecs/runtime.ts";
 import {
+  maskWithStoryFlag,
   type StoryAction,
   storyEventDefinition,
   storyEventForCode,
@@ -13,7 +13,6 @@ import { TerrainBlock } from "turn-based-engine/crawler";
 import type { Entity } from "turn-based-engine/ecs";
 
 const STORY_MOVE_MS = 260;
-type AnimationWriter = (entity: Entity, animation: SpriteAnimationSchema) => void;
 
 export function queueTalkEvent(
   runtime: GameRuntime,
@@ -32,19 +31,28 @@ export function applyEvent(
   player: Entity,
   event: StoryEventId,
   nowMs: number,
-  writeAnimation: AnimationWriter,
 ): boolean {
   const definition = storyEventDefinition(event);
   if (playerHasStoryFlag(runtime.game, player, definition.flag) || !canApplyActions(runtime, definition.actions)) {
     return false;
   }
-  for (const action of definition.actions) {
-    const target = targetEntity(runtime, action.target);
-    if (target === undefined) return false;
-    runtime.crawler.teleport(target, action.destination.x, action.destination.y);
-    writeAnimation(target, { kind: SpriteAnimationKind.Walk, startedAtMs: nowMs, durationMs: STORY_MOVE_MS });
-  }
-  addPlayerStoryFlag(runtime.game, player, definition.flag);
+  const storyFlags = readComponent(runtime.game, player, "StoryFlags")?.mask ?? 0;
+  runtime.crawler.transaction((mutation) => {
+    for (const action of definition.actions) {
+      const target = targetEntity(runtime, action.target);
+      if (target === undefined) throw new Error(`Story target "${action.target}" disappeared.`);
+      mutation.teleport(target, action.destination.x, action.destination.y);
+      const animation = { kind: SpriteAnimationKind.Walk, startedAtMs: nowMs, durationMs: STORY_MOVE_MS };
+      if (runtime.game.entityHasComponent(target, runtime.game.components.SpriteAnimation)) {
+        mutation.patchComponent(target, runtime.game.components.SpriteAnimation, animation);
+      } else {
+        mutation.addComponent(target, runtime.game.components.SpriteAnimation, animation);
+      }
+    }
+    mutation.patchComponent(player, runtime.game.components.StoryFlags, {
+      mask: maskWithStoryFlag(storyFlags, definition.flag),
+    });
+  });
   runtime.crawler.assertInvariants();
   return true;
 }

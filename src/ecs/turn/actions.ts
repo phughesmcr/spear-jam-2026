@@ -117,9 +117,15 @@ export function facedEntity(context: TurnContext): Entity | undefined {
   const y = position.y + delta.dy;
   const occupant = context.runtime.crawler.entityAt(x, y, TerrainBlock.Movement);
   if (occupant !== undefined) return occupant;
-  const entities = context.runtime.crawler.entitiesAt(x, y);
-  return entities.find((entity) => hasComponent(context.runtime.game, entity, "Interactable")) ??
-    entities.find((entity) => hasComponent(context.runtime.game, entity, "Item"));
+  return context.runtime.crawler.findEntityAt(
+    x,
+    y,
+    (entity) => hasComponent(context.runtime.game, entity, "Interactable"),
+  ) ?? context.runtime.crawler.findEntityAt(
+    x,
+    y,
+    (entity) => hasComponent(context.runtime.game, entity, "Item"),
+  );
 }
 
 export function playerPosition(context: TurnContext): GridPoint {

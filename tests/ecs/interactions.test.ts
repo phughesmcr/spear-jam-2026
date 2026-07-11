@@ -1,11 +1,11 @@
-import { readComponent } from "@/src/ecs/components.ts";
-import { collectItemAt, interactWithEntity } from "@/src/ecs/interactions.ts";
+import { hasComponent, readComponent } from "@/src/ecs/components.ts";
+import { collectItemAt, interactWithEntity, openDoor } from "@/src/ecs/interactions.ts";
 import { createDoor, createKey, createPlayer } from "@/src/ecs/prefabs.ts";
 import { createRuntime } from "@/src/ecs/runtime.ts";
 import { Direction } from "@/src/grid/direction.ts";
 import { KeyColor } from "@/src/map/map.ts";
 import { flatTestMap } from "@/tests/ecs/helpers.ts";
-import { assertEquals } from "@std/assert";
+import { assertEquals, assertThrows } from "@std/assert";
 import { TerrainBlock } from "turn-based-engine/crawler";
 
 Deno.test("normal and locked doors change custom state and crawler masks together", () => {
@@ -21,7 +21,24 @@ Deno.test("normal and locked doors change custom state and crawler masks togethe
   assertEquals(runtime.crawler.entityBlockMask(normal), 0);
   assertEquals(interactWithEntity(runtime, locked, new Set(), false).events, [{ type: "doorLocked", entity: locked }]);
   assertEquals(interactWithEntity(runtime, locked, new Set([KeyColor.Red]), false).type, "consumeTurn");
+  assertEquals(hasComponent(runtime.game, locked, "Locked"), false);
   assertEquals(runtime.crawler.entityBlockMask(locked), 0);
+  runtime.crawler.assertInvariants();
+});
+
+Deno.test("opening a door cannot leak custom state when its transaction is rejected", () => {
+  const runtime = createRuntime(flatTestMap(3, 3));
+  const door = createDoor(runtime, { x: 1, y: 1 });
+  const maskBefore = runtime.crawler.entityBlockMask(door);
+
+  assertThrows(
+    () => runtime.crawler.transaction(() => openDoor(runtime, door)),
+    Error,
+    "Nested crawler transactions",
+  );
+
+  assertEquals(readComponent(runtime.game, door, "Door")?.open, 0);
+  assertEquals(runtime.crawler.entityBlockMask(door), maskBefore);
   runtime.crawler.assertInvariants();
 });
 

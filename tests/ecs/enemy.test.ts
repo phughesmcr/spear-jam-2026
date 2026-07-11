@@ -2,7 +2,7 @@ import { enemyArchetypeAuthoringKey, EnemyArchetypeCode } from "@/src/content/en
 import { readComponent, writeComponent } from "@/src/ecs/components.ts";
 import { createEnemy, createPlayer } from "@/src/ecs/prefabs.ts";
 import { createRuntime } from "@/src/ecs/runtime.ts";
-import { isPlayerDefeated, runEnemyActorTurn } from "@/src/ecs/turn/enemy.ts";
+import { isPlayerDefeated, prepareEnemyHearing, runEnemyActorTurn } from "@/src/ecs/turn/enemy.ts";
 import { DisplayName } from "@/src/game/names.ts";
 import { type CardinalDirection, Direction } from "@/src/grid/direction.ts";
 import { createGameMap } from "@/src/map/map.ts";
@@ -30,13 +30,15 @@ Deno.test("heard noise produces investigation without omniscient player pursuit"
   const runtime = createRuntime(flatTestMap(8, 3));
   const player = createPlayer(runtime, { x: 1, y: 1, dir: Direction.East });
   const enemy = spawnEnemy(runtime, EnemyArchetypeCode.MeleeDog, 6, 1, Direction.East);
+  const noises = [{ x: 4, y: 1, radius: 6 }] as const;
+  const hearing = prepareEnemyHearing(runtime, noises);
   runtime.pathfinder.beginBatch();
   try {
     const events = runEnemyActorTurn({
       runtime,
       player,
       random: () => 0,
-      noises: [{ x: 4, y: 1, radius: 6 }],
+      hearing,
       blocksSight: () => true,
     }, enemy);
     assertEquals(events, [{ type: "enemyInvestigating", entity: enemy }]);
@@ -44,6 +46,76 @@ Deno.test("heard noise produces investigation without omniscient player pursuit"
   } finally {
     runtime.pathfinder.endBatch();
   }
+});
+
+Deno.test("hearing chooses the nearest audible source", () => {
+  const runtime = createRuntime(flatTestMap(7, 5));
+  const player = createPlayer(runtime, { x: 6, y: 4, dir: Direction.West });
+  const enemy = spawnEnemy(runtime, EnemyArchetypeCode.NetworkNeophyte, 3, 2, Direction.East);
+
+  runPhase(
+    runtime,
+    player,
+    [
+      { x: 0, y: 2, radius: 6 },
+      { x: 3, y: 4, radius: 6 },
+    ],
+    () => 0,
+    () => true,
+  );
+
+  assertEquals(runtime.crawler.entityPosition(enemy), { x: 3, y: 3 });
+});
+
+Deno.test("equidistant noises deterministically prefer their input order", () => {
+  const runtime = createRuntime(flatTestMap(7, 5));
+  const player = createPlayer(runtime, { x: 6, y: 4, dir: Direction.West });
+  const enemy = spawnEnemy(runtime, EnemyArchetypeCode.NetworkNeophyte, 3, 2, Direction.East);
+
+  runPhase(
+    runtime,
+    player,
+    [
+      { x: 1, y: 2, radius: 2 },
+      { x: 3, y: 0, radius: 6 },
+    ],
+    () => 0,
+    () => true,
+  );
+
+  assertEquals(runtime.crawler.entityPosition(enemy), { x: 2, y: 2 });
+});
+
+Deno.test("hearing respects both source and enemy radii", () => {
+  const sourceRuntime = createRuntime(flatTestMap(9, 3));
+  const sourcePlayer = createPlayer(sourceRuntime, { x: 8, y: 1, dir: Direction.West });
+  const sourceLimited = spawnEnemy(sourceRuntime, EnemyArchetypeCode.NetworkNeophyte, 3, 1, Direction.West);
+  assertEquals(
+    runPhase(
+      sourceRuntime,
+      sourcePlayer,
+      [{ x: 0, y: 1, radius: 2 }],
+      () => 0,
+      () => true,
+    ),
+    [],
+  );
+  assertEquals(sourceRuntime.crawler.entityPosition(sourceLimited), { x: 3, y: 1 });
+
+  const enemyRuntime = createRuntime(flatTestMap(9, 3));
+  const enemyPlayer = createPlayer(enemyRuntime, { x: 8, y: 1, dir: Direction.West });
+  const enemyLimited = spawnEnemy(enemyRuntime, EnemyArchetypeCode.SystemSentinel, 3, 1, Direction.East);
+  assertEquals(
+    runPhase(
+      enemyRuntime,
+      enemyPlayer,
+      [{ x: 0, y: 1, radius: 8 }],
+      () => 0,
+      () => true,
+    ),
+    [],
+  );
+  assertEquals(enemyRuntime.crawler.entityPosition(enemyLimited), { x: 3, y: 1 });
 });
 
 Deno.test("gunslingers retreat when adjacent", () => {
@@ -150,8 +222,10 @@ function runPhase(
   player: Entity,
   noises: readonly { readonly x: number; readonly y: number; readonly radius: number }[] = [],
   random = () => 0,
+  blocksSight?: () => boolean,
 ) {
-  const context = { runtime, player, noises, random };
+  const hearing = prepareEnemyHearing(runtime, noises);
+  const context = { runtime, player, hearing, random, blocksSight };
   const events = [] as ReturnType<typeof runEnemyActorTurn>[number][];
   const enemies: Entity[] = [];
   runtime.game.query(runtime.game.components.Enemy, runtime.game.components.TurnTaker).forEach((entity) => {

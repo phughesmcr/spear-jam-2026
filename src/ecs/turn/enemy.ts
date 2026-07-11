@@ -15,7 +15,7 @@ import {
 } from "@/src/ecs/components.ts";
 import { type ActorIntent, playerPosition, resolveIntent, type TurnContext } from "@/src/ecs/turn/actions.ts";
 import type { GameEvent } from "@/src/game/events.ts";
-import { type BlocksSight, canHearNoise, canSeePoint, type NoiseStimulus } from "@/src/game/perception.ts";
+import { type BlocksSight, canSeePoint, type NoiseStimulus } from "@/src/game/perception.ts";
 import type { CardinalDirection, GridPoint } from "@/src/grid/direction.ts";
 import { TerrainBlock } from "turn-based-engine/crawler";
 import type { Entity } from "turn-based-engine/ecs";
@@ -23,9 +23,32 @@ import type { Entity } from "turn-based-engine/ecs";
 const MAX_INVESTIGATION_TURNS = 5;
 
 export type EnemyTurnContext = TurnContext & {
-  readonly noises?: readonly NoiseStimulus[];
+  readonly hearing?: EnemyHearing;
   readonly blocksSight?: BlocksSight;
 };
+
+export type EnemyHearing = {
+  readonly field: TurnContext["runtime"]["hearingField"];
+  readonly sources: readonly NoiseStimulus[];
+};
+
+export function prepareEnemyHearing(
+  runtime: TurnContext["runtime"],
+  noises: readonly NoiseStimulus[],
+): EnemyHearing {
+  const radii = noises.map((noise) => Math.max(0, Math.floor(noise.radius)));
+  const sharedStrength = radii.reduce((maximum, radius) => Math.max(maximum, radius), 0);
+  runtime.hearingField.rebuild(
+    noises.map((noise, index) => ({
+      x: noise.x,
+      y: noise.y,
+      radius: radii[index]!,
+      strength: sharedStrength,
+    })),
+    { distanceMetric: "manhattan" },
+  );
+  return { field: runtime.hearingField, sources: noises };
+}
 
 type AwarenessResult =
   | { readonly state: typeof AwarenessState.Idle }
@@ -238,7 +261,7 @@ function updateEnemyAwareness(
     };
   }
 
-  const heardNoise = nearestHeardNoise(position, context.noises ?? [], senses.hearingRadius);
+  const heardNoise = nearestHeardNoise(context, position, senses.hearingRadius);
   if (heardNoise !== undefined) {
     const awareness = {
       state: AwarenessState.Investigating,
@@ -280,28 +303,17 @@ function entityPosition(context: EnemyTurnContext, enemy: Entity): GridPoint {
 }
 
 function nearestHeardNoise(
+  context: EnemyTurnContext,
   position: GridPoint,
-  noises: readonly NoiseStimulus[],
   hearingRadius: number,
 ): NoiseStimulus | undefined {
-  let nearest:
-    | {
-      readonly noise: NoiseStimulus;
-      readonly distance: number;
-    }
-    | undefined;
-
-  for (const noise of noises) {
-    const audibleRadius = Math.min(noise.radius, hearingRadius);
-    if (!canHearNoise(position, { x: noise.x, y: noise.y, radius: audibleRadius })) continue;
-
-    const distance = Math.abs(position.x - noise.x) + Math.abs(position.y - noise.y);
-    if (nearest === undefined || distance < nearest.distance) {
-      nearest = { noise, distance };
-    }
-  }
-
-  return nearest?.noise;
+  const hearing = context.hearing;
+  if (hearing === undefined) return undefined;
+  const sourceIndex = hearing.field.sourceIndexAt(position.x, position.y, "nearest");
+  if (sourceIndex === undefined) return undefined;
+  const distance = hearing.field.distanceAt(position.x, position.y, "nearest");
+  if (distance === undefined || distance > Math.max(0, Math.floor(hearingRadius))) return undefined;
+  return hearing.sources[sourceIndex];
 }
 
 function setEnemyAwareness(

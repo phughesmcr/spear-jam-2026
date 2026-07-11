@@ -13,13 +13,14 @@ import { displayNameForCode, displayNameText } from "@/src/game/names.ts";
 import type { RandomSource } from "@/src/game/rng.ts";
 import type { CommandSlot } from "@/src/game/state.ts";
 import { playerWeaponSpec } from "@/src/game/weapons.ts";
-import { CARDINAL_DELTAS, directionDelta } from "@/src/grid/direction.ts";
+import { Direction } from "@/src/grid/direction.ts";
 import { TerrainBlock } from "turn-based-engine/crawler";
 import type { Entity } from "turn-based-engine/ecs";
 
 export type DefeatEffect = { readonly x: number; readonly y: number; readonly sprite: SpriteId };
 export type DefeatEffectWriter = (effect: DefeatEffect) => void;
 type EntityPredicate = (entity: Entity) => boolean;
+const CARDINAL_DIRECTIONS = [Direction.North, Direction.East, Direction.South, Direction.West] as const;
 export type AttackOutcome =
   | { readonly type: "miss"; readonly roll: number; readonly total: number }
   | {
@@ -146,19 +147,18 @@ function lineAttackTargets(
   if (facing === undefined) return [];
   const targets: Entity[] = [];
   const position = runtime.crawler.entityPosition(attacker);
-  const delta = directionDelta(facing);
-  for (let distance = 1; distance <= attack.range; distance++) {
-    const x = position.x + delta.dx * distance;
-    const y = position.y + delta.dy * distance;
-    const occupant = runtime.crawler.entityAt(x, y, TerrainBlock.Movement);
-    if (occupant !== undefined && occupant !== attacker) {
-      if (isTarget(occupant)) {
-        targets.push(occupant);
-        if (attack.targets === AttackTargetMode.First) break;
-      } else break;
-    }
-    if (runtime.crawler.blocksAt(x, y, TerrainBlock.EffectLine)) break;
-  }
+  runtime.crawler.scanCardinal({
+    origin: position,
+    direction: facing,
+    maxDistance: attack.range,
+    occupantBlock: TerrainBlock.Movement,
+    blockingBlock: TerrainBlock.EffectLine,
+  }, (_x, _y, _distance, occupant) => {
+    if (occupant === undefined || occupant === attacker) return;
+    if (!isTarget(occupant)) return "stop";
+    targets.push(occupant);
+    if (attack.targets === AttackTargetMode.First) return "stop";
+  });
   return targets;
 }
 
@@ -170,18 +170,20 @@ function adjacentAttackTargets(
 ): readonly Entity[] {
   const targets: Entity[] = [];
   const position = runtime.crawler.entityPosition(attacker);
-  for (const delta of CARDINAL_DELTAS) {
-    for (let distance = 1; distance <= attack.range; distance++) {
-      const x = position.x + delta.dx * distance;
-      const y = position.y + delta.dy * distance;
-      const occupant = runtime.crawler.entityAt(x, y, TerrainBlock.Movement);
-      if (occupant !== undefined && occupant !== attacker) {
-        if (!isTarget(occupant)) break;
-        targets.push(occupant);
-        if (attack.targets === AttackTargetMode.First) return targets;
-      }
-      if (runtime.crawler.blocksAt(x, y, TerrainBlock.EffectLine)) break;
-    }
+  for (const direction of CARDINAL_DIRECTIONS) {
+    runtime.crawler.scanCardinal({
+      origin: position,
+      direction,
+      maxDistance: attack.range,
+      occupantBlock: TerrainBlock.Movement,
+      blockingBlock: TerrainBlock.EffectLine,
+    }, (_x, _y, _distance, occupant) => {
+      if (occupant === undefined || occupant === attacker) return;
+      if (!isTarget(occupant)) return "stop";
+      targets.push(occupant);
+      if (attack.targets === AttackTargetMode.First) return "stop";
+    });
+    if (attack.targets === AttackTargetMode.First && targets.length > 0) return targets;
   }
   return targets;
 }

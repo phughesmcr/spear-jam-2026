@@ -204,7 +204,7 @@ export class GameSession implements Disposable {
     const event = this.pendingDialogueStoryEvent;
     this.pendingDialogueStoryEvent = undefined;
     if (event !== undefined) {
-      applyEvent(this.runtime, this.playerEntity, event, performance.now(), this.animations.set);
+      applyEvent(this.runtime, this.playerEntity, event, performance.now());
     }
   }
 

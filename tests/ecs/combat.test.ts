@@ -43,6 +43,26 @@ Deno.test("line attacks target movement occupants and stop at effect-line doors"
   runtime.crawler.assertInvariants();
 });
 
+Deno.test("line attacks preserve target order and stop at the first non-target occupant", () => {
+  const runtime = createRuntime(flatTestMap(9, 3));
+  const player = createPlayer(runtime, { x: 1, y: 1, dir: Direction.East });
+  const first = spawnEnemy(runtime, 2, 1);
+  const second = spawnEnemy(runtime, 4, 1);
+  runtime.crawler.spawnCrawler({ x: 6, y: 1, blockMask: 1 });
+  const beyondBlocker = spawnEnemy(runtime, 7, 1);
+  const attack = { ...ATTACK, range: 7, targets: AttackTargetMode.All };
+
+  assertEquals(
+    attackTargets(
+      runtime,
+      player,
+      attack,
+      (entity) => entity === first || entity === second || entity === beyondBlocker,
+    ),
+    [first, second],
+  );
+});
+
 Deno.test("adjacent attacks find cardinal actors without facing", () => {
   const runtime = createRuntime(flatTestMap(5, 5));
   const attacker = runtime.crawler.spawnCrawler({ x: 2, y: 2 });

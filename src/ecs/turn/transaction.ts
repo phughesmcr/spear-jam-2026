@@ -1,6 +1,6 @@
 import { awardCreditsForDefeats } from "@/src/ecs/progression.ts";
 import { playerPosition, resolveIntent, type TurnContext } from "@/src/ecs/turn/actions.ts";
-import { isPlayerDefeated, runEnemyActorTurn } from "@/src/ecs/turn/enemy.ts";
+import { type EnemyHearing, isPlayerDefeated, prepareEnemyHearing, runEnemyActorTurn } from "@/src/ecs/turn/enemy.ts";
 import { playerIntentsForCommand } from "@/src/ecs/turn/player.ts";
 import type { PlayerCommand } from "@/src/game/commands.ts";
 import type { GameEvent } from "@/src/game/events.ts";
@@ -8,9 +8,10 @@ import type { NoiseStimulus } from "@/src/game/perception.ts";
 import type { DialogueState } from "@/src/game/state.ts";
 import type { GridPoint } from "@/src/grid/direction.ts";
 import { TerrainBlock } from "turn-based-engine/crawler";
-import type { Entity } from "turn-based-engine/ecs";
+import { type Entity, QuerySnapshot } from "turn-based-engine/ecs";
 
 const DOOR_NOISE_RADIUS = 4;
+const enemyTurnSnapshots = new WeakMap<TurnContext["runtime"], QuerySnapshot>();
 
 export type TurnCost = "free" | "turn";
 
@@ -62,18 +63,13 @@ export function runTurnTransaction(context: TurnContext, command: PlayerCommand)
 
   const actionEvents = awardCreditsForDefeats(context.runtime.game, context.player, playerEvents);
   const noises = noisesForPlayerAction(context, actionEvents, actionNoise);
+  const hearing = prepareEnemyHearing(context.runtime, noises);
   const enemyContext = {
     ...context,
-    noises,
+    hearing,
     blocksSight: context.blocksSight ?? ((x, y) => context.runtime.crawler.blocksAt(x, y, TerrainBlock.Sight)),
   };
-  context.runtime.pathfinder.beginBatch();
-  let enemyEvents: readonly GameEvent[];
-  try {
-    enemyEvents = runEnemyPhase(enemyContext);
-  } finally {
-    context.runtime.pathfinder.endBatch();
-  }
+  const enemyEvents = context.runtime.pathfinder.batch(() => runEnemyPhase(enemyContext));
   const events = [...actionEvents, ...enemyEvents];
   return {
     events,
@@ -85,19 +81,33 @@ export function runTurnTransaction(context: TurnContext, command: PlayerCommand)
 
 function runEnemyPhase(
   context: TurnContext & {
-    readonly noises: readonly NoiseStimulus[];
+    readonly hearing: EnemyHearing;
   },
 ): readonly GameEvent[] {
   const events: GameEvent[] = [];
-  const enemies: Entity[] = [];
-  context.runtime.game.query(context.runtime.game.components.Enemy, context.runtime.game.components.TurnTaker).forEach(
-    (enemy) => enemies.push(enemy),
-  );
-  for (const enemy of enemies) {
-    if (isPlayerDefeated(context)) break;
+  const { game } = context.runtime;
+  const enemyQuery = game.query(game.components.Enemy, game.components.TurnTaker);
+  const enemyTurnSnapshot = snapshotForEnemyPhase(context.runtime);
+  enemyQuery.snapshotInto(enemyTurnSnapshot);
+  enemyTurnSnapshot.forEach((enemy) => {
+    if (isPlayerDefeated(context)) return;
+    if (
+      !game.isEntityAlive(enemy) ||
+      !game.entityHasComponent(enemy, game.components.Enemy) ||
+      !game.entityHasComponent(enemy, game.components.TurnTaker)
+    ) return;
     events.push(...runEnemyActorTurn(context, enemy));
-  }
+  });
   return events;
+}
+
+function snapshotForEnemyPhase(runtime: TurnContext["runtime"]): QuerySnapshot {
+  let snapshot = enemyTurnSnapshots.get(runtime);
+  if (snapshot === undefined) {
+    snapshot = new QuerySnapshot();
+    enemyTurnSnapshots.set(runtime, snapshot);
+  }
+  return snapshot;
 }
 
 function noisesForPlayerAction(

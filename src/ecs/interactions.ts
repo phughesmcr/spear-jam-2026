@@ -1,12 +1,13 @@
 import { ItemKind, itemKindForCode } from "@/src/content/items.ts";
 import { dialogueTreeForCode, dialogueTreeStart } from "@/src/dialogue/dialogue.ts";
-import { hasComponent, readComponent, requireComponent, writeComponent } from "@/src/ecs/components.ts";
+import { type GameComponentMap, hasComponent, readComponent, requireComponent } from "@/src/ecs/components.ts";
 import type { GameRuntime } from "@/src/ecs/runtime.ts";
 import type { InteractVerb } from "@/src/game/commands.ts";
 import type { GameEvent } from "@/src/game/events.ts";
 import { displayNameForCode, displayNameText } from "@/src/game/names.ts";
 import { type AmmoKind, type CommandSlot, commandSlotForCode, type DialogueState } from "@/src/game/state.ts";
 import { type KeyColor, keyColorForCode } from "@/src/map/map.ts";
+import type { CrawlerMutation } from "turn-based-engine/crawler";
 import type { Entity } from "turn-based-engine/ecs";
 
 export type ItemPickup =
@@ -42,7 +43,7 @@ const VERB_PERMISSIONS: Readonly<Record<InteractVerb, readonly InteractionKind[]
 };
 
 export function collectItemAt(runtime: GameRuntime, x: number, y: number): ItemPickup | undefined {
-  const item = runtime.crawler.entitiesAt(x, y).find((entity) => hasComponent(runtime.game, entity, "Item"));
+  const item = runtime.crawler.findEntityAt(x, y, (entity) => hasComponent(runtime.game, entity, "Item"));
   if (item === undefined) return undefined;
   const { kind, value } = requireComponent(runtime.game, item, "Item");
   const pickup = itemPickupFor(item, itemKindForCode(kind), value);
@@ -116,15 +117,25 @@ function interactWithDoor(
     if (!heldKeys.has(keyColorForCode(lock.color))) {
       return { type: "unchanged", events: [{ type: "doorLocked", entity: door }] };
     }
-    runtime.game.removeComponentFromEntity(door, runtime.game.components.Locked);
   }
-  openDoor(runtime, door);
+  runtime.crawler.transaction((mutation) => {
+    if (lock !== undefined) mutation.removeComponent(door, runtime.game.components.Locked);
+    mutateDoorOpen(runtime, mutation, door);
+  });
   return { type: "consumeTurn", events: [{ type: "doorOpened", entity: door }] };
 }
 
 export function openDoor(runtime: GameRuntime, door: Entity): void {
-  writeComponent(runtime.game, door, "Door", { open: 1 });
-  runtime.crawler.setBlockMask(door, 0);
+  runtime.crawler.transaction((mutation) => mutateDoorOpen(runtime, mutation, door));
+}
+
+function mutateDoorOpen(
+  runtime: GameRuntime,
+  mutation: CrawlerMutation<GameComponentMap>,
+  door: Entity,
+): void {
+  mutation.patchComponent(door, runtime.game.components.Door, { open: 1 });
+  mutation.setBlockMask(door, 0);
 }
 
 function interactWithNpc(runtime: GameRuntime, npc: Entity): PlayerInteractionResult {

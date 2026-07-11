@@ -12,7 +12,7 @@ import { DrawableKind } from "@/src/ecs/drawable_kind.ts";
 import { createCorpse, createDeathEffect } from "@/src/ecs/prefabs.ts";
 import type { GameRuntime } from "@/src/ecs/runtime.ts";
 import type { GameEvent } from "@/src/game/events.ts";
-import type { Entity, SlotIndex } from "turn-based-engine/ecs";
+import { type Entity, QuerySnapshot, type SlotIndex } from "turn-based-engine/ecs";
 
 export type ActorPositionSnapshot = Map<Entity, { readonly x: number; readonly y: number }>;
 export type AnimationController = {
@@ -21,11 +21,11 @@ export type AnimationController = {
   readonly applyWalks: (positions: ActorPositionSnapshot, nowMs: number) => void;
   readonly applyEvents: (player: Entity, events: readonly GameEvent[], nowMs: number) => void;
   readonly writeDefeatEffect: (effect: DefeatEffect) => void;
-  readonly set: (entity: Entity, animation: SpriteAnimationSchema) => void;
 };
 
 export function createAnimationController(runtime: GameRuntime): AnimationController {
   const animationQuery = runtime.game.query(runtime.game.components.SpriteAnimation);
+  const animationSnapshot = new QuerySnapshot();
   const actorQuery = runtime.game.query(runtime.game.components.Drawable, runtime.crawler.components.GridPosition);
   let animationNowMs = 0;
   let animationActive = false;
@@ -60,7 +60,14 @@ export function createAnimationController(runtime: GameRuntime): AnimationContro
   function advance(nowMs: number): boolean {
     animationNowMs = nowMs;
     animationActive = false;
-    animationQuery.forEach(advanceEntity);
+    animationQuery.snapshotInto(animationSnapshot);
+    animationSnapshot.forEach((entity, slot) => {
+      if (
+        !runtime.game.isEntityAlive(entity) ||
+        !runtime.game.entityHasComponent(entity, runtime.game.components.SpriteAnimation)
+      ) return;
+      advanceEntity(entity, slot);
+    });
     return animationActive;
   }
 
@@ -97,5 +104,5 @@ export function createAnimationController(runtime: GameRuntime): AnimationContro
     createDeathEffect(runtime, effect, effect.sprite);
   }
 
-  return { advance, actorPositions, applyWalks, applyEvents, writeDefeatEffect, set };
+  return { advance, actorPositions, applyWalks, applyEvents, writeDefeatEffect };
 }

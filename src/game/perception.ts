@@ -31,17 +31,3 @@ export function canSeeTile(
     blocksSight: sight.blocksSight,
   });
 }
-
-export function canHearNoise(listener: GridPoint, noise: NoiseStimulus): boolean {
-  return canHearNoiseAt(listener.x, listener.y, noise.x, noise.y, noise.radius);
-}
-
-export function canHearNoiseAt(
-  listenerX: number,
-  listenerY: number,
-  noiseX: number,
-  noiseY: number,
-  radius: number,
-): boolean {
-  return Math.abs(listenerX - noiseX) + Math.abs(listenerY - noiseY) <= Math.max(0, Math.floor(radius));
-}

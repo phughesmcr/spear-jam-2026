@@ -3,6 +3,9 @@ import { SPRITE_ATTACK_MS, SPRITE_DEATH_MS, SPRITE_WALK_MS, SpriteAnimationKind 
 import type { ActorDrawableEntity, DrawableEntity } from "@/src/ecs/drawables.ts";
 import { DrawableKind, SpriteId } from "@/src/ecs/drawables.ts";
 import { createGameSession } from "@/src/ecs/session.ts";
+import { createDeathEffect } from "@/src/ecs/prefabs.ts";
+import { createRuntime } from "@/src/ecs/runtime.ts";
+import { createAnimationController } from "@/src/ecs/session/sprite_animations.ts";
 import type { PlayerCommandResult } from "@/src/game/commands.ts";
 import { DisplayName, displayNameCode } from "@/src/game/names.ts";
 import { type EnemyIdleSoundSource, type SoundEmitterSnapshot, SoundId } from "@/src/game/sound.ts";
@@ -853,6 +856,24 @@ Deno.test("defeated enemies render as ECS death effects before becoming corpses"
       session[Symbol.dispose]();
     }
   });
+});
+
+Deno.test("animation expiry processes every captured member when deaths replace entities", () => {
+  const runtime = createRuntime(flatTestMap(5, 3));
+  const animations = createAnimationController(runtime);
+  createDeathEffect(runtime, { x: 1, y: 1 }, SpriteId.DigitalDog);
+  createDeathEffect(runtime, { x: 2, y: 1 }, SpriteId.DigitalDog);
+
+  assertEquals(animations.advance(100), true);
+  assertEquals(animations.advance(100 + SPRITE_DEATH_MS), false);
+
+  assertEquals(runtime.game.query(runtime.game.components.SpriteAnimation).count(), 0);
+  let corpses = 0;
+  runtime.game.query(runtime.game.components.Sprite).forEach((_entity, slot) => {
+    if (runtime.game.storage.Sprite.getAt(slot, "id") === SpriteId.Corpse) corpses++;
+  });
+  assertEquals(corpses, 2);
+  runtime.crawler.assertInvariants();
 });
 
 function testMap(entities: readonly EntityDef[], width = 5): GameMap {
