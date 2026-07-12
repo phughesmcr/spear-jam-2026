@@ -46,6 +46,7 @@ import {
   type PlayerDef,
   type SoundDef,
   type SpearPickupDef,
+  type SpearTurretDef,
   type UplinkCodeDef,
   type UplinkTerminalDef,
   type WeaponPickupDef,
@@ -212,6 +213,20 @@ export function createUplinkTerminal(runtime: GameRuntime, prefab: Omit<UplinkTe
   });
 }
 
+export function createSpearTurret(runtime: GameRuntime, prefab: Omit<SpearTurretDef, "prefab">): Entity {
+  return runtime.crawler.spawnCrawler({
+    x: prefab.x,
+    y: prefab.y,
+    blockMask: TerrainBlock.Movement,
+    components: {
+      Drawable: { kind: DrawableKind.Sprite, layer: DrawableLayer.Structure },
+      Sprite: { id: SpriteId.SpearTurret },
+      SpearTurret: {},
+      Interactable: {},
+    },
+  });
+}
+
 export function createWeaponPickup(runtime: GameRuntime, prefab: Omit<WeaponPickupDef, "prefab">): Entity {
   return createPickup(runtime, prefab, ItemKind.Weapon, prefab.slot);
 }
@@ -312,6 +327,8 @@ export function createMapEntity(runtime: GameRuntime, prefab: EntityDef): Entity
       return createSound(runtime, prefab);
     case "spearPickup":
       return createSpearPickup(runtime, prefab);
+    case "spearTurret":
+      return createSpearTurret(runtime, prefab);
   }
 }
 

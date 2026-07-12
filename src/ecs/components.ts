@@ -109,6 +109,7 @@ export const GAME_COMPONENTS = {
   Secret: {},
   Glass: {},
   UplinkTerminal: { requiresSpear: Uint8Array },
+  SpearTurret: {},
   DisplayName: { displayName: Uint8Array },
   DialogueTreeRef: { dialogueTreeId: Uint8Array },
   ExamineTextRef: { examineTextId: Uint8Array },

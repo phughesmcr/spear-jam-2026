@@ -38,6 +38,8 @@ const SCALE_DECOR_LARGE = 0.85;
 const SCALE_DECOR_TALL = 0.95;
 const SCALE_DECOR_CEILING_LIGHT = 0.45;
 const SCALE_DECOR_CEILING_LONG = 0.75;
+const SCALE_MAINFRAME_CORE = 1;
+const SCALE_SPEAR_TURRET = 0.9;
 const ELEVATION_CEILING_LIGHT = 1 - SCALE_DECOR_CEILING_LIGHT;
 const ELEVATION_CEILING_LONG = 1 - SCALE_DECOR_CEILING_LONG;
 const ENEMY_CROP: SpriteSourceFrame = [0, 0, 1 / 4, 1 / 4];
@@ -80,6 +82,9 @@ const DECOR_CEILING_HOOK = new URL("../../assets/game/sprites/decor_ceiling_hook
 const DECOR_CEILING_LIGHT = new URL("../../assets/game/sprites/decor_ceiling_light.png", import.meta.url).href;
 const DECOR_CEILING_WIRES = new URL("../../assets/game/sprites/decor_ceiling_wires.png", import.meta.url).href;
 const SPEAR = new URL("../../assets/game/sprites/spear.png", import.meta.url).href;
+const MAINFRAME_CORE = new URL("../../assets/game/sprites/mainframe_core.png", import.meta.url).href;
+const SPEAR_TURRET = new URL("../../assets/game/sprites/spear_turret.png", import.meta.url).href;
+const SPEAR_TURRET_LOADED = new URL("../../assets/game/sprites/spear_turret_loaded.png", import.meta.url).href;
 
 const SPRITE_APPEARANCES: Readonly<Record<SpriteIdType, SpriteAppearance>> = {
   [SpriteId.Player]: appearance(undefined, SCALE_ACTOR, "player", "#f0c84b"),
@@ -128,6 +133,9 @@ const SPRITE_APPEARANCES: Readonly<Record<SpriteIdType, SpriteAppearance>> = {
     DECOR_CEILING_WIRES,
   ),
   [SpriteId.Spear]: itemAppearance(98, "weapon", "#22d3ee", SPEAR, undefined, "S"),
+  [SpriteId.MainframeCore]: decorationAppearance(99, SCALE_MAINFRAME_CORE, 0, MAINFRAME_CORE),
+  [SpriteId.SpearTurret]: decorationAppearance(100, SCALE_SPEAR_TURRET, 0, SPEAR_TURRET),
+  [SpriteId.SpearTurretLoaded]: decorationAppearance(101, SCALE_SPEAR_TURRET, 0, SPEAR_TURRET_LOADED),
 };
 
 const SPRITE_APPEARANCE_LIST = Object.values(SPRITE_APPEARANCES);
@@ -154,6 +162,7 @@ const DECORATION_SPRITE_IDS: Readonly<Record<DecorationKindType, SpriteIdType>> 
   ceilingHook: SpriteId.DecorCeilingHook,
   ceilingLight: SpriteId.DecorCeilingLight,
   ceilingWires: SpriteId.DecorCeilingWires,
+  mainframeCore: SpriteId.MainframeCore,
 };
 
 export function spriteAppearance(id: SpriteIdType): SpriteAppearance {

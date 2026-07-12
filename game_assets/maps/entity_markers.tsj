@@ -1,12 +1,12 @@
 {
-  "columns": 13,
+  "columns": 14,
   "image": "entity_markers.png",
   "imageheight": 16,
-  "imagewidth": 208,
+  "imagewidth": 224,
   "margin": 0,
   "name": "entity_markers",
   "spacing": 0,
-  "tilecount": 13,
+  "tilecount": 14,
   "tiledversion": "1.11.2",
   "tileheight": 16,
   "tiles": [
@@ -247,6 +247,18 @@
           "propertytype": "Prefab",
           "type": "string",
           "value": "spearPickup"
+        }
+      ]
+    },
+    {
+      "id": 13,
+      "type": "spearTurret",
+      "properties": [
+        {
+          "name": "prefab",
+          "propertytype": "Prefab",
+          "type": "string",
+          "value": "spearTurret"
         }
       ]
     }

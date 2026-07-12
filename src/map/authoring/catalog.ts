@@ -226,6 +226,9 @@ export const PROPERTY_TYPES: readonly TiledPropertyType[] = [
   classPropertyType(42, "spearPickup", "#ff22d3ee", false, ["object"], [
     classMember("prefab", "string", "spearPickup", "Prefab"),
   ]),
+  classPropertyType(43, "spearTurret", "#ff06b6d4", false, ["object"], [
+    classMember("prefab", "string", "spearTurret", "Prefab"),
+  ]),
 ];
 
 export const TILED_PROJECT_COMMANDS: readonly TiledProjectCommand[] = [
@@ -332,6 +335,9 @@ export const TEMPLATE_DEFINITIONS: readonly TemplateDefinition[] = [
   ]),
   templateDefinition("spear_pickup.tx", "spearPickup", "spearPickup", "Spear of Destiny", [
     property("prefab", "spearPickup", "Prefab"),
+  ]),
+  templateDefinition("spear_turret.tx", "spearTurret", "spearTurret", "Spear turret", [
+    property("prefab", "spearTurret", "Prefab"),
   ]),
 ];
 
@@ -492,6 +498,7 @@ function decorationTemplateDefinitions(): readonly TemplateDefinition[] {
     decorationTemplateDefinition("ceilingHook", "Ceiling hook"),
     decorationTemplateDefinition("ceilingLight", "Ceiling light"),
     decorationTemplateDefinition("ceilingWires", "Ceiling wires"),
+    decorationTemplateDefinition("mainframeCore", "Mainframe core"),
   ];
 }
 

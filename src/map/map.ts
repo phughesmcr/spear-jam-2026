@@ -35,6 +35,7 @@ export type {
   PlayerDef,
   SoundDef,
   SpearPickupDef,
+  SpearTurretDef,
   UplinkCodeDef,
   UplinkTerminalDef,
   WeaponPickupDef,

@@ -42,3 +42,9 @@ Deno.test("catalog template properties only reference authored properties", () =
   }
   assertEquals(drift, []);
 });
+
+Deno.test("final chamber set-pieces have Tiled templates", () => {
+  const paths = TEMPLATE_DEFINITIONS.map((template) => template.path);
+  assertEquals(paths.includes("game_assets/maps/templates/decor_mainframe_core.tx"), true);
+  assertEquals(paths.includes("game_assets/maps/templates/spear_turret.tx"), true);
+});

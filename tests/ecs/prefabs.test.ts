@@ -1,4 +1,5 @@
 import { enemyArchetypeAuthoringKey, EnemyArchetypeCode } from "@/src/content/enemies.ts";
+import { SpriteId } from "@/src/content/sprite_ids.ts";
 import { hasComponent } from "@/src/ecs/components.ts";
 import { DialogueTreeId } from "@/src/dialogue/dialogue.ts";
 import {
@@ -9,6 +10,7 @@ import {
   createNpc,
   createPlayer,
   createSound,
+  createSpearTurret,
   createUplinkTerminal,
 } from "@/src/ecs/prefabs.ts";
 import { createRuntime } from "@/src/ecs/runtime.ts";
@@ -80,4 +82,17 @@ Deno.test("prefabs retain optional metadata, sound, and nonblocking decoration c
   assertEquals(runtime.game.storage.SoundEmitter.get(sound, "radius"), 4);
   assertEquals(runtime.game.storage.SoundEmitter.get(sound, "volume"), 0.5);
   assertEquals(runtime.crawler.entityBlockMask(decoration), 0);
+});
+
+Deno.test("final chamber set-piece prefabs use their initial sprites and collision contracts", () => {
+  const runtime = createRuntime(flatTestMap(4, 3));
+  const mainframe = createDecoration(runtime, { x: 1, y: 1, decoration: "mainframeCore" });
+  const turret = createSpearTurret(runtime, { x: 2, y: 1 });
+
+  assertEquals(runtime.game.storage.Sprite.get(mainframe, "id"), SpriteId.MainframeCore);
+  assertEquals(runtime.crawler.entityBlockMask(mainframe), 0);
+  assertEquals(runtime.game.storage.Sprite.get(turret, "id"), SpriteId.SpearTurret);
+  assertEquals(runtime.crawler.entityBlockMask(turret), TerrainBlock.Movement);
+  assertEquals(hasComponent(runtime.game, turret, "Interactable"), true);
+  assertEquals(hasComponent(runtime.game, turret, "SpearTurret"), true);
 });

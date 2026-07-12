@@ -26,6 +26,7 @@ const MARKER_COLORS: Readonly<Record<EntityMarkerType, readonly [number, number,
   light: [251, 191, 36, 255],
   sound: [20, 184, 166, 255],
   spearPickup: [34, 211, 238, 255],
+  spearTurret: [6, 182, 212, 255],
 };
 
 export function generatedEntityMarkersTilesetSource(): string {
@@ -90,6 +91,8 @@ function entityMarkerTileProperties(type: EntityMarkerType): readonly TiledPrope
     case "uplinkCode":
       return [property("prefab", type, "Prefab")];
     case "spearPickup":
+      return [property("prefab", type, "Prefab")];
+    case "spearTurret":
       return [property("prefab", type, "Prefab")];
     case "uplinkTerminal":
       return [
@@ -348,6 +351,22 @@ function drawEntityMarker(
         ".....##.........",
         "....##..........",
         "...##...........",
+      ], accent);
+      break;
+    case "spearTurret":
+      drawMarkerGlyph(target, targetWidth, left, [
+        "...##......##...",
+        "....##....##....",
+        ".....######.....",
+        "......####......",
+        ".......##.......",
+        "......####......",
+        ".....######.....",
+        "....########....",
+        "...##########...",
+        "....########....",
+        ".....######.....",
+        "....########....",
       ], accent);
       break;
     default: {

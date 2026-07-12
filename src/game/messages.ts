@@ -39,6 +39,10 @@ export function messageForEvent(playerEntity: Entity, event: GameEvent): string 
       return "The uplink needs the Spear of Destiny.";
     case "uplinkTerminalActivated":
       return "Uplink accepted.";
+    case "spearTurretNeedsSpear":
+      return "The turret needs the Spear of Destiny.";
+    case "spearTurretLoaded":
+      return "Loaded the Spear of Destiny.";
     case "weaponSelected":
       return `Selected weapon ${event.slot}: ${event.label}.`;
     case "weaponUnavailable":

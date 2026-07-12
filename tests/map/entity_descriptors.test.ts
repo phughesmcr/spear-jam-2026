@@ -1,5 +1,6 @@
 import {
   ATTACK_PROPERTY_MAP,
+  DECORATION_KINDS,
   ENTITY_DESCRIPTORS,
   PREFAB_AUTHORING_PROPERTY_NAMES,
 } from "@/src/map/entity_descriptors.ts";
@@ -57,6 +58,11 @@ Deno.test("entity descriptors expose every normalized field to authors", () => {
 Deno.test("entity descriptors own movement-blocking traits", () => {
   assertEquals(
     ENTITY_DESCRIPTORS.filter((descriptor) => descriptor.blockingMovement).map((descriptor) => descriptor.prefab),
-    ["player", "npc", "enemy", "door", "uplinkTerminal"],
+    ["player", "npc", "enemy", "door", "uplinkTerminal", "spearTurret"],
   );
+});
+
+Deno.test("final chamber set-pieces are available to map authors", () => {
+  assertEquals(DECORATION_KINDS.includes("mainframeCore"), true);
+  assertEquals(ENTITY_DESCRIPTORS.some((descriptor) => descriptor.prefab === "spearTurret"), true);
 });

@@ -99,6 +99,14 @@ export type GameEvent =
     readonly entity: Entity;
   }
   | {
+    readonly type: "spearTurretNeedsSpear";
+    readonly entity: Entity;
+  }
+  | {
+    readonly type: "spearTurretLoaded";
+    readonly entity: Entity;
+  }
+  | {
     readonly type: "weaponSelected";
     readonly slot: CommandSlot;
     readonly label: string;

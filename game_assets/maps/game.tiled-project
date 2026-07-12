@@ -80,7 +80,8 @@
         "decoration",
         "light",
         "sound",
-        "spearPickup"
+        "spearPickup",
+        "spearTurret"
       ],
       "valuesAsFlags": false
     },
@@ -291,7 +292,8 @@
         "cyborg",
         "ceilingHook",
         "ceilingLight",
-        "ceilingWires"
+        "ceilingWires",
+        "mainframeCore"
       ],
       "valuesAsFlags": false
     },
@@ -764,6 +766,24 @@
         }
       ],
       "name": "spearPickup",
+      "type": "class",
+      "useAs": [
+        "object"
+      ]
+    },
+    {
+      "color": "#ff06b6d4",
+      "drawFill": false,
+      "id": 43,
+      "members": [
+        {
+          "name": "prefab",
+          "propertyType": "Prefab",
+          "type": "string",
+          "value": "spearTurret"
+        }
+      ],
+      "name": "spearTurret",
       "type": "class",
       "useAs": [
         "object"

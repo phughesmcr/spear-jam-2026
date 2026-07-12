@@ -607,6 +607,29 @@ Deno.test("Nexus-style terminals reject use until the spear is held", async () =
   }
 });
 
+Deno.test("player USE loads a map-authored spear turret", async () => {
+  const session = await createGameSession(
+    testMap([
+      { prefab: "spearPickup", x: 2, y: 1 },
+      { prefab: "spearTurret", x: 3, y: 1 },
+    ]),
+    () => 0,
+  );
+  try {
+    assertEquals(spriteAt(sessionDrawables(session), 3, 1)?.spriteId, SpriteId.SpearTurret);
+    assertEquals(eventTypes(session.handlePlayerCommand({ type: "move", direction: "forward" })), [
+      "spearPickedUp",
+    ]);
+
+    assertEquals(eventTypes(session.handlePlayerCommand({ type: "interact", verb: "use" })), [
+      "spearTurretLoaded",
+    ]);
+    assertEquals(spriteAt(sessionDrawables(session), 3, 1)?.spriteId, SpriteId.SpearTurretLoaded);
+  } finally {
+    session[Symbol.dispose]();
+  }
+});
+
 Deno.test("normal map loads keep durable progression and use the destination spawn pose", async () => {
   const session = await createGameSession(
     testMap([

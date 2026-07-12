@@ -181,6 +181,7 @@ type ReachabilityIndexes = {
   readonly codeTiles: ReadonlySet<string>;
   readonly spearTiles: ReadonlySet<string>;
   readonly terminalTiles: ReadonlyMap<string, boolean>;
+  readonly turretTiles: ReadonlySet<string>;
   readonly doorsByTile: ReadonlyMap<string, readonly DoorDef[]>;
 };
 
@@ -189,6 +190,7 @@ function reachabilityIndexes(map: GameMap): ReachabilityIndexes {
   const codeTiles = new Set<string>();
   const spearTiles = new Set<string>();
   const terminalTiles = new Map<string, boolean>();
+  const turretTiles = new Set<string>();
   const doorsByTile = new Map<string, DoorDef[]>();
 
   for (const entity of map.entities) {
@@ -207,6 +209,9 @@ function reachabilityIndexes(map: GameMap): ReachabilityIndexes {
         break;
       case "uplinkTerminal":
         terminalTiles.set(tileKey(entity.x, entity.y), entity.requiresSpear === true);
+        break;
+      case "spearTurret":
+        turretTiles.add(tileKey(entity.x, entity.y));
         break;
       case "door": {
         const tile = tileKey(entity.x, entity.y);
@@ -238,7 +243,7 @@ function reachabilityIndexes(map: GameMap): ReachabilityIndexes {
     }
   }
 
-  return { keyMasksByTile, codeTiles, spearTiles, terminalTiles, doorsByTile };
+  return { keyMasksByTile, codeTiles, spearTiles, terminalTiles, turretTiles, doorsByTile };
 }
 
 function canStandOn(
@@ -253,6 +258,7 @@ function canStandOn(
 
   const tile = tileKey(x, y);
   if (indexes.terminalTiles.has(tile)) return false;
+  if (indexes.turretTiles.has(tile)) return false;
 
   for (const door of indexes.doorsByTile.get(tile) ?? []) {
     if (door.locked === true && (door.color === undefined || (keyMask & keyBit(door.color)) === 0)) {

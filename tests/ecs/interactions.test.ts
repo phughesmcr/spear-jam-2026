@@ -1,6 +1,7 @@
 import { hasComponent, readComponent } from "@/src/ecs/components.ts";
+import { SpriteId } from "@/src/content/sprite_ids.ts";
 import { collectItemAt, interactWithEntity, openDoor } from "@/src/ecs/interactions.ts";
-import { createDoor, createKey, createPlayer } from "@/src/ecs/prefabs.ts";
+import { createDoor, createKey, createPlayer, createSpearTurret } from "@/src/ecs/prefabs.ts";
 import { createRuntime } from "@/src/ecs/runtime.ts";
 import { Direction } from "@/src/grid/direction.ts";
 import { KeyColor } from "@/src/map/map.ts";
@@ -63,4 +64,26 @@ Deno.test("items coexist with a movement occupant and despawn through crawler li
   assertEquals(collectItemAt(runtime, 1, 1), { type: "key", entity: key, color: KeyColor.Red });
   assertEquals(runtime.game.isEntityAlive(key), false);
   runtime.crawler.assertInvariants();
+});
+
+Deno.test("using a spear turret loads it only when the player holds the spear", () => {
+  const runtime = createRuntime(flatTestMap());
+  const turret = createSpearTurret(runtime, { x: 1, y: 0 });
+
+  assertEquals(interactWithEntity(runtime, turret, new Set(), false, false, "use"), {
+    type: "unchanged",
+    events: [{ type: "spearTurretNeedsSpear", entity: turret }],
+  });
+  assertEquals(runtime.game.storage.Sprite.get(turret, "id"), SpriteId.SpearTurret);
+
+  assertEquals(interactWithEntity(runtime, turret, new Set(), false, true, "use"), {
+    type: "consumeTurn",
+    events: [{ type: "spearTurretLoaded", entity: turret }],
+  });
+  assertEquals(runtime.game.storage.Sprite.get(turret, "id"), SpriteId.SpearTurretLoaded);
+
+  assertEquals(interactWithEntity(runtime, turret, new Set(), false, true, "use"), {
+    type: "unchanged",
+    events: [],
+  });
 });

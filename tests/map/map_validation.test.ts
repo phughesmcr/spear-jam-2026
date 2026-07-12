@@ -261,6 +261,24 @@ Deno.test("map validation ignores blocking actors that are cleared during play",
   );
 });
 
+Deno.test("map validation treats spear turrets as permanent obstacles", () => {
+  assertEquals(
+    validateGameMaps([
+      createGameMap("Turret Corridor", [
+        [0, DEFAULT_WALL_TERRAIN_ID, 0],
+        [0, 0, 0],
+        [0, DEFAULT_WALL_TERRAIN_ID, 0],
+      ], [
+        { prefab: "player", x: 0, y: 1, dir: 1 },
+        { prefab: "uplinkCode", x: 0, y: 0 },
+        { prefab: "spearTurret", x: 1, y: 1 },
+        { prefab: "uplinkTerminal", x: 2, y: 1, goto: VICTORY_GOTO },
+      ]),
+    ]),
+    ["Turret Corridor: no uplink terminal is reachable after collecting an uplink code and required keys."],
+  );
+});
+
 Deno.test("map validation requires a terminal to be reachable after collecting code and keys", () => {
   assertEquals(
     validateGameMaps([

@@ -1,4 +1,5 @@
 import { ItemKind, itemKindForCode } from "@/src/content/items.ts";
+import { SpriteId } from "@/src/content/sprite_ids.ts";
 import { dialogueTreeForCode, DialogueTreeId, dialogueTreeStart } from "@/src/dialogue/dialogue.ts";
 import { type GameComponentMap, hasComponent, readComponent, requireComponent } from "@/src/ecs/components.ts";
 import type { GameRuntime } from "@/src/ecs/runtime.ts";
@@ -30,17 +31,18 @@ export type PlayerInteractionResult =
   | { readonly type: "uplinkTerminal"; readonly terminal: Entity; readonly events: readonly GameEvent[] };
 
 const UNCHANGED_INTERACTION: PlayerInteractionResult = Object.freeze({ type: "unchanged", events: [] });
-type InteractionKind = "door" | "npc" | "terminal" | "generic";
+type InteractionKind = "door" | "npc" | "terminal" | "turret" | "generic";
 const DEFAULT_VERB_BY_KIND: Readonly<Record<InteractionKind, InteractVerb>> = {
   door: "open",
   npc: "talk",
   terminal: "use",
+  turret: "use",
   generic: "use",
 };
 const VERB_PERMISSIONS: Readonly<Record<InteractVerb, readonly InteractionKind[]>> = {
   open: ["door"],
   talk: ["npc"],
-  use: ["terminal"],
+  use: ["terminal", "turret"],
 };
 
 export function collectItemAt(runtime: GameRuntime, x: number, y: number): ItemPickup | undefined {
@@ -102,7 +104,9 @@ export function interactWithEntity(
     case "talk":
       return interactWithNpc(runtime, target);
     case "use":
-      return interactWithUplinkTerminal(runtime, target, hasUplinkCode, hasSpear);
+      return kind === "turret" ?
+        interactWithSpearTurret(runtime, target, hasSpear) :
+        interactWithUplinkTerminal(runtime, target, hasUplinkCode, hasSpear);
   }
 }
 
@@ -110,6 +114,7 @@ function interactionKindFor(runtime: GameRuntime, target: Entity): InteractionKi
   if (hasComponent(runtime.game, target, "Door")) return "door";
   if (hasComponent(runtime.game, target, "Npc")) return "npc";
   if (hasComponent(runtime.game, target, "UplinkTerminal")) return "terminal";
+  if (hasComponent(runtime.game, target, "SpearTurret")) return "turret";
   return "generic";
 }
 
@@ -174,6 +179,21 @@ function interactWithUplinkTerminal(
     return { type: "unchanged", events: [{ type: "uplinkTerminalNeedsSpear", entity: terminal }] };
   }
   return { type: "uplinkTerminal", terminal, events: [{ type: "uplinkTerminalActivated", entity: terminal }] };
+}
+
+function interactWithSpearTurret(
+  runtime: GameRuntime,
+  turret: Entity,
+  hasSpear: boolean,
+): PlayerInteractionResult {
+  if (runtime.game.storage.Sprite.get(turret, "id") === SpriteId.SpearTurretLoaded) return UNCHANGED_INTERACTION;
+  if (!hasSpear) {
+    return { type: "unchanged", events: [{ type: "spearTurretNeedsSpear", entity: turret }] };
+  }
+  runtime.crawler.transaction((mutation) => {
+    mutation.patchComponent(turret, runtime.game.components.Sprite, { id: SpriteId.SpearTurretLoaded });
+  });
+  return { type: "consumeTurn", events: [{ type: "spearTurretLoaded", entity: turret }] };
 }
 
 function failedVerb(verb: InteractVerb): PlayerInteractionResult {
