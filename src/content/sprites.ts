@@ -30,14 +30,14 @@ export type SpriteAppearance = {
   readonly topDownSymbol?: string;
 };
 
-const SCALE_ACTOR = 0.75;
-const SCALE_CORPSE = 0.6;
-const SCALE_ITEM = 0.4;
+const SCALE_ACTOR = 0.8;
+const SCALE_CORPSE = 0.8;
+const SCALE_ITEM = 0.5;
 const SCALE_TERMINAL = 1;
-const SCALE_DECOR_LARGE = 0.85;
-const SCALE_DECOR_TALL = 0.95;
-const SCALE_DECOR_CEILING_LIGHT = 0.45;
-const SCALE_DECOR_CEILING_LONG = 0.75;
+const SCALE_DECOR_LARGE = 1;
+const SCALE_DECOR_TALL = 1;
+const SCALE_DECOR_CEILING_LIGHT = 0.5;
+const SCALE_DECOR_CEILING_LONG = 1;
 const SCALE_MAINFRAME_CORE = 5;
 const SCALE_SPEAR_TURRET = 1;
 const ELEVATION_CEILING_LIGHT = 1 - SCALE_DECOR_CEILING_LIGHT;
