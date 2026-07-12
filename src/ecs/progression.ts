@@ -158,11 +158,6 @@ export function selectPlayerWeapon(game: GameEcs, player: Entity, slot: CommandS
   writeComponent(game, player, "PlayerEquipment", { selectedWeapon: slot });
 }
 
-export function playerAmmoAmount(game: GameEcs, player: Entity, ammo: AmmoKind): number {
-  const inventory = playerInventoryFor(game, player);
-  return ammo === "pistol" ? inventory.pistolAmmo : inventory.cannonAmmo;
-}
-
 export function spendPlayerAmmo(game: GameEcs, player: Entity, ammo: AmmoKind): boolean {
   const inventory = playerInventoryFor(game, player);
   const amount = ammo === "pistol" ? inventory.pistolAmmo : inventory.cannonAmmo;

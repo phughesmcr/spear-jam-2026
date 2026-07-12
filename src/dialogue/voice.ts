@@ -6,6 +6,9 @@ export const VoiceId = {
   JohnNexusNexus: "johnNexusNexus",
   JohnNexusCore: "johnNexusCore",
   JohnNexusWarning: "johnNexusWarning",
+  JohnCoreGreet: "johnCoreGreet",
+  JohnCoreTurret: "johnCoreTurret",
+  JohnCoreReboot: "johnCoreReboot",
 } as const;
 export type VoiceId = (typeof VoiceId)[keyof typeof VoiceId];
 
@@ -38,6 +41,18 @@ export const VOICE_CATALOG: Readonly<Record<VoiceId, string>> = {
   ).href,
   [VoiceId.JohnNexusWarning]: new URL(
     "../../assets/game/audio/dialogue/john_nexus_warning.wav",
+    import.meta.url,
+  ).href,
+  [VoiceId.JohnCoreGreet]: new URL(
+    "../../assets/game/audio/dialogue/john_core_greet.wav",
+    import.meta.url,
+  ).href,
+  [VoiceId.JohnCoreTurret]: new URL(
+    "../../assets/game/audio/dialogue/john_core_turret.wav",
+    import.meta.url,
+  ).href,
+  [VoiceId.JohnCoreReboot]: new URL(
+    "../../assets/game/audio/dialogue/john_core_reboot.wav",
     import.meta.url,
   ).href,
 };

@@ -23,7 +23,7 @@ export type CommandKey = keyof typeof COMMANDS_BY_KEY;
 
 const KEY_EVENTS = ["keydown", "keyup"] as const;
 
-export function isCommandKey(code: string): code is CommandKey {
+function isCommandKey(code: string): code is CommandKey {
   return code in COMMANDS_BY_KEY;
 }
 

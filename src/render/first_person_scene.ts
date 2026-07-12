@@ -3,6 +3,7 @@ import {
   type DoorSlide,
   type GameMap,
   mapDimensions,
+  SKY_CEILING_TEXTURE,
   terrainAt,
   terrainBlocksMovement,
   terrainIsBarrier,
@@ -61,12 +62,7 @@ export function createLightUpdateThrottle(): LightUpdateThrottle {
 }
 
 export function sceneHasSkyCeiling(scene: RaycastScene, atlas: RaycastAtlas): boolean {
-  if (atlas.skyPlane === undefined) return false;
-  const skyId = atlas.skyPlane + 1;
-  for (let index = 0; index < scene.ceilings.length; index++) {
-    if (scene.ceilings[index] === skyId) return true;
-  }
-  return false;
+  return atlas.skyPlane !== undefined && scene.hasSkyCeiling;
 }
 
 export function sceneForMapForState(state: FirstPersonSceneState, map: GameMap): RaycastScene {
@@ -94,6 +90,7 @@ export function sceneForMapForState(state: FirstPersonSceneState, map: GameMap):
       }
       scene.floors[cell] = floorTextureSlot(state, terrain.floor_texture) + 1;
       scene.ceilings[cell] = ceilingTextureSlot(state, terrain.ceiling_texture) + 1;
+      if (terrain.ceiling_texture === SKY_CEILING_TEXTURE) scene.hasSkyCeiling = true;
       if (terrainIsBarrier(terrain)) {
         terrainBarriers.push({
           x,
@@ -114,7 +111,11 @@ function raycastSpriteCapacity(map: GameMap, cellCount: number): number {
 }
 
 function raycastThinCapacity(map: GameMap, cellCount: number): number {
-  return cellCount + map.entities.filter((entity) => entity.prefab === "door").length;
+  let doorCount = 0;
+  for (const entity of map.entities) {
+    if (entity.prefab === "door") doorCount++;
+  }
+  return cellCount + doorCount;
 }
 
 export function updateSceneLights(

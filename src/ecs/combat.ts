@@ -48,19 +48,6 @@ export function attackWithSelectedWeapon(
   return events;
 }
 
-export function attackTargetsForSelectedWeapon(
-  runtime: GameRuntime,
-  player: Entity,
-  selectedWeapon: CommandSlot,
-): readonly Entity[] {
-  return attackTargets(
-    runtime,
-    player,
-    playerWeaponSpec(selectedWeapon),
-    (entity) => hasComponent(runtime.game, entity, "Enemy"),
-  );
-}
-
 export function attackEntity(
   runtime: GameRuntime,
   attacker: Entity,

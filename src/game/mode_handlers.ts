@@ -2,8 +2,6 @@ import type { GameCommand } from "@/src/game/commands.ts";
 import type { GameEffect, GameModel, GameTransition } from "@/src/game/transition.ts";
 import type { PointerPhase } from "@/src/input/pointer.ts";
 
-export type { PointerPhase };
-
 export function done(model: GameModel, effects: readonly GameEffect[] = []): GameTransition {
   return { model, effects };
 }

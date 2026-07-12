@@ -73,6 +73,8 @@ export type FirstPersonAssetState = {
   readonly spriteCropBySlot: Map<number, ContentCrop | undefined>;
   readonly spriteCropReady: Set<number>;
   readonly spriteAspectBySlot: Map<number, number>;
+  /** Cleared when new bake targets are added; set once every target is baked. */
+  allTargetsBaked: boolean;
   rasterCanvas: OffscreenCanvas | undefined;
 };
 
@@ -126,8 +128,9 @@ function texturePackAsset(src: string): TexturePackAsset {
   return { ...managedAsset(src, []), columns: TEXTURE_PACK_COLUMNS, rows: TEXTURE_PACK_ROWS };
 }
 
-function addBakeTarget(entry: ManagedAsset, target: BakeTargetInput): void {
+function addBakeTarget(state: FirstPersonAssetState, entry: ManagedAsset, target: BakeTargetInput): void {
   entry.targets.push({ ...target, baked: false });
+  state.allTargetsBaked = false;
 }
 
 /** All sixteen cells of a 4x4 enemy sheet; slot = base + row * 4 + column. */
@@ -510,6 +513,8 @@ export function bakeLoadedAssets(
   ctx: CanvasRenderingContext2D,
   onAssetLoad?: () => void,
 ): void {
+  if (state.allTargetsBaked) return;
+
   for (const entry of state.assetCatalog.managedAssets) {
     const image = loadedImage(ctx, entry.asset, onAssetLoad);
     if (image === undefined) continue;
@@ -547,6 +552,13 @@ export function bakeLoadedAssets(
       target.baked = true;
     }
   }
+
+  for (const entry of state.assetCatalog.managedAssets) {
+    for (const target of entry.targets) {
+      if (!target.baked) return;
+    }
+  }
+  state.allTargetsBaked = true;
 }
 
 function texturePackFrame(
@@ -572,7 +584,7 @@ function texturePackSlot(
   const entry = state.assetCatalog.texturePackAssets[pack];
   slots.set(texture, slot);
   state.atlas[layer][slot] = fallback;
-  addBakeTarget(entry, { layer, slot, frame: texturePackFrame(texture, entry) });
+  addBakeTarget(state, entry, { layer, slot, frame: texturePackFrame(texture, entry) });
   return slot;
 }
 

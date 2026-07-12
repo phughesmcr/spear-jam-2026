@@ -91,6 +91,7 @@ N.B. I found out there is another game called "Ghost Process" too late in the ja
 - [60 CC0 Sci-Fi SFX](https://opengameart.org/content/60-cc0-sci-fi-sfx) (rubberduck, CC0)
 - [Sci-Fi Weapon Shots SFX](https://lentikula.itch.io/sci-fi-weapon-shots-sfx-freecc0) (Lentikula, CC0)
 - Music generated with Suno 5 and 5.5
+- Dialogue generated with [Supertonic TTS WebGPU](https://huggingface.co/spaces/webml-community/Supertonic-TTS-WebGPU)
 
 **Tools:**
 

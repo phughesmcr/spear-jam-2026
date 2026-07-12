@@ -293,12 +293,6 @@ const DIRECTIONS: Readonly<Record<string, number>> = {
 
 const DIALOGUE_TREE_NONE = "none";
 
-export function descriptorForPrefab(prefab: EntityPrefab): EntityDescriptor {
-  const descriptor = ENTITY_DESCRIPTORS.find((candidate) => candidate.prefab === prefab);
-  if (descriptor === undefined) throw new Error(`Unknown entity prefab "${prefab}".`);
-  return descriptor;
-}
-
 export function prefabBlocksMovement(prefab: EntityPrefab): boolean {
   return BLOCKING_PREFABS.has(prefab);
 }

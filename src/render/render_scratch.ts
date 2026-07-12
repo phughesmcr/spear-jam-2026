@@ -1,8 +1,7 @@
 import type { PresentationViewScratch } from "@/src/game/presentation.ts";
-import type { GameCanvasSize } from "@/src/render/canvas.ts";
-import type { MapRenderMetrics } from "@/src/render/map.ts";
-import type { FirstPersonFrameScratch } from "@/src/render/first_person.ts";
 import { createPresentationViewScratch } from "@/src/game/presentation.ts";
+import type { FirstPersonFrameScratch } from "@/src/render/first_person.ts";
+import type { MapRenderMetrics } from "@/src/render/map.ts";
 
 export type GamePlayRect = {
   x: number;
@@ -19,7 +18,6 @@ export type GameFrameResultScratch = {
 export type RenderSpy = {
   sessionRenderCount: number;
   messageLogRenderCount: number;
-  gradientCreateCount: number;
 };
 
 export type GameRenderScratch = {
@@ -37,7 +35,6 @@ export function createRenderSpy(): RenderSpy {
   return {
     sessionRenderCount: 0,
     messageLogRenderCount: 0,
-    gradientCreateCount: 0,
   };
 }
 
@@ -58,15 +55,4 @@ export function createGameRenderScratch(): GameRenderScratch {
     canvasWidth: 0,
     canvasHeight: 0,
   };
-}
-
-export function resetRenderSpy(spy: RenderSpy): void {
-  spy.sessionRenderCount = 0;
-  spy.messageLogRenderCount = 0;
-  spy.gradientCreateCount = 0;
-}
-
-export function syncCanvasSize(scratch: GameRenderScratch, canvasSize: GameCanvasSize): void {
-  scratch.canvasWidth = canvasSize.width;
-  scratch.canvasHeight = canvasSize.height;
 }

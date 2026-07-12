@@ -3,16 +3,10 @@ import {
   enemyArchetypeForAuthoringKey,
   spriteIdForEnemyArchetype,
 } from "@/src/content/enemies.ts";
-import { ItemKind } from "@/src/content/items.ts";
+import { AUTHORING_ITEM_KINDS, ItemKind } from "@/src/content/items.ts";
 import { SpriteId, type SpriteId as SpriteIdType } from "@/src/content/sprite_ids.ts";
 import { spriteIdForDecoration, spriteIdForDisplayName, spriteIdForItem } from "@/src/content/sprites.ts";
-import { type EntityDef, type GameMap, type ItemKind as AuthoringItemKind, keyColorCode } from "@/src/map/map.ts";
-
-const AUTHORING_ITEM_KINDS = {
-  healthPatch: ItemKind.HealthPatch,
-  pistolAmmo: ItemKind.PistolAmmo,
-  cannonAmmo: ItemKind.CannonAmmo,
-} as const satisfies Readonly<Record<AuthoringItemKind, ItemKind>>;
+import { type EntityDef, type GameMap, keyColorCode } from "@/src/map/map.ts";
 
 /** Sprites that can appear mid-map without being authored on the entity list. */
 const ALWAYS_CRITICAL_SPRITES: readonly SpriteIdType[] = [SpriteId.Corpse];

@@ -35,8 +35,8 @@ export const DEFAULT_ATTACK: AttackDef = {
   targets: AttackTargetMode.First,
 };
 
-export const ATTACK_PATTERN_CODES = [AttackPattern.Line, AttackPattern.Adjacent] as const;
-export const ATTACK_TARGET_MODE_CODES = [AttackTargetMode.First, AttackTargetMode.All] as const;
+const ATTACK_PATTERN_CODES = [AttackPattern.Line, AttackPattern.Adjacent] as const;
+const ATTACK_TARGET_MODE_CODES = [AttackTargetMode.First, AttackTargetMode.All] as const;
 
 const ATTACK_PATTERN_AUTHORING_BY_CODE = {
   [AttackPattern.Line]: "line",
@@ -74,14 +74,6 @@ export type AuthoringAttackDef = {
 
 const ATTACK_PATTERN_REGISTRY = createCodeRegistry("attack pattern", ATTACK_PATTERN_AUTHORING_KEYS);
 const ATTACK_TARGET_MODE_REGISTRY = createCodeRegistry("attack target mode", ATTACK_TARGET_MODE_AUTHORING_KEYS);
-
-export function attackPatternAuthoringKey(pattern: AttackPattern): AttackPatternAuthoring {
-  return ATTACK_PATTERN_AUTHORING_BY_CODE[pattern];
-}
-
-export function attackTargetModeAuthoringKey(targets: AttackTargetMode): AttackTargetModeAuthoring {
-  return ATTACK_TARGET_MODE_AUTHORING_BY_CODE[targets];
-}
 
 export function attackPatternForAuthoringKey(authoringKey: string): AttackPattern {
   const key = ATTACK_PATTERN_REGISTRY.has(authoringKey) ? authoringKey : lowerFirst(authoringKey);

@@ -1,11 +1,9 @@
-import type { Entity } from "turn-based-engine/ecs";
 import { readComponent } from "@/src/ecs/components.ts";
 import type { GameRuntime } from "@/src/ecs/runtime.ts";
-import { examineText, examineTextIdForCode } from "@/src/game/examine_content.ts";
 import type { GameEvent } from "@/src/game/events.ts";
+import { examineText, examineTextIdForCode } from "@/src/game/examine_content.ts";
 import { displayNameForCode, displayNameText } from "@/src/game/names.ts";
-
-export { examineText, ExamineTextId } from "@/src/game/examine_content.ts";
+import type { Entity } from "turn-based-engine/ecs";
 
 export function examineEntity(runtime: GameRuntime, target: Entity | undefined): GameEvent {
   return {

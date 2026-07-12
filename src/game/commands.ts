@@ -5,7 +5,6 @@ import type { CommandSlot, DialogueState } from "@/src/game/state.ts";
 
 export type RelativeMoveDirection = "forward" | "backward" | "left" | "right";
 export type TurnDirection = "left" | "right";
-export type TurnDelta = -1 | 1;
 export type InteractVerb = "use" | "open" | "talk";
 
 export type PlayerCommand =
@@ -67,17 +66,8 @@ const MOVE_DIRECTION_OFFSETS: Readonly<Record<RelativeMoveDirection, number>> = 
   right: 1,
 };
 
-const TURN_DIRECTION_DELTAS: Readonly<Record<TurnDirection, TurnDelta>> = {
-  left: -1,
-  right: 1,
-};
-
 export function relativeMoveDirectionOffset(direction: RelativeMoveDirection): number {
   return MOVE_DIRECTION_OFFSETS[direction];
-}
-
-export function turnDirectionDelta(direction: TurnDirection): TurnDelta {
-  return TURN_DIRECTION_DELTAS[direction];
 }
 
 export function isPlayerCommand(command: GameCommand): command is PlayerCommand {

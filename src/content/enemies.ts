@@ -13,14 +13,6 @@ export const EnemyArchetypeCode = {
 } as const;
 export type EnemyArchetypeCode = (typeof EnemyArchetypeCode)[keyof typeof EnemyArchetypeCode];
 
-export const ENEMY_ARCHETYPE_CODES = [
-  EnemyArchetypeCode.MeleeDog,
-  EnemyArchetypeCode.Gunslinger,
-  EnemyArchetypeCode.NetworkNeophyte,
-  EnemyArchetypeCode.SystemSentinel,
-  EnemyArchetypeCode.AgenticAcolyte,
-] as const satisfies readonly EnemyArchetypeCode[];
-
 export const DEFAULT_ENEMY_ARCHETYPE = EnemyArchetypeCode.MeleeDog;
 
 export type EnemyBehaviorPolicy = {

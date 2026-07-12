@@ -146,14 +146,6 @@ export function mapDimensions(map: GameMap): MapDimensions {
   return dimensions(map);
 }
 
-export function authoredEnemyCount(map: GameMap): number {
-  let count = 0;
-  for (const entity of map.entities) {
-    if (entity.prefab === "enemy") count++;
-  }
-  return count;
-}
-
 export function terrainAt(map: GameMap, x: number, y: number): TerrainTile | undefined {
   return staticTerrainAt(map, x, y);
 }

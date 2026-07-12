@@ -5,7 +5,7 @@ import {
   enemyCatalogEntry,
   spriteIdForEnemyArchetype,
 } from "@/src/content/enemies.ts";
-import { ItemKind } from "@/src/content/items.ts";
+import { AUTHORING_ITEM_KINDS, ItemKind } from "@/src/content/items.ts";
 import { SpriteId } from "@/src/content/sprite_ids.ts";
 import { spriteIdForDecoration, spriteIdForDisplayName, spriteIdForItem } from "@/src/content/sprites.ts";
 import { dialogueTreeCode } from "@/src/dialogue/dialogue.ts";
@@ -38,7 +38,6 @@ import {
   type EnemyDef,
   type EntityDef,
   type ItemDef,
-  type ItemKind as AuthoringItemKind,
   keyColorCode,
   type KeyDef,
   type LightDef,
@@ -57,11 +56,6 @@ import type { Entity } from "turn-based-engine/ecs";
 
 const DEFAULT_PLAYER_HIT_DC = 10;
 const PLAYER_VISION_RADIUS = 6;
-const AUTHORING_ITEM_KINDS = {
-  healthPatch: ItemKind.HealthPatch,
-  pistolAmmo: ItemKind.PistolAmmo,
-  cannonAmmo: ItemKind.CannonAmmo,
-} as const satisfies Readonly<Record<AuthoringItemKind, ItemKind>>;
 
 type PositionedPrefab = { readonly x: number; readonly y: number };
 type GridActorPrefab = PositionedPrefab & { readonly dir: number };

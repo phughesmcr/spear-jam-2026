@@ -60,7 +60,7 @@ Deno.test("johnCore dialogue explains how to reboot the distant Mainframe", () =
   const start = dialogueTreeStart(DialogueTreeId.JohnCore);
 
   assertEquals(start.treeKey, "john_core");
-  assertEquals(start.node.text, "You made it. See that building in the distance? That's the Mainframe.");
+  assertEquals(start.node.text, "This is it. That building in the distance - that's the Mainframe Core.");
   assertEquals(
     dialogueTreeNode("john_core", "turret").text,
     "Load the bolt into the turret, then fire it into the Mainframe's heart.",
@@ -69,6 +69,9 @@ Deno.test("johnCore dialogue explains how to reboot the distant Mainframe", () =
     dialogueTreeNode("john_core", "reboot").text,
     "The impact will force a system reboot. I hope I'll see you on the other side.",
   );
+  assertEquals(start.node.voice, VoiceId.JohnCoreGreet);
+  assertEquals(dialogueTreeNode("john_core", "turret").voice, VoiceId.JohnCoreTurret);
+  assertEquals(dialogueTreeNode("john_core", "reboot").voice, VoiceId.JohnCoreReboot);
 });
 
 Deno.test("spearPower dialogue explains the spear and the Mainframe Core upload", () => {

@@ -118,6 +118,8 @@ export type RaycastScene = {
   readonly floors: Uint8Array;
   /** Plane texture id + 1 per cell; 0 means untextured (left black). */
   readonly ceilings: Uint8Array;
+  /** True when any ceiling cell uses the sky plane (parallax animation). */
+  hasSkyCeiling: boolean;
   /** Per-cell red light multiplier, 255 leaves source texels unchanged. */
   readonly lightRed: Uint8Array;
   /** Per-cell green light multiplier, 255 leaves source texels unchanged. */
@@ -185,6 +187,7 @@ export function createScene(mapWidth: number, mapHeight: number, options: Raycas
     walls: new Uint8Array(cellCount),
     floors: new Uint8Array(cellCount),
     ceilings: new Uint8Array(cellCount),
+    hasSkyCeiling: false,
     lightRed,
     lightGreen,
     lightBlue,

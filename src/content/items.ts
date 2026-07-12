@@ -44,3 +44,10 @@ export function itemKindForCode(kind: number): ItemKind {
   ITEM_KIND_REGISTRY.decode(kind);
   return kind as ItemKind;
 }
+
+/** Authoring pickup strings → runtime ECS item codes. */
+export const AUTHORING_ITEM_KINDS = {
+  healthPatch: ItemKind.HealthPatch,
+  pistolAmmo: ItemKind.PistolAmmo,
+  cannonAmmo: ItemKind.CannonAmmo,
+} as const;

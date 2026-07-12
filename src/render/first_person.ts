@@ -104,6 +104,7 @@ function createFirstPersonRendererState() {
     spriteCropBySlot: new Map<number, ContentCrop | undefined>(),
     spriteCropReady: new Set<number>(),
     spriteAspectBySlot: new Map<number, number>(),
+    allTargetsBaked: false,
     drawableMap: undefined as GameMap | undefined,
     drawableScene: undefined as RaycastScene | undefined,
     drawableNowMs: 0,
