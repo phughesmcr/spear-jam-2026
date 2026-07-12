@@ -17,7 +17,7 @@ const LEVEL_STATS = {
 Deno.test("transition starts with render and map loading effects", () => {
   const result = transition(createGameModel("Level 1"), { type: "start" });
 
-  assertEquals(result.model.mode, { type: "loading" });
+  assertEquals(result.model.mode, { type: "loading", loaded: 0, total: 0 });
   assertEquals(result.effects, [
     { type: "applyAudioVolumes" },
     { type: "render" },
@@ -55,7 +55,7 @@ Deno.test("title start without intro loads the start map", () => {
   const titled = transition(createGameModel("Level 1", { showTitle: true }), { type: "start" }).model;
   const result = transition(titled, { type: "gameCommand", command: { type: "wait" } });
 
-  assertEquals(result.model.mode, { type: "loading" });
+  assertEquals(result.model.mode, { type: "loading", loaded: 0, total: 0 });
   assertEquals(result.effects, [
     { type: "applyAudioVolumes" },
     { type: "render" },
@@ -258,7 +258,7 @@ Deno.test("transition can start with an intro intermission before loading the fi
 
   mode = { ...mode, pageIndex: mode.pages.length - 1, revealed: true };
   result = transition({ ...result.model, mode }, { type: "gameCommand", command: { type: "wait" }, nowMs: 1000 });
-  assertEquals(result.model.mode, { type: "loading" });
+  assertEquals(result.model.mode, { type: "loading", loaded: 0, total: 0 });
   assertEquals(result.effects, [
     { type: "render" },
     { type: "loadMap", mapName: "Level 1" },
@@ -605,6 +605,26 @@ Deno.test("transition lets dialogue choices advance or close the conversation", 
   assertEquals(outOfRange.effects, []);
 });
 
+Deno.test("transition keeps spear reveal art while advancing its dialogue tree", () => {
+  const model = {
+    ...createGameModel("Level 1"),
+    mode: {
+      type: "dialogue",
+      title: "Spear of Destiny",
+      art: "spearReveal",
+      treeKey: "spear_power",
+      message: "The spear answers your grip.",
+      choices: [{ label: "WHAT DOES IT DO?", next: "power" }],
+    },
+  } as const;
+
+  const advanced = transition(model, { type: "gameCommand", command: { type: "wait" } });
+
+  if (advanced.model.mode.type !== "dialogue") throw new Error("Expected dialogue to advance.");
+  assertEquals(advanced.model.mode.art, "spearReveal");
+  assertEquals(advanced.model.mode.treeKey, "spear_power");
+});
+
 Deno.test("transition starts, advances, and stops authored dialogue voices", () => {
   const playing = createGameModel("Level 1");
   const opened = transition(playing, {
@@ -683,7 +703,7 @@ Deno.test("transition retries defeat through a session-owned checkpoint effect",
 
   const result = transition(model, { type: "gameCommand", command: { type: "wait" } });
   assertEquals(result.model.presentation, { messages: [], combatFeedback: [] });
-  assertEquals(result.model.mode, { type: "loading" });
+  assertEquals(result.model.mode, { type: "loading", loaded: 0, total: 0 });
   assertEquals(result.effects, [
     { type: "render" },
     { type: "retryMap", mapName: "Level 2" },
@@ -743,7 +763,7 @@ Deno.test("transition presents victory as an ending intermission before starting
   model = { ...result.model, mode };
   result = transition(model, { type: "gameCommand", command: { type: "wait" }, nowMs: 1000 });
   assertEquals(result.model.presentation, { messages: [], combatFeedback: [] });
-  assertEquals(result.model.mode, { type: "loading" });
+  assertEquals(result.model.mode, { type: "loading", loaded: 0, total: 0 });
   assertEquals(result.effects, [
     { type: "render" },
     { type: "resetRun", mapName: "Level 1" },

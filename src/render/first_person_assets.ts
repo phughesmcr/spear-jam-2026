@@ -1,4 +1,6 @@
-import { spriteAppearances } from "@/src/content/sprites.ts";
+import type { SpriteId as SpriteIdType } from "@/src/content/sprite_ids.ts";
+import { SpriteId } from "@/src/content/sprite_ids.ts";
+import { spriteAppearance, spriteAppearances } from "@/src/content/sprites.ts";
 import {
   BarrierTexture,
   type BarrierTexture as BarrierTextureType,
@@ -49,6 +51,8 @@ type ManagedAsset = {
    * one crop or sprites would pulse in size when animation frames switch.
    */
   readonly cropFrame?: SourceFrame;
+  /** When set, asset is only critical for maps that need this sprite. */
+  readonly spriteId?: SpriteIdType;
 };
 
 type TexturePackAsset = ManagedAsset & {
@@ -104,11 +108,17 @@ const DOOR_TINTS_BY_COLOR: Readonly<Record<KeyColor, readonly [number, number, n
   [KeyColor.Yellow]: [1.7, 1.5, 0.65],
 };
 
-function managedAsset(src: string, targets: readonly BakeTargetInput[], cropFrame?: SourceFrame): ManagedAsset {
+function managedAsset(
+  src: string,
+  targets: readonly BakeTargetInput[],
+  cropFrame?: SourceFrame,
+  spriteId?: SpriteIdType,
+): ManagedAsset {
   return {
     asset: createImageAsset(src),
     targets: targets.map((target) => ({ ...target, baked: false })),
     ...(cropFrame === undefined ? {} : { cropFrame }),
+    ...(spriteId === undefined ? {} : { spriteId }),
   };
 }
 
@@ -140,23 +150,29 @@ function enemySheetTargets(
 
 function spriteManagedAssets(): readonly ManagedAsset[] {
   const assets: ManagedAsset[] = [];
-  for (const appearance of spriteAppearances()) {
+  for (const spriteId of Object.values(SpriteId)) {
+    if (typeof spriteId !== "number") continue;
+    const appearance = spriteAppearance(spriteId);
     const slot = appearance.firstPersonSlot;
     const asset = appearance.asset;
     if (slot === undefined || asset === undefined) continue;
 
     if (appearance.enemySheet) {
-      assets.push(managedAsset(asset.src, enemySheetTargets(slot), asset.cropFrame));
+      assets.push(managedAsset(asset.src, enemySheetTargets(slot), asset.cropFrame, spriteId));
       if (asset.lightmapSrc !== undefined) {
-        assets.push(managedAsset(asset.lightmapSrc, enemySheetTargets(slot, "spriteLightmaps")));
+        assets.push(
+          managedAsset(asset.lightmapSrc, enemySheetTargets(slot, "spriteLightmaps"), undefined, spriteId),
+        );
       }
       continue;
     }
 
     const frame = asset.frame === undefined ? {} : { frame: asset.frame };
-    assets.push(managedAsset(asset.src, [{ layer: "sprites", slot, ...frame }]));
+    assets.push(managedAsset(asset.src, [{ layer: "sprites", slot, ...frame }], undefined, spriteId));
     if (asset.lightmapSrc !== undefined) {
-      assets.push(managedAsset(asset.lightmapSrc, [{ layer: "spriteLightmaps", slot, ...frame }]));
+      assets.push(
+        managedAsset(asset.lightmapSrc, [{ layer: "spriteLightmaps", slot, ...frame }], undefined, spriteId),
+      );
     }
   }
   return assets;
@@ -211,16 +227,35 @@ export function createAssetCatalog(): AssetCatalog {
   return { managedAssets, texturePackAssets };
 }
 
-export function preloadAssetCatalog(
+/** Preload shared textures plus sprite sheets required by `spriteIds`. */
+export function preloadAssetCatalogForSprites(
   document: Document,
   catalog: AssetCatalog,
+  spriteIds: ReadonlySet<SpriteIdType>,
   onAssetLoad?: () => void,
 ): Promise<void> {
-  return preloadImageAssets(
-    document,
-    catalog.managedAssets.map((entry) => entry.asset),
-    onAssetLoad,
-  );
+  return preloadImageAssets(document, criticalCatalogAssets(catalog, spriteIds), onAssetLoad);
+}
+
+export function criticalCatalogAssets(
+  catalog: AssetCatalog,
+  spriteIds: ReadonlySet<SpriteIdType>,
+): readonly ImageAsset[] {
+  return catalog.managedAssets
+    .filter((entry) => entry.spriteId === undefined || spriteIds.has(entry.spriteId))
+    .map((entry) => entry.asset);
+}
+
+export function deferredCatalogAssets(
+  catalog: AssetCatalog,
+  spriteIds: ReadonlySet<SpriteIdType>,
+): readonly ImageAsset[] {
+  const criticalSrcs = new Set(criticalCatalogAssets(catalog, spriteIds).map((asset) => asset.src));
+  return catalog.managedAssets
+    .filter((entry) =>
+      entry.spriteId !== undefined && !spriteIds.has(entry.spriteId) && !criticalSrcs.has(entry.asset.src)
+    )
+    .map((entry) => entry.asset);
 }
 
 export function buildAtlas(): RaycastAtlas {

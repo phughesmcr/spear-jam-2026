@@ -13,7 +13,7 @@ Deno.test("tree decorations resolve to their renderable sprite assets", () => {
     assertEquals(spriteIdForDecoration(kind), spriteId);
     const appearance = spriteAppearance(spriteId);
     assertEquals(appearance.asset?.src.endsWith(assetPath), true);
-    assertEquals(appearance.firstPersonScale, 0.95);
+    assertEquals(appearance.firstPersonScale, 1);
     assertEquals(appearance.firstPersonElevation, 0);
   }
 });

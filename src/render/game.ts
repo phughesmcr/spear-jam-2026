@@ -4,13 +4,14 @@ import { DEFAULT_INTERACTIVE_FPS } from "@/src/game/render_settings.ts";
 import type { FrameRenderSession } from "@/src/game/session_ports.ts";
 import type { GameMode, ViewMode } from "@/src/game/state.ts";
 import { playerWeaponSpec } from "@/src/game/weapons.ts";
+import { getMap } from "@/src/map/maps.ts";
 import type { GameCanvasSize } from "@/src/render/canvas.ts";
 import {
   preloadCombatFeedbackAssets,
   renderCombatFeedback,
   renderFirstPersonCombatFeedback,
 } from "@/src/render/combat_feedback.ts";
-import { preloadDialogueAssets, renderDialogue } from "@/src/render/dialogue.ts";
+import { preloadDialogueAssets, preloadSpearRevealAsset, renderDialogue } from "@/src/render/dialogue.ts";
 import { renderDrawableEntities } from "@/src/render/drawables.ts";
 import type { FirstPersonFrameScratch, FirstPersonRenderer } from "@/src/render/first_person.ts";
 import { preloadHelpAssets, renderHelp } from "@/src/render/help.ts";
@@ -19,6 +20,11 @@ import { preloadIntermissionAssets, renderIntermission } from "@/src/render/inte
 import { renderMap } from "@/src/render/map.ts";
 import { renderMessageLog } from "@/src/render/messages.ts";
 import { renderLayerPolicy } from "@/src/render/mode_policy.ts";
+import {
+  criticalSpriteIdsForMap,
+  mapNeedsDialogueAssets,
+  mapNeedsSpearRevealAsset,
+} from "@/src/render/preload_scope.ts";
 import type { GameFrameResultScratch, GameRenderScratch, RenderSpy } from "@/src/render/render_scratch.ts";
 import { renderSettings } from "@/src/render/settings.ts";
 import { monoFont } from "@/src/render/text.ts";
@@ -61,22 +67,94 @@ type VignetteCache = {
 
 let vignetteCache: VignetteCache | undefined;
 
+export type PreloadProgress = {
+  readonly loaded: number;
+  readonly total: number;
+};
+
+export type PreloadGameAssetsOptions = {
+  readonly mapName: string;
+  readonly onProgress?: (progress: PreloadProgress) => void;
+  readonly onAssetLoad?: () => void;
+};
+
 export async function preloadGameAssets(
   document: Document,
   firstPersonRenderer: FirstPersonRenderer,
-  onAssetLoad?: () => void,
+  options: PreloadGameAssetsOptions,
 ): Promise<void> {
-  await Promise.all([
-    preloadTitleAssets(document, onAssetLoad),
-    preloadIntermissionAssets(document, onAssetLoad),
-    preloadVerbMenuAssets(document, onAssetLoad),
-    firstPersonRenderer.preloadAssets(document, onAssetLoad),
-    preloadWeaponHudAssets(document, onAssetLoad),
-    preloadHudAssets(document, onAssetLoad),
-    preloadHelpAssets(document, onAssetLoad),
-    preloadCombatFeedbackAssets(document, onAssetLoad),
-    preloadDialogueAssets(document, onAssetLoad),
-  ]);
+  const map = getMap(options.mapName);
+  const spriteIds = criticalSpriteIdsForMap(map);
+  const jobs: Array<(onAssetLoad?: () => void) => Promise<void>> = [
+    (onAssetLoad) => firstPersonRenderer.preloadAssets(document, spriteIds, onAssetLoad),
+    (onAssetLoad) => preloadVerbMenuAssets(document, onAssetLoad),
+    (onAssetLoad) => preloadWeaponHudAssets(document, onAssetLoad),
+    (onAssetLoad) => preloadHudAssets(document, onAssetLoad),
+    (onAssetLoad) => preloadCombatFeedbackAssets(document, onAssetLoad),
+  ];
+  if (mapNeedsDialogueAssets(map)) {
+    jobs.push((onAssetLoad) => preloadDialogueAssets(document, onAssetLoad));
+  }
+  if (mapNeedsSpearRevealAsset(map)) {
+    jobs.push((onAssetLoad) => preloadSpearRevealAsset(document, onAssetLoad));
+  }
+
+  // Approximate progress by job completion; image-level callbacks still drive re-renders.
+  let completed = 0;
+  const total = jobs.length;
+  const report = (): void => {
+    options.onProgress?.({ loaded: completed, total });
+  };
+  report();
+
+  await Promise.all(jobs.map(async (job) => {
+    await job(options.onAssetLoad);
+    completed += 1;
+    report();
+  }));
+}
+
+/** Non-blocking warm of title art + map-critical assets (shared ImageAsset instances). */
+export function warmGameAssets(
+  document: Document,
+  firstPersonRenderer: FirstPersonRenderer,
+  mapName: string,
+  onAssetLoad?: () => void,
+): void {
+  scheduleIdle(() => {
+    void preloadTitleAssets(document, onAssetLoad);
+    void preloadGameAssets(document, firstPersonRenderer, { mapName, onAssetLoad });
+  });
+}
+
+/** After playing starts, warm deferred FP sprites plus help/endscreen. */
+export function warmDeferredGameAssets(
+  document: Document,
+  firstPersonRenderer: FirstPersonRenderer,
+  mapName: string,
+  onAssetLoad?: () => void,
+): void {
+  scheduleIdle(() => {
+    const spriteIds = criticalSpriteIdsForMap(getMap(mapName));
+    void firstPersonRenderer.warmDeferredAssets(document, spriteIds, onAssetLoad);
+    void preloadHelpAssets(document, onAssetLoad);
+    void preloadIntermissionAssets(document, onAssetLoad);
+    if (!mapNeedsDialogueAssets(getMap(mapName))) {
+      void preloadDialogueAssets(document, onAssetLoad);
+    }
+    if (!mapNeedsSpearRevealAsset(getMap(mapName))) {
+      void preloadSpearRevealAsset(document, onAssetLoad);
+    }
+  });
+}
+
+function scheduleIdle(work: () => void): void {
+  const ric = globalThis.requestIdleCallback as ((cb: () => void) => number) | undefined;
+  if (typeof ric === "function") {
+    ric(work);
+    return;
+  }
+  globalThis.setTimeout(work, 0);
 }
 
 export function renderGameFrame({
@@ -84,7 +162,7 @@ export function renderGameFrame({
   canvasSize,
   scratch,
   session,
-  mode = { type: "loading" },
+  mode = { type: "loading", loaded: 0, total: 0 },
   presentation = scratch.presentation,
   viewMode = "firstPerson",
   audio = DEFAULT_AUDIO_SETTINGS,
@@ -135,9 +213,11 @@ export function renderGameFrame({
       renderSettings(ctx, canvasSize, { audio, interactiveFps }, nowMs);
       frameResult.needsFrame = true;
       return frameResultFromScratch(frameResult);
-    case "loading":
-      renderOverlay(ctx, canvasSize, "LOADING");
+    case "loading": {
+      const subtitle = mode.total > 0 ? `${mode.loaded}/${mode.total}` : undefined;
+      renderOverlay(ctx, canvasSize, "LOADING", subtitle);
       return { needsFrame: false };
+    }
     case "paused":
       renderOverlay(ctx, canvasSize, "PAUSED", "P to resume");
       return { needsFrame: false };

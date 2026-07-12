@@ -1,6 +1,6 @@
+import { TrackId, type TrackId as MusicTrackId } from "@/src/audio/music_catalog.ts";
 import { dialogueTreeNode } from "@/src/dialogue/dialogue.ts";
 import type { VoiceId } from "@/src/dialogue/voice.ts";
-import { TrackId, type TrackId as MusicTrackId } from "@/src/audio/music_catalog.ts";
 import { type AudioSettings, DEFAULT_AUDIO_SETTINGS, withAudioVolume } from "@/src/game/audio_settings.ts";
 import {
   type GameCommand,
@@ -20,8 +20,8 @@ import {
   type SettingsSliderId,
 } from "@/src/game/render_settings.ts";
 import type { GameMode, TitleHoverButton, VerbMenuTarget, ViewMode } from "@/src/game/state.ts";
-import { VICTORY_FADE_MS, VICTORY_HOLD_MS, VICTORY_INTERMISSION } from "@/src/game/victory.ts";
 import { openVerbMenu, verbMenuCommand, verbPointer } from "@/src/game/verb_menu_transition.ts";
+import { VICTORY_FADE_MS, VICTORY_HOLD_MS, VICTORY_INTERMISSION } from "@/src/game/victory.ts";
 import type { PointerPhase } from "@/src/input/pointer.ts";
 import type { Entity } from "turn-based-engine/ecs";
 
@@ -66,6 +66,7 @@ export type GameEffect =
 export type GameTransitionEvent =
   | { readonly type: "start"; readonly nowMs?: number }
   | { readonly type: "mapLoaded"; readonly mapName: string }
+  | { readonly type: "loadingProgress"; readonly loaded: number; readonly total: number }
   | { readonly type: "loadFailed"; readonly message: string }
   | { readonly type: "victoryTransitionComplete"; readonly nowMs?: number }
   | { readonly type: "gameCommand"; readonly command: GameCommand; readonly nowMs?: number }
@@ -132,7 +133,7 @@ export function createGameModel(startMapName: string, options: GameModelOptions 
     showTitle: options.showTitle ?? false,
     currentMapName: startMapName,
     presentation: createPresentationState(),
-    mode: { type: "loading" },
+    mode: { type: "loading", loaded: 0, total: 0 },
     viewMode: "firstPerson",
     audio: DEFAULT_AUDIO_SETTINGS,
     interactiveFps: DEFAULT_INTERACTIVE_FPS,
@@ -154,6 +155,8 @@ export function transition(model: GameModel, event: GameTransitionEvent): GameTr
       return beginGame(model, event.nowMs ?? 0);
     case "mapLoaded":
       return mapLoaded(model, event.mapName);
+    case "loadingProgress":
+      return loadingProgress(model, event.loaded, event.total);
     case "loadFailed":
       return done({ ...model, mode: { type: "error", message: event.message } }, [{ type: "render" }]);
     case "victoryTransitionComplete":
@@ -196,7 +199,7 @@ function beginGame(model: GameModel, nowMs: number): GameTransition {
       ],
     );
   }
-  return done({ ...model, mode: { type: "loading" } }, [
+  return done({ ...model, mode: { type: "loading", loaded: 0, total: 0 } }, [
     { type: "applyAudioVolumes" },
     { type: "render" },
     { type: "loadMap", mapName: model.startMapName },
@@ -210,6 +213,12 @@ function mapLoaded(model: GameModel, mapName: string): GameTransition {
     presentation: createPresentationState(),
     mode: { type: "playing" },
   }, [{ type: "ensureInput" }, { type: "render" }]);
+}
+
+function loadingProgress(model: GameModel, loaded: number, total: number): GameTransition {
+  if (model.mode.type !== "loading") return done(model);
+  if (model.mode.loaded === loaded && model.mode.total === total) return done(model);
+  return done({ ...model, mode: { type: "loading", loaded, total } }, [{ type: "render" }]);
 }
 
 function gameCommand(model: GameModel, command: GameCommand, nowMs: number): GameTransition {
@@ -393,7 +402,7 @@ function intermissionCommand(
       },
     }, [{ type: "render" }]);
   }
-  const loadingModel = { ...model, mode: { type: "loading" } } satisfies GameModel;
+  const loadingModel = { ...model, mode: { type: "loading", loaded: 0, total: 0 } } satisfies GameModel;
   switch (mode.completion.type) {
     case "loadMap":
       return done(loadingModel, [
@@ -456,6 +465,7 @@ function selectDialogueChoice(model: GameModel, mode: DialogueMode, slot: number
     mode: {
       type: "dialogue",
       title: mode.title,
+      ...(mode.art === undefined ? {} : { art: mode.art }),
       speaker: mode.speaker,
       treeKey: mode.treeKey,
       message: node.text,
@@ -471,7 +481,7 @@ function defeatCommand(model: GameModel, command: GameCommand): GameTransition {
   const resetModel = {
     ...model,
     presentation: createPresentationState(),
-    mode: { type: "loading" },
+    mode: { type: "loading", loaded: 0, total: 0 },
   } satisfies GameModel;
   return done(resetModel, [{ type: "render" }, { type: "retryMap", mapName: model.currentMapName }]);
 }

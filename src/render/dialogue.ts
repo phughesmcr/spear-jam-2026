@@ -36,6 +36,12 @@ export type DialogueLayout = {
   readonly choices: readonly DialogueChoiceLayout[];
 };
 
+export type SpearRevealLayout = {
+  readonly image: DialogueRect;
+  readonly caption: DialogueRect;
+  readonly choices: readonly DialogueChoiceLayout[];
+};
+
 const PANEL_WIDTH_MAX = 620;
 const PANEL_HEIGHT_RATIO = 0.92;
 const PANEL_MARGIN_RATIO = 0.06;
@@ -62,15 +68,22 @@ const CHOICE_MUTED_TEXT = "#d8d4c4";
 const CHOICE_HELP = "SPACE OR 1-3";
 const CHOICE_HEIGHT = 44;
 const CHOICE_GAP = 6;
+const REVEAL_CHOICE_GAP = 8;
+const REVEAL_ASPECT_RATIO = 3 / 2;
 const DIALOGUE_OPTION_SLOTS = [1, 2, 3] as const satisfies readonly DialogueOptionSlot[];
 
 const DIALOGUE_PORTRAIT_ASSETS: Partial<Record<DisplayName, ImageAsset>> = {
   [DisplayName.John]: createImageAsset(new URL("../../assets/game/ui/dialogue_john.png", import.meta.url).href),
 };
-const DIALOGUE_IMAGE_ASSETS = Object.freeze(Object.values(DIALOGUE_PORTRAIT_ASSETS));
+const DIALOGUE_PORTRAIT_IMAGE_ASSETS = Object.freeze(Object.values(DIALOGUE_PORTRAIT_ASSETS));
+const SPEAR_REVEAL_ASSET = createImageAsset(new URL("../../assets/game/ui/spear_reveal.png", import.meta.url).href);
 
 export async function preloadDialogueAssets(document: Document, onAssetLoad?: () => void): Promise<void> {
-  await preloadImageAssets(document, DIALOGUE_IMAGE_ASSETS, onAssetLoad);
+  await preloadImageAssets(document, DIALOGUE_PORTRAIT_IMAGE_ASSETS, onAssetLoad);
+}
+
+export async function preloadSpearRevealAsset(document: Document, onAssetLoad?: () => void): Promise<void> {
+  await preloadImageAssets(document, [SPEAR_REVEAL_ASSET], onAssetLoad);
 }
 
 export function renderDialogue(
@@ -84,6 +97,11 @@ export function renderDialogue(
   ctx.save();
   ctx.fillStyle = SCRIM;
   ctx.fillRect(0, 0, canvasSize.width, canvasSize.height);
+
+  if (dialogue.art === "spearReveal" && drawSpearReveal(ctx, canvasSize, dialogue, onAssetLoad)) {
+    ctx.restore();
+    return;
+  }
 
   drawPanel(ctx, layout.panel);
   drawHeader(ctx, layout.header, dialogue.title);
@@ -146,14 +164,59 @@ export function dialogueOptionSlotAt(
   canvasSize: GameCanvasSize,
   dialogueChoices: readonly DialogueChoiceLabel[],
   point: DialoguePoint,
+  art?: DialogueState["art"],
 ): DialogueOptionSlot | undefined {
-  for (const choice of dialogueLayout(canvasSize, dialogueChoices).choices) {
+  const choices = art === "spearReveal" ?
+    spearRevealLayout(canvasSize, dialogueChoices).choices :
+    dialogueLayout(canvasSize, dialogueChoices).choices;
+  for (const choice of choices) {
     if (point.x < choice.rect.x || point.x > choice.rect.x + choice.rect.width) continue;
     if (point.y < choice.rect.y || point.y > choice.rect.y + choice.rect.height) continue;
     return choice.slot;
   }
 
   return undefined;
+}
+
+export function spearRevealLayout(
+  canvasSize: GameCanvasSize,
+  dialogueChoices: readonly DialogueChoiceLabel[],
+): SpearRevealLayout {
+  const margin = 16;
+  const imageWidth = Math.max(1, canvasSize.width - margin * 2);
+  const imageHeight = Math.max(1, Math.round(imageWidth / REVEAL_ASPECT_RATIO));
+  const slottedChoices = dialogueChoices.slice(0, DIALOGUE_OPTION_SLOTS.length);
+  const choiceStackHeight = slottedChoices.length === 0 ?
+    0 :
+    slottedChoices.length * CHOICE_HEIGHT + (slottedChoices.length - 1) * CHOICE_GAP;
+  const totalHeight = imageHeight + (choiceStackHeight === 0 ? 0 : REVEAL_CHOICE_GAP + choiceStackHeight);
+  const preferredY = dialoguePanelRect(canvasSize).y;
+  const maxY = Math.max(margin, canvasSize.height - margin - totalHeight);
+  const image = {
+    x: Math.round((canvasSize.width - imageWidth) / 2),
+    y: clamp(preferredY, margin, maxY),
+    width: imageWidth,
+    height: imageHeight,
+  };
+  const captionInset = Math.round(image.width * 0.09);
+  const caption = {
+    x: image.x + captionInset,
+    y: image.y + Math.round(image.height * 0.8),
+    width: image.width - captionInset * 2,
+    height: Math.round(image.height * 0.15),
+  };
+  const choicesY = image.y + image.height + REVEAL_CHOICE_GAP;
+  const choices = slottedChoices.map(({ label }, index) => ({
+    slot: DIALOGUE_OPTION_SLOTS[index]!,
+    label,
+    rect: {
+      x: image.x,
+      y: choicesY + index * (CHOICE_HEIGHT + CHOICE_GAP),
+      width: image.width,
+      height: CHOICE_HEIGHT,
+    },
+  }));
+  return { image, caption, choices };
 }
 
 export function dialoguePanelRect(canvasSize: GameCanvasSize): DialogueRect {
@@ -209,6 +272,25 @@ function fitFinalLine(
   if (finalIndex < 0) return fitted;
   fitted[finalIndex] = fitText(ctx, fitted[finalIndex]!, maxWidth);
   return fitted;
+}
+
+function drawSpearReveal(
+  ctx: CanvasRenderingContext2D,
+  canvasSize: GameCanvasSize,
+  dialogue: DialogueState,
+  onAssetLoad?: () => void,
+): boolean {
+  const image = loadedImage(ctx, SPEAR_REVEAL_ASSET, onAssetLoad);
+  if (image === undefined) return false;
+
+  const layout = spearRevealLayout(canvasSize, dialogue.choices);
+  ctx.save();
+  ctx.imageSmoothingEnabled = false;
+  ctx.drawImage(image, layout.image.x, layout.image.y, layout.image.width, layout.image.height);
+  ctx.restore();
+  drawMessage(ctx, layout.caption, dialogue.message);
+  drawChoices(ctx, layout.choices);
+  return true;
 }
 
 function drawPanel(ctx: CanvasRenderingContext2D, rect: DialogueRect): void {

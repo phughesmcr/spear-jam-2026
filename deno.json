@@ -13,6 +13,7 @@
     "build:itch": "deno run -A scripts/itch.ts",
     "preview:itch": "deno run -A npm:vite preview --config vite.itch.config.ts --host",
     "maps:compile": "deno run -A scripts/maps.ts compile",
+    "images:optimize": "deno run -A scripts/optimize_images.ts",
     "maps:check": "deno run -A scripts/maps.ts check",
     "maps:play": "deno run -A scripts/maps.ts play",
     "maps:sync-authoring": "deno run -A scripts/maps.ts sync-authoring",

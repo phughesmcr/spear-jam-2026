@@ -14,7 +14,7 @@ import type { EnemyIdleSoundSource, SoundCue, SoundEmitterSnapshot } from "@/src
 import type { GameModel } from "@/src/game/transition.ts";
 import { DEFAULT_GAME_CANVAS_SIZE, type GameCanvasSize } from "@/src/render/canvas.ts";
 import { createFirstPersonRenderer, type FirstPersonRenderer } from "@/src/render/first_person.ts";
-import { preloadGameAssets, renderGameFrame } from "@/src/render/game.ts";
+import { preloadGameAssets, renderGameFrame, warmDeferredGameAssets, warmGameAssets } from "@/src/render/game.ts";
 import { createGameRenderScratch } from "@/src/render/render_scratch.ts";
 
 /** Cap ambient-only animation (sky/bob/flicker) to match light rebuild rate. */
@@ -28,6 +28,7 @@ export type GameRuntimeLoopSpec = {
   readonly getModel: () => GameModel;
   readonly getSession: () => RuntimeSession | undefined;
   readonly dependencies?: GameRuntimeLoopDependencies;
+  readonly onLoadingProgress?: (loaded: number, total: number) => void;
 };
 
 export type GameRuntimeLoopDependencies = {
@@ -40,7 +41,9 @@ export interface GameRuntimeLoop extends Disposable {
   start(): void;
   resize(size: GameCanvasSize): void;
   renderNow(): void;
-  preloadAssets(): Promise<void>;
+  preloadAssets(mapName: string): Promise<void>;
+  warmAssets(mapName: string): void;
+  warmDeferredAssets(mapName: string): void;
   resetFirstPerson(): void;
   bumpFirstPerson(dx: number, dy: number, nowMs: number): void;
   unlockAudio(): Promise<void>;
@@ -112,8 +115,21 @@ class RuntimeLoop implements GameRuntimeLoop {
     this.updateAndRender(performance.now());
   }
 
-  async preloadAssets(): Promise<void> {
-    await preloadGameAssets(this.spec.document, this.firstPersonRenderer, this.renderLoadedAssets);
+  async preloadAssets(mapName: string): Promise<void> {
+    await preloadGameAssets(this.spec.document, this.firstPersonRenderer, {
+      mapName,
+      onAssetLoad: this.renderLoadedAssets,
+      onProgress: (progress) => this.spec.onLoadingProgress?.(progress.loaded, progress.total),
+    });
+    this.firstPersonRenderer.bakeLoadedAssets(this.spec.ctx);
+  }
+
+  warmAssets(mapName: string): void {
+    warmGameAssets(this.spec.document, this.firstPersonRenderer, mapName, this.renderLoadedAssets);
+  }
+
+  warmDeferredAssets(mapName: string): void {
+    warmDeferredGameAssets(this.spec.document, this.firstPersonRenderer, mapName, this.renderLoadedAssets);
   }
 
   resetFirstPerson(): void {

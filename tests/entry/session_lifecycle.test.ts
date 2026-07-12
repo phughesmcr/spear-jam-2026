@@ -1,12 +1,12 @@
-import { assert, assertEquals, assertRejects } from "@std/assert";
-import { SplitMix32 } from "@/src/game/rng.ts";
-import { START_MAP_NAME } from "@/src/map/maps.ts";
 import {
   loadMapSession,
   resetRunSession,
   retryMapSession,
   type SessionLifecycleSpec,
 } from "@/src/entry/session_lifecycle.ts";
+import { SplitMix32 } from "@/src/game/rng.ts";
+import { START_MAP_NAME } from "@/src/map/maps.ts";
+import { assert, assertEquals, assertRejects } from "@std/assert";
 
 Deno.test("loadMapSession creates a new game session when none exists", async () => {
   const controller = new AbortController();
@@ -106,7 +106,7 @@ Deno.test("loadMapSession returns no session when aborted before commit", async 
 function lifecycleSpec(controller: AbortController): SessionLifecycleSpec {
   return {
     signal: controller.signal,
-    preloadAssets: () => Promise.resolve(),
+    preloadAssets: (_mapName: string) => Promise.resolve(),
   };
 }
 

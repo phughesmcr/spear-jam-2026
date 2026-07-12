@@ -78,6 +78,7 @@ export function spearPickupDialogue(): DialogueState {
   const start = dialogueTreeStart(DialogueTreeId.SpearPower);
   return {
     title: "Spear of Destiny",
+    art: "spearReveal",
     treeKey: start.treeKey,
     message: start.node.text,
     ...(start.node.voice === undefined ? {} : { voice: start.node.voice }),

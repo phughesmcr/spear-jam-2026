@@ -1,7 +1,7 @@
 import type { DialogueChoice } from "@/src/dialogue/dialogue.ts";
 import type { VoiceId } from "@/src/dialogue/voice.ts";
-import type { DisplayName } from "@/src/game/names.ts";
 import type { LevelStats } from "@/src/game/level_stats.ts";
+import type { DisplayName } from "@/src/game/names.ts";
 import type { KeyColor } from "@/src/map/map.ts";
 
 export type CommandSlot = 1 | 2 | 3;
@@ -55,6 +55,7 @@ export type PlayerStatusSnapshot = {
 export type DialogueState = {
   readonly title: string;
   readonly message: string;
+  readonly art?: "spearReveal";
   readonly voice?: VoiceId;
   readonly choices: readonly DialogueChoice[];
   /** Speaker's DisplayName, used to pick a portrait sprite; absent falls back to a drawn bust. */
@@ -78,7 +79,7 @@ export type IntermissionCompletion =
 
 export type GameMode =
   | { readonly type: "title"; readonly intent: TitleIntent; readonly hoverButton?: TitleHoverButton }
-  | { readonly type: "loading" }
+  | { readonly type: "loading"; readonly loaded: number; readonly total: number }
   | { readonly type: "playing" }
   | {
     readonly type: "victoryTransition";

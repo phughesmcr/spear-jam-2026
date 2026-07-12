@@ -43,7 +43,7 @@ const MODE_POINTERS: { readonly [K in GameMode["type"]]?: PointerRouter } = {
       event: {
         type: "dialoguePointer",
         phase: input.phase,
-        optionSlot: dialogueOptionSlotAt(canvasSize, mode.choices, input),
+        optionSlot: dialogueOptionSlotAt(canvasSize, mode.choices, input, mode.art),
       },
     };
   },

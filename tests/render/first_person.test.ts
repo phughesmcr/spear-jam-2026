@@ -850,8 +850,8 @@ Deno.test("first-person rendering preserves loaded sprite source aspect ratios",
     const scene = renderer.sceneForMap(map);
 
     assertEquals(scene.spriteCount, 1);
-    assertAlmostEquals(scene.spriteHeight[0]!, 0.75, 1e-6);
-    assertAlmostEquals(scene.spriteWidth[0]!, 0.75 * 1024 / 1365, 1e-6);
+    assertAlmostEquals(scene.spriteHeight[0]!, 0.8, 1e-6);
+    assertAlmostEquals(scene.spriteWidth[0]!, 0.8 * 1024 / 1365, 1e-6);
   });
 });
 
@@ -887,7 +887,7 @@ Deno.test("first-person rendering places ceiling decorations near the ceiling", 
 
     assertEquals(scene.spriteCount, 1);
     assertEquals(scene.spriteTex[0], SPRITE_DECOR_CEILING_LIGHT);
-    assertAlmostEquals(scene.spriteElevation[0]!, 0.55, 1e-6);
+    assertAlmostEquals(scene.spriteElevation[0]!, 0.5, 1e-6);
     assert(
       (ctx.canvas.ownerDocument as unknown as FakeDocument).images.some((image) =>
         image.src.includes("/assets/game/sprites/decor_ceiling_light.png")

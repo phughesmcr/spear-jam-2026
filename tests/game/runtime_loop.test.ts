@@ -337,6 +337,10 @@ function fakeFirstPersonRenderer(
     preloadAssets() {
       return Promise.resolve();
     },
+    warmDeferredAssets() {
+      return Promise.resolve();
+    },
+    bakeLoadedAssets() {},
     sceneForMap() {
       throw new Error("Unexpected sceneForMap call.");
     },

@@ -1,6 +1,6 @@
 import { hasComponent, readComponent } from "@/src/ecs/components.ts";
 import { SpriteId } from "@/src/content/sprite_ids.ts";
-import { collectItemAt, interactWithEntity, openDoor } from "@/src/ecs/interactions.ts";
+import { collectItemAt, interactWithEntity, openDoor, spearPickupDialogue } from "@/src/ecs/interactions.ts";
 import { createDoor, createKey, createPlayer, createSpearTurret } from "@/src/ecs/prefabs.ts";
 import { createRuntime } from "@/src/ecs/runtime.ts";
 import { Direction } from "@/src/grid/direction.ts";
@@ -64,6 +64,10 @@ Deno.test("items coexist with a movement occupant and despawn through crawler li
   assertEquals(collectItemAt(runtime, 1, 1), { type: "key", entity: key, color: KeyColor.Red });
   assertEquals(runtime.game.isEntityAlive(key), false);
   runtime.crawler.assertInvariants();
+});
+
+Deno.test("spear pickup dialogue requests the dedicated reveal art", () => {
+  assertEquals(spearPickupDialogue().art, "spearReveal");
 });
 
 Deno.test("using a spear turret loads it only when the player holds the spear", () => {

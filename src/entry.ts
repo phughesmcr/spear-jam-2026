@@ -1,5 +1,5 @@
-import type { GameSession } from "@/src/ecs/session.ts";
 import { musicTrackForMap } from "@/src/audio/music_catalog.ts";
+import type { GameSession } from "@/src/ecs/session.ts";
 import {
   loadMapSession,
   type LoadMapSessionSpec,
@@ -83,6 +83,9 @@ class Game implements GameController {
       signal: controller.signal,
       getModel: () => this.model,
       getSession: () => this.session,
+      onLoadingProgress: (loaded, total) => {
+        this.apply({ type: "loadingProgress", loaded, total });
+      },
     });
     this.rng = new SplitMix32(spec.seed);
     this.canvasController = canvasSizeController(
@@ -96,6 +99,9 @@ class Game implements GameController {
   start(): void {
     this.runtime.start();
     this.apply({ type: "start", nowMs: performance.now() });
+    if (this.model.mode.type === "title" || this.model.mode.type === "intermission") {
+      this.runtime.warmAssets(this.model.startMapName);
+    }
   }
 
   unlockAudio(): Promise<void> {
@@ -109,7 +115,7 @@ class Game implements GameController {
   private async runSessionTransition(kind: SessionTransitionKind, mapName: string): Promise<void> {
     const result = await SESSION_TRANSITIONS[kind]({
       signal: this.controller.signal,
-      preloadAssets: () => this.runtime.preloadAssets(),
+      preloadAssets: (mapName) => this.runtime.preloadAssets(mapName),
       mapName,
       currentSession: this.session,
       random: () => this.rng.nextFloat(),
@@ -129,6 +135,7 @@ class Game implements GameController {
     this.runtime.syncAudioWorld();
     this.runtime.playMusic(musicTrackForMap(mapName));
     this.apply({ type: "mapLoaded", mapName });
+    this.runtime.warmDeferredAssets(mapName);
   }
 
   private handleLoadError(error: unknown): void {
@@ -195,6 +202,12 @@ class Game implements GameController {
       this.runtime.resetFirstPerson();
     }
     this.executeEffects(next.effects);
+    if (
+      this.model.mode.type === "intermission" &&
+      (this.model.mode.completion.type === "loadMap" || this.model.mode.completion.type === "resetRun")
+    ) {
+      this.runtime.warmAssets(this.model.mode.completion.mapName);
+    }
   }
 
   private executeEffects(effects: readonly GameEffect[]): void {

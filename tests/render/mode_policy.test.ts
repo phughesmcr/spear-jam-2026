@@ -29,7 +29,7 @@ Deno.test("renderLayerPolicy skips session and message underlays for opaque mode
       opaqueFirstPerson: false,
     },
   );
-  assertEquals(renderLayerPolicy({ type: "loading" }, "firstPerson"), {
+  assertEquals(renderLayerPolicy({ type: "loading", loaded: 0, total: 0 }, "firstPerson"), {
     renderSession: false,
     renderMessageLog: false,
     opaqueFirstPerson: false,

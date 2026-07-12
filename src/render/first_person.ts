@@ -12,6 +12,7 @@
  * facing relative to the camera, Wolf3D style.
  */
 
+import type { SpriteId } from "@/src/content/sprite_ids.ts";
 import {
   type DrawableEntity,
   type DrawableEntityVisitor,
@@ -20,12 +21,14 @@ import {
 } from "@/src/ecs/drawables.ts";
 import { type CardinalDirection, Direction, directionDelta, normalizeDirection } from "@/src/grid/direction.ts";
 import type { GameMap, TexturePackRef } from "@/src/map/map.ts";
+import { preloadImageAssets } from "@/src/render/assets.ts";
 import {
   bakeLoadedAssets,
   buildAtlas,
   type ContentCrop,
   createAssetCatalog,
-  preloadAssetCatalog,
+  deferredCatalogAssets,
+  preloadAssetCatalogForSprites,
 } from "@/src/render/first_person_assets.ts";
 import { addDrawable } from "@/src/render/first_person_drawables.ts";
 import {
@@ -68,7 +71,13 @@ export type FirstPersonFrameScratch = {
 };
 
 export interface FirstPersonRenderer {
-  preloadAssets(document: Document, onAssetLoad?: () => void): Promise<void>;
+  preloadAssets(document: Document, spriteIds: ReadonlySet<SpriteId>, onAssetLoad?: () => void): Promise<void>;
+  warmDeferredAssets(
+    document: Document,
+    spriteIds: ReadonlySet<SpriteId>,
+    onAssetLoad?: () => void,
+  ): Promise<void>;
+  bakeLoadedAssets(ctx: CanvasRenderingContext2D): void;
   sceneForMap(map: GameMap): RaycastScene;
   reset(): void;
   bump(dirX: number, dirY: number, nowMs: number): void;
@@ -145,8 +154,14 @@ type FirstPersonRendererState = ReturnType<typeof createFirstPersonRendererState
 export function createFirstPersonRenderer(): FirstPersonRenderer {
   const state = createFirstPersonRendererState();
   return {
-    preloadAssets(document, onAssetLoad) {
-      return preloadAssetCatalog(document, state.assetCatalog, onAssetLoad);
+    preloadAssets(document, spriteIds, onAssetLoad) {
+      return preloadAssetCatalogForSprites(document, state.assetCatalog, spriteIds, onAssetLoad);
+    },
+    warmDeferredAssets(document, spriteIds, onAssetLoad) {
+      return preloadImageAssets(document, deferredCatalogAssets(state.assetCatalog, spriteIds), onAssetLoad);
+    },
+    bakeLoadedAssets(ctx) {
+      bakeLoadedAssets(state, ctx);
     },
     sceneForMap(map) {
       return sceneForMapForState(state, map);

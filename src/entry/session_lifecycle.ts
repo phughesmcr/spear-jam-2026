@@ -4,7 +4,7 @@ import { getMap } from "@/src/map/maps.ts";
 
 export type SessionLifecycleSpec = {
   readonly signal: AbortSignal;
-  readonly preloadAssets: () => Promise<void>;
+  readonly preloadAssets: (mapName: string) => Promise<void>;
 };
 
 export type LoadMapSessionSpec = SessionLifecycleSpec & GameSessionOptions & {
@@ -79,6 +79,6 @@ export async function resetRunSession(spec: ExistingSessionMapSpec): Promise<Ses
   return { mapName: spec.mapName, session };
 }
 
-async function preloadSessionAssets(spec: SessionLifecycleSpec): Promise<void> {
-  await spec.preloadAssets();
+async function preloadSessionAssets(spec: SessionLifecycleSpec & { readonly mapName: string }): Promise<void> {
+  await spec.preloadAssets(spec.mapName);
 }
