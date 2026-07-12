@@ -10,6 +10,8 @@ I built the game to learn how to put an [ECS engine](https://github.com/phughesm
 The game uses Deno to run the game. You can make changes to maps in Tiled, then run `deno task maps:compile` to compile them into a format the game can use.
 Run the game with `deno task build && deno task start` for production, or `deno task dev` for development.
 
+For itch.io HTML5: `deno task build:itch` writes `dist/itch/` and `dist/spear-of-destiny-web.zip` (upload the ZIP as Kind: HTML; enable Mobile Friendly). Preview with `deno task preview:itch`.
+
 ## Gameplay and Controls
 
 **Gameplay** 
