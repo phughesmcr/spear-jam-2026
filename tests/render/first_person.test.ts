@@ -593,7 +593,7 @@ Deno.test("first-person rendering resets cached scene lighting when active light
     );
 
     const scene = renderer.sceneForMap(map);
-    assertEquals(scene.lightGreen[1 * 3 + 1], 96);
+    assertEquals(scene.lightGreen[1 * 3 + 1], 112);
 
     renderFirstPersonView(renderer, ctx, { x: 0, y: 0, width: 64, height: 64 }, sessionFor(map, drawables), 16);
 

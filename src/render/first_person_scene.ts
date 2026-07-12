@@ -46,7 +46,7 @@ export type FirstPersonSceneState = FirstPersonAssetState & {
 };
 
 const LIGHT_FULL_BRIGHT = 255;
-const LIGHT_AMBIENT = 96;
+const LIGHT_AMBIENT = 112;
 const DEFAULT_FLICKER_SPEED = 8;
 /** Rebuild flickering lightmaps at ~12 Hz; static light sets still update on change. */
 const LIGHT_REBUILD_INTERVAL_MS = 1000 / 12;

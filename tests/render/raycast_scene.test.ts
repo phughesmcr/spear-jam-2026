@@ -603,6 +603,23 @@ Deno.test("renderFrame preserves non-square sprite billboard dimensions", () => 
   assertNotEquals(pixel(frame, CENTER - 13, CENTER), texel(atlas, "sprites", SPRITE, 1));
 });
 
+Deno.test("renderFrame clips scaled sprites below the ceiling at every distance", () => {
+  const atlas = testAtlas();
+
+  for (const [spriteX, ceilingY] of [[2.5, 7], [3.5, 19]] as const) {
+    const emptyFrame = createFrame(VIEW, VIEW);
+    renderFrame(emptyFrame, corridorScene(), atlas, CAMERA);
+    const scene = corridorScene();
+    addSprite(scene, spriteX, 1.5, SPRITE, 5);
+    const frame = createFrame(VIEW, VIEW);
+
+    renderFrame(frame, scene, atlas, CAMERA);
+
+    assertEquals(pixel(frame, CENTER, ceilingY), pixel(emptyFrame, CENTER, ceilingY));
+    assertNotEquals(pixel(frame, CENTER, CENTER), pixel(emptyFrame, CENTER, CENTER));
+  }
+});
+
 Deno.test("renderFrame draws compact health bars above sprites with health", () => {
   const atlas = testAtlas();
   const scene = corridorScene();

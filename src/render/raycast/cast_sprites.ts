@@ -173,6 +173,7 @@ function drawSprite(
   // Floor-anchored: the sprite's feet sit where a wall's base would project.
   const bottom = horizon + ((CAMERA_HEIGHT - elevation) * focal) / depth;
   const top = bottom - spriteHeight;
+  const ceiling = horizon - ((1 - CAMERA_HEIGHT) * focal) / depth;
   const left = screenX - spriteWidth * 0.5;
   const healthRatio = healthRatioFor(healthCurrent, healthMax);
   const healthBarWidth = spriteWidth >= HEALTH_BAR_MIN_WIDTH && healthMax > 0 &&
@@ -188,7 +189,7 @@ function drawSprite(
   const healthBarBottom = healthBarTop + HEALTH_BAR_HEIGHT;
   const healthBarFillRight = healthBarLeft + HEALTH_BAR_BORDER +
     Math.round((healthBarWidth - HEALTH_BAR_BORDER * 2) * healthRatio);
-  let yStart = Math.ceil(top);
+  let yStart = Math.ceil(Math.max(top, ceiling));
   let yEnd = Math.ceil(bottom);
   if (yStart < 0) yStart = 0;
   if (yEnd > height) yEnd = height;
