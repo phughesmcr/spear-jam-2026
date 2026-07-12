@@ -1568,6 +1568,12 @@
                  "opacity":1,
                  "properties":[
                         {
+                         "name":"dialogueTreeId",
+                         "propertytype":"DialogueTreeId",
+                         "type":"string",
+                         "value":"johnCore"
+                        },
+                        {
                          "name":"facing",
                          "propertytype":"Facing",
                          "type":"string",

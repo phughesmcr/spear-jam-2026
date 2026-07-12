@@ -82,6 +82,31 @@
       }
     }
   },
+  "john_core": {
+    "start": "greet",
+    "nodes": {
+      "greet": {
+        "text": "You made it. See that building in the distance? That's the Mainframe.",
+        "choices": [
+          { "label": "HOW DO WE REBOOT IT?", "next": "turret" },
+          { "label": "BYE!" }
+        ]
+      },
+      "turret": {
+        "text": "Load the bolt into the turret, then fire it into the Mainframe's heart.",
+        "choices": [
+          { "label": "WHAT WILL HAPPEN?", "next": "reboot" },
+          { "label": "UNDERSTOOD." }
+        ]
+      },
+      "reboot": {
+        "text": "The impact will force a system reboot. I hope I'll see you on the other side.",
+        "choices": [
+          { "label": "SEE YOU THERE." }
+        ]
+      }
+    }
+  },
   "spear_power": {
     "start": "found",
     "nodes": {
