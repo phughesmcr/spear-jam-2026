@@ -83,6 +83,7 @@ export type IntentResolution = {
   readonly noise?: NoiseStimulus;
   readonly dialogue?: { readonly target?: Entity; readonly dialogue: DialogueState };
   readonly terminal?: Entity;
+  readonly outcome?: "victory";
   readonly acted?: boolean;
 };
 
@@ -213,6 +214,8 @@ function resolveInteractionIntent(
       return { events: interaction.events, cost: "free", acted: interaction.events.length > 0 };
     case "consumeTurn":
       return { events: interaction.events, cost: "turn", acted: true };
+    case "victory":
+      return { events: interaction.events, cost: "free", outcome: "victory", acted: true };
     case "dialogue":
       return {
         events: interaction.events,

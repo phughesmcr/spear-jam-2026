@@ -23,7 +23,7 @@ export type TurnTransactionResult = {
     readonly dialogue: DialogueState;
   };
   readonly terminal?: Entity;
-  readonly outcome?: "defeat";
+  readonly outcome?: "victory" | "defeat";
   readonly noise?: readonly NoiseStimulus[];
 };
 
@@ -49,6 +49,13 @@ export function runTurnTransaction(context: TurnContext, command: PlayerCommand)
         events: playerEvents,
         cost: "free",
         terminal: resolution.terminal,
+      };
+    }
+    if (resolution.outcome === "victory") {
+      return {
+        events: playerEvents,
+        cost: "free",
+        outcome: "victory",
       };
     }
   }

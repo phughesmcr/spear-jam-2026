@@ -66,6 +66,7 @@ class Game implements GameController {
   private canvasController: Disposable;
   private inputController?: Disposable;
   private session?: GameSession;
+  private victoryTimeoutId?: number;
 
   constructor(spec: GameSpec, controller: AbortController) {
     this.spec = spec;
@@ -217,6 +218,12 @@ class Game implements GameController {
         case "playMusic":
           this.runtime.playMusic(effect.trackId);
           break;
+        case "stopSounds":
+          this.runtime.stopSounds();
+          break;
+        case "scheduleVictory":
+          this.scheduleVictory(effect.delayMs);
+          break;
         case "loadMap":
         case "retryMap":
         case "resetRun":
@@ -244,8 +251,18 @@ class Game implements GameController {
     );
   }
 
+  private scheduleVictory(delayMs: number): void {
+    if (this.victoryTimeoutId !== undefined) this.spec.host.clearTimeout(this.victoryTimeoutId);
+    this.victoryTimeoutId = this.spec.host.setTimeout(() => {
+      this.victoryTimeoutId = undefined;
+      if (this.controller.signal.aborted) return;
+      this.apply({ type: "victoryTransitionComplete", nowMs: performance.now() });
+    }, delayMs);
+  }
+
   [Symbol.dispose](): void {
     this.controller.abort();
+    if (this.victoryTimeoutId !== undefined) this.spec.host.clearTimeout(this.victoryTimeoutId);
     this.runtime[Symbol.dispose]();
     this.inputController?.[Symbol.dispose]();
     this.session?.[Symbol.dispose]();

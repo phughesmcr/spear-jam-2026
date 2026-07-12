@@ -2,6 +2,7 @@ import { DisplayName } from "@/src/game/names.ts";
 import { VoiceId } from "@/src/dialogue/voice.ts";
 import { TrackId } from "@/src/audio/music_catalog.ts";
 import { createGameModel, type GameModel, transition } from "@/src/game/transition.ts";
+import { VICTORY_FADE_MS, VICTORY_HOLD_MS } from "@/src/game/victory.ts";
 import type { Entity } from "turn-based-engine/ecs";
 import { assertEquals } from "@std/assert";
 
@@ -696,7 +697,22 @@ Deno.test("transition presents victory as an ending intermission before starting
     },
   });
 
-  assertEquals(result.model.mode.type, "intermission");
+  assertEquals(result.model.mode, {
+    type: "victoryTransition",
+    fadeStartsAtMs: 1000 + VICTORY_HOLD_MS,
+    completesAtMs: 1000 + VICTORY_HOLD_MS + VICTORY_FADE_MS,
+  });
+  assertEquals(result.effects, [
+    { type: "stopSounds" },
+    { type: "playMusic", trackId: TrackId.Title },
+    { type: "scheduleVictory", delayMs: VICTORY_HOLD_MS + VICTORY_FADE_MS },
+    { type: "render" },
+  ]);
+
+  result = transition(result.model, {
+    type: "victoryTransitionComplete",
+    nowMs: 1000 + VICTORY_HOLD_MS + VICTORY_FADE_MS,
+  });
   let mode = result.model.mode;
   if (mode.type !== "intermission") throw new Error(`Expected intermission mode, got ${mode.type}.`);
   assertEquals(mode.title, "SYSTEM REBOOTED");
@@ -707,7 +723,7 @@ Deno.test("transition presents victory as an ending intermission before starting
   assertEquals(mode.prompt, "Space to begin again");
   assertEquals(mode.background, "victory");
   assertEquals(mode.completion, { type: "resetRun", mapName: "Level 1" });
-  assertEquals(mode.revealStartedAtMs, 1000);
+  assertEquals(mode.revealStartedAtMs, 1000 + VICTORY_HOLD_MS + VICTORY_FADE_MS);
   assertEquals(mode.revealed, false);
   assertEquals(result.effects, [{ type: "render" }]);
 

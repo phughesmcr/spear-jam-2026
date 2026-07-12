@@ -19,7 +19,7 @@ import {
   type SettingsSliderId,
 } from "@/src/game/render_settings.ts";
 import type { GameMode, TitleHoverButton, VerbMenuTarget, ViewMode } from "@/src/game/state.ts";
-import { VICTORY_INTERMISSION } from "@/src/game/victory.ts";
+import { VICTORY_FADE_MS, VICTORY_HOLD_MS, VICTORY_INTERMISSION } from "@/src/game/victory.ts";
 import { openVerbMenu, verbMenuCommand, verbPointer } from "@/src/game/verb_menu_transition.ts";
 import type { PointerPhase } from "@/src/input/pointer.ts";
 import type { Entity } from "turn-based-engine/ecs";
@@ -55,6 +55,8 @@ export type GameEffect =
   | { readonly type: "ensureInput" }
   | { readonly type: "applyAudioVolumes" }
   | { readonly type: "playMusic"; readonly trackId: MusicTrackId }
+  | { readonly type: "stopSounds" }
+  | { readonly type: "scheduleVictory"; readonly delayMs: number }
   | { readonly type: "loadMap"; readonly mapName: string }
   | { readonly type: "retryMap"; readonly mapName: string }
   | { readonly type: "resetRun"; readonly mapName: string }
@@ -64,6 +66,7 @@ export type GameTransitionEvent =
   | { readonly type: "start"; readonly nowMs?: number }
   | { readonly type: "mapLoaded"; readonly mapName: string }
   | { readonly type: "loadFailed"; readonly message: string }
+  | { readonly type: "victoryTransitionComplete"; readonly nowMs?: number }
   | { readonly type: "gameCommand"; readonly command: GameCommand; readonly nowMs?: number }
   | { readonly type: "verbPointer"; readonly phase: PointerPhase; readonly target?: VerbMenuTarget }
   | { readonly type: "dialoguePointer"; readonly phase: PointerPhase; readonly optionSlot?: number }
@@ -114,6 +117,7 @@ const MODE_COMMANDS: { readonly [K in GameMode["type"]]?: ModeCommandHandler } =
     return mode.type === "verbMenu" ? verbMenuCommand(model, mode, command) : done(model);
   },
   defeat: defeatCommand,
+  victoryTransition: (_model, _command) => done(_model),
   playing: playingCommand,
   paused: overlayCommand,
   loading: overlayCommand,
@@ -151,6 +155,8 @@ export function transition(model: GameModel, event: GameTransitionEvent): GameTr
       return mapLoaded(model, event.mapName);
     case "loadFailed":
       return done({ ...model, mode: { type: "error", message: event.message } }, [{ type: "render" }]);
+    case "victoryTransitionComplete":
+      return completeVictoryTransition(model, event.nowMs ?? 0);
     case "gameCommand":
       return gameCommand(model, event.command, event.nowMs ?? 0);
     case "verbPointer":
@@ -512,15 +518,20 @@ function playerCommandResult(
         return done({ ...modelWithPresentation, mode: { type: "defeat" } }, [{ type: "render" }]);
       }
       return done(
-        enterIntermission(modelWithPresentation, {
-          title: VICTORY_INTERMISSION.title,
-          pages: VICTORY_INTERMISSION.pages,
-          prompt: VICTORY_INTERMISSION.prompt,
-          background: "victory",
-          completion: { type: "resetRun", mapName: model.startMapName },
-          nowMs,
-        }),
-        [{ type: "render" }],
+        {
+          ...modelWithPresentation,
+          mode: {
+            type: "victoryTransition",
+            fadeStartsAtMs: nowMs + VICTORY_HOLD_MS,
+            completesAtMs: nowMs + VICTORY_HOLD_MS + VICTORY_FADE_MS,
+          },
+        },
+        [
+          { type: "stopSounds" },
+          { type: "playMusic", trackId: TrackId.Title },
+          { type: "scheduleVictory", delayMs: VICTORY_HOLD_MS + VICTORY_FADE_MS },
+          { type: "render" },
+        ],
       );
     }
     case "mapChange":
@@ -544,6 +555,21 @@ function playerCommandResult(
       return _exhaustive;
     }
   }
+}
+
+function completeVictoryTransition(model: GameModel, nowMs: number): GameTransition {
+  if (model.mode.type !== "victoryTransition") return done(model);
+  return done(
+    enterIntermission(model, {
+      title: VICTORY_INTERMISSION.title,
+      pages: VICTORY_INTERMISSION.pages,
+      prompt: VICTORY_INTERMISSION.prompt,
+      background: "victory",
+      completion: { type: "resetRun", mapName: model.startMapName },
+      nowMs,
+    }),
+    [{ type: "render" }],
+  );
 }
 
 function toggleMenu(model: GameModel): GameTransition {

@@ -21,6 +21,7 @@ export type AudioVolumes = {
 export interface AudioRuntime extends Disposable {
   unlock(): Promise<void>;
   playMusic(trackId: TrackId): void;
+  stopSounds(): void;
   setVolumes(volumes: AudioVolumes): void;
   updateListener(position: GridPoint, facing: CardinalDirection): void;
   playCues(cues: readonly SoundCue[]): void;
@@ -47,6 +48,12 @@ type AmbientLoop = {
   readonly source: AudioBufferSourceNode;
   readonly gain: GainNode;
   readonly panner: PannerNode;
+};
+
+type ActiveCue = {
+  readonly source: AudioBufferSourceNode;
+  readonly gain: GainNode;
+  readonly panner?: PannerNode;
 };
 
 const AMBIENT_GAIN_RAMP_SECONDS = 0.18;
@@ -79,6 +86,8 @@ class WebAudioRuntime implements AudioRuntime {
   private readonly enemyIdleSources = new Map<Entity, EnemyIdleSoundSource>();
   private readonly enemyIdleTimers = new Map<Entity, number>();
   private readonly pendingCues: SoundCue[] = [];
+  private readonly activeCues = new Set<ActiveCue>();
+  private soundRequest = 0;
   private readonly abortController = new AbortController();
   private listenerPosition?: GridPoint;
   private musicVolume = 1;
@@ -109,6 +118,16 @@ class WebAudioRuntime implements AudioRuntime {
     this.musicTrackId = trackId;
     this.prepareMusicElement(trackId);
     if (this.unlocked) this.playMusicNow(trackId);
+  }
+
+  stopSounds(): void {
+    if (this.disposed) return;
+    this.soundRequest++;
+    this.pendingCues.length = 0;
+    this.setDialogueVoice(undefined);
+    this.syncAmbientEmitters([]);
+    this.syncEnemyIdleSources([]);
+    for (const cue of this.activeCues) this.stopActiveCue(cue);
   }
 
   setVolumes(volumes: AudioVolumes): void {
@@ -146,7 +165,7 @@ class WebAudioRuntime implements AudioRuntime {
       this.queuePendingCues(cues);
       return;
     }
-    for (const cue of cues) void this.playCue(cue);
+    for (const cue of cues) void this.playCue(cue, this.soundRequest);
   }
 
   setDialogueVoice(voice: VoiceId | undefined): void {
@@ -182,18 +201,11 @@ class WebAudioRuntime implements AudioRuntime {
 
   [Symbol.dispose](): void {
     if (this.disposed) return;
+    this.stopSounds();
     this.disposed = true;
     this.unlocked = false;
     this.musicTrackId = undefined;
-    this.dialogueVoice = undefined;
-    this.dialogueVoiceRequest++;
-    this.stopDialogueVoice();
     this.abortController.abort();
-    this.pendingCues.length = 0;
-    this.ambientSnapshots.clear();
-    this.enemyIdleSources.clear();
-    for (const entity of this.enemyIdleTimers.keys()) this.clearEnemyIdleTimer(entity);
-    for (const entity of this.ambientLoops.keys()) this.stopAmbientLoop(entity);
     this.musicElement?.pause();
     if (this.graph !== undefined && this.graph.context.state !== "closed") {
       void this.graph.context.close();
@@ -254,11 +266,11 @@ class WebAudioRuntime implements AudioRuntime {
     return audio;
   }
 
-  private async playCue(cue: SoundCue): Promise<void> {
+  private async playCue(cue: SoundCue, request: number): Promise<void> {
     const graph = this.ensureGraph();
     const entry = soundCatalogEntry(cue.soundId);
     const buffer = await this.bufferFor(cue.soundId);
-    if (buffer === undefined || this.disposed || !this.unlocked) return;
+    if (buffer === undefined || this.disposed || !this.unlocked || request !== this.soundRequest) return;
 
     const source = graph.context.createBufferSource();
     const gain = graph.context.createGain();
@@ -278,12 +290,26 @@ class WebAudioRuntime implements AudioRuntime {
       gain.connect(graph.sfxGain);
     }
 
-    source.addEventListener("ended", () => {
-      disconnectNode(source);
-      disconnectNode(gain);
-      if (panner !== undefined) disconnectNode(panner);
-    }, { once: true });
+    const activeCue = panner === undefined ? { source, gain } : { source, gain, panner };
+    this.activeCues.add(activeCue);
+    source.addEventListener("ended", () => this.finishActiveCue(activeCue), { once: true });
     source.start();
+  }
+
+  private stopActiveCue(cue: ActiveCue): void {
+    try {
+      cue.source.stop();
+    } catch {
+      // Already stopped.
+    }
+    this.finishActiveCue(cue);
+  }
+
+  private finishActiveCue(cue: ActiveCue): void {
+    if (!this.activeCues.delete(cue)) return;
+    disconnectNode(cue.source);
+    disconnectNode(cue.gain);
+    if (cue.panner !== undefined) disconnectNode(cue.panner);
   }
 
   private bufferFor(soundId: SoundId): Promise<AudioBuffer | undefined> {
@@ -469,7 +495,7 @@ class WebAudioRuntime implements AudioRuntime {
 
   private flushPendingCues(): void {
     const cues = this.pendingCues.splice(0);
-    for (const cue of cues) void this.playCue(cue);
+    for (const cue of cues) void this.playCue(cue, this.soundRequest);
   }
 }
 

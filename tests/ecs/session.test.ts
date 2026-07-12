@@ -607,7 +607,7 @@ Deno.test("Nexus-style terminals reject use until the spear is held", async () =
   }
 });
 
-Deno.test("player USE loads a map-authored spear turret", async () => {
+Deno.test("loading the spear turret reports the victory outcome", async () => {
   const session = await createGameSession(
     testMap([
       { prefab: "spearPickup", x: 2, y: 1 },
@@ -621,9 +621,10 @@ Deno.test("player USE loads a map-authored spear turret", async () => {
       "spearPickedUp",
     ]);
 
-    assertEquals(eventTypes(session.handlePlayerCommand({ type: "interact", verb: "use" })), [
-      "spearTurretLoaded",
-    ]);
+    const result = session.handlePlayerCommand({ type: "interact", verb: "use" });
+    assertEquals(eventTypes(result), ["spearTurretLoaded"]);
+    if (result.type !== "outcome") throw new Error(`Expected victory outcome, got ${result.type}.`);
+    assertEquals(result.outcome, "victory");
     assertEquals(spriteAt(sessionDrawables(session), 3, 1)?.spriteId, SpriteId.SpearTurretLoaded);
   } finally {
     session[Symbol.dispose]();

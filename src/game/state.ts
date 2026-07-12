@@ -79,6 +79,11 @@ export type GameMode =
   | { readonly type: "title"; readonly intent: TitleIntent; readonly hoverButton?: TitleHoverButton }
   | { readonly type: "loading" }
   | { readonly type: "playing" }
+  | {
+    readonly type: "victoryTransition";
+    readonly fadeStartsAtMs: number;
+    readonly completesAtMs: number;
+  }
   | { readonly type: "paused" }
   | {
     readonly type: "verbMenu";

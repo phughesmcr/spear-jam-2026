@@ -232,11 +232,19 @@ export class GameSession implements Disposable {
     const destinationCode = readComponent(this.runtime.game, terminal, "TerminalDestination")?.destination;
     if (destinationCode === undefined) throw new Error(`Uplink terminal ${terminal} is missing a map destination.`);
     const goto = terminalDestinationForCode(destinationCode);
+    return goto === VICTORY_GOTO ? this.commitVictory(events) : this.commitMapChange(goto, events);
+  }
+
+  private commitVictory(events: readonly GameEvent[]): PlayerCommandResult {
     const levelCompleteEvents = completePlayerLevel(this.runtime.game, this.playerEntity, events);
     clearTransientPlayerState(this.runtime.game, this.playerEntity);
-    return goto === VICTORY_GOTO ?
-      { type: "outcome", events: levelCompleteEvents, outcome: "victory" } :
-      { type: "mapChange", events: levelCompleteEvents, mapChange: { goto } };
+    return { type: "outcome", events: levelCompleteEvents, outcome: "victory" };
+  }
+
+  private commitMapChange(goto: string, events: readonly GameEvent[]): PlayerCommandResult {
+    const levelCompleteEvents = completePlayerLevel(this.runtime.game, this.playerEntity, events);
+    clearTransientPlayerState(this.runtime.game, this.playerEntity);
+    return { type: "mapChange", events: levelCompleteEvents, mapChange: { goto } };
   }
 
   private commitTurnTransaction(
@@ -251,6 +259,7 @@ export class GameSession implements Disposable {
     if (transaction.terminal !== undefined) {
       return this.commitUplinkTerminalActivation(transaction.terminal, transaction.events);
     }
+    if (transaction.outcome === "victory") return this.commitVictory(transaction.events);
     if (transaction.cost === "turn") {
       const nowMs = performance.now();
       this.animations.applyWalks(actorPositions, nowMs);

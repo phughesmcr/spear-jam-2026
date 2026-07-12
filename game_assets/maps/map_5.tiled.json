@@ -700,26 +700,6 @@
                  "y":192
                 }, 
                 {
-                 "gid":146,
-                 "height":16,
-                 "id":21,
-                 "name":"uplinkCode_21",
-                 "opacity":1,
-                 "properties":[
-                        {
-                         "name":"prefab",
-                         "propertytype":"Prefab",
-                         "type":"string",
-                         "value":"uplinkCode"
-                        }],
-                 "rotation":0,
-                 "type":"uplinkCode",
-                 "visible":true,
-                 "width":16,
-                 "x":32,
-                 "y":208
-                }, 
-                {
                  "gid":149,
                  "height":16,
                  "id":22,
@@ -1275,31 +1255,6 @@
                 },
             
                 {
-                 "gid":147,
-                 "height":16,
-                 "id":37,
-                 "name":"uplinkTerminal_37",
-                 "opacity":1,
-                 "properties":[
-                        {
-                         "name":"goto",
-                         "type":"string",
-                         "value":"victory"
-                        }, 
-                        {
-                         "name":"prefab",
-                         "propertytype":"Prefab",
-                         "type":"string",
-                         "value":"uplinkTerminal"
-                        }],
-                 "rotation":0,
-                 "type":"uplinkTerminal",
-                 "visible":true,
-                 "width":16,
-                 "x":112,
-                 "y":96
-                }, 
-                {
                  "gid":150,
                  "height":16,
                  "id":52,
@@ -1604,46 +1559,6 @@
                  "width":16,
                  "x":160,
                  "y":128
-                }, 
-                {
-                 "gid":150,
-                 "height":16,
-                 "id":69,
-                 "name":"",
-                 "opacity":1,
-                 "properties":[
-                        {
-                         "name":"decoration",
-                         "propertytype":"DecorationKind",
-                         "type":"string",
-                         "value":"tree1"
-                        }],
-                 "rotation":0,
-                 "type":"",
-                 "visible":true,
-                 "width":16,
-                 "x":176,
-                 "y":64
-                }, 
-                {
-                 "gid":150,
-                 "height":16,
-                 "id":70,
-                 "name":"",
-                 "opacity":1,
-                 "properties":[
-                        {
-                         "name":"decoration",
-                         "propertytype":"DecorationKind",
-                         "type":"string",
-                         "value":"tree2"
-                        }],
-                 "rotation":0,
-                 "type":"",
-                 "visible":true,
-                 "width":16,
-                 "x":112,
-                 "y":64
                 }],
          "opacity":1,
          "type":"objectgroup",
@@ -1852,7 +1767,7 @@
                         {
                          "name":"radius",
                          "type":"int",
-                         "value":2
+                         "value":4
                         }],
                  "rotation":0,
                  "type":"",
@@ -1934,12 +1849,12 @@
                         {
                          "name":"flickerAmount",
                          "type":"float",
-                         "value":0.3
+                         "value":0.1
                         }, 
                         {
                          "name":"radius",
                          "type":"int",
-                         "value":2
+                         "value":4
                         }],
                  "rotation":0,
                  "type":"",
@@ -1963,12 +1878,12 @@
                         {
                          "name":"flickerAmount",
                          "type":"float",
-                         "value":0.3
+                         "value":0.1
                         }, 
                         {
                          "name":"radius",
                          "type":"int",
-                         "value":2
+                         "value":4
                         }],
                  "rotation":0,
                  "type":"",
@@ -1992,12 +1907,12 @@
                         {
                          "name":"flickerAmount",
                          "type":"float",
-                         "value":0.3
+                         "value":0.1
                         }, 
                         {
                          "name":"radius",
                          "type":"int",
-                         "value":2
+                         "value":4
                         }],
                  "rotation":0,
                  "type":"",
@@ -2021,12 +1936,12 @@
                         {
                          "name":"flickerAmount",
                          "type":"float",
-                         "value":0.3
+                         "value":0.1
                         }, 
                         {
                          "name":"radius",
                          "type":"int",
-                         "value":2
+                         "value":4
                         }],
                  "rotation":0,
                  "type":"",
@@ -2050,12 +1965,12 @@
                         {
                          "name":"flickerAmount",
                          "type":"float",
-                         "value":0.3
+                         "value":0.1
                         }, 
                         {
                          "name":"radius",
                          "type":"int",
-                         "value":2
+                         "value":4
                         }],
                  "rotation":0,
                  "type":"",

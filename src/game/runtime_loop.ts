@@ -47,6 +47,7 @@ export interface GameRuntimeLoop extends Disposable {
   setAudioVolumes(volumes: AudioSettings): void;
   updateAudioListener(): void;
   playCues(cues: readonly SoundCue[]): void;
+  stopSounds(): void;
   setDialogueVoice(voice: VoiceId | undefined): void;
   syncAudioWorld(): void;
   playMusic(trackId: TrackId): void;
@@ -137,6 +138,10 @@ class RuntimeLoop implements GameRuntimeLoop {
 
   playCues(cues: readonly SoundCue[]): void {
     this.audio.playCues(cues);
+  }
+
+  stopSounds(): void {
+    this.audio.stopSounds();
   }
 
   setDialogueVoice(voice: VoiceId | undefined): void {

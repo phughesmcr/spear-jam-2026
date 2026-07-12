@@ -77,7 +77,7 @@ Deno.test("using a spear turret loads it only when the player holds the spear", 
   assertEquals(runtime.game.storage.Sprite.get(turret, "id"), SpriteId.SpearTurret);
 
   assertEquals(interactWithEntity(runtime, turret, new Set(), false, true, "use"), {
-    type: "consumeTurn",
+    type: "victory",
     events: [{ type: "spearTurretLoaded", entity: turret }],
   });
   assertEquals(runtime.game.storage.Sprite.get(turret, "id"), SpriteId.SpearTurretLoaded);

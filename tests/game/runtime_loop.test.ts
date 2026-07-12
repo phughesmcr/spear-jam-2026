@@ -455,6 +455,13 @@ class FakeAudioRuntime implements AudioRuntime {
     this.musicTrack = trackId;
   }
 
+  stopSounds(): void {
+    this.cues = [];
+    this.dialogueVoice = undefined;
+    this.ambientEmitters = [];
+    this.enemyIdleSources = [];
+  }
+
   setVolumes(volumes: { readonly musicVolume: number; readonly soundVolume: number }): void {
     this.volumes = { ...volumes };
   }

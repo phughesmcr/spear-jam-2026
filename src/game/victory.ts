@@ -1,3 +1,6 @@
+export const VICTORY_HOLD_MS = 750;
+export const VICTORY_FADE_MS = 1_000;
+
 export const VICTORY_INTERMISSION = {
   title: "SYSTEM REBOOTED",
   pages: [

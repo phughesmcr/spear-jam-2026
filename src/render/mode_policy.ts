@@ -14,6 +14,7 @@ export function renderLayerPolicy(mode: GameMode, viewMode: ViewMode): RenderLay
     case "loading":
       return { renderSession: false, renderMessageLog: false, opaqueFirstPerson: false };
     case "playing":
+    case "victoryTransition":
     case "verbMenu":
       return {
         renderSession: true,

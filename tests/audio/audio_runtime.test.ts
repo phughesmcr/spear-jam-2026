@@ -2,6 +2,7 @@ import { assertAlmostEquals, assertEquals } from "@std/assert";
 import { createAudioRuntime, soundAttenuationForDistance } from "@/src/audio/audio_runtime.ts";
 import { MUSIC_TRACKS, TrackId } from "@/src/audio/music_catalog.ts";
 import { VOICE_CATALOG, VoiceId } from "@/src/dialogue/voice.ts";
+import { SoundId } from "@/src/game/sound.ts";
 
 Deno.test("sound attenuation falls off inside the authored tile radius", () => {
   assertEquals(soundAttenuationForDistance(0, 2), 1);
@@ -58,6 +59,26 @@ Deno.test("dialogue voice waits for unlock and replaces or stops the active line
 
   runtime.setDialogueVoice(undefined);
   assertEquals(host.context.bufferSources[1]?.stopCalls, 1);
+
+  runtime[Symbol.dispose]();
+});
+
+Deno.test("stopSounds stops active effects and dialogue while leaving music available", async () => {
+  const host = new FakeAudioWindow();
+  const runtime = createAudioRuntime(host as unknown as Window);
+
+  await runtime.unlock();
+  runtime.setDialogueVoice(VoiceId.JohnThanksGreet);
+  runtime.playCues([{ soundId: SoundId.PickupItem }]);
+  await settlePromises();
+  assertEquals(host.context.bufferSources.length, 2);
+
+  runtime.stopSounds();
+  assertEquals(host.context.bufferSources.map((source) => source.stopCalls), [1, 1]);
+
+  runtime.playMusic(TrackId.Title);
+  assertEquals(host.audio.src, MUSIC_TRACKS[TrackId.Title].src);
+  assertEquals(host.audio.playCalls, 1);
 
   runtime[Symbol.dispose]();
 });

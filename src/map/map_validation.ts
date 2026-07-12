@@ -16,6 +16,7 @@ import {
 type ReachabilityResult = {
   readonly reachableKeyMask: number;
   readonly terminalReachableWithCode: boolean;
+  readonly turretReachable: boolean;
 };
 
 type ReachabilityState = {
@@ -117,10 +118,11 @@ function validateGameMap(map: GameMap, mapNames: ReadonlySet<string>): readonly 
     }
   }
 
-  if (!reachability.terminalReachableWithCode) {
-    issues.push(
-      `${map.name}: no uplink terminal is reachable after collecting an uplink code and required keys.`,
-    );
+  if (!reachability.terminalReachableWithCode && !reachability.turretReachable) {
+    const message = terminalDefs(map).length === 0 && map.entities.some((entity) => entity.prefab === "spearTurret") ?
+      `${map.name}: no spear turret is reachable with required keys.` :
+      `${map.name}: no uplink terminal is reachable after collecting an uplink code and required keys.`;
+    issues.push(message);
   }
 
   return issues;
@@ -135,6 +137,7 @@ function evaluateReachability(
   const visited = new Set<string>();
   let reachableKeyMask = 0;
   let terminalReachableWithCode = false;
+  let turretReachable = false;
 
   const enqueue = (state: ReachabilityState): void => {
     if (!canStandOn(map, indexes, state.x, state.y, state.keyMask)) return;
@@ -161,6 +164,7 @@ function evaluateReachability(
     if (state.hasUplinkCode && canUseAdjacentTerminal(indexes, state)) {
       terminalReachableWithCode = true;
     }
+    if (canUseAdjacentTurret(indexes, state)) turretReachable = true;
 
     for (const delta of CARDINAL_DELTAS) {
       enqueue({
@@ -173,7 +177,7 @@ function evaluateReachability(
     }
   }
 
-  return { reachableKeyMask, terminalReachableWithCode };
+  return { reachableKeyMask, terminalReachableWithCode, turretReachable };
 }
 
 type ReachabilityIndexes = {
@@ -287,6 +291,10 @@ function canUseAdjacentTerminal(indexes: ReachabilityIndexes, state: Reachabilit
     if (requiresSpear === undefined) return false;
     return !requiresSpear || state.hasSpear;
   });
+}
+
+function canUseAdjacentTurret(indexes: ReachabilityIndexes, state: ReachabilityState): boolean {
+  return CARDINAL_DELTAS.some((delta) => indexes.turretTiles.has(tileKey(state.x + delta.dx, state.y + delta.dy)));
 }
 
 function hasOutOfBoundsEntity(map: GameMap, width: number, height: number): boolean {

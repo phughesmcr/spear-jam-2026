@@ -130,6 +130,27 @@ Deno.test("renderGameFrame requests the victory background for the ending interm
   });
 });
 
+Deno.test("renderGameFrame fades the loaded turret scene to black before victory", () => {
+  const ctx = new FakeGameContext();
+
+  const result = renderWithScratch({
+    ctx: ctx as unknown as CanvasRenderingContext2D,
+    canvasSize: FULL_CANVAS,
+    session: fakeSession(),
+    mode: { type: "victoryTransition", fadeStartsAtMs: 1_000, completesAtMs: 1_500 },
+    viewMode: "topDown",
+    nowMs: 1_250,
+  });
+
+  assertEquals(result, { needsFrame: true, ambientOnly: false });
+  assertEquals(ctx.fillRects.at(-1), {
+    rect: { x: 0, y: 0, width: 720, height: 1280 },
+    fillStyle: "#000000",
+    globalAlpha: 0.5,
+    globalCompositeOperation: "source-over",
+  });
+});
+
 Deno.test("renderGameFrame skips the background clear before opaque first-person blit", () => {
   withFakeOffscreenCanvas((): void => {
     const ctx = new FakeGameContext();

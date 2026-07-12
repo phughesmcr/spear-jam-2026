@@ -154,6 +154,11 @@ export function renderGameFrame({
     case "defeat":
       renderOverlay(ctx, canvasSize, "DEFEAT", "Space to retry level");
       return { needsFrame: false };
+    case "victoryTransition":
+      renderVictoryFade(ctx, canvasSize, mode.fadeStartsAtMs, mode.completesAtMs, nowMs);
+      frameResult.needsFrame = true;
+      frameResult.ambientOnly = false;
+      return frameResultFromScratch(frameResult);
     case "error":
       renderOverlay(ctx, canvasSize, "LOAD FAILED", mode.message);
       return { needsFrame: false };
@@ -167,6 +172,22 @@ export function renderGameFrame({
       return _exhaustive;
     }
   }
+}
+
+function renderVictoryFade(
+  ctx: CanvasRenderingContext2D,
+  canvasSize: GameCanvasSize,
+  fadeStartsAtMs: number,
+  completesAtMs: number,
+  nowMs: number,
+): void {
+  const fadeMs = completesAtMs - fadeStartsAtMs;
+  const opacity = Math.max(0, Math.min(1, (nowMs - fadeStartsAtMs) / fadeMs));
+  ctx.save();
+  ctx.globalAlpha = opacity;
+  ctx.fillStyle = "#000000";
+  ctx.fillRect(0, 0, canvasSize.width, canvasSize.height);
+  ctx.restore();
 }
 
 function renderSessionFrame(input: {

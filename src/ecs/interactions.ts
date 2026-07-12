@@ -22,6 +22,7 @@ export type ItemPickup =
 export type PlayerInteractionResult =
   | { readonly type: "unchanged"; readonly events: readonly GameEvent[] }
   | { readonly type: "consumeTurn"; readonly events: readonly GameEvent[] }
+  | { readonly type: "victory"; readonly events: readonly GameEvent[] }
   | {
     readonly type: "dialogue";
     readonly target: Entity;
@@ -193,7 +194,7 @@ function interactWithSpearTurret(
   runtime.crawler.transaction((mutation) => {
     mutation.patchComponent(turret, runtime.game.components.Sprite, { id: SpriteId.SpearTurretLoaded });
   });
-  return { type: "consumeTurn", events: [{ type: "spearTurretLoaded", entity: turret }] };
+  return { type: "victory", events: [{ type: "spearTurretLoaded", entity: turret }] };
 }
 
 function failedVerb(verb: InteractVerb): PlayerInteractionResult {
