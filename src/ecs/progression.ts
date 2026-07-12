@@ -48,6 +48,7 @@ export const DEFAULT_PLAYER_EQUIPMENT: PlayerEquipmentSchema = {
 export const CHEAT_PLAYER_AMMO = 99;
 export const CHEAT_PLAYER_INVENTORY: PlayerInventorySchema = {
   ...DEFAULT_PLAYER_INVENTORY,
+  hasSpear: 1,
   pistolAmmo: CHEAT_PLAYER_AMMO,
   cannonAmmo: CHEAT_PLAYER_AMMO,
 };

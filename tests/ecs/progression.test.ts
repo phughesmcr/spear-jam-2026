@@ -24,6 +24,7 @@ Deno.test("player progression reset and cheat loadout use custom engine storage"
   applyCheatPlayerLoadout(runtime.game, player);
   assertEquals(playerStatusSnapshotFor(runtime.game, player).ammo, { pistol: 99, cannon: 99 });
   assertEquals(playerStatusSnapshotFor(runtime.game, player).unlockedWeapons, [1, 2, 3]);
+  assertEquals(playerStatusSnapshotFor(runtime.game, player).hasSpear, true);
 
   resetPlayerProgression(runtime.game, player);
   assertEquals(playerStatusSnapshotFor(runtime.game, player).ammo, { pistol: 0, cannon: 0 });

@@ -17,3 +17,7 @@ Deno.test("tree decorations resolve to their renderable sprite assets", () => {
     assertEquals(appearance.firstPersonElevation, 0);
   }
 });
+
+Deno.test("mainframe core renders as a room-scale set-piece", () => {
+  assertEquals(spriteAppearance(SpriteId.MainframeCore).firstPersonScale, 3.5);
+});

@@ -44,7 +44,7 @@ Deno.test("createGameSession cheat option starts with full loadout", async () =>
       ammo: { pistol: 99, cannon: 99 },
       health: { current: 10, max: 10 },
       hasUplinkCode: false,
-      hasSpear: false,
+      hasSpear: true,
       progress: { credits: 0, score: 0, xp: 0, levelCredits: 0 },
     });
   } finally {
@@ -64,7 +64,7 @@ Deno.test("cheat resetRun restores the cheat loadout", async () => {
       ammo: { pistol: 99, cannon: 99 },
       health: { current: 10, max: 10 },
       hasUplinkCode: false,
-      hasSpear: false,
+      hasSpear: true,
       progress: { credits: 0, score: 0, xp: 0, levelCredits: 0 },
     });
   } finally {
