@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover"
+    />
+    <title>Spear of Destiny | 30 DAYS OF RPG ADVENTURES #1</title>
+  </head>
+  <body>
+    <main id="stage">
+      <canvas id="gameCanvas" aria-label="Spear of Destiny game"></canvas>
+      <div class="launch-gate" id="launch-gate">
+        <button
+          type="button"
+          class="launch-gate__trigger"
+          id="launch-trigger"
+          aria-label="I am over 18"
+          aria-describedby="launch-instruction"
+          autofocus
+        >
+          <span class="launch-gate__panel">
+            <span class="launch-gate__status">AGE RESTRICTED CONTENT</span>
+            <span class="launch-gate__title">18+</span>
+            <span id="launch-instruction" class="launch-gate__instruction">
+              I AM OVER 18
+            </span>
+            <span class="launch-gate__note">CLICK OR PRESS ENTER TO CONFIRM</span>
+          </span>
+        </button>
+      </div>
+    </main>
+    <script type="module" src="./main.ts"></script>
+  </body>
+</html>
