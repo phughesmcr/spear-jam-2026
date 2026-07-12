@@ -7,6 +7,12 @@ import type { Entity } from "turn-based-engine/ecs";
 import { assertEquals } from "@std/assert";
 
 const PLAYER = 1 as Entity;
+const LEVEL_STATS = {
+  elapsedMs: 125_900,
+  moves: 184,
+  monstersKilled: 7,
+  totalMonsters: 9,
+} as const;
 
 Deno.test("transition starts with render and map loading effects", () => {
   const result = transition(createGameModel("Level 1"), { type: "start" });
@@ -284,12 +290,16 @@ Deno.test("transition derives command result intermission state", () => {
       type: "mapChange",
       events: [{ type: "examined", text: "The uplink hums." }],
       mapChange: { goto: "Level 2" },
+      levelStats: LEVEL_STATS,
     },
   });
 
   assertEquals(result.model.mode, {
     type: "intermission",
-    pages: ["Entering Level 2."],
+    pages: [
+      "LEVEL COMPLETE\n\nTIME 02:05\nMOVES 184\nMONSTERS 7/9 (78%)",
+      "Entering Level 2.",
+    ],
     pageIndex: 0,
     prompt: "Space to continue",
     background: "system",
@@ -694,6 +704,7 @@ Deno.test("transition presents victory as an ending intermission before starting
       type: "outcome",
       events: [{ type: "examined", text: "The system reboots." }],
       outcome: "victory",
+      levelStats: LEVEL_STATS,
     },
   });
 
@@ -701,6 +712,7 @@ Deno.test("transition presents victory as an ending intermission before starting
     type: "victoryTransition",
     fadeStartsAtMs: 1000 + VICTORY_HOLD_MS,
     completesAtMs: 1000 + VICTORY_HOLD_MS + VICTORY_FADE_MS,
+    levelStats: LEVEL_STATS,
   });
   assertEquals(result.effects, [
     { type: "stopSounds" },
@@ -716,9 +728,9 @@ Deno.test("transition presents victory as an ending intermission before starting
   let mode = result.model.mode;
   if (mode.type !== "intermission") throw new Error(`Expected intermission mode, got ${mode.type}.`);
   assertEquals(mode.title, "SYSTEM REBOOTED");
-  assertEquals(mode.pages.length, 5);
+  assertEquals(mode.pages.length, 6);
   assertEquals(mode.pages[0]?.startsWith("The Spear pierces"), true);
-  assertEquals(mode.pages.at(-1)?.endsWith("The future belongs to you."), true);
+  assertEquals(mode.pages.at(-1), "LEVEL COMPLETE\n\nTIME 02:05\nMOVES 184\nMONSTERS 7/9 (78%)");
   assertEquals(mode.pageIndex, 0);
   assertEquals(mode.prompt, "Space to begin again");
   assertEquals(mode.background, "victory");

@@ -10,6 +10,7 @@ import {
 } from "@/src/game/commands.ts";
 import { hasNextIntermissionPage, type IntermissionMode, isMessageRevealed } from "@/src/game/intermission.ts";
 import { CONTINUE_INTERMISSION_PROMPT, INTRO_INTERMISSION } from "@/src/game/intro.ts";
+import { formatLevelStats } from "@/src/game/level_stats.ts";
 import { dispatchCommand, done, pointerGesture } from "@/src/game/mode_handlers.ts";
 import { consumeGameEvents, createPresentationState, type PresentationState } from "@/src/game/presentation.ts";
 import {
@@ -524,6 +525,7 @@ function playerCommandResult(
             type: "victoryTransition",
             fadeStartsAtMs: nowMs + VICTORY_HOLD_MS,
             completesAtMs: nowMs + VICTORY_HOLD_MS + VICTORY_FADE_MS,
+            levelStats: result.levelStats,
           },
         },
         [
@@ -537,7 +539,7 @@ function playerCommandResult(
     case "mapChange":
       return done(
         enterIntermission(modelWithPresentation, {
-          pages: [`Entering ${result.mapChange.goto}.`],
+          pages: [formatLevelStats(result.levelStats), `Entering ${result.mapChange.goto}.`],
           prompt: CONTINUE_INTERMISSION_PROMPT,
           background: "system",
           completion: { type: "loadMap", mapName: result.mapChange.goto },
@@ -562,7 +564,7 @@ function completeVictoryTransition(model: GameModel, nowMs: number): GameTransit
   return done(
     enterIntermission(model, {
       title: VICTORY_INTERMISSION.title,
-      pages: VICTORY_INTERMISSION.pages,
+      pages: [...VICTORY_INTERMISSION.pages, formatLevelStats(model.mode.levelStats)],
       prompt: VICTORY_INTERMISSION.prompt,
       background: "victory",
       completion: { type: "resetRun", mapName: model.startMapName },

@@ -1,6 +1,7 @@
 import type { DialogueChoice } from "@/src/dialogue/dialogue.ts";
 import type { VoiceId } from "@/src/dialogue/voice.ts";
 import type { DisplayName } from "@/src/game/names.ts";
+import type { LevelStats } from "@/src/game/level_stats.ts";
 import type { KeyColor } from "@/src/map/map.ts";
 
 export type CommandSlot = 1 | 2 | 3;
@@ -83,6 +84,7 @@ export type GameMode =
     readonly type: "victoryTransition";
     readonly fadeStartsAtMs: number;
     readonly completesAtMs: number;
+    readonly levelStats: LevelStats;
   }
   | { readonly type: "paused" }
   | {

@@ -508,6 +508,7 @@ Deno.test("consumed player actions run enemy phase and visibility refresh", asyn
 });
 
 Deno.test("activating an uplink terminal completes the level and clears transient state", async () => {
+  let nowMs = 1_000;
   const session = await createGameSession(
     testMap([
       {
@@ -523,8 +524,10 @@ Deno.test("activating an uplink terminal completes the level and clears transien
       { prefab: "uplinkTerminal", x: 3, y: 1, goto: "Data Conduit" },
     ]),
     sequenceRandom([0.999, 0]),
+    { now: () => nowMs },
   );
   try {
+    assertEquals(eventTypes(session.handlePlayerCommand({ type: "move", direction: "forward" })), []);
     assertEquals(eventTypes(session.handlePlayerCommand({ type: "attack" })), [
       "damageDealt",
       "entityDefeated",
@@ -534,11 +537,18 @@ Deno.test("activating an uplink terminal completes the level and clears transien
       "uplinkCodePickedUp",
     ]);
 
+    nowMs = 126_500;
     const result = session.handlePlayerCommand({ type: "interact" });
 
     assertEquals(eventTypes(result), ["uplinkTerminalActivated", "xpGained"]);
     if (result.type !== "mapChange") throw new Error(`Expected map change result, got ${result.type}.`);
     assertEquals(result.mapChange, { goto: "Data Conduit" });
+    assertEquals(result.levelStats, {
+      elapsedMs: 125_500,
+      moves: 1,
+      monstersKilled: 1,
+      totalMonsters: 1,
+    });
     assertEquals(session.getPlayerStatus().hasUplinkCode, false);
     assertEquals(session.getPlayerStatus().heldKeys, []);
     assertEquals(session.getPlayerStatus().progress, {
@@ -553,23 +563,33 @@ Deno.test("activating an uplink terminal completes the level and clears transien
 });
 
 Deno.test("activating a victory uplink terminal reports the victory outcome", async () => {
+  let nowMs = 500;
   const session = await createGameSession(
     testMap([
       { prefab: "uplinkCode", x: 2, y: 1 },
       { prefab: "uplinkTerminal", x: 3, y: 1, goto: VICTORY_GOTO },
     ]),
     () => 0,
+    { now: () => nowMs },
   );
   try {
     assertEquals(eventTypes(session.handlePlayerCommand({ type: "move", direction: "forward" })), [
       "uplinkCodePickedUp",
     ]);
 
+    nowMs = 2_000;
     const result = session.handlePlayerCommand({ type: "interact" });
 
     assertEquals(eventTypes(result), ["uplinkTerminalActivated"]);
     if (result.type !== "outcome") throw new Error(`Expected outcome result, got ${result.type}.`);
     assertEquals(result.outcome, "victory");
+    if (result.outcome !== "victory") throw new Error("Expected victory stats.");
+    assertEquals(result.levelStats, {
+      elapsedMs: 1_500,
+      moves: 1,
+      monstersKilled: 0,
+      totalMonsters: 0,
+    });
   } finally {
     session[Symbol.dispose]();
   }
@@ -752,6 +772,34 @@ Deno.test("retryMap restores the current level-entry checkpoint and map content"
     assertEquals(session.getPlayerStatus().ammo.pistol, 0);
     assertEquals(session.getPlayerStatus().health, { current: 10, max: 10 });
     assertEquals(spriteAt(sessionDrawables(session), 2, 1)?.spriteId, SpriteId.RedKey);
+  } finally {
+    session[Symbol.dispose]();
+  }
+});
+
+Deno.test("retryMap restarts level statistics for the new attempt", async () => {
+  let nowMs = 1_000;
+  const level = testMap([
+    { prefab: "uplinkCode", x: 2, y: 1 },
+    { prefab: "uplinkTerminal", x: 3, y: 1, goto: "Data Conduit" },
+  ]);
+  const session = await createGameSession(level, () => 0, { now: () => nowMs });
+  try {
+    session.handlePlayerCommand({ type: "move", direction: "forward" });
+
+    nowMs = 5_000;
+    session.retryMap(level);
+    session.handlePlayerCommand({ type: "move", direction: "forward" });
+
+    nowMs = 6_500;
+    const result = session.handlePlayerCommand({ type: "interact" });
+    if (result.type !== "mapChange") throw new Error(`Expected map change result, got ${result.type}.`);
+    assertEquals(result.levelStats, {
+      elapsedMs: 1_500,
+      moves: 1,
+      monstersKilled: 0,
+      totalMonsters: 0,
+    });
   } finally {
     session[Symbol.dispose]();
   }

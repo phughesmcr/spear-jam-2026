@@ -31,6 +31,7 @@ import type { TurnContext } from "@/src/ecs/turn/actions.ts";
 import { runTurnTransaction, type TurnTransactionResult } from "@/src/ecs/turn/transaction.ts";
 import type { PlayerCommand, PlayerCommandResult } from "@/src/game/commands.ts";
 import type { GameEvent } from "@/src/game/events.ts";
+import type { LevelStats } from "@/src/game/level_stats.ts";
 import type { RandomSource } from "@/src/game/rng.ts";
 import type { SoundCue } from "@/src/game/sound.ts";
 import { soundCuesForEvents } from "@/src/game/sound_cues.ts";
@@ -56,7 +57,10 @@ export type MapScopedMetadataSnapshot = Partial<{
   readonly onTalkEvent: number;
   readonly terminalDestination: number;
 }>;
-export type GameSessionOptions = { readonly cheat?: boolean };
+export type GameSessionOptions = {
+  readonly cheat?: boolean;
+  readonly now?: () => number;
+};
 
 export function createGameSession(
   map: GameMap,
@@ -72,11 +76,16 @@ export class GameSession implements Disposable {
   private currentMap: GameMap;
   private readonly random: RandomSource;
   private readonly cheat: boolean;
+  private readonly now: () => number;
   private readers: RuntimeReaders;
   private soundReaders: SoundReaders;
   private animations: AnimationController;
   private levelEntryCheckpoint: PlayerProgressionCheckpoint;
   private pendingDialogueStoryEvent?: StoryEventId;
+  private levelStartedAtMs = 0;
+  private levelMoves = 0;
+  private monstersKilled = 0;
+  private totalMonsters = 0;
   private disposed = false;
   private readonly visibility: TileVisibility;
 
@@ -84,6 +93,7 @@ export class GameSession implements Disposable {
     this.currentMap = map;
     this.random = random;
     this.cheat = options.cheat === true;
+    this.now = options.now ?? currentTimeMs;
     const state = createMapRuntime(map);
     this.runtime = state.runtime;
     this.playerEntity = state.player;
@@ -91,6 +101,7 @@ export class GameSession implements Disposable {
     this.readers = createDrawableReaders(this.runtime);
     this.soundReaders = createSoundReaders(this.runtime);
     this.animations = createAnimationController(this.runtime);
+    this.resetLevelStats();
     this.levelEntryCheckpoint = capturePlayerProgressionCheckpoint(this.runtime.game, this.playerEntity);
     this.visibility = {
       isVisible: (x, y) => this.runtime.crawler.isVisibleTo(this.playerEntity, x, y),
@@ -185,6 +196,11 @@ export class GameSession implements Disposable {
     const dialogueTarget = transaction.dialogue?.target;
     const result = this.commitTurnTransaction(transaction, actorPositions);
     const playerPositionAfter = this.getPlayerPosition();
+    if (command.type === "move" && !samePosition(playerPositionBefore, playerPositionAfter)) this.levelMoves++;
+    this.monstersKilled +=
+      result.events.filter((event) =>
+        event.type === "entityDefeated" && event.actor === this.playerEntity && event.entity !== this.playerEntity
+      ).length;
     const soundCues = soundCuesForEvents(result.events, {
       playerEntity: this.playerEntity,
       playerPosition: playerPositionAfter,
@@ -217,6 +233,7 @@ export class GameSession implements Disposable {
     this.readers = createDrawableReaders(this.runtime);
     this.soundReaders = createSoundReaders(this.runtime);
     this.animations = createAnimationController(this.runtime);
+    this.resetLevelStats();
   }
 
   private turnContext(): TurnContext {
@@ -238,13 +255,13 @@ export class GameSession implements Disposable {
   private commitVictory(events: readonly GameEvent[]): PlayerCommandResult {
     const levelCompleteEvents = completePlayerLevel(this.runtime.game, this.playerEntity, events);
     clearTransientPlayerState(this.runtime.game, this.playerEntity);
-    return { type: "outcome", events: levelCompleteEvents, outcome: "victory" };
+    return { type: "outcome", events: levelCompleteEvents, outcome: "victory", levelStats: this.levelStats() };
   }
 
   private commitMapChange(goto: string, events: readonly GameEvent[]): PlayerCommandResult {
     const levelCompleteEvents = completePlayerLevel(this.runtime.game, this.playerEntity, events);
     clearTransientPlayerState(this.runtime.game, this.playerEntity);
-    return { type: "mapChange", events: levelCompleteEvents, mapChange: { goto } };
+    return { type: "mapChange", events: levelCompleteEvents, mapChange: { goto }, levelStats: this.levelStats() };
   }
 
   private commitTurnTransaction(
@@ -289,6 +306,22 @@ export class GameSession implements Disposable {
     return sounds;
   }
 
+  private resetLevelStats(): void {
+    this.levelStartedAtMs = this.now();
+    this.levelMoves = 0;
+    this.monstersKilled = 0;
+    this.totalMonsters = this.runtime.game.query(this.runtime.game.components.Enemy).count();
+  }
+
+  private levelStats(): LevelStats {
+    return {
+      elapsedMs: Math.max(0, this.now() - this.levelStartedAtMs),
+      moves: this.levelMoves,
+      monstersKilled: this.monstersKilled,
+      totalMonsters: this.totalMonsters,
+    };
+  }
+
   [Symbol.dispose](): void {
     if (this.disposed) return;
     this.disposed = true;
@@ -330,12 +363,24 @@ function withSoundCues(result: PlayerCommandResult, soundCues: readonly SoundCue
     case "dialogue":
       return { type: "dialogue", events: result.events, dialogue: result.dialogue, soundCues };
     case "mapChange":
-      return { type: "mapChange", events: result.events, mapChange: result.mapChange, soundCues };
+      return {
+        type: "mapChange",
+        events: result.events,
+        mapChange: result.mapChange,
+        levelStats: result.levelStats,
+        soundCues,
+      };
     case "outcome":
-      return { type: "outcome", events: result.events, outcome: result.outcome, soundCues };
+      return result.outcome === "victory" ?
+        { type: "outcome", events: result.events, outcome: "victory", levelStats: result.levelStats, soundCues } :
+        { type: "outcome", events: result.events, outcome: "defeat", soundCues };
   }
 }
 
 function samePosition(a: GridPoint, b: GridPoint): boolean {
   return a.x === b.x && a.y === b.y;
+}
+
+function currentTimeMs(): number {
+  return performance.now();
 }

@@ -137,7 +137,12 @@ Deno.test("renderGameFrame fades the loaded turret scene to black before victory
     ctx: ctx as unknown as CanvasRenderingContext2D,
     canvasSize: FULL_CANVAS,
     session: fakeSession(),
-    mode: { type: "victoryTransition", fadeStartsAtMs: 1_000, completesAtMs: 1_500 },
+    mode: {
+      type: "victoryTransition",
+      fadeStartsAtMs: 1_000,
+      completesAtMs: 1_500,
+      levelStats: { elapsedMs: 0, moves: 0, monstersKilled: 0, totalMonsters: 0 },
+    },
     viewMode: "topDown",
     nowMs: 1_250,
   });
