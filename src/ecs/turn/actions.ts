@@ -162,7 +162,7 @@ function resolvePlayerMoveIntent(context: TurnContext, actor: Entity, mode: Play
   const result = context.runtime.crawler.dispatch({ type: "move", entity: actor, direction: mode.direction });
   if (result.events[0]?.type !== "entityMoved") return { events: [], cost: "free" };
   const next = context.runtime.crawler.entityPosition(actor);
-  const pickup = collectItemAt(context.runtime, next.x, next.y);
+  const pickup = collectItemAt(context.runtime, actor, next.x, next.y);
   if (pickup === undefined) {
     return { events: [], cost: "turn", noise: playerNoise(context, MOVE_NOISE_RADIUS), acted: true };
   }

@@ -182,14 +182,17 @@ export function applyItemPickupToPlayer(game: GameEcs, player: Entity, pickup: I
     case "spear":
       writeComponent(game, player, "PlayerInventory", { hasSpear: 1 });
       return [{ type: "spearPickedUp", entity: pickup.entity }];
-    case "weapon":
+    case "weapon": {
+      const isNewWeapon = !playerHasWeapon(game, player, pickup.slot);
       unlockPlayerWeapon(game, player, pickup.slot);
+      if (isNewWeapon) selectPlayerWeapon(game, player, pickup.slot);
       return [{
         type: "weaponPickedUp",
         entity: pickup.entity,
         slot: pickup.slot,
         label: playerWeaponSpec(pickup.slot).label,
       }];
+    }
     case "health":
       return applyHealthPatch(game, player, pickup.entity, pickup.amount);
     case "ammo":

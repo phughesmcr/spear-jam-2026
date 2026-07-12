@@ -145,6 +145,7 @@ function gestureHarness(enabled = true): GestureHarness {
         y: input.y,
         pointerId: input.pointerId ?? 1,
         pointerType: input.pointerType ?? "touch",
+        interaction: "tap",
         button: input.button ?? 0,
       });
     },

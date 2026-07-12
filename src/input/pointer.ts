@@ -1,12 +1,15 @@
 const POINTER_EVENTS = ["pointermove", "pointerdown", "pointerup", "pointercancel"] as const;
+const TAP_PRIMARY_INPUT_QUERY = "(hover: none) and (pointer: coarse)";
 
 export type PointerPhase = "move" | "down" | "up" | "cancel";
+export type PointerInteraction = "cursor" | "tap";
 export type CanvasPointerInput = {
   readonly phase: PointerPhase;
   readonly x: number;
   readonly y: number;
   readonly pointerId: number;
   readonly pointerType: string;
+  readonly interaction: PointerInteraction;
   readonly button: number;
 };
 
@@ -43,6 +46,8 @@ export function setupPointer(
   canvasSize: () => CanvasSize,
   receiver: CanvasPointerCallback,
 ): Disposable {
+  const tapPrimaryInput = target.ownerDocument.defaultView?.matchMedia(TAP_PRIMARY_INPUT_QUERY);
+
   function handlePointerEvent(event: PointerEvent): void {
     if (!event.isPrimary) return;
     const phase = phaseForEventType(event.type);
@@ -57,6 +62,7 @@ export function setupPointer(
       y: position.y,
       pointerId: event.pointerId,
       pointerType: event.pointerType,
+      interaction: pointerInteraction(event.pointerType, tapPrimaryInput?.matches === true),
       button: event.button,
     });
   }
@@ -72,6 +78,10 @@ export function setupPointer(
       }
     },
   };
+}
+
+export function pointerInteraction(pointerType: string, tapPrimaryInput: boolean): PointerInteraction {
+  return pointerType === "touch" || pointerType === "pen" || tapPrimaryInput ? "tap" : "cursor";
 }
 
 function updatePointerCapture(target: HTMLElement, event: PointerEvent, phase: PointerPhase): void {

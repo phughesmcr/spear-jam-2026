@@ -75,14 +75,13 @@ function waitOnPointerUp(input: CanvasPointerInput): PointerInputRoute {
 }
 
 function verbMenuPointer(canvasSize: GameCanvasSize, input: CanvasPointerInput): PointerInputRoute {
-  const tap = input.pointerType === "touch" || input.pointerType === "pen";
   return {
     type: "transition",
     event: {
       type: "verbPointer",
       phase: input.phase,
       target: verbMenuTargetAt(canvasSize, input),
-      ...(tap ? { tap: true } : {}),
+      ...(input.interaction === "tap" ? { tap: true } : {}),
     },
   };
 }

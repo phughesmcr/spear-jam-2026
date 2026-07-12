@@ -46,11 +46,15 @@ const VERB_PERMISSIONS: Readonly<Record<InteractVerb, readonly InteractionKind[]
   use: ["terminal", "turret"],
 };
 
-export function collectItemAt(runtime: GameRuntime, x: number, y: number): ItemPickup | undefined {
+export function collectItemAt(runtime: GameRuntime, collector: Entity, x: number, y: number): ItemPickup | undefined {
   const item = runtime.crawler.findEntityAt(x, y, (entity) => hasComponent(runtime.game, entity, "Item"));
   if (item === undefined) return undefined;
   const { kind, value } = requireComponent(runtime.game, item, "Item");
   const pickup = itemPickupFor(item, itemKindForCode(kind), value);
+  if (pickup.type === "health") {
+    const health = requireComponent(runtime.game, collector, "Health");
+    if (health.current >= health.max) return undefined;
+  }
   runtime.crawler.despawnCrawler(item);
   return pickup;
 }

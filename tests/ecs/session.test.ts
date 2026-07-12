@@ -79,6 +79,23 @@ Deno.test("player movement collects map-authored pickups into player state", asy
   }
 });
 
+Deno.test("full-health players leave health patches available", async () => {
+  const session = await createGameSession(
+    testMap([{ prefab: "item", x: 2, y: 1, item: "healthPatch", amount: 3 }]),
+    () => 0,
+  );
+  try {
+    const result = session.handlePlayerCommand({ type: "move", direction: "forward" });
+
+    assertEquals(eventTypes(result), []);
+    assertEquals(session.getPlayerStatus().health, { current: 10, max: 10 });
+    assertEquals(playerPosition(session), { x: 2, y: 1 });
+    assertEquals(spriteAt(sessionDrawables(session), 2, 1)?.spriteId, SpriteId.HealthPatch);
+  } finally {
+    session[Symbol.dispose]();
+  }
+});
+
 Deno.test("picking up the spear opens the spear power dialogue", async () => {
   const session = await createGameSession(
     testMap([{ prefab: "spearPickup", x: 2, y: 1 }]),
@@ -653,7 +670,7 @@ Deno.test("normal map loads keep durable progression and use the destination spa
     assertEquals(session.getPlayerFacing(), { dir: Direction.West });
     assertEquals(session.getPlayerStatus(), {
       heldKeys: [KeyColor.Red],
-      selectedWeapon: 1,
+      selectedWeapon: 2,
       unlockedWeapons: [1, 2],
       ammo: { pistol: 5, cannon: 0 },
       health: { current: 10, max: 10 },

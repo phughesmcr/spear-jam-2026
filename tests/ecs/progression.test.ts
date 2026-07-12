@@ -10,6 +10,7 @@ import {
   playerStoryFlags,
   resetPlayerProgression,
   restorePlayerProgressionCheckpoint,
+  selectPlayerWeapon,
 } from "@/src/ecs/progression.ts";
 import { createRuntime } from "@/src/ecs/runtime.ts";
 import { StoryFlag } from "@/src/game/story.ts";
@@ -45,6 +46,28 @@ Deno.test("component writes validate the complete patch before changing storage"
     xp: 0,
     levelCredits: 0,
   });
+});
+
+Deno.test("picking up a new weapon selects it", () => {
+  const runtime = createRuntime(flatTestMap());
+  const player = createPlayer(runtime, { x: 1, y: 0, dir: Direction.East });
+  const item = runtime.crawler.spawnCrawler({ x: 1, y: 0 });
+
+  applyItemPickupToPlayer(runtime.game, player, { type: "weapon", entity: item, slot: 2 });
+
+  assertEquals(playerStatusSnapshotFor(runtime.game, player).selectedWeapon, 2);
+});
+
+Deno.test("picking up an owned weapon preserves the selected weapon", () => {
+  const runtime = createRuntime(flatTestMap());
+  const player = createPlayer(runtime, { x: 1, y: 0, dir: Direction.East });
+  const item = runtime.crawler.spawnCrawler({ x: 1, y: 0 });
+  applyItemPickupToPlayer(runtime.game, player, { type: "weapon", entity: item, slot: 2 });
+  selectPlayerWeapon(runtime.game, player, 1);
+
+  applyItemPickupToPlayer(runtime.game, player, { type: "weapon", entity: item, slot: 2 });
+
+  assertEquals(playerStatusSnapshotFor(runtime.game, player).selectedWeapon, 1);
 });
 
 Deno.test("progression checkpoint round-trips durable values and story flags", () => {

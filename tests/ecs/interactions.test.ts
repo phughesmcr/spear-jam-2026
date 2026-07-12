@@ -61,7 +61,7 @@ Deno.test("items coexist with a movement occupant and despawn through crawler li
   const player = createPlayer(runtime, { x: 1, y: 1, dir: Direction.North });
   const key = createKey(runtime, { x: 1, y: 1, color: KeyColor.Red });
   assertEquals(runtime.crawler.entityAt(1, 1, TerrainBlock.Movement), player);
-  assertEquals(collectItemAt(runtime, 1, 1), { type: "key", entity: key, color: KeyColor.Red });
+  assertEquals(collectItemAt(runtime, player, 1, 1), { type: "key", entity: key, color: KeyColor.Red });
   assertEquals(runtime.game.isEntityAlive(key), false);
   runtime.crawler.assertInvariants();
 });

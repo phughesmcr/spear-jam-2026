@@ -15,6 +15,7 @@ const BASE_POINTER = {
   y: 0,
   pointerId: 1,
   pointerType: "mouse",
+  interaction: "cursor",
   button: 0,
 } as const satisfies CanvasPointerInput;
 
@@ -253,7 +254,7 @@ Deno.test("routePointerInput maps verb menu pointer input to verb transition eve
     routePointerInput(
       modelWithMode({ type: "verbMenu", selectedIndex: 0 }),
       CANVAS_SIZE,
-      pointer(centerOf(button, { phase: "down", pointerType: "touch" })),
+      pointer(centerOf(button, { phase: "down", interaction: "tap" })),
     ),
     {
       type: "transition",
