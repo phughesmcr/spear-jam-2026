@@ -575,6 +575,38 @@ Deno.test("activating a victory uplink terminal reports the victory outcome", as
   }
 });
 
+Deno.test("Nexus-style terminals reject use until the spear is held", async () => {
+  const session = await createGameSession(
+    testMap([
+      { prefab: "uplinkCode", x: 2, y: 1 },
+      { prefab: "spearPickup", x: 1, y: 0 },
+      { prefab: "uplinkTerminal", x: 3, y: 1, goto: "Data Conduit", requiresSpear: true },
+    ]),
+    () => 0,
+  );
+  try {
+    assertEquals(eventTypes(session.handlePlayerCommand({ type: "move", direction: "forward" })), [
+      "uplinkCodePickedUp",
+    ]);
+    assertEquals(eventTypes(session.handlePlayerCommand({ type: "interact" })), ["uplinkTerminalNeedsSpear"]);
+
+    session.handlePlayerCommand({ type: "move", direction: "backward" });
+    const spear = session.handlePlayerCommand({ type: "move", direction: "left" });
+    if (spear.type !== "dialogue") throw new Error(`Expected spear dialogue, got ${spear.type}.`);
+    assertEquals(eventTypes(spear), ["spearPickedUp"]);
+
+    session.handlePlayerCommand({ type: "move", direction: "right" });
+    session.handlePlayerCommand({ type: "move", direction: "forward" });
+    const result = session.handlePlayerCommand({ type: "interact" });
+    assertEquals(eventTypes(result), ["uplinkTerminalActivated"]);
+    if (result.type !== "mapChange") throw new Error(`Expected map change result, got ${result.type}.`);
+    assertEquals(result.mapChange, { goto: "Data Conduit" });
+    assertEquals(session.getPlayerStatus().hasSpear, true);
+  } finally {
+    session[Symbol.dispose]();
+  }
+});
+
 Deno.test("normal map loads keep durable progression and use the destination spawn pose", async () => {
   const session = await createGameSession(
     testMap([

@@ -198,9 +198,10 @@ const ENTITY_DESCRIPTORS_INTERNAL = [
     color: KEY_COLOR_SCHEMA,
   }),
   entityDescriptor("uplinkCode", ["prefab"], false, {}),
-  entityDescriptor("uplinkTerminal", ["prefab", "goto", "examineTextId"], true, {
+  entityDescriptor("uplinkTerminal", ["prefab", "goto", "examineTextId", "requiresSpear"], true, {
     goto: z.string().min(1),
     examineTextId: EXAMINE_TEXT_ID_SCHEMA.optional(),
+    requiresSpear: z.boolean().optional(),
   }),
   entityDescriptor("weaponPickup", ["prefab", "slot"], false, {
     slot: z.union([z.literal(2), z.literal(3)]),

@@ -590,6 +590,11 @@
           "name": "goto",
           "type": "string",
           "value": "victory"
+        },
+        {
+          "name": "requiresSpear",
+          "type": "bool",
+          "value": false
         }
       ],
       "name": "uplinkTerminal",

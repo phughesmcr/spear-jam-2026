@@ -77,6 +77,9 @@ export function soundCuesForEvents(
       case "uplinkTerminalLocked":
         cues.push(cue(SoundId.TerminalLocked, positionFor(event.entity, context), TERMINAL_RADIUS));
         break;
+      case "uplinkTerminalNeedsSpear":
+        cues.push(cue(SoundId.TerminalLocked, positionFor(event.entity, context), TERMINAL_RADIUS));
+        break;
       case "uplinkTerminalActivated":
         cues.push(cue(SoundId.TerminalUse, positionFor(event.entity, context), TERMINAL_RADIUS));
         break;

@@ -11,6 +11,7 @@ import { collectItemAt, interactWithEntity, openDoor, spearPickupDialogue } from
 import {
   applyItemPickupToPlayer,
   heldKeysForPlayer,
+  playerHasSpear,
   playerHasUplinkCode,
   playerHasWeapon,
   selectPlayerWeapon,
@@ -204,6 +205,7 @@ function resolveInteractionIntent(
     target,
     heldKeysForPlayer(context.runtime.game, context.player),
     playerHasUplinkCode(context.runtime.game, context.player),
+    playerHasSpear(context.runtime.game, context.player),
     verb,
   );
   switch (interaction.type) {

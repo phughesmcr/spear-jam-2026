@@ -35,6 +35,8 @@ export function messageForEvent(playerEntity: Entity, event: GameEvent): string 
       return "The glass shatters.";
     case "uplinkTerminalLocked":
       return "The uplink needs a code.";
+    case "uplinkTerminalNeedsSpear":
+      return "The uplink needs the Spear of Destiny.";
     case "uplinkTerminalActivated":
       return "Uplink accepted.";
     case "weaponSelected":

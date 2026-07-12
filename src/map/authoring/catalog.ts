@@ -195,6 +195,7 @@ export const PROPERTY_TYPES: readonly TiledPropertyType[] = [
   classPropertyType(36, "uplinkTerminal", "#ff22c55e", false, ["object"], [
     classMember("prefab", "string", "uplinkTerminal", "Prefab"),
     classMember("goto", "string", VICTORY_GOTO),
+    classMember("requiresSpear", "bool", false),
   ]),
   classPropertyType(37, "weaponPickup", "#ff3b82f6", false, ["object"], [
     classMember("prefab", "string", "weaponPickup", "Prefab"),

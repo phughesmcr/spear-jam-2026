@@ -13,14 +13,17 @@ Deno.test("normal and locked doors change custom state and crawler masks togethe
   const normal = createDoor(runtime, { x: 1, y: 1 });
   const locked = createDoor(runtime, { x: 2, y: 1, locked: true, color: KeyColor.Red });
 
-  assertEquals(interactWithEntity(runtime, normal, new Set(), false), {
+  assertEquals(interactWithEntity(runtime, normal, new Set(), false, false), {
     type: "consumeTurn",
     events: [{ type: "doorOpened", entity: normal }],
   });
   assertEquals(readComponent(runtime.game, normal, "Door")?.open, 1);
   assertEquals(runtime.crawler.entityBlockMask(normal), 0);
-  assertEquals(interactWithEntity(runtime, locked, new Set(), false).events, [{ type: "doorLocked", entity: locked }]);
-  assertEquals(interactWithEntity(runtime, locked, new Set([KeyColor.Red]), false).type, "consumeTurn");
+  assertEquals(interactWithEntity(runtime, locked, new Set(), false, false).events, [{
+    type: "doorLocked",
+    entity: locked,
+  }]);
+  assertEquals(interactWithEntity(runtime, locked, new Set([KeyColor.Red]), false, false).type, "consumeTurn");
   assertEquals(hasComponent(runtime.game, locked, "Locked"), false);
   assertEquals(runtime.crawler.entityBlockMask(locked), 0);
   runtime.crawler.assertInvariants();
@@ -45,7 +48,7 @@ Deno.test("opening a door cannot leak custom state when its transaction is rejec
 Deno.test("glass doors reject open without changing their effect-line mask", () => {
   const runtime = createRuntime(flatTestMap());
   const glass = createDoor(runtime, { x: 1, y: 0, glass: true });
-  assertEquals(interactWithEntity(runtime, glass, new Set(), false).events, [{
+  assertEquals(interactWithEntity(runtime, glass, new Set(), false, false).events, [{
     type: "doorCannotOpen",
     entity: glass,
   }]);

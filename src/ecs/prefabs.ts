@@ -202,7 +202,7 @@ export function createUplinkTerminal(runtime: GameRuntime, prefab: Omit<UplinkTe
     components: {
       Drawable: { kind: DrawableKind.Sprite, layer: DrawableLayer.Structure },
       Sprite: { id: SpriteId.UplinkTerminal },
-      UplinkTerminal: {},
+      UplinkTerminal: { requiresSpear: prefab.requiresSpear === true ? 1 : 0 },
       Interactable: {},
       TerminalDestination: { destination: terminalDestinationCode(prefab.goto) },
       ...(prefab.examineTextId === undefined ? {} : {

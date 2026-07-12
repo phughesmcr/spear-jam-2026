@@ -823,6 +823,11 @@
                          "propertytype":"Prefab",
                          "type":"string",
                          "value":"uplinkTerminal"
+                        },
+                        {
+                         "name":"requiresSpear",
+                         "type":"bool",
+                         "value":true
                         }],
                  "rotation":0,
                  "type":"uplinkTerminal",

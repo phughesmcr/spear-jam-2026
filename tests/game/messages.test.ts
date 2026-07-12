@@ -86,6 +86,10 @@ Deno.test("messageForEvent covers interaction events", () => {
   assertEquals(messageForEvent(PLAYER, { type: "doorCannotOpen", entity: DOOR }), "You can't open that.");
   assertEquals(messageForEvent(PLAYER, { type: "doorShattered", entity: DOOR }), "The glass shatters.");
   assertEquals(messageForEvent(PLAYER, { type: "uplinkTerminalLocked", entity: DOOR }), "The uplink needs a code.");
+  assertEquals(
+    messageForEvent(PLAYER, { type: "uplinkTerminalNeedsSpear", entity: DOOR }),
+    "The uplink needs the Spear of Destiny.",
+  );
   assertEquals(messageForEvent(PLAYER, { type: "uplinkTerminalActivated", entity: DOOR }), "Uplink accepted.");
   assertEquals(
     messageForEvent(PLAYER, { type: "weaponSelected", slot: 2, label: "Pulse Pistol" }),

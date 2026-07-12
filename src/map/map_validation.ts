@@ -23,6 +23,7 @@ type ReachabilityState = {
   readonly y: number;
   readonly keyMask: number;
   readonly hasUplinkCode: boolean;
+  readonly hasSpear: boolean;
 };
 
 const KEY_BITS: Readonly<Record<KeyColorType, number>> = {
@@ -151,12 +152,13 @@ function evaluateReachability(
     y: start.y,
     keyMask: 0,
     hasUplinkCode: false,
+    hasSpear: false,
   });
 
   for (let cursor = 0; cursor < queue.length; cursor++) {
     const state = queue[cursor]!;
     reachableKeyMask |= state.keyMask;
-    if (state.hasUplinkCode && touchesTerminal(indexes, state.x, state.y)) {
+    if (state.hasUplinkCode && canUseAdjacentTerminal(indexes, state)) {
       terminalReachableWithCode = true;
     }
 
@@ -166,6 +168,7 @@ function evaluateReachability(
         y: state.y + delta.dy,
         keyMask: state.keyMask,
         hasUplinkCode: state.hasUplinkCode,
+        hasSpear: state.hasSpear,
       });
     }
   }
@@ -176,14 +179,16 @@ function evaluateReachability(
 type ReachabilityIndexes = {
   readonly keyMasksByTile: ReadonlyMap<string, number>;
   readonly codeTiles: ReadonlySet<string>;
-  readonly terminalTiles: ReadonlySet<string>;
+  readonly spearTiles: ReadonlySet<string>;
+  readonly terminalTiles: ReadonlyMap<string, boolean>;
   readonly doorsByTile: ReadonlyMap<string, readonly DoorDef[]>;
 };
 
 function reachabilityIndexes(map: GameMap): ReachabilityIndexes {
   const keyMasksByTile = new Map<string, number>();
   const codeTiles = new Set<string>();
-  const terminalTiles = new Set<string>();
+  const spearTiles = new Set<string>();
+  const terminalTiles = new Map<string, boolean>();
   const doorsByTile = new Map<string, DoorDef[]>();
 
   for (const entity of map.entities) {
@@ -197,8 +202,11 @@ function reachabilityIndexes(map: GameMap): ReachabilityIndexes {
       case "uplinkCode":
         codeTiles.add(tileKey(entity.x, entity.y));
         break;
+      case "spearPickup":
+        spearTiles.add(tileKey(entity.x, entity.y));
+        break;
       case "uplinkTerminal":
-        terminalTiles.add(tileKey(entity.x, entity.y));
+        terminalTiles.set(tileKey(entity.x, entity.y), entity.requiresSpear === true);
         break;
       case "door": {
         const tile = tileKey(entity.x, entity.y);
@@ -222,7 +230,6 @@ function reachabilityIndexes(map: GameMap): ReachabilityIndexes {
       case "player":
       case "sound":
       case "weaponPickup":
-      case "spearPickup":
         break;
       default: {
         const _exhaustive: never = prefab;
@@ -231,7 +238,7 @@ function reachabilityIndexes(map: GameMap): ReachabilityIndexes {
     }
   }
 
-  return { keyMasksByTile, codeTiles, terminalTiles, doorsByTile };
+  return { keyMasksByTile, codeTiles, spearTiles, terminalTiles, doorsByTile };
 }
 
 function canStandOn(
@@ -260,13 +267,20 @@ function collectAt(indexes: ReachabilityIndexes, state: ReachabilityState): Reac
   const tile = tileKey(state.x, state.y);
   const keyMask = state.keyMask | (indexes.keyMasksByTile.get(tile) ?? 0);
   const hasUplinkCode = state.hasUplinkCode || indexes.codeTiles.has(tile);
+  const hasSpear = state.hasSpear || indexes.spearTiles.has(tile);
 
-  if (keyMask === state.keyMask && hasUplinkCode === state.hasUplinkCode) return state;
-  return { ...state, keyMask, hasUplinkCode };
+  if (keyMask === state.keyMask && hasUplinkCode === state.hasUplinkCode && hasSpear === state.hasSpear) {
+    return state;
+  }
+  return { ...state, keyMask, hasUplinkCode, hasSpear };
 }
 
-function touchesTerminal(indexes: ReachabilityIndexes, x: number, y: number): boolean {
-  return CARDINAL_DELTAS.some((delta) => indexes.terminalTiles.has(tileKey(x + delta.dx, y + delta.dy)));
+function canUseAdjacentTerminal(indexes: ReachabilityIndexes, state: ReachabilityState): boolean {
+  return CARDINAL_DELTAS.some((delta) => {
+    const requiresSpear = indexes.terminalTiles.get(tileKey(state.x + delta.dx, state.y + delta.dy));
+    if (requiresSpear === undefined) return false;
+    return !requiresSpear || state.hasSpear;
+  });
 }
 
 function hasOutOfBoundsEntity(map: GameMap, width: number, height: number): boolean {
@@ -321,7 +335,7 @@ function keyBit(color: KeyColorType): number {
 }
 
 function stateKey(state: ReachabilityState): string {
-  return `${tileKey(state.x, state.y)},${state.keyMask},${state.hasUplinkCode ? 1 : 0}`;
+  return `${tileKey(state.x, state.y)},${state.keyMask},${state.hasUplinkCode ? 1 : 0},${state.hasSpear ? 1 : 0}`;
 }
 
 function tileKey(x: number, y: number): string {

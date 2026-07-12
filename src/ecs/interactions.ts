@@ -87,6 +87,7 @@ export function interactWithEntity(
   target: Entity | undefined,
   heldKeys: ReadonlySet<KeyColor>,
   hasUplinkCode: boolean,
+  hasSpear: boolean,
   verb?: InteractVerb,
 ): PlayerInteractionResult {
   if (target === undefined || !hasComponent(runtime.game, target, "Interactable")) {
@@ -101,7 +102,7 @@ export function interactWithEntity(
     case "talk":
       return interactWithNpc(runtime, target);
     case "use":
-      return interactWithUplinkTerminal(target, hasUplinkCode);
+      return interactWithUplinkTerminal(runtime, target, hasUplinkCode, hasSpear);
   }
 }
 
@@ -160,10 +161,19 @@ function interactWithNpc(runtime: GameRuntime, npc: Entity): PlayerInteractionRe
   return { type: "dialogue", target: npc, events: [], dialogue: npcDialogueState(runtime, npc, title, displayName) };
 }
 
-function interactWithUplinkTerminal(terminal: Entity, hasUplinkCode: boolean): PlayerInteractionResult {
-  return hasUplinkCode ?
-    { type: "uplinkTerminal", terminal, events: [{ type: "uplinkTerminalActivated", entity: terminal }] } :
-    { type: "unchanged", events: [{ type: "uplinkTerminalLocked", entity: terminal }] };
+function interactWithUplinkTerminal(
+  runtime: GameRuntime,
+  terminal: Entity,
+  hasUplinkCode: boolean,
+  hasSpear: boolean,
+): PlayerInteractionResult {
+  if (!hasUplinkCode) {
+    return { type: "unchanged", events: [{ type: "uplinkTerminalLocked", entity: terminal }] };
+  }
+  if (requireComponent(runtime.game, terminal, "UplinkTerminal").requiresSpear === 1 && !hasSpear) {
+    return { type: "unchanged", events: [{ type: "uplinkTerminalNeedsSpear", entity: terminal }] };
+  }
+  return { type: "uplinkTerminal", terminal, events: [{ type: "uplinkTerminalActivated", entity: terminal }] };
 }
 
 function failedVerb(verb: InteractVerb): PlayerInteractionResult {

@@ -91,6 +91,10 @@ export type GameEvent =
     readonly entity: Entity;
   }
   | {
+    readonly type: "uplinkTerminalNeedsSpear";
+    readonly entity: Entity;
+  }
+  | {
     readonly type: "uplinkTerminalActivated";
     readonly entity: Entity;
   }
