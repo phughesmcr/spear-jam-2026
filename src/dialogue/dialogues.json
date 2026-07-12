@@ -81,5 +81,23 @@
         ]
       }
     }
+  },
+  "spear_power": {
+    "start": "found",
+    "nodes": {
+      "found": {
+        "text": "The Spear of Destiny answers your grip. Circuit-runes flare along the blade — raw system authority, unstable and absolute.",
+        "choices": [
+          { "label": "WHAT DOES IT DO?", "next": "power" },
+          { "label": "UNDERSTOOD." }
+        ]
+      },
+      "power": {
+        "text": "Carry it to the Mainframe Core. Upload its power and force a full system reboot — the only way to break The System's hold.",
+        "choices": [
+          { "label": "GOT IT." }
+        ]
+      }
+    }
   }
 }

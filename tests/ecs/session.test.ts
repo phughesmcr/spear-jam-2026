@@ -2,9 +2,9 @@ import { dialogueTreeCode, DialogueTreeId } from "@/src/dialogue/dialogue.ts";
 import { SPRITE_ATTACK_MS, SPRITE_DEATH_MS, SPRITE_WALK_MS, SpriteAnimationKind } from "@/src/ecs/components.ts";
 import type { ActorDrawableEntity, DrawableEntity } from "@/src/ecs/drawables.ts";
 import { DrawableKind, SpriteId } from "@/src/ecs/drawables.ts";
-import { createGameSession } from "@/src/ecs/session.ts";
 import { createDeathEffect } from "@/src/ecs/prefabs.ts";
 import { createRuntime } from "@/src/ecs/runtime.ts";
+import { createGameSession } from "@/src/ecs/session.ts";
 import { createAnimationController } from "@/src/ecs/session/sprite_animations.ts";
 import type { PlayerCommandResult } from "@/src/game/commands.ts";
 import { DisplayName, displayNameCode } from "@/src/game/names.ts";
@@ -44,6 +44,7 @@ Deno.test("createGameSession cheat option starts with full loadout", async () =>
       ammo: { pistol: 99, cannon: 99 },
       health: { current: 10, max: 10 },
       hasUplinkCode: false,
+      hasSpear: false,
       progress: { credits: 0, score: 0, xp: 0, levelCredits: 0 },
     });
   } finally {
@@ -63,6 +64,7 @@ Deno.test("cheat resetRun restores the cheat loadout", async () => {
       ammo: { pistol: 99, cannon: 99 },
       health: { current: 10, max: 10 },
       hasUplinkCode: false,
+      hasSpear: false,
       progress: { credits: 0, score: 0, xp: 0, levelCredits: 0 },
     });
   } finally {
@@ -92,6 +94,26 @@ Deno.test("player movement collects map-authored pickups into player state", asy
     assertEquals(session.getPlayerStatus().hasUplinkCode, true);
     assertEquals(session.getPlayerStatus().unlockedWeapons, [1, 2]);
     assertEquals(session.getPlayerStatus().ammo.pistol, 5);
+  } finally {
+    session[Symbol.dispose]();
+  }
+});
+
+Deno.test("picking up the spear opens the spear power dialogue", async () => {
+  const session = await createGameSession(
+    testMap([{ prefab: "spearPickup", x: 2, y: 1 }]),
+    () => 0,
+  );
+  try {
+    const result = session.handlePlayerCommand({ type: "move", direction: "forward" });
+    if (result.type !== "dialogue") throw new Error(`Expected dialogue result, got ${result.type}.`);
+    assertEquals(eventTypes(result), ["spearPickedUp"]);
+    assertEquals(result.dialogue.title, "Spear of Destiny");
+    assertEquals(
+      result.dialogue.message,
+      "The Spear of Destiny answers your grip. Circuit-runes flare along the blade — raw system authority, unstable and absolute.",
+    );
+    assertEquals(session.getPlayerStatus().hasSpear, true);
   } finally {
     session[Symbol.dispose]();
   }
@@ -580,6 +602,7 @@ Deno.test("normal map loads keep durable progression and use the destination spa
       ammo: { pistol: 5, cannon: 0 },
       health: { current: 10, max: 10 },
       hasUplinkCode: true,
+      hasSpear: false,
       progress: { credits: 0, score: 0, xp: 0, levelCredits: 0 },
     });
   } finally {
@@ -706,6 +729,7 @@ Deno.test("resetRun clears durable state and returns to the start map spawn", as
       ammo: { pistol: 0, cannon: 0 },
       health: { current: 10, max: 10 },
       hasUplinkCode: false,
+      hasSpear: false,
       progress: { credits: 0, score: 0, xp: 0, levelCredits: 0 },
     });
   } finally {

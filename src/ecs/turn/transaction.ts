@@ -19,7 +19,7 @@ export type TurnTransactionResult = {
   readonly events: readonly GameEvent[];
   readonly cost: TurnCost;
   readonly dialogue?: {
-    readonly target: Entity;
+    readonly target?: Entity;
     readonly dialogue: DialogueState;
   };
   readonly terminal?: Entity;

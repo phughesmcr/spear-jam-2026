@@ -56,6 +56,18 @@ Deno.test("johnThanks dialogue maps each authored node to its recording", () => 
   assertEquals(dialogueTreeNode("john_thanks", "family").voice, VoiceId.JohnThanksFamily);
 });
 
+Deno.test("spearPower dialogue explains the spear and the Mainframe Core upload", () => {
+  const start = dialogueTreeStart(DialogueTreeId.SpearPower);
+  assertEquals(
+    start.node.text,
+    "The Spear of Destiny answers your grip. Circuit-runes flare along the blade — raw system authority, unstable and absolute.",
+  );
+  assertEquals(
+    dialogueTreeNode("spear_power", "power").text,
+    "Carry it to the Mainframe Core. Upload its power and force a full system reboot — the only way to break The System's hold.",
+  );
+});
+
 Deno.test("dialogueTreeNode rejects unknown node ids", () => {
   assertThrows(
     () => dialogueTreeNode("john_intro", "missing"),

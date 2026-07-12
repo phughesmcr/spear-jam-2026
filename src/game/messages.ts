@@ -15,6 +15,8 @@ export function messageForEvent(playerEntity: Entity, event: GameEvent): string 
       return "Picked up a key.";
     case "uplinkCodePickedUp":
       return "Picked up an uplink code.";
+    case "spearPickedUp":
+      return "Picked up the Spear of Destiny.";
     case "weaponPickedUp":
       return `Picked up weapon ${event.slot}: ${event.label}.`;
     case "healthPickedUp":

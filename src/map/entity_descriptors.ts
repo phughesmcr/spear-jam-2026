@@ -63,7 +63,8 @@ export type EntityPrefab =
   | "item"
   | "decoration"
   | "light"
-  | "sound";
+  | "sound"
+  | "spearPickup";
 
 const INTEGER_SCHEMA = z.number().int();
 const UINT8_SCHEMA = INTEGER_SCHEMA.min(0).max(255);
@@ -222,6 +223,7 @@ const ENTITY_DESCRIPTORS_INTERNAL = [
     radius: UINT8_SCHEMA.min(1),
     volume: z.number().min(0).max(1).optional(),
   }),
+  entityDescriptor("spearPickup", ["prefab"], false, {}),
 ] as const;
 
 export const ENTITY_DESCRIPTORS: readonly EntityDescriptor[] = ENTITY_DESCRIPTORS_INTERNAL;
@@ -239,6 +241,7 @@ const ENTITY_SCHEMAS = ENTITY_DESCRIPTORS_INTERNAL.map((descriptor) => descripto
   (typeof ENTITY_DESCRIPTORS_INTERNAL)[9]["schema"],
   (typeof ENTITY_DESCRIPTORS_INTERNAL)[10]["schema"],
   (typeof ENTITY_DESCRIPTORS_INTERNAL)[11]["schema"],
+  (typeof ENTITY_DESCRIPTORS_INTERNAL)[12]["schema"],
 ];
 
 export const ENTITY_SCHEMA = z.discriminatedUnion("prefab", ENTITY_SCHEMAS);
@@ -257,6 +260,7 @@ export type ItemDef = EntityDefFor<"item">;
 export type DecorationDef = EntityDefFor<"decoration">;
 export type LightDef = EntityDefFor<"light">;
 export type SoundDef = EntityDefFor<"sound">;
+export type SpearPickupDef = EntityDefFor<"spearPickup">;
 
 export const ENTITY_PREFABS = ENTITY_DESCRIPTORS.map((descriptor) => descriptor.prefab) as readonly EntityPrefab[];
 export const ENTITY_AUTHORING_PROPERTY_NAMES: ReadonlySet<string> = propertySet(

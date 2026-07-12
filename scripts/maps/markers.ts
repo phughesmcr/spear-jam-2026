@@ -6,9 +6,9 @@ import {
 } from "@/src/map/authoring/catalog.ts";
 import type { TiledProperty } from "@/src/map/authoring/tiled_types.ts";
 import { VICTORY_GOTO } from "@/src/map/map.ts";
+import { jsonSource, property } from "./json_utils.ts";
 import { drawTileBorder, fillRect, setPixel } from "./pixels.ts";
 import { encodePng } from "./png.ts";
-import { jsonSource, property } from "./json_utils.ts";
 
 const MARKER_BACKGROUND: readonly [number, number, number, number] = [28, 30, 34, 255];
 
@@ -25,6 +25,7 @@ const MARKER_COLORS: Readonly<Record<EntityMarkerType, readonly [number, number,
   decoration: [100, 116, 139, 255],
   light: [251, 191, 36, 255],
   sound: [20, 184, 166, 255],
+  spearPickup: [34, 211, 238, 255],
 };
 
 export function generatedEntityMarkersTilesetSource(): string {
@@ -87,6 +88,8 @@ function entityMarkerTileProperties(type: EntityMarkerType): readonly TiledPrope
         property("color", "red", "KeyColor"),
       ];
     case "uplinkCode":
+      return [property("prefab", type, "Prefab")];
+    case "spearPickup":
       return [property("prefab", type, "Prefab")];
     case "uplinkTerminal":
       return [
@@ -329,6 +332,22 @@ function drawEntityMarker(
         "...####.........",
         "....##..........",
         "................",
+      ], accent);
+      break;
+    case "spearPickup":
+      drawMarkerGlyph(target, targetWidth, left, [
+        "..............##",
+        ".............###",
+        "............##.#",
+        "...........##...",
+        "..........##....",
+        ".........##.....",
+        "........##......",
+        ".......##.......",
+        "......##........",
+        ".....##.........",
+        "....##..........",
+        "...##...........",
       ], accent);
       break;
     default: {

@@ -5,6 +5,7 @@ export const DialogueTreeId = {
   JohnIntro: "johnIntro",
   JohnThanks: "johnThanks",
   JohnNexus: "johnNexus",
+  SpearPower: "spearPower",
 } as const;
 export type DialogueTreeId = (typeof DialogueTreeId)[keyof typeof DialogueTreeId];
 
@@ -39,12 +40,14 @@ const DIALOGUE_TREE_KEYS = {
   [DialogueTreeId.JohnIntro]: "john_intro",
   [DialogueTreeId.JohnThanks]: "john_thanks",
   [DialogueTreeId.JohnNexus]: "john_nexus",
+  [DialogueTreeId.SpearPower]: "spear_power",
 } as const satisfies Readonly<Record<DialogueTreeId, string>>;
 
 const DIALOGUE_TREE_CODES: Readonly<Record<DialogueTreeId, number>> = {
   [DialogueTreeId.JohnIntro]: 1,
   [DialogueTreeId.JohnThanks]: 2,
   [DialogueTreeId.JohnNexus]: 3,
+  [DialogueTreeId.SpearPower]: 4,
 };
 
 const DIALOGUE_TREES_BY_CODE = new Map<number, DialogueTreeId>(

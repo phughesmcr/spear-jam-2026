@@ -894,6 +894,26 @@
                  "y":240
                 }, 
                 {
+                 "gid":153,
+                 "height":16,
+                 "id":49,
+                 "name":"spear_pickup",
+                 "opacity":1,
+                 "properties":[
+                        {
+                         "name":"prefab",
+                         "propertytype":"Prefab",
+                         "type":"string",
+                         "value":"spearPickup"
+                        }],
+                 "rotation":0,
+                 "type":"spearPickup",
+                 "visible":true,
+                 "width":16,
+                 "x":128,
+                 "y":112
+                }, 
+                {
                  "gid":148,
                  "height":16,
                  "id":27,
@@ -1308,7 +1328,7 @@
          "y":0
         }],
  "nextlayerid":4,
- "nextobjectid":49,
+ "nextobjectid":50,
  "orientation":"orthogonal",
  "properties":[
         {

@@ -79,7 +79,8 @@
         "item",
         "decoration",
         "light",
-        "sound"
+        "sound",
+        "spearPickup"
       ],
       "valuesAsFlags": false
     },
@@ -147,7 +148,8 @@
         "none",
         "johnIntro",
         "johnThanks",
-        "johnNexus"
+        "johnNexus",
+        "spearPower"
       ],
       "valuesAsFlags": false
     },
@@ -739,6 +741,24 @@
         }
       ],
       "name": "light",
+      "type": "class",
+      "useAs": [
+        "object"
+      ]
+    },
+    {
+      "color": "#ff22d3ee",
+      "drawFill": false,
+      "id": 42,
+      "members": [
+        {
+          "name": "prefab",
+          "propertyType": "Prefab",
+          "type": "string",
+          "value": "spearPickup"
+        }
+      ],
+      "name": "spearPickup",
       "type": "class",
       "useAs": [
         "object"

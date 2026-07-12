@@ -222,6 +222,7 @@ function reachabilityIndexes(map: GameMap): ReachabilityIndexes {
       case "player":
       case "sound":
       case "weaponPickup":
+      case "spearPickup":
         break;
       default: {
         const _exhaustive: never = prefab;

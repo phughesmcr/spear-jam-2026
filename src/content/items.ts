@@ -11,6 +11,7 @@ export const ItemKind = {
   Key: 4,
   UplinkCode: 5,
   Weapon: 6,
+  Spear: 7,
 } as const;
 export type ItemKind = (typeof ItemKind)[keyof typeof ItemKind];
 
@@ -21,6 +22,7 @@ export const ITEM_KIND_CODES = [
   ItemKind.Key,
   ItemKind.UplinkCode,
   ItemKind.Weapon,
+  ItemKind.Spear,
 ] as const satisfies readonly ItemKind[];
 
 const ITEM_KIND_KEYS_BY_CODE = {
@@ -30,6 +32,7 @@ const ITEM_KIND_KEYS_BY_CODE = {
   [ItemKind.Key]: "key",
   [ItemKind.UplinkCode]: "uplinkCode",
   [ItemKind.Weapon]: "weapon",
+  [ItemKind.Spear]: "spear",
 } as const satisfies Readonly<Record<ItemKind, string>>;
 
 const ITEM_KIND_KEYS = ITEM_KIND_CODES.map((code) => ITEM_KIND_KEYS_BY_CODE[code]);

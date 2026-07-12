@@ -1,5 +1,5 @@
 import { ItemKind, itemKindForCode } from "@/src/content/items.ts";
-import { dialogueTreeForCode, dialogueTreeStart } from "@/src/dialogue/dialogue.ts";
+import { dialogueTreeForCode, DialogueTreeId, dialogueTreeStart } from "@/src/dialogue/dialogue.ts";
 import { type GameComponentMap, hasComponent, readComponent, requireComponent } from "@/src/ecs/components.ts";
 import type { GameRuntime } from "@/src/ecs/runtime.ts";
 import type { InteractVerb } from "@/src/game/commands.ts";
@@ -13,6 +13,7 @@ import type { Entity } from "turn-based-engine/ecs";
 export type ItemPickup =
   | { readonly type: "key"; readonly entity: Entity; readonly color: KeyColor }
   | { readonly type: "uplinkCode"; readonly entity: Entity }
+  | { readonly type: "spear"; readonly entity: Entity }
   | { readonly type: "weapon"; readonly entity: Entity; readonly slot: CommandSlot }
   | { readonly type: "health"; readonly entity: Entity; readonly amount: number }
   | { readonly type: "ammo"; readonly entity: Entity; readonly ammo: AmmoKind; readonly amount: number };
@@ -63,9 +64,22 @@ function itemPickupFor(entity: Entity, kind: ItemKind, value: number): ItemPicku
       return { type: "key", entity, color: keyColorForCode(value) };
     case ItemKind.UplinkCode:
       return { type: "uplinkCode", entity };
+    case ItemKind.Spear:
+      return { type: "spear", entity };
     case ItemKind.Weapon:
       return { type: "weapon", entity, slot: commandSlotForCode(value) };
   }
+}
+
+export function spearPickupDialogue(): DialogueState {
+  const start = dialogueTreeStart(DialogueTreeId.SpearPower);
+  return {
+    title: "Spear of Destiny",
+    treeKey: start.treeKey,
+    message: start.node.text,
+    ...(start.node.voice === undefined ? {} : { voice: start.node.voice }),
+    choices: start.node.choices,
+  };
 }
 
 export function interactWithEntity(

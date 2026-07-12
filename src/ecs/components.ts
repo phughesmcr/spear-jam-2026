@@ -3,8 +3,8 @@ import { type ItemKind as ItemKindType, ItemKind as ItemKindValues } from "@/src
 import type { SpriteId } from "@/src/content/sprite_ids.ts";
 import type { DrawableKind } from "@/src/ecs/drawable_kind.ts";
 import { type AttackDef, AttackPattern, AttackTargetMode } from "@/src/game/attack.ts";
-import type { ComponentMap, Entity } from "turn-based-engine/ecs";
 import type { CrawlerGame } from "turn-based-engine/crawler";
+import type { ComponentMap, Entity } from "turn-based-engine/ecs";
 
 export { AttackPattern, AttackTargetMode };
 export const ItemKind = ItemKindValues;
@@ -14,6 +14,7 @@ export type { DrawableKind, SpriteId };
 export type PlayerInventorySchema = {
   keyMask: number;
   hasUplinkCode: number;
+  hasSpear: number;
   pistolAmmo: number;
   cannonAmmo: number;
 };
@@ -92,6 +93,7 @@ export const GAME_COMPONENTS = {
   PlayerInventory: {
     keyMask: Uint8Array,
     hasUplinkCode: Uint8Array,
+    hasSpear: Uint8Array,
     pistolAmmo: Uint16Array,
     cannonAmmo: Uint16Array,
   },

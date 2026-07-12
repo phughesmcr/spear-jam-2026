@@ -53,6 +53,9 @@ export function soundCuesForEvents(
       case "uplinkCodePickedUp":
         cues.push(cue(SoundId.PickupUplinkCode, positionFor(event.entity, context), PICKUP_RADIUS));
         break;
+      case "spearPickedUp":
+        cues.push(cue(SoundId.PickupWeapon, positionFor(event.entity, context), PICKUP_RADIUS));
+        break;
       case "weaponPickedUp":
         cues.push(cue(SoundId.PickupWeapon, positionFor(event.entity, context), PICKUP_RADIUS));
         break;

@@ -9,8 +9,8 @@ import { createGameModel, type GameModel } from "@/src/game/transition.ts";
 import { Direction } from "@/src/grid/direction.ts";
 import { createGameMap } from "@/src/map/map.ts";
 import type { FirstPersonRenderer } from "@/src/render/first_person.ts";
-import type { Entity } from "turn-based-engine/ecs";
 import { assertEquals } from "@std/assert";
+import type { Entity } from "turn-based-engine/ecs";
 
 const EMITTER = 2 as Entity;
 
@@ -400,6 +400,7 @@ function playerSnapshot(): PlayerStatusSnapshot {
     ammo: { pistol: 0, cannon: 0 },
     health: { current: 10, max: 10 },
     hasUplinkCode: false,
+    hasSpear: false,
     progress: {
       credits: 0,
       score: 0,

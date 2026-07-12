@@ -37,6 +37,7 @@ export const DEFAULT_PLAYER_HEALTH: PlayerHealthState = { current: 10, max: 10 }
 export const DEFAULT_PLAYER_INVENTORY: PlayerInventorySchema = {
   keyMask: 0,
   hasUplinkCode: 0,
+  hasSpear: 0,
   pistolAmmo: 0,
   cannonAmmo: 0,
 };
@@ -127,6 +128,7 @@ export function playerStatusSnapshotFor(game: GameEcs, player: Entity): PlayerSt
     ammo: { pistol: inventory.pistolAmmo, cannon: inventory.cannonAmmo },
     health: { ...playerHealthFor(game, player) },
     hasUplinkCode: inventory.hasUplinkCode === 1,
+    hasSpear: inventory.hasSpear === 1,
     progress: { ...progress },
   };
 }
@@ -137,6 +139,10 @@ export function heldKeysForPlayer(game: GameEcs, player: Entity): ReadonlySet<Ke
 
 export function playerHasUplinkCode(game: GameEcs, player: Entity): boolean {
   return playerInventoryFor(game, player).hasUplinkCode === 1;
+}
+
+export function playerHasSpear(game: GameEcs, player: Entity): boolean {
+  return playerInventoryFor(game, player).hasSpear === 1;
 }
 
 export function selectedPlayerWeapon(game: GameEcs, player: Entity): CommandSlot {
@@ -177,6 +183,9 @@ export function applyItemPickupToPlayer(game: GameEcs, player: Entity, pickup: I
     case "uplinkCode":
       writeComponent(game, player, "PlayerInventory", { hasUplinkCode: 1 });
       return [{ type: "uplinkCodePickedUp", entity: pickup.entity }];
+    case "spear":
+      writeComponent(game, player, "PlayerInventory", { hasSpear: 1 });
+      return [{ type: "spearPickedUp", entity: pickup.entity }];
     case "weapon":
       unlockPlayerWeapon(game, player, pickup.slot);
       return [{

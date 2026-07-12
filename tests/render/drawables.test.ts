@@ -47,6 +47,7 @@ function fakeSession(drawables: readonly DrawableEntity[]): FrameRenderSession {
       ammo: { pistol: 0, cannon: 0 },
       health: { current: 10, max: 10 },
       hasUplinkCode: false,
+      hasSpear: false,
       progress: {
         credits: 0,
         score: 0,

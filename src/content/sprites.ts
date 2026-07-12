@@ -79,6 +79,7 @@ const DECOR_CYBORG = new URL("../../assets/game/sprites/decor_cyborg.png", impor
 const DECOR_CEILING_HOOK = new URL("../../assets/game/sprites/decor_ceiling_hook.png", import.meta.url).href;
 const DECOR_CEILING_LIGHT = new URL("../../assets/game/sprites/decor_ceiling_light.png", import.meta.url).href;
 const DECOR_CEILING_WIRES = new URL("../../assets/game/sprites/decor_ceiling_wires.png", import.meta.url).href;
+const SPEAR = new URL("../../assets/game/sprites/spear.png", import.meta.url).href;
 
 const SPRITE_APPEARANCES: Readonly<Record<SpriteIdType, SpriteAppearance>> = {
   [SpriteId.Player]: appearance(undefined, SCALE_ACTOR, "player", "#f0c84b"),
@@ -126,6 +127,7 @@ const SPRITE_APPEARANCES: Readonly<Record<SpriteIdType, SpriteAppearance>> = {
     ELEVATION_CEILING_LONG,
     DECOR_CEILING_WIRES,
   ),
+  [SpriteId.Spear]: itemAppearance(98, "weapon", "#22d3ee", SPEAR, undefined, "S"),
 };
 
 const SPRITE_APPEARANCE_LIST = Object.values(SPRITE_APPEARANCES);
@@ -137,6 +139,7 @@ const ITEM_SPRITE_IDS: Readonly<
   [ItemKind.PistolAmmo]: SpriteId.PistolAmmo,
   [ItemKind.CannonAmmo]: SpriteId.CannonAmmo,
   [ItemKind.UplinkCode]: SpriteId.UplinkCode,
+  [ItemKind.Spear]: SpriteId.Spear,
 };
 
 const KEY_SPRITE_IDS: Readonly<Record<KeyColorType, SpriteIdType>> = {
@@ -171,6 +174,7 @@ export function spriteIdForItem(item: ItemKindType, value: number): SpriteIdType
     case ItemKind.PistolAmmo:
     case ItemKind.CannonAmmo:
     case ItemKind.UplinkCode:
+    case ItemKind.Spear:
       return ITEM_SPRITE_IDS[item];
     case ItemKind.Key:
       return KEY_SPRITE_IDS[keyColorForCode(value)];
@@ -241,7 +245,7 @@ function itemAppearance(
   topDownShape: TopDownShape,
   topDownColor: string,
   src: string,
-  lightmapSrc: string,
+  lightmapSrc?: string,
   topDownSymbol?: string,
   fallbackColor = topDownColor,
 ): SpriteAppearance {

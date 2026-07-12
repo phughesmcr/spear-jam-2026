@@ -47,6 +47,7 @@ export type PlayerStatusSnapshot = {
   readonly ammo: PlayerAmmoState;
   readonly health: PlayerHealthState;
   readonly hasUplinkCode: boolean;
+  readonly hasSpear: boolean;
   readonly progress: PlayerProgressState;
 };
 

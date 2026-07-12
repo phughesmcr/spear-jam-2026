@@ -45,6 +45,10 @@ export type GameEvent =
     readonly entity: Entity;
   }
   | {
+    readonly type: "spearPickedUp";
+    readonly entity: Entity;
+  }
+  | {
     readonly type: "weaponPickedUp";
     readonly entity: Entity;
     readonly slot: CommandSlot;

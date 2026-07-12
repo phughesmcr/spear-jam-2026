@@ -222,6 +222,9 @@ export const PROPERTY_TYPES: readonly TiledPropertyType[] = [
     classMember("flickerAmount", "float", 0),
     classMember("flickerSpeed", "float", 1),
   ]),
+  classPropertyType(42, "spearPickup", "#ff22d3ee", false, ["object"], [
+    classMember("prefab", "string", "spearPickup", "Prefab"),
+  ]),
 ];
 
 export const TILED_PROJECT_COMMANDS: readonly TiledProjectCommand[] = [
@@ -325,6 +328,9 @@ export const TEMPLATE_DEFINITIONS: readonly TemplateDefinition[] = [
     property("prefab", "sound", "Prefab"),
     property("soundId", "ambientLightBuzz", "SoundId"),
     property("radius", 5),
+  ]),
+  templateDefinition("spear_pickup.tx", "spearPickup", "spearPickup", "Spear of Destiny", [
+    property("prefab", "spearPickup", "Prefab"),
   ]),
 ];
 

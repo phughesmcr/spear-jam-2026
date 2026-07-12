@@ -1,12 +1,12 @@
 {
-  "columns": 12,
+  "columns": 13,
   "image": "entity_markers.png",
   "imageheight": 16,
-  "imagewidth": 192,
+  "imagewidth": 208,
   "margin": 0,
   "name": "entity_markers",
   "spacing": 0,
-  "tilecount": 12,
+  "tilecount": 13,
   "tiledversion": "1.11.2",
   "tileheight": 16,
   "tiles": [
@@ -235,6 +235,18 @@
           "name": "radius",
           "type": "int",
           "value": 5
+        }
+      ]
+    },
+    {
+      "id": 12,
+      "type": "spearPickup",
+      "properties": [
+        {
+          "name": "prefab",
+          "propertytype": "Prefab",
+          "type": "string",
+          "value": "spearPickup"
         }
       ]
     }

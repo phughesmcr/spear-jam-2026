@@ -34,6 +34,7 @@ export type {
   NpcDef,
   PlayerDef,
   SoundDef,
+  SpearPickupDef,
   UplinkCodeDef,
   UplinkTerminalDef,
   WeaponPickupDef,

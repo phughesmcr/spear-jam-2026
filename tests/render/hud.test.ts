@@ -1,4 +1,3 @@
-import { assertAlmostEquals, assertEquals } from "@std/assert";
 import type { PlayerStatusSnapshot } from "@/src/game/state.ts";
 import { Direction } from "@/src/grid/direction.ts";
 import { KeyColor } from "@/src/map/map.ts";
@@ -10,8 +9,9 @@ import {
   renderFirstPersonCompass,
   renderFirstPersonCompassAtAngle,
 } from "@/src/render/hud_compass.ts";
-import { firstPersonHudPanels, preloadHudAssets } from "@/src/render/hud_meters.ts";
 import type { FirstPersonHudPanel } from "@/src/render/hud_meters.ts";
+import { firstPersonHudPanels, preloadHudAssets } from "@/src/render/hud_meters.ts";
+import { assertAlmostEquals, assertEquals } from "@std/assert";
 
 const CANVAS = { width: 720, height: 1280 };
 const HUD_MARGIN = 12;
@@ -189,6 +189,7 @@ function playerSnapshot(patch: PlayerSnapshotPatch = {}): PlayerStatusSnapshot {
       max: patch.health?.max ?? 10,
     },
     hasUplinkCode: patch.hasUplinkCode ?? false,
+    hasSpear: patch.hasSpear ?? false,
     progress: {
       credits: patch.progress?.credits ?? 0,
       score: patch.progress?.score ?? 0,

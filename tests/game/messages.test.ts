@@ -1,6 +1,6 @@
 import { messageForEvent } from "@/src/game/messages.ts";
-import type { Entity } from "turn-based-engine/ecs";
 import { assertEquals } from "@std/assert";
+import type { Entity } from "turn-based-engine/ecs";
 
 const PLAYER = 1 as Entity;
 const DIGITAL_DOG = 2 as Entity;
@@ -67,6 +67,7 @@ Deno.test("messageForEvent distinguishes player defeat from enemy defeat", () =>
 Deno.test("messageForEvent covers interaction events", () => {
   assertEquals(messageForEvent(PLAYER, { type: "keyPickedUp", entity: DOOR }), "Picked up a key.");
   assertEquals(messageForEvent(PLAYER, { type: "uplinkCodePickedUp", entity: DOOR }), "Picked up an uplink code.");
+  assertEquals(messageForEvent(PLAYER, { type: "spearPickedUp", entity: DOOR }), "Picked up the Spear of Destiny.");
   assertEquals(
     messageForEvent(PLAYER, { type: "weaponPickedUp", entity: DOOR, slot: 2, label: "Pulse Pistol" }),
     "Picked up weapon 2: Pulse Pistol.",

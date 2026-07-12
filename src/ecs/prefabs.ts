@@ -45,6 +45,7 @@ import {
   type NpcDef,
   type PlayerDef,
   type SoundDef,
+  type SpearPickupDef,
   type UplinkCodeDef,
   type UplinkTerminalDef,
   type WeaponPickupDef,
@@ -189,6 +190,10 @@ export function createUplinkCode(runtime: GameRuntime, prefab: Omit<UplinkCodeDe
   return createPickup(runtime, prefab, ItemKind.UplinkCode, 0);
 }
 
+export function createSpearPickup(runtime: GameRuntime, prefab: Omit<SpearPickupDef, "prefab">): Entity {
+  return createPickup(runtime, prefab, ItemKind.Spear, 0);
+}
+
 export function createUplinkTerminal(runtime: GameRuntime, prefab: Omit<UplinkTerminalDef, "prefab">): Entity {
   return runtime.crawler.spawnCrawler({
     x: prefab.x,
@@ -305,6 +310,8 @@ export function createMapEntity(runtime: GameRuntime, prefab: EntityDef): Entity
       return createLight(runtime, prefab);
     case "sound":
       return createSound(runtime, prefab);
+    case "spearPickup":
+      return createSpearPickup(runtime, prefab);
   }
 }
 

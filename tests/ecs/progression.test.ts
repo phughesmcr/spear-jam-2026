@@ -12,9 +12,9 @@ import {
   restorePlayerProgressionCheckpoint,
 } from "@/src/ecs/progression.ts";
 import { createRuntime } from "@/src/ecs/runtime.ts";
+import { StoryFlag } from "@/src/game/story.ts";
 import { Direction } from "@/src/grid/direction.ts";
 import { KeyColor } from "@/src/map/map.ts";
-import { StoryFlag } from "@/src/game/story.ts";
 import { flatTestMap } from "@/tests/ecs/helpers.ts";
 import { assertEquals, assertThrows } from "@std/assert";
 
@@ -76,7 +76,9 @@ Deno.test("clearing transient progression preserves weapons and durable progress
   const item = runtime.crawler.spawnCrawler({ x: 1, y: 0 });
   applyItemPickupToPlayer(runtime.game, player, { type: "key", entity: item, color: KeyColor.Red });
   applyItemPickupToPlayer(runtime.game, player, { type: "uplinkCode", entity: item });
+  applyItemPickupToPlayer(runtime.game, player, { type: "spear", entity: item });
   clearTransientPlayerState(runtime.game, player);
   assertEquals(playerStatusSnapshotFor(runtime.game, player).heldKeys, []);
   assertEquals(playerStatusSnapshotFor(runtime.game, player).hasUplinkCode, false);
+  assertEquals(playerStatusSnapshotFor(runtime.game, player).hasSpear, true);
 });

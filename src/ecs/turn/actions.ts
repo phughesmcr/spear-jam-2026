@@ -7,7 +7,7 @@ import {
   entityAttack,
 } from "@/src/ecs/combat.ts";
 import { hasComponent, readComponent } from "@/src/ecs/components.ts";
-import { collectItemAt, interactWithEntity, openDoor } from "@/src/ecs/interactions.ts";
+import { collectItemAt, interactWithEntity, openDoor, spearPickupDialogue } from "@/src/ecs/interactions.ts";
 import {
   applyItemPickupToPlayer,
   heldKeysForPlayer,
@@ -24,10 +24,10 @@ import type { BlocksSight, NoiseStimulus } from "@/src/game/perception.ts";
 import type { RandomSource } from "@/src/game/rng.ts";
 import type { CommandSlot, DialogueState } from "@/src/game/state.ts";
 import { playerWeaponSpec } from "@/src/game/weapons.ts";
-import { Direction } from "@/src/grid/direction.ts";
 import {
   CARDINAL_DELTAS,
   type CardinalDirection,
+  Direction,
   directionDelta,
   type GridDelta,
   type GridPoint,
@@ -80,7 +80,7 @@ export type IntentResolution = {
   readonly events: readonly GameEvent[];
   readonly cost?: "free" | "turn";
   readonly noise?: NoiseStimulus;
-  readonly dialogue?: { readonly target: Entity; readonly dialogue: DialogueState };
+  readonly dialogue?: { readonly target?: Entity; readonly dialogue: DialogueState };
   readonly terminal?: Entity;
   readonly acted?: boolean;
 };
@@ -161,8 +161,20 @@ function resolvePlayerMoveIntent(context: TurnContext, actor: Entity, mode: Play
   if (result.events[0]?.type !== "entityMoved") return { events: [], cost: "free" };
   const next = context.runtime.crawler.entityPosition(actor);
   const pickup = collectItemAt(context.runtime, next.x, next.y);
+  if (pickup === undefined) {
+    return { events: [], cost: "turn", noise: playerNoise(context, MOVE_NOISE_RADIUS), acted: true };
+  }
+  const events = applyItemPickupToPlayer(context.runtime.game, actor, pickup);
+  if (pickup.type === "spear") {
+    return {
+      events,
+      cost: "free",
+      dialogue: { dialogue: spearPickupDialogue() },
+      acted: true,
+    };
+  }
   return {
-    events: pickup === undefined ? [] : applyItemPickupToPlayer(context.runtime.game, actor, pickup),
+    events,
     cost: "turn",
     noise: playerNoise(context, MOVE_NOISE_RADIUS),
     acted: true,
