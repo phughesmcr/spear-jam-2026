@@ -105,18 +105,29 @@ Deno.test("renderGameFrame requests the help image in help mode", () => {
   assert(document.images.some((image) => image.src.endsWith("/assets/game/help.png")));
 });
 
-Deno.test("renderGameFrame requests the victory background in victory mode", () => {
-  const document = new FakeGameDocument();
-  const ctx = new FakeGameContext(document);
+Deno.test("renderGameFrame requests the victory background for the ending intermission", () => {
+  withFakeOffscreenCanvas((): void => {
+    const document = new FakeGameDocument();
+    const ctx = new FakeGameContext(document);
 
-  const result = renderWithScratch({
-    ctx: ctx as unknown as CanvasRenderingContext2D,
-    canvasSize: FULL_CANVAS,
-    mode: { type: "victory" },
+    const result = renderWithScratch({
+      ctx: ctx as unknown as CanvasRenderingContext2D,
+      canvasSize: FULL_CANVAS,
+      mode: {
+        type: "intermission",
+        pages: ["The System is gone."],
+        pageIndex: 0,
+        prompt: "Space to begin again",
+        background: "victory",
+        completion: { type: "resetRun", mapName: "Level 1" },
+        revealStartedAtMs: 0,
+        revealed: true,
+      },
+    });
+
+    assertEquals(result, { needsFrame: true, ambientOnly: false });
+    assert(document.images.some((image) => image.src.endsWith("/assets/game/endscreen.png")));
   });
-
-  assertEquals(result, { needsFrame: false });
-  assert(document.images.some((image) => image.src.endsWith("/assets/game/endscreen.png")));
 });
 
 Deno.test("renderGameFrame skips the background clear before opaque first-person blit", () => {
@@ -206,7 +217,8 @@ Deno.test("renderGameFrame skips session rendering for opaque intermission mode"
         pages: ["Signal received."],
         pageIndex: 0,
         prompt: "Continue",
-        goto: "next",
+        background: "system",
+        completion: { type: "loadMap", mapName: "next" },
         revealStartedAtMs: 0,
         revealed: true,
       },

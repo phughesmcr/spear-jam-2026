@@ -13,7 +13,8 @@ Deno.test("renderIntermission reuses cached background across warm frames", () =
       pages: ["The first breach is open."],
       pageIndex: 0,
       prompt: "Continue",
-      goto: "next",
+      background: "system" as const,
+      completion: { type: "loadMap" as const, mapName: "next" },
       revealStartedAtMs: 0,
       revealed: true,
     };

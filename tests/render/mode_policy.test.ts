@@ -18,7 +18,8 @@ Deno.test("renderLayerPolicy skips session and message underlays for opaque mode
       pages: ["A"],
       pageIndex: 0,
       prompt: "Continue",
-      goto: "next",
+      background: "system",
+      completion: { type: "loadMap", mapName: "next" },
       revealStartedAtMs: 0,
       revealed: true,
     }, "firstPerson"),
@@ -29,11 +30,6 @@ Deno.test("renderLayerPolicy skips session and message underlays for opaque mode
     },
   );
   assertEquals(renderLayerPolicy({ type: "loading" }, "firstPerson"), {
-    renderSession: false,
-    renderMessageLog: false,
-    opaqueFirstPerson: false,
-  });
-  assertEquals(renderLayerPolicy({ type: "victory" }, "firstPerson"), {
     renderSession: false,
     renderMessageLog: false,
     opaqueFirstPerson: false,

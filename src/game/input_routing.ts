@@ -34,7 +34,6 @@ const MODE_POINTERS: { readonly [K in GameMode["type"]]?: PointerRouter } = {
   title: (_model, canvasSize, input) => titlePointer(canvasSize, input),
   settings: settingsPointer,
   intermission: (_model, _canvasSize, input) => waitOnPointerUp(input),
-  victory: (_model, _canvasSize, input) => waitOnPointerUp(input),
   defeat: (_model, _canvasSize, input) => waitOnPointerUp(input),
   dialogue: (model, canvasSize, input) => {
     const mode = model.mode;

@@ -13,7 +13,8 @@ const MODE: IntermissionMode = {
   pages: ["ABCD", "EF"],
   pageIndex: 0,
   prompt: "Space",
-  goto: "Level 1",
+  background: "system",
+  completion: { type: "loadMap", mapName: "Level 1" },
   revealStartedAtMs: 100,
   revealed: false,
 };

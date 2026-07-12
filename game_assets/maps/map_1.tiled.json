@@ -1,5 +1,5 @@
 { "compressionlevel":-1,
- "height":15,
+ "height":18,
  "infinite":false,
  "layers":[
         {
@@ -15,10 +15,13 @@
             71, 71, 19, 19, 19, 37, 37, 37, 19, 19, 19, 19, 35, 35, 64,
             71, 71, 71, 71, 71, 71, 71, 71, 71, 71, 71, 71, 71, 35, 64,
             64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 35, 64,
-            64, 35, 35, 64, 35, 121, 35, 35, 35, 64, 35, 64, 35, 35, 64,
-            64, 35, 35, 64, 35, 121, 35, 35, 35, 35, 35, 35, 35, 35, 64,
+            64, 35, 35, 35, 121, 35, 35, 35, 35, 64, 35, 64, 35, 35, 64,
+            64, 121, 121, 121, 121, 35, 35, 35, 35, 35, 35, 35, 35, 35, 64,
+            64, 35, 35, 35, 35, 35, 35, 35, 35, 35, 35, 35, 35, 35, 64,
+            64, 121, 121, 121, 121, 35, 35, 35, 35, 35, 35, 35, 35, 35, 64,
+            64, 35, 35, 35, 121, 35, 35, 35, 35, 35, 35, 35, 35, 35, 64,
             64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64],
-         "height":15,
+         "height":18,
          "id":1,
          "name":"terrain",
          "opacity":1,
@@ -318,6 +321,68 @@
                 {
                  "gid":149,
                  "height":16,
+                 "id":48,
+                 "name":"item_6",
+                 "opacity":1,
+                 "properties":[
+                        {
+                         "name":"amount",
+                         "type":"int",
+                         "value":6
+                        }, 
+                        {
+                         "name":"item",
+                         "propertytype":"ItemKind",
+                         "type":"string",
+                         "value":"PistolAmmo"
+                        }, 
+                        {
+                         "name":"prefab",
+                         "propertytype":"Prefab",
+                         "type":"string",
+                         "value":"item"
+                        }],
+                 "rotation":0,
+                 "type":"item",
+                 "visible":true,
+                 "width":16,
+                 "x":32,
+                 "y":240
+                }, 
+                {
+                 "gid":149,
+                 "height":16,
+                 "id":46,
+                 "name":"item_6",
+                 "opacity":1,
+                 "properties":[
+                        {
+                         "name":"amount",
+                         "type":"int",
+                         "value":6
+                        }, 
+                        {
+                         "name":"item",
+                         "propertytype":"ItemKind",
+                         "type":"string",
+                         "value":"pistolAmmo"
+                        }, 
+                        {
+                         "name":"prefab",
+                         "propertytype":"Prefab",
+                         "type":"string",
+                         "value":"item"
+                        }],
+                 "rotation":0,
+                 "type":"item",
+                 "visible":true,
+                 "width":16,
+                 "x":48,
+                 "y":240
+                }, 
+                {
+                 "gid":149,
+                 "height":16,
                  "id":7,
                  "name":"item_7",
                  "opacity":1,
@@ -345,6 +410,37 @@
                  "width":16,
                  "x":112,
                  "y":128
+                }, 
+                {
+                 "gid":149,
+                 "height":16,
+                 "id":47,
+                 "name":"item_7",
+                 "opacity":1,
+                 "properties":[
+                        {
+                         "name":"amount",
+                         "type":"int",
+                         "value":3
+                        }, 
+                        {
+                         "name":"item",
+                         "propertytype":"ItemKind",
+                         "type":"string",
+                         "value":"HealthPatch"
+                        }, 
+                        {
+                         "name":"prefab",
+                         "propertytype":"Prefab",
+                         "type":"string",
+                         "value":"item"
+                        }],
+                 "rotation":0,
+                 "type":"item",
+                 "visible":true,
+                 "width":16,
+                 "x":64,
+                 "y":240
                 }, 
                 {
                  "gid":145,
@@ -397,7 +493,8 @@
                  "width":16,
                  "x":16,
                  "y":128
-                }, 
+                },
+            
                 {
                  "gid":150,
                  "height":16,
@@ -453,6 +550,32 @@
                 {
                  "gid":150,
                  "height":16,
+                 "id":49,
+                 "name":"decor_2",
+                 "opacity":1,
+                 "properties":[
+                        {
+                         "name":"decoration",
+                         "propertytype":"DecorationKind",
+                         "type":"string",
+                         "value":"serverPile"
+                        }, 
+                        {
+                         "name":"prefab",
+                         "propertytype":"Prefab",
+                         "type":"string",
+                         "value":"decoration"
+                        }],
+                 "rotation":0,
+                 "type":"decoration",
+                 "visible":true,
+                 "width":16,
+                 "x":208,
+                 "y":256
+                }, 
+                {
+                 "gid":150,
+                 "height":16,
                  "id":26,
                  "name":"decor_6",
                  "opacity":1,
@@ -475,8 +598,7 @@
                  "width":16,
                  "x":160,
                  "y":208
-                },
-            
+                }, 
                 {
                  "gid":150,
                  "height":16,
@@ -526,7 +648,7 @@
                  "type":"decoration",
                  "visible":true,
                  "width":16,
-                 "x":112,
+                 "x":48,
                  "y":208
                 }, 
                 {
@@ -552,7 +674,7 @@
                  "type":"decoration",
                  "visible":true,
                  "width":16,
-                 "x":64,
+                 "x":32,
                  "y":208
                 }, 
                 {
@@ -578,8 +700,8 @@
                  "type":"decoration",
                  "visible":true,
                  "width":16,
-                 "x":64,
-                 "y":224
+                 "x":32,
+                 "y":272
                 }, 
                 {
                  "gid":150,
@@ -606,6 +728,32 @@
                  "width":16,
                  "x":176,
                  "y":160
+                }, 
+                {
+                 "gid":150,
+                 "height":16,
+                 "id":52,
+                 "name":"decor_3",
+                 "opacity":1,
+                 "properties":[
+                        {
+                         "name":"decoration",
+                         "propertytype":"DecorationKind",
+                         "type":"string",
+                         "value":"ceilingLight"
+                        }, 
+                        {
+                         "name":"prefab",
+                         "propertytype":"Prefab",
+                         "type":"string",
+                         "value":"decoration"
+                        }],
+                 "rotation":0,
+                 "type":"decoration",
+                 "visible":true,
+                 "width":16,
+                 "x":96,
+                 "y":224
                 }, 
                 {
                  "gid":150,
@@ -774,7 +922,8 @@
                  "width":16,
                  "x":176,
                  "y":80
-                }, 
+                },
+            
                 {
                  "gid":143,
                  "height":16,
@@ -1103,8 +1252,74 @@
                  "type":"",
                  "visible":true,
                  "width":16,
+                 "x":208,
+                 "y":240
+                }, 
+                {
+                 "height":16,
+                 "id":51,
+                 "name":"secret_exit_amber_light",
+                 "opacity":1,
+                 "properties":[
+                        {
+                         "name":"color",
+                         "type":"string",
+                         "value":"#f59e0b"
+                        }, 
+                        {
+                         "name":"flickerAmount",
+                         "type":"float",
+                         "value":1
+                        }, 
+                        {
+                         "name":"flickerSpeed",
+                         "type":"float",
+                         "value":9
+                        }, 
+                        {
+                         "name":"radius",
+                         "type":"int",
+                         "value":2
+                        }],
+                 "rotation":0,
+                 "type":"",
+                 "visible":true,
+                 "width":16,
                  "x":176,
                  "y":144
+                }, 
+                {
+                 "height":16,
+                 "id":50,
+                 "name":"secret_exit_amber_light",
+                 "opacity":1,
+                 "properties":[
+                        {
+                         "name":"color",
+                         "type":"string",
+                         "value":"#f59e0b"
+                        }, 
+                        {
+                         "name":"flickerAmount",
+                         "type":"float",
+                         "value":1
+                        }, 
+                        {
+                         "name":"flickerSpeed",
+                         "type":"float",
+                         "value":9
+                        }, 
+                        {
+                         "name":"radius",
+                         "type":"int",
+                         "value":2
+                        }],
+                 "rotation":0,
+                 "type":"",
+                 "visible":true,
+                 "width":16,
+                 "x":16,
+                 "y":192
                 }, 
                 {
                  "height":16,
@@ -1136,8 +1351,8 @@
                  "type":"",
                  "visible":true,
                  "width":16,
-                 "x":64,
-                 "y":192
+                 "x":16,
+                 "y":256
                 }, 
                 {
                  "height":16,
@@ -1169,7 +1384,7 @@
                  "type":"",
                  "visible":true,
                  "width":16,
-                 "x":64,
+                 "x":96,
                  "y":208
                 }, 
                 {
@@ -1243,8 +1458,8 @@
                  "type":"sound",
                  "visible":true,
                  "width":16,
-                 "x":96,
-                 "y":208
+                 "x":128,
+                 "y":48
                 }, 
                 {
                  "height":16,
@@ -1282,7 +1497,7 @@
          "y":0
         }],
  "nextlayerid":5,
- "nextobjectid":46,
+ "nextobjectid":53,
  "orientation":"orthogonal",
  "properties":[
         {

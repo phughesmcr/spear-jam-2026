@@ -35,7 +35,7 @@ Deno.test("transition can start on the title screen before beginning the game", 
   result = transition(result.model, { type: "gameCommand", command: { type: "wait" }, nowMs: 1000 });
   const mode = result.model.mode;
   if (mode.type !== "intermission") throw new Error(`Expected intermission mode, got ${mode.type}.`);
-  assertEquals(mode.goto, "Level 1");
+  assertEquals(mode.completion, { type: "loadMap", mapName: "Level 1" });
   assertEquals(result.effects, [
     { type: "ensureInput" },
     { type: "applyAudioVolumes" },
@@ -223,7 +223,8 @@ Deno.test("transition can start with an intro intermission before loading the fi
   assertEquals(mode.pages.at(-1)?.endsWith("Survive the reboot."), true);
   assertEquals(mode.pageIndex, 0);
   assertEquals(mode.prompt, "Space to enter the network");
-  assertEquals(mode.goto, "Level 1");
+  assertEquals(mode.background, "system");
+  assertEquals(mode.completion, { type: "loadMap", mapName: "Level 1" });
   assertEquals(mode.revealStartedAtMs, 1000);
   assertEquals(mode.revealed, false);
   assertEquals(result.effects, [
@@ -290,7 +291,8 @@ Deno.test("transition derives command result intermission state", () => {
     pages: ["Entering Level 2."],
     pageIndex: 0,
     prompt: "Space to continue",
-    goto: "Level 2",
+    background: "system",
+    completion: { type: "loadMap", mapName: "Level 2" },
     revealStartedAtMs: 0,
     revealed: false,
   });
@@ -677,23 +679,41 @@ Deno.test("transition retries defeat through a session-owned checkpoint effect",
   ]);
 });
 
-Deno.test("transition resets victory through a fresh-run effect", () => {
+Deno.test("transition presents victory as an ending intermission before starting a fresh run", () => {
   let model = transition(createGameModel("Level 1"), {
     type: "mapLoaded",
     mapName: "Final Level",
   }).model;
 
-  ({ model } = transition(model, {
+  let result = transition(model, {
     type: "playerCommandResult",
     playerEntity: PLAYER,
+    nowMs: 1000,
     result: {
       type: "outcome",
       events: [{ type: "examined", text: "The system reboots." }],
       outcome: "victory",
     },
-  }));
+  });
 
-  const result = transition(model, { type: "gameCommand", command: { type: "wait" } });
+  assertEquals(result.model.mode.type, "intermission");
+  let mode = result.model.mode;
+  if (mode.type !== "intermission") throw new Error(`Expected intermission mode, got ${mode.type}.`);
+  assertEquals(mode.title, "SYSTEM REBOOTED");
+  assertEquals(mode.pages.length, 5);
+  assertEquals(mode.pages[0]?.startsWith("The Spear pierces"), true);
+  assertEquals(mode.pages.at(-1)?.endsWith("The future belongs to you."), true);
+  assertEquals(mode.pageIndex, 0);
+  assertEquals(mode.prompt, "Space to begin again");
+  assertEquals(mode.background, "victory");
+  assertEquals(mode.completion, { type: "resetRun", mapName: "Level 1" });
+  assertEquals(mode.revealStartedAtMs, 1000);
+  assertEquals(mode.revealed, false);
+  assertEquals(result.effects, [{ type: "render" }]);
+
+  mode = { ...mode, pageIndex: mode.pages.length - 1, revealed: true };
+  model = { ...result.model, mode };
+  result = transition(model, { type: "gameCommand", command: { type: "wait" }, nowMs: 1000 });
   assertEquals(result.model.presentation, { messages: [], combatFeedback: [] });
   assertEquals(result.model.mode, { type: "loading" });
   assertEquals(result.effects, [

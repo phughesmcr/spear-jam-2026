@@ -166,7 +166,8 @@ Deno.test("routePointerInput maps intermission pointer up to wait and swallows p
     pages: ["Entering Level 2."],
     pageIndex: 0,
     prompt: "Space to continue",
-    goto: "Level 2",
+    background: "system",
+    completion: { type: "loadMap", mapName: "Level 2" },
     revealStartedAtMs: 0,
     revealed: true,
   });
@@ -178,11 +179,7 @@ Deno.test("routePointerInput maps intermission pointer up to wait and swallows p
   assertEquals(routePointerInput(model, CANVAS_SIZE, pointer({ phase: "down" })), { type: "none" });
 });
 
-Deno.test("routePointerInput maps outcome and help pointer up to wait", () => {
-  assertEquals(routePointerInput(modelWithMode({ type: "victory" }), CANVAS_SIZE, pointer({ phase: "up" })), {
-    type: "command",
-    command: { type: "wait" },
-  });
+Deno.test("routePointerInput maps defeat and help pointer up to wait", () => {
   assertEquals(routePointerInput(modelWithMode({ type: "defeat" }), CANVAS_SIZE, pointer({ phase: "up" })), {
     type: "command",
     command: { type: "wait" },

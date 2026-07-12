@@ -69,6 +69,12 @@ export type HelpReturnTo =
   | { readonly kind: "verbMenu"; readonly selectedIndex: number }
   | { readonly kind: "title"; readonly intent: TitleIntent };
 
+export type IntermissionBackground = "system" | "victory";
+
+export type IntermissionCompletion =
+  | { readonly type: "loadMap"; readonly mapName: string }
+  | { readonly type: "resetRun"; readonly mapName: string };
+
 export type GameMode =
   | { readonly type: "title"; readonly intent: TitleIntent; readonly hoverButton?: TitleHoverButton }
   | { readonly type: "loading" }
@@ -88,7 +94,8 @@ export type GameMode =
     readonly pages: readonly string[];
     readonly pageIndex: number;
     readonly prompt: string;
-    readonly goto: string;
+    readonly background: IntermissionBackground;
+    readonly completion: IntermissionCompletion;
     readonly revealStartedAtMs: number;
     readonly revealed: boolean;
   }
@@ -97,7 +104,6 @@ export type GameMode =
     readonly returnIntent: TitleIntent;
     readonly dragging?: "music" | "sound" | "fps";
   }
-  | { readonly type: "victory" }
   | { readonly type: "defeat" }
   | { readonly type: "error"; readonly message: string };
 

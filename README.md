@@ -54,6 +54,13 @@ Quick Actions is usually attack, but will open doors, use items, etc. when facin
 - The asset packs you start with quickly sets the tone of the game - change it quickly if it's not working.
 - Keep it simple. In a tile-based game, the world can be represented blocking (1) or non-blocking (0) tiles alone, everything else is decoration. Also - verb menus don't belong in shooters.
 
+## Things I wanted to add but didn't have time for
+
+- XP system - you currently get XP for defeating enemies, but its not for anything yet.
+- More story elements / NPC interactions.
+- Saving / loading (you can use `?/map=<mapname>` to skip to a map. Add `&cheat` to get all weapons and items.)
+- Bigger better levels, animations (inc. animated textures), and enemy AI.
+
 ## Acknowledgements
 
 **Gameplay Inspiration:**
@@ -72,6 +79,7 @@ N.B. I found out there is another game called "Ghost Process" too late in the ja
 **Art Assets:**
 
 - [Aquilarius' Retro Textures (CC0)](https://aquilarius.itch.io/aquilariusrt)
+- [See-trough grids metal nets (CC0)](https://opengameart.org/content/see-trough-grids-metal-nets)
 - Sprites/HUD and titlescreens generated with GPT Image 2
 
 **Sound Assets:**

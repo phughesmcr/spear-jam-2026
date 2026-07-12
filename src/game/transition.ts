@@ -19,6 +19,7 @@ import {
   type SettingsSliderId,
 } from "@/src/game/render_settings.ts";
 import type { GameMode, TitleHoverButton, VerbMenuTarget, ViewMode } from "@/src/game/state.ts";
+import { VICTORY_INTERMISSION } from "@/src/game/victory.ts";
 import { openVerbMenu, verbMenuCommand, verbPointer } from "@/src/game/verb_menu_transition.ts";
 import type { PointerPhase } from "@/src/input/pointer.ts";
 import type { Entity } from "turn-based-engine/ecs";
@@ -112,8 +113,7 @@ const MODE_COMMANDS: { readonly [K in GameMode["type"]]?: ModeCommandHandler } =
     const mode = model.mode;
     return mode.type === "verbMenu" ? verbMenuCommand(model, mode, command) : done(model);
   },
-  victory: (model, command) => outcomeCommand(model, "victory", command),
-  defeat: (model, command) => outcomeCommand(model, "defeat", command),
+  defeat: defeatCommand,
   playing: playingCommand,
   paused: overlayCommand,
   loading: overlayCommand,
@@ -177,7 +177,8 @@ function beginGame(model: GameModel, nowMs: number): GameTransition {
         title: INTRO_INTERMISSION.title,
         pages: INTRO_INTERMISSION.pages,
         prompt: INTRO_INTERMISSION.prompt,
-        goto: model.startMapName,
+        background: "system",
+        completion: { type: "loadMap", mapName: model.startMapName },
         nowMs,
       }),
       [
@@ -385,10 +386,23 @@ function intermissionCommand(
       },
     }, [{ type: "render" }]);
   }
-  return done(
-    { ...model, mode: { type: "loading" } },
-    [{ type: "render" }, { type: "loadMap", mapName: mode.goto }],
-  );
+  const loadingModel = { ...model, mode: { type: "loading" } } satisfies GameModel;
+  switch (mode.completion.type) {
+    case "loadMap":
+      return done(loadingModel, [
+        { type: "render" },
+        { type: "loadMap", mapName: mode.completion.mapName },
+      ]);
+    case "resetRun":
+      return done({ ...loadingModel, presentation: createPresentationState() }, [
+        { type: "render" },
+        { type: "resetRun", mapName: mode.completion.mapName },
+      ]);
+    default: {
+      const _exhaustive: never = mode.completion;
+      return _exhaustive;
+    }
+  }
 }
 
 function dialogueCommand(model: GameModel, mode: DialogueMode, command: GameCommand): GameTransition {
@@ -444,11 +458,7 @@ function selectDialogueChoice(model: GameModel, mode: DialogueMode, slot: number
   }, dialogueRenderEffects(mode.voice, node.voice));
 }
 
-function outcomeCommand(
-  model: GameModel,
-  outcome: "victory" | "defeat",
-  command: GameCommand,
-): GameTransition {
+function defeatCommand(model: GameModel, command: GameCommand): GameTransition {
   if (command.type !== "wait") return done(model);
 
   const resetModel = {
@@ -456,10 +466,6 @@ function outcomeCommand(
     presentation: createPresentationState(),
     mode: { type: "loading" },
   } satisfies GameModel;
-  if (outcome === "victory") {
-    return done(resetModel, [{ type: "render" }, { type: "resetRun", mapName: model.startMapName }]);
-  }
-
   return done(resetModel, [{ type: "render" }, { type: "retryMap", mapName: model.currentMapName }]);
 }
 
@@ -501,14 +507,29 @@ function playerCommandResult(
   switch (result.type) {
     case "continue":
       return done(modelWithPresentation, [{ type: "render" }]);
-    case "outcome":
-      return done({ ...modelWithPresentation, mode: { type: result.outcome } }, [{ type: "render" }]);
+    case "outcome": {
+      if (result.outcome === "defeat") {
+        return done({ ...modelWithPresentation, mode: { type: "defeat" } }, [{ type: "render" }]);
+      }
+      return done(
+        enterIntermission(modelWithPresentation, {
+          title: VICTORY_INTERMISSION.title,
+          pages: VICTORY_INTERMISSION.pages,
+          prompt: VICTORY_INTERMISSION.prompt,
+          background: "victory",
+          completion: { type: "resetRun", mapName: model.startMapName },
+          nowMs,
+        }),
+        [{ type: "render" }],
+      );
+    }
     case "mapChange":
       return done(
         enterIntermission(modelWithPresentation, {
           pages: [`Entering ${result.mapChange.goto}.`],
           prompt: CONTINUE_INTERMISSION_PROMPT,
-          goto: result.mapChange.goto,
+          background: "system",
+          completion: { type: "loadMap", mapName: result.mapChange.goto },
           nowMs,
         }),
         [{ type: "render" }],
@@ -592,7 +613,8 @@ function enterIntermission(
     readonly title?: string;
     readonly pages: readonly string[];
     readonly prompt: string;
-    readonly goto: string;
+    readonly background: IntermissionMode["background"];
+    readonly completion: IntermissionMode["completion"];
     readonly nowMs: number;
   },
 ): GameModel {
@@ -604,7 +626,8 @@ function enterIntermission(
       pages: input.pages,
       pageIndex: 0,
       prompt: input.prompt,
-      goto: input.goto,
+      background: input.background,
+      completion: input.completion,
       revealStartedAtMs: input.nowMs,
       revealed: false,
     },

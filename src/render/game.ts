@@ -5,7 +5,6 @@ import type { FrameRenderSession } from "@/src/game/session_ports.ts";
 import type { GameMode, ViewMode } from "@/src/game/state.ts";
 import { playerWeaponSpec } from "@/src/game/weapons.ts";
 import type { GameCanvasSize } from "@/src/render/canvas.ts";
-import { createImageAsset, loadedImage, preloadImageAsset } from "@/src/render/assets.ts";
 import {
   preloadCombatFeedbackAssets,
   renderCombatFeedback,
@@ -16,7 +15,7 @@ import { renderDrawableEntities } from "@/src/render/drawables.ts";
 import type { FirstPersonFrameScratch, FirstPersonRenderer } from "@/src/render/first_person.ts";
 import { preloadHelpAssets, renderHelp } from "@/src/render/help.ts";
 import { preloadHudAssets, renderFirstPersonHud, renderHud } from "@/src/render/hud.ts";
-import { renderIntermission } from "@/src/render/intermission.ts";
+import { preloadIntermissionAssets, renderIntermission } from "@/src/render/intermission.ts";
 import { renderMap } from "@/src/render/map.ts";
 import { renderMessageLog } from "@/src/render/messages.ts";
 import { renderLayerPolicy } from "@/src/render/mode_policy.ts";
@@ -31,10 +30,6 @@ const BACKGROUND_COLOR = "#101217";
 const OVERLAY_COLOR = "rgba(0, 0, 0, 0.6)";
 const OVERLAY_TITLE_COLOR = "#f3f4f6";
 const OVERLAY_SUBTITLE_COLOR = "#c9d1d9";
-const VICTORY_BACKGROUND_SRC = new URL("../../assets/game/endscreen.png", import.meta.url).href;
-
-const victoryBackgroundAsset = createImageAsset(VICTORY_BACKGROUND_SRC);
-
 export type GameFrameResult = {
   readonly needsFrame: boolean;
   /** True when the only continuous demand is ambient first-person animation. */
@@ -73,7 +68,7 @@ export async function preloadGameAssets(
 ): Promise<void> {
   await Promise.all([
     preloadTitleAssets(document, onAssetLoad),
-    preloadImageAsset(document, victoryBackgroundAsset, onAssetLoad),
+    preloadIntermissionAssets(document, onAssetLoad),
     preloadVerbMenuAssets(document, onAssetLoad),
     firstPersonRenderer.preloadAssets(document, onAssetLoad),
     preloadWeaponHudAssets(document, onAssetLoad),
@@ -156,10 +151,6 @@ export function renderGameFrame({
       renderIntermission(ctx, canvasSize, mode, nowMs, spy);
       frameResult.needsFrame = true;
       return frameResultFromScratch(frameResult);
-    case "victory":
-      renderVictoryBackground(ctx, canvasSize, onAssetLoad);
-      renderOverlay(ctx, canvasSize, "VICTORY", "Space to play again");
-      return { needsFrame: false };
     case "defeat":
       renderOverlay(ctx, canvasSize, "DEFEAT", "Space to retry level");
       return { needsFrame: false };
@@ -287,22 +278,6 @@ function renderOverlay(
     ctx.fillText(subtitle, centerX, centerY + titleSize * 0.75);
   }
   ctx.restore();
-}
-
-function renderVictoryBackground(
-  ctx: CanvasRenderingContext2D,
-  canvasSize: GameCanvasSize,
-  onAssetLoad?: () => void,
-): void {
-  const image = loadedImage(ctx, victoryBackgroundAsset, onAssetLoad);
-  if (image === undefined) return;
-
-  const imageWidth = image.naturalWidth || image.width;
-  const imageHeight = image.naturalHeight || image.height;
-  const scale = Math.max(canvasSize.width / imageWidth, canvasSize.height / imageHeight);
-  const width = imageWidth * scale;
-  const height = imageHeight * scale;
-  ctx.drawImage(image, (canvasSize.width - width) / 2, (canvasSize.height - height) / 2, width, height);
 }
 
 function renderFirstPersonVignette(
