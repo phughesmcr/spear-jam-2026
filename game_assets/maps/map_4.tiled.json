@@ -480,7 +480,45 @@
                  "type":"enemy",
                  "visible":true,
                  "width":16,
-                 "x":128,
+                 "x":112,
+                 "y":144
+                }, 
+                {
+                 "gid":143,
+                 "height":16,
+                 "id":50,
+                 "name":"enemy_14",
+                 "opacity":1,
+                 "properties":[
+                        {
+                         "name":"archetype",
+                         "propertytype":"EnemyArchetype",
+                         "type":"string",
+                         "value":"AgenticAcolyte"
+                        }, 
+                        {
+                         "name":"displayName",
+                         "propertytype":"DisplayName",
+                         "type":"string",
+                         "value":"AgenticAcolyte"
+                        }, 
+                        {
+                         "name":"facing",
+                         "propertytype":"Facing",
+                         "type":"string",
+                         "value":"south"
+                        }, 
+                        {
+                         "name":"prefab",
+                         "propertytype":"Prefab",
+                         "type":"string",
+                         "value":"enemy"
+                        }],
+                 "rotation":0,
+                 "type":"enemy",
+                 "visible":true,
+                 "width":16,
+                 "x":144,
                  "y":144
                 }, 
                 {
@@ -518,8 +556,8 @@
                  "type":"enemy",
                  "visible":true,
                  "width":16,
-                 "x":160,
-                 "y":160
+                 "x":48,
+                 "y":96
                 }, 
                 {
                  "gid":149,
@@ -551,7 +589,8 @@
                  "width":16,
                  "x":80,
                  "y":128
-                }, 
+                },
+            
                 {
                  "gid":144,
                  "height":16,
@@ -582,8 +621,7 @@
                  "width":16,
                  "x":64,
                  "y":80
-                },
-            
+                }, 
                 {
                  "gid":143,
                  "height":16,
@@ -823,7 +861,7 @@
                          "propertytype":"Prefab",
                          "type":"string",
                          "value":"uplinkTerminal"
-                        },
+                        }, 
                         {
                          "name":"requiresSpear",
                          "type":"bool",
@@ -916,7 +954,7 @@
                  "visible":true,
                  "width":16,
                  "x":128,
-                 "y":112
+                 "y":144
                 }, 
                 {
                  "gid":148,
@@ -995,7 +1033,8 @@
                  "width":16,
                  "x":128,
                  "y":192
-                }, 
+                },
+            
                 {
                  "gid":150,
                  "height":16,
@@ -1035,8 +1074,7 @@
                  "width":16,
                  "x":128,
                  "y":96
-                },
-            
+                }, 
                 {
                  "gid":150,
                  "height":16,
@@ -1333,7 +1371,7 @@
          "y":0
         }],
  "nextlayerid":4,
- "nextobjectid":50,
+ "nextobjectid":51,
  "orientation":"orthogonal",
  "properties":[
         {

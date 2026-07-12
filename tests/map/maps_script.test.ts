@@ -181,6 +181,10 @@ Deno.test("generatedTerrainSources creates shared texture-backed terrain tileset
     0,
   );
   assertEquals(
+    floors.tiles[2]!.properties.find((property) => property.name === "floorTexture")?.value,
+    "pack3:4,1",
+  );
+  assertEquals(
     floors.tiles[2]!.properties.find((property) => property.name === "ceilingTexture")?.value,
     "sky",
   );

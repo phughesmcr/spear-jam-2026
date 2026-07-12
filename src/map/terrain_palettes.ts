@@ -24,7 +24,7 @@ export const TERRAIN_CATALOG: readonly TerrainTile[] = [
     kind: "floor" as const,
     id: FLOOR_TERRAIN_BASE_ID + index,
     color: terrainColor(index, false),
-    floor_texture: texture,
+    floor_texture: index === 2 ? "pack3:4,1" : texture,
     ceiling_texture: index === 2 ? SKY_CEILING_TEXTURE : texture,
   })),
   ...textureRefs().map((texture, index) => ({

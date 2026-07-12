@@ -1081,6 +1081,26 @@
                 {
                  "gid":150,
                  "height":16,
+                 "id":65,
+                 "name":"",
+                 "opacity":1,
+                 "properties":[
+                        {
+                         "name":"decoration",
+                         "propertytype":"DecorationKind",
+                         "type":"string",
+                         "value":"tree1"
+                        }],
+                 "rotation":0,
+                 "type":"",
+                 "visible":true,
+                 "width":16,
+                 "x":128,
+                 "y":256
+                }, 
+                {
+                 "gid":150,
+                 "height":16,
                  "id":57,
                  "name":"",
                  "opacity":1,
@@ -1097,6 +1117,26 @@
                  "width":16,
                  "x":128,
                  "y":224
+                }, 
+                {
+                 "gid":150,
+                 "height":16,
+                 "id":64,
+                 "name":"",
+                 "opacity":1,
+                 "properties":[
+                        {
+                         "name":"decoration",
+                         "propertytype":"DecorationKind",
+                         "type":"string",
+                         "value":"tree2"
+                        }],
+                 "rotation":0,
+                 "type":"",
+                 "visible":true,
+                 "width":16,
+                 "x":16,
+                 "y":256
                 }, 
                 {
                  "gid":150,
@@ -1121,6 +1161,26 @@
                 {
                  "gid":150,
                  "height":16,
+                 "id":66,
+                 "name":"",
+                 "opacity":1,
+                 "properties":[
+                        {
+                         "name":"decoration",
+                         "propertytype":"DecorationKind",
+                         "type":"string",
+                         "value":"tree3"
+                        }],
+                 "rotation":0,
+                 "type":"",
+                 "visible":true,
+                 "width":16,
+                 "x":160,
+                 "y":224
+                }, 
+                {
+                 "gid":150,
+                 "height":16,
                  "id":59,
                  "name":"",
                  "opacity":1,
@@ -1137,6 +1197,26 @@
                  "width":16,
                  "x":224,
                  "y":224
+                }, 
+                {
+                 "gid":150,
+                 "height":16,
+                 "id":67,
+                 "name":"",
+                 "opacity":1,
+                 "properties":[
+                        {
+                         "name":"decoration",
+                         "propertytype":"DecorationKind",
+                         "type":"string",
+                         "value":"tree2"
+                        }],
+                 "rotation":0,
+                 "type":"",
+                 "visible":true,
+                 "width":16,
+                 "x":224,
+                 "y":256
                 }],
          "opacity":1,
          "type":"objectgroup",
@@ -1206,8 +1286,28 @@
                  "type":"",
                  "visible":true,
                  "width":16,
-                 "x":240,
+                 "x":192,
                  "y":256
+                }, 
+                {
+                 "gid":152,
+                 "height":16,
+                 "id":68,
+                 "name":"",
+                 "opacity":1,
+                 "properties":[
+                        {
+                         "name":"soundId",
+                         "propertytype":"SoundId",
+                         "type":"string",
+                         "value":"ambientWind"
+                        }],
+                 "rotation":0,
+                 "type":"",
+                 "visible":true,
+                 "width":16,
+                 "x":240,
+                 "y":224
                 }],
          "opacity":1,
          "type":"objectgroup",
@@ -1490,7 +1590,7 @@
          "y":0
         }],
  "nextlayerid":5,
- "nextobjectid":64,
+ "nextobjectid":69,
  "orientation":"orthogonal",
  "properties":[
         {
