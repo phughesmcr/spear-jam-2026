@@ -333,6 +333,11 @@ export const TEMPLATE_DEFINITIONS: readonly TemplateDefinition[] = [
     property("soundId", "ambientLightBuzz", "SoundId"),
     property("radius", 5),
   ]),
+  templateDefinition("sound_ambient_wind.tx", "sound", "sound", "Ambient wind", [
+    property("prefab", "sound", "Prefab"),
+    property("soundId", "ambientWind", "SoundId"),
+    property("radius", 8),
+  ]),
   templateDefinition("spear_pickup.tx", "spearPickup", "spearPickup", "Spear of Destiny", [
     property("prefab", "spearPickup", "Prefab"),
   ]),
@@ -499,6 +504,9 @@ function decorationTemplateDefinitions(): readonly TemplateDefinition[] {
     decorationTemplateDefinition("ceilingLight", "Ceiling light"),
     decorationTemplateDefinition("ceilingWires", "Ceiling wires"),
     decorationTemplateDefinition("mainframeCore", "Mainframe core"),
+    decorationTemplateDefinition("tree1", "Tree 1"),
+    decorationTemplateDefinition("tree2", "Tree 2"),
+    decorationTemplateDefinition("tree3", "Tree 3"),
   ];
 }
 
@@ -516,5 +524,5 @@ function propertyTypeForValue(value: TiledProperty["value"]): "bool" | "int" | "
 }
 
 function snakeCase(value: string): string {
-  return value.replace(/[A-Z]/g, (letter) => `_${letter.toLowerCase()}`);
+  return value.replace(/[A-Z]|\d+/g, (part) => `_${part.toLowerCase()}`);
 }

@@ -18,3 +18,11 @@ Deno.test("sound catalog marks ambient sounds as loops and effects as one-shots"
   assertEquals(SOUND_CATALOG[SoundId.DoorOpen].category, "sfx");
   assertEquals(SOUND_CATALOG[SoundId.DoorOpen].loop, false);
 });
+
+Deno.test("wind is available as looping ambient audio", () => {
+  const wind = SOUND_CATALOG[SoundId.AmbientWind];
+
+  assertEquals(wind.src.endsWith("/assets/game/audio/wind.mp3"), true);
+  assertEquals(wind.category, "ambient");
+  assertEquals(wind.loop, true);
+});

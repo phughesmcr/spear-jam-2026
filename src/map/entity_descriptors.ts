@@ -49,6 +49,9 @@ export const DECORATION_KINDS = [
   "ceilingLight",
   "ceilingWires",
   "mainframeCore",
+  "tree1",
+  "tree2",
+  "tree3",
 ] as const;
 export type DecorationKind = (typeof DECORATION_KINDS)[number];
 

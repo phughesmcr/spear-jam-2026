@@ -50,6 +50,7 @@ export const SoundId = {
   AcolyteAttack: "acolyteAttack",
   AcolyteHurt: "acolyteHurt",
   AcolyteDefeat: "acolyteDefeat",
+  AmbientWind: "ambientWind",
 } as const;
 export type SoundId = (typeof SoundId)[keyof typeof SoundId];
 
@@ -100,11 +101,13 @@ export const SOUND_IDS = [
   SoundId.AcolyteHurt,
   SoundId.AcolyteDefeat,
   SoundId.GlassSmash,
+  SoundId.AmbientWind,
 ] as const satisfies readonly SoundId[];
 
 export const AMBIENT_SOUND_IDS = [
   SoundId.AmbientHum,
   SoundId.AmbientLightBuzz,
+  SoundId.AmbientWind,
 ] as const satisfies readonly SoundId[];
 export type AmbientSoundId = (typeof AMBIENT_SOUND_IDS)[number];
 

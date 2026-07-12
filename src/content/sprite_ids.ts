@@ -31,5 +31,8 @@ export const SpriteId = {
   MainframeCore: 26,
   SpearTurret: 27,
   SpearTurretLoaded: 28,
+  DecorTree1: 29,
+  DecorTree2: 30,
+  DecorTree3: 31,
 } as const;
 export type SpriteId = (typeof SpriteId)[keyof typeof SpriteId];

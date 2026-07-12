@@ -84,9 +84,9 @@ function validateGameMap(map: GameMap, mapNames: ReadonlySet<string>): readonly 
   }
 
   for (const [x, y] of barrierTiles(map)) {
-    if (!validThinTerrainSpan(map, x, y)) {
+    if (!validBarrierTerrainSpan(map, x, y)) {
       issues.push(
-        `${map.name}: barrier terrain at (${x},${y}) must sit between exactly one opposite pair of movement-blocking terrain tiles.`,
+        `${map.name}: barrier terrain at (${x},${y}) must be anchored to movement-blocking terrain on at least one side, and must not sit in a four-way blocking cross.`,
       );
     }
   }
@@ -311,6 +311,18 @@ function validThinTerrainSpan(map: GameMap, x: number, y: number): boolean {
   const verticalWalls = terrainBlocksMovement(terrainAt(map, x, y - 1)) &&
     terrainBlocksMovement(terrainAt(map, x, y + 1));
   return horizontalWalls !== verticalWalls;
+}
+
+/** Barriers may form continuous fence runs and T-junction corners, not only doorway spans. */
+function validBarrierTerrainSpan(map: GameMap, x: number, y: number): boolean {
+  const left = terrainBlocksMovement(terrainAt(map, x - 1, y));
+  const right = terrainBlocksMovement(terrainAt(map, x + 1, y));
+  const up = terrainBlocksMovement(terrainAt(map, x, y - 1));
+  const down = terrainBlocksMovement(terrainAt(map, x, y + 1));
+  const horizontalPair = left && right;
+  const verticalPair = up && down;
+  if (horizontalPair && verticalPair) return false;
+  return horizontalPair || verticalPair || left || right || up || down;
 }
 
 function barrierTiles(map: GameMap): readonly (readonly [number, number])[] {

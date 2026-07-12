@@ -1,0 +1,32 @@
+{
+  "type": "template",
+  "tileset": {
+    "firstgid": 1,
+    "source": "../entity_markers.tsj"
+  },
+  "object": {
+    "gid": 10,
+    "height": 16,
+    "name": "Tree 3",
+    "properties": [
+      {
+        "name": "prefab",
+        "propertytype": "Prefab",
+        "type": "string",
+        "value": "decoration"
+      },
+      {
+        "name": "decoration",
+        "propertytype": "DecorationKind",
+        "type": "string",
+        "value": "tree3"
+      }
+    ],
+    "rotation": 0,
+    "type": "decoration",
+    "visible": true,
+    "width": 16,
+    "x": 0,
+    "y": 16
+  }
+}

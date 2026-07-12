@@ -85,6 +85,9 @@ const SPEAR = new URL("../../assets/game/sprites/spear.png", import.meta.url).hr
 const MAINFRAME_CORE = new URL("../../assets/game/sprites/mainframe_core.png", import.meta.url).href;
 const SPEAR_TURRET = new URL("../../assets/game/sprites/spear_turret.png", import.meta.url).href;
 const SPEAR_TURRET_LOADED = new URL("../../assets/game/sprites/spear_turret_loaded.png", import.meta.url).href;
+const TREE_1 = new URL("../../assets/game/sprites/tree_1.png", import.meta.url).href;
+const TREE_2 = new URL("../../assets/game/sprites/tree_2.png", import.meta.url).href;
+const TREE_3 = new URL("../../assets/game/sprites/tree_3.png", import.meta.url).href;
 
 const SPRITE_APPEARANCES: Readonly<Record<SpriteIdType, SpriteAppearance>> = {
   [SpriteId.Player]: appearance(undefined, SCALE_ACTOR, "player", "#f0c84b"),
@@ -136,6 +139,9 @@ const SPRITE_APPEARANCES: Readonly<Record<SpriteIdType, SpriteAppearance>> = {
   [SpriteId.MainframeCore]: decorationAppearance(99, SCALE_MAINFRAME_CORE, 0, MAINFRAME_CORE),
   [SpriteId.SpearTurret]: decorationAppearance(100, SCALE_SPEAR_TURRET, 0, SPEAR_TURRET),
   [SpriteId.SpearTurretLoaded]: decorationAppearance(101, SCALE_SPEAR_TURRET, 0, SPEAR_TURRET_LOADED),
+  [SpriteId.DecorTree1]: decorationAppearance(102, SCALE_DECOR_TALL, 0, TREE_1),
+  [SpriteId.DecorTree2]: decorationAppearance(103, SCALE_DECOR_TALL, 0, TREE_2),
+  [SpriteId.DecorTree3]: decorationAppearance(104, SCALE_DECOR_TALL, 0, TREE_3),
 };
 
 const SPRITE_APPEARANCE_LIST = Object.values(SPRITE_APPEARANCES);
@@ -163,6 +169,9 @@ const DECORATION_SPRITE_IDS: Readonly<Record<DecorationKindType, SpriteIdType>> 
   ceilingLight: SpriteId.DecorCeilingLight,
   ceilingWires: SpriteId.DecorCeilingWires,
   mainframeCore: SpriteId.MainframeCore,
+  tree1: SpriteId.DecorTree1,
+  tree2: SpriteId.DecorTree2,
+  tree3: SpriteId.DecorTree3,
 };
 
 export function spriteAppearance(id: SpriteIdType): SpriteAppearance {

@@ -1,2897 +1,2835 @@
-{
-  "columns": 20,
-  "image": "floors.png",
-  "imageheight": 48,
-  "imagewidth": 320,
-  "margin": 0,
-  "name": "floors",
-  "spacing": 0,
-  "tilecount": 60,
-  "tiledversion": "1.12.2",
-  "tileheight": 16,
-  "tiles": [
-    {
-      "id": 0,
-      "type": "floorTerrain",
-      "properties": [
-        {
-          "name": "terrainId",
-          "type": "int",
-          "value": 0
-        },
-        {
-          "name": "terrainKind",
-          "type": "string",
-          "value": "floor"
-        },
-        {
-          "name": "blocking",
-          "type": "bool",
-          "value": false
-        },
-        {
-          "name": "label",
-          "type": "string",
-          "value": "0: pack1:0,0"
-        },
-        {
-          "name": "blocksSight",
-          "type": "bool",
-          "value": false
-        },
-        {
-          "name": "blocksAttacks",
-          "type": "bool",
-          "value": false
-        },
-        {
-          "name": "floorTexture",
-          "propertytype": "TextureRef",
-          "type": "string",
-          "value": "pack1:0,0"
-        },
-        {
-          "name": "ceilingTexture",
-          "propertytype": "TextureRef",
-          "type": "string",
-          "value": "pack1:0,0"
-        }
-      ]
-    },
-    {
-      "id": 1,
-      "type": "floorTerrain",
-      "properties": [
-        {
-          "name": "terrainId",
-          "type": "int",
-          "value": 1
-        },
-        {
-          "name": "terrainKind",
-          "type": "string",
-          "value": "floor"
-        },
-        {
-          "name": "blocking",
-          "type": "bool",
-          "value": false
-        },
-        {
-          "name": "label",
-          "type": "string",
-          "value": "1: pack1:1,0"
-        },
-        {
-          "name": "blocksSight",
-          "type": "bool",
-          "value": false
-        },
-        {
-          "name": "blocksAttacks",
-          "type": "bool",
-          "value": false
-        },
-        {
-          "name": "floorTexture",
-          "propertytype": "TextureRef",
-          "type": "string",
-          "value": "pack1:1,0"
-        },
-        {
-          "name": "ceilingTexture",
-          "propertytype": "TextureRef",
-          "type": "string",
-          "value": "pack1:1,0"
-        }
-      ]
-    },
-    {
-      "id": 2,
-      "type": "floorTerrain",
-      "properties": [
-        {
-          "name": "terrainId",
-          "type": "int",
-          "value": 2
-        },
-        {
-          "name": "terrainKind",
-          "type": "string",
-          "value": "floor"
-        },
-        {
-          "name": "blocking",
-          "type": "bool",
-          "value": false
-        },
-        {
-          "name": "label",
-          "type": "string",
-          "value": "2: pack1:2,0"
-        },
-        {
-          "name": "blocksSight",
-          "type": "bool",
-          "value": false
-        },
-        {
-          "name": "blocksAttacks",
-          "type": "bool",
-          "value": false
-        },
-        {
-          "name": "floorTexture",
-          "propertytype": "TextureRef",
-          "type": "string",
-          "value": "pack1:2,0"
-        },
-        {
-          "name": "ceilingTexture",
-          "propertytype": "TextureRef",
-          "type": "string",
-          "value": "sky"
-        }
-      ]
-    },
-    {
-      "id": 3,
-      "type": "floorTerrain",
-      "properties": [
-        {
-          "name": "terrainId",
-          "type": "int",
-          "value": 3
-        },
-        {
-          "name": "terrainKind",
-          "type": "string",
-          "value": "floor"
-        },
-        {
-          "name": "blocking",
-          "type": "bool",
-          "value": false
-        },
-        {
-          "name": "label",
-          "type": "string",
-          "value": "3: pack1:3,0"
-        },
-        {
-          "name": "blocksSight",
-          "type": "bool",
-          "value": false
-        },
-        {
-          "name": "blocksAttacks",
-          "type": "bool",
-          "value": false
-        },
-        {
-          "name": "floorTexture",
-          "propertytype": "TextureRef",
-          "type": "string",
-          "value": "pack1:3,0"
-        },
-        {
-          "name": "ceilingTexture",
-          "propertytype": "TextureRef",
-          "type": "string",
-          "value": "pack1:3,0"
-        }
-      ]
-    },
-    {
-      "id": 4,
-      "type": "floorTerrain",
-      "properties": [
-        {
-          "name": "terrainId",
-          "type": "int",
-          "value": 4
-        },
-        {
-          "name": "terrainKind",
-          "type": "string",
-          "value": "floor"
-        },
-        {
-          "name": "blocking",
-          "type": "bool",
-          "value": false
-        },
-        {
-          "name": "label",
-          "type": "string",
-          "value": "4: pack1:4,0"
-        },
-        {
-          "name": "blocksSight",
-          "type": "bool",
-          "value": false
-        },
-        {
-          "name": "blocksAttacks",
-          "type": "bool",
-          "value": false
-        },
-        {
-          "name": "floorTexture",
-          "propertytype": "TextureRef",
-          "type": "string",
-          "value": "pack1:4,0"
-        },
-        {
-          "name": "ceilingTexture",
-          "propertytype": "TextureRef",
-          "type": "string",
-          "value": "pack1:4,0"
-        }
-      ]
-    },
-    {
-      "id": 5,
-      "type": "floorTerrain",
-      "properties": [
-        {
-          "name": "terrainId",
-          "type": "int",
-          "value": 5
-        },
-        {
-          "name": "terrainKind",
-          "type": "string",
-          "value": "floor"
-        },
-        {
-          "name": "blocking",
-          "type": "bool",
-          "value": false
-        },
-        {
-          "name": "label",
-          "type": "string",
-          "value": "5: pack1:0,1"
-        },
-        {
-          "name": "blocksSight",
-          "type": "bool",
-          "value": false
-        },
-        {
-          "name": "blocksAttacks",
-          "type": "bool",
-          "value": false
-        },
-        {
-          "name": "floorTexture",
-          "propertytype": "TextureRef",
-          "type": "string",
-          "value": "pack1:0,1"
-        },
-        {
-          "name": "ceilingTexture",
-          "propertytype": "TextureRef",
-          "type": "string",
-          "value": "pack1:0,1"
-        }
-      ]
-    },
-    {
-      "id": 6,
-      "type": "floorTerrain",
-      "properties": [
-        {
-          "name": "terrainId",
-          "type": "int",
-          "value": 6
-        },
-        {
-          "name": "terrainKind",
-          "type": "string",
-          "value": "floor"
-        },
-        {
-          "name": "blocking",
-          "type": "bool",
-          "value": false
-        },
-        {
-          "name": "label",
-          "type": "string",
-          "value": "6: pack1:1,1"
-        },
-        {
-          "name": "blocksSight",
-          "type": "bool",
-          "value": false
-        },
-        {
-          "name": "blocksAttacks",
-          "type": "bool",
-          "value": false
-        },
-        {
-          "name": "floorTexture",
-          "propertytype": "TextureRef",
-          "type": "string",
-          "value": "pack1:1,1"
-        },
-        {
-          "name": "ceilingTexture",
-          "propertytype": "TextureRef",
-          "type": "string",
-          "value": "pack1:1,1"
-        }
-      ]
-    },
-    {
-      "id": 7,
-      "type": "floorTerrain",
-      "properties": [
-        {
-          "name": "terrainId",
-          "type": "int",
-          "value": 7
-        },
-        {
-          "name": "terrainKind",
-          "type": "string",
-          "value": "floor"
-        },
-        {
-          "name": "blocking",
-          "type": "bool",
-          "value": false
-        },
-        {
-          "name": "label",
-          "type": "string",
-          "value": "7: pack1:2,1"
-        },
-        {
-          "name": "blocksSight",
-          "type": "bool",
-          "value": false
-        },
-        {
-          "name": "blocksAttacks",
-          "type": "bool",
-          "value": false
-        },
-        {
-          "name": "floorTexture",
-          "propertytype": "TextureRef",
-          "type": "string",
-          "value": "pack1:2,1"
-        },
-        {
-          "name": "ceilingTexture",
-          "propertytype": "TextureRef",
-          "type": "string",
-          "value": "pack1:2,1"
-        }
-      ]
-    },
-    {
-      "id": 8,
-      "type": "floorTerrain",
-      "properties": [
-        {
-          "name": "terrainId",
-          "type": "int",
-          "value": 8
-        },
-        {
-          "name": "terrainKind",
-          "type": "string",
-          "value": "floor"
-        },
-        {
-          "name": "blocking",
-          "type": "bool",
-          "value": false
-        },
-        {
-          "name": "label",
-          "type": "string",
-          "value": "8: pack1:3,1"
-        },
-        {
-          "name": "blocksSight",
-          "type": "bool",
-          "value": false
-        },
-        {
-          "name": "blocksAttacks",
-          "type": "bool",
-          "value": false
-        },
-        {
-          "name": "floorTexture",
-          "propertytype": "TextureRef",
-          "type": "string",
-          "value": "pack1:3,1"
-        },
-        {
-          "name": "ceilingTexture",
-          "propertytype": "TextureRef",
-          "type": "string",
-          "value": "pack1:3,1"
-        }
-      ]
-    },
-    {
-      "id": 9,
-      "type": "floorTerrain",
-      "properties": [
-        {
-          "name": "terrainId",
-          "type": "int",
-          "value": 9
-        },
-        {
-          "name": "terrainKind",
-          "type": "string",
-          "value": "floor"
-        },
-        {
-          "name": "blocking",
-          "type": "bool",
-          "value": false
-        },
-        {
-          "name": "label",
-          "type": "string",
-          "value": "9: pack1:4,1"
-        },
-        {
-          "name": "blocksSight",
-          "type": "bool",
-          "value": false
-        },
-        {
-          "name": "blocksAttacks",
-          "type": "bool",
-          "value": false
-        },
-        {
-          "name": "floorTexture",
-          "propertytype": "TextureRef",
-          "type": "string",
-          "value": "pack1:4,1"
-        },
-        {
-          "name": "ceilingTexture",
-          "propertytype": "TextureRef",
-          "type": "string",
-          "value": "pack1:4,1"
-        }
-      ]
-    },
-    {
-      "id": 10,
-      "type": "floorTerrain",
-      "properties": [
-        {
-          "name": "terrainId",
-          "type": "int",
-          "value": 10
-        },
-        {
-          "name": "terrainKind",
-          "type": "string",
-          "value": "floor"
-        },
-        {
-          "name": "blocking",
-          "type": "bool",
-          "value": false
-        },
-        {
-          "name": "label",
-          "type": "string",
-          "value": "10: pack1:0,2"
-        },
-        {
-          "name": "blocksSight",
-          "type": "bool",
-          "value": false
-        },
-        {
-          "name": "blocksAttacks",
-          "type": "bool",
-          "value": false
-        },
-        {
-          "name": "floorTexture",
-          "propertytype": "TextureRef",
-          "type": "string",
-          "value": "pack1:0,2"
-        },
-        {
-          "name": "ceilingTexture",
-          "propertytype": "TextureRef",
-          "type": "string",
-          "value": "pack1:0,2"
-        }
-      ]
-    },
-    {
-      "id": 11,
-      "type": "floorTerrain",
-      "properties": [
-        {
-          "name": "terrainId",
-          "type": "int",
-          "value": 11
-        },
-        {
-          "name": "terrainKind",
-          "type": "string",
-          "value": "floor"
-        },
-        {
-          "name": "blocking",
-          "type": "bool",
-          "value": false
-        },
-        {
-          "name": "label",
-          "type": "string",
-          "value": "11: pack1:1,2"
-        },
-        {
-          "name": "blocksSight",
-          "type": "bool",
-          "value": false
-        },
-        {
-          "name": "blocksAttacks",
-          "type": "bool",
-          "value": false
-        },
-        {
-          "name": "floorTexture",
-          "propertytype": "TextureRef",
-          "type": "string",
-          "value": "pack1:1,2"
-        },
-        {
-          "name": "ceilingTexture",
-          "propertytype": "TextureRef",
-          "type": "string",
-          "value": "pack1:1,2"
-        }
-      ]
-    },
-    {
-      "id": 12,
-      "type": "floorTerrain",
-      "properties": [
-        {
-          "name": "terrainId",
-          "type": "int",
-          "value": 12
-        },
-        {
-          "name": "terrainKind",
-          "type": "string",
-          "value": "floor"
-        },
-        {
-          "name": "blocking",
-          "type": "bool",
-          "value": false
-        },
-        {
-          "name": "label",
-          "type": "string",
-          "value": "12: pack1:2,2"
-        },
-        {
-          "name": "blocksSight",
-          "type": "bool",
-          "value": false
-        },
-        {
-          "name": "blocksAttacks",
-          "type": "bool",
-          "value": false
-        },
-        {
-          "name": "floorTexture",
-          "propertytype": "TextureRef",
-          "type": "string",
-          "value": "pack1:2,2"
-        },
-        {
-          "name": "ceilingTexture",
-          "propertytype": "TextureRef",
-          "type": "string",
-          "value": "pack1:2,2"
-        }
-      ]
-    },
-    {
-      "id": 13,
-      "type": "floorTerrain",
-      "properties": [
-        {
-          "name": "terrainId",
-          "type": "int",
-          "value": 13
-        },
-        {
-          "name": "terrainKind",
-          "type": "string",
-          "value": "floor"
-        },
-        {
-          "name": "blocking",
-          "type": "bool",
-          "value": false
-        },
-        {
-          "name": "label",
-          "type": "string",
-          "value": "13: pack1:3,2"
-        },
-        {
-          "name": "blocksSight",
-          "type": "bool",
-          "value": false
-        },
-        {
-          "name": "blocksAttacks",
-          "type": "bool",
-          "value": false
-        },
-        {
-          "name": "floorTexture",
-          "propertytype": "TextureRef",
-          "type": "string",
-          "value": "pack1:3,2"
-        },
-        {
-          "name": "ceilingTexture",
-          "propertytype": "TextureRef",
-          "type": "string",
-          "value": "pack1:3,2"
-        }
-      ]
-    },
-    {
-      "id": 14,
-      "type": "floorTerrain",
-      "properties": [
-        {
-          "name": "terrainId",
-          "type": "int",
-          "value": 14
-        },
-        {
-          "name": "terrainKind",
-          "type": "string",
-          "value": "floor"
-        },
-        {
-          "name": "blocking",
-          "type": "bool",
-          "value": false
-        },
-        {
-          "name": "label",
-          "type": "string",
-          "value": "14: pack1:4,2"
-        },
-        {
-          "name": "blocksSight",
-          "type": "bool",
-          "value": false
-        },
-        {
-          "name": "blocksAttacks",
-          "type": "bool",
-          "value": false
-        },
-        {
-          "name": "floorTexture",
-          "propertytype": "TextureRef",
-          "type": "string",
-          "value": "pack1:4,2"
-        },
-        {
-          "name": "ceilingTexture",
-          "propertytype": "TextureRef",
-          "type": "string",
-          "value": "pack1:4,2"
-        }
-      ]
-    },
-    {
-      "id": 15,
-      "type": "floorTerrain",
-      "properties": [
-        {
-          "name": "terrainId",
-          "type": "int",
-          "value": 15
-        },
-        {
-          "name": "terrainKind",
-          "type": "string",
-          "value": "floor"
-        },
-        {
-          "name": "blocking",
-          "type": "bool",
-          "value": false
-        },
-        {
-          "name": "label",
-          "type": "string",
-          "value": "15: pack1:0,3"
-        },
-        {
-          "name": "blocksSight",
-          "type": "bool",
-          "value": false
-        },
-        {
-          "name": "blocksAttacks",
-          "type": "bool",
-          "value": false
-        },
-        {
-          "name": "floorTexture",
-          "propertytype": "TextureRef",
-          "type": "string",
-          "value": "pack1:0,3"
-        },
-        {
-          "name": "ceilingTexture",
-          "propertytype": "TextureRef",
-          "type": "string",
-          "value": "pack1:0,3"
-        }
-      ]
-    },
-    {
-      "id": 16,
-      "type": "floorTerrain",
-      "properties": [
-        {
-          "name": "terrainId",
-          "type": "int",
-          "value": 16
-        },
-        {
-          "name": "terrainKind",
-          "type": "string",
-          "value": "floor"
-        },
-        {
-          "name": "blocking",
-          "type": "bool",
-          "value": false
-        },
-        {
-          "name": "label",
-          "type": "string",
-          "value": "16: pack1:1,3"
-        },
-        {
-          "name": "blocksSight",
-          "type": "bool",
-          "value": false
-        },
-        {
-          "name": "blocksAttacks",
-          "type": "bool",
-          "value": false
-        },
-        {
-          "name": "floorTexture",
-          "propertytype": "TextureRef",
-          "type": "string",
-          "value": "pack1:1,3"
-        },
-        {
-          "name": "ceilingTexture",
-          "propertytype": "TextureRef",
-          "type": "string",
-          "value": "pack1:1,3"
-        }
-      ]
-    },
-    {
-      "id": 17,
-      "type": "floorTerrain",
-      "properties": [
-        {
-          "name": "terrainId",
-          "type": "int",
-          "value": 17
-        },
-        {
-          "name": "terrainKind",
-          "type": "string",
-          "value": "floor"
-        },
-        {
-          "name": "blocking",
-          "type": "bool",
-          "value": false
-        },
-        {
-          "name": "label",
-          "type": "string",
-          "value": "17: pack1:2,3"
-        },
-        {
-          "name": "blocksSight",
-          "type": "bool",
-          "value": false
-        },
-        {
-          "name": "blocksAttacks",
-          "type": "bool",
-          "value": false
-        },
-        {
-          "name": "floorTexture",
-          "propertytype": "TextureRef",
-          "type": "string",
-          "value": "pack1:2,3"
-        },
-        {
-          "name": "ceilingTexture",
-          "propertytype": "TextureRef",
-          "type": "string",
-          "value": "pack1:2,3"
-        }
-      ]
-    },
-    {
-      "id": 18,
-      "type": "floorTerrain",
-      "properties": [
-        {
-          "name": "terrainId",
-          "type": "int",
-          "value": 18
-        },
-        {
-          "name": "terrainKind",
-          "type": "string",
-          "value": "floor"
-        },
-        {
-          "name": "blocking",
-          "type": "bool",
-          "value": false
-        },
-        {
-          "name": "label",
-          "type": "string",
-          "value": "18: pack1:3,3"
-        },
-        {
-          "name": "blocksSight",
-          "type": "bool",
-          "value": false
-        },
-        {
-          "name": "blocksAttacks",
-          "type": "bool",
-          "value": false
-        },
-        {
-          "name": "floorTexture",
-          "propertytype": "TextureRef",
-          "type": "string",
-          "value": "pack1:3,3"
-        },
-        {
-          "name": "ceilingTexture",
-          "propertytype": "TextureRef",
-          "type": "string",
-          "value": "pack1:3,3"
-        }
-      ]
-    },
-    {
-      "id": 19,
-      "type": "floorTerrain",
-      "properties": [
-        {
-          "name": "terrainId",
-          "type": "int",
-          "value": 19
-        },
-        {
-          "name": "terrainKind",
-          "type": "string",
-          "value": "floor"
-        },
-        {
-          "name": "blocking",
-          "type": "bool",
-          "value": false
-        },
-        {
-          "name": "label",
-          "type": "string",
-          "value": "19: pack1:4,3"
-        },
-        {
-          "name": "blocksSight",
-          "type": "bool",
-          "value": false
-        },
-        {
-          "name": "blocksAttacks",
-          "type": "bool",
-          "value": false
-        },
-        {
-          "name": "floorTexture",
-          "propertytype": "TextureRef",
-          "type": "string",
-          "value": "pack1:4,3"
-        },
-        {
-          "name": "ceilingTexture",
-          "propertytype": "TextureRef",
-          "type": "string",
-          "value": "pack1:4,3"
-        }
-      ]
-    },
-    {
-      "id": 20,
-      "type": "floorTerrain",
-      "properties": [
-        {
-          "name": "terrainId",
-          "type": "int",
-          "value": 20
-        },
-        {
-          "name": "terrainKind",
-          "type": "string",
-          "value": "floor"
-        },
-        {
-          "name": "blocking",
-          "type": "bool",
-          "value": false
-        },
-        {
-          "name": "label",
-          "type": "string",
-          "value": "20: pack2:0,0"
-        },
-        {
-          "name": "blocksSight",
-          "type": "bool",
-          "value": false
-        },
-        {
-          "name": "blocksAttacks",
-          "type": "bool",
-          "value": false
-        },
-        {
-          "name": "floorTexture",
-          "propertytype": "TextureRef",
-          "type": "string",
-          "value": "pack2:0,0"
-        },
-        {
-          "name": "ceilingTexture",
-          "propertytype": "TextureRef",
-          "type": "string",
-          "value": "pack2:0,0"
-        }
-      ]
-    },
-    {
-      "id": 21,
-      "type": "floorTerrain",
-      "properties": [
-        {
-          "name": "terrainId",
-          "type": "int",
-          "value": 21
-        },
-        {
-          "name": "terrainKind",
-          "type": "string",
-          "value": "floor"
-        },
-        {
-          "name": "blocking",
-          "type": "bool",
-          "value": false
-        },
-        {
-          "name": "label",
-          "type": "string",
-          "value": "21: pack2:1,0"
-        },
-        {
-          "name": "blocksSight",
-          "type": "bool",
-          "value": false
-        },
-        {
-          "name": "blocksAttacks",
-          "type": "bool",
-          "value": false
-        },
-        {
-          "name": "floorTexture",
-          "propertytype": "TextureRef",
-          "type": "string",
-          "value": "pack2:1,0"
-        },
-        {
-          "name": "ceilingTexture",
-          "propertytype": "TextureRef",
-          "type": "string",
-          "value": "pack2:1,0"
-        }
-      ]
-    },
-    {
-      "id": 22,
-      "type": "floorTerrain",
-      "properties": [
-        {
-          "name": "terrainId",
-          "type": "int",
-          "value": 22
-        },
-        {
-          "name": "terrainKind",
-          "type": "string",
-          "value": "floor"
-        },
-        {
-          "name": "blocking",
-          "type": "bool",
-          "value": false
-        },
-        {
-          "name": "label",
-          "type": "string",
-          "value": "22: pack2:2,0"
-        },
-        {
-          "name": "blocksSight",
-          "type": "bool",
-          "value": false
-        },
-        {
-          "name": "blocksAttacks",
-          "type": "bool",
-          "value": false
-        },
-        {
-          "name": "floorTexture",
-          "propertytype": "TextureRef",
-          "type": "string",
-          "value": "pack2:2,0"
-        },
-        {
-          "name": "ceilingTexture",
-          "propertytype": "TextureRef",
-          "type": "string",
-          "value": "pack2:2,0"
-        }
-      ]
-    },
-    {
-      "id": 23,
-      "type": "floorTerrain",
-      "properties": [
-        {
-          "name": "terrainId",
-          "type": "int",
-          "value": 23
-        },
-        {
-          "name": "terrainKind",
-          "type": "string",
-          "value": "floor"
-        },
-        {
-          "name": "blocking",
-          "type": "bool",
-          "value": false
-        },
-        {
-          "name": "label",
-          "type": "string",
-          "value": "23: pack2:3,0"
-        },
-        {
-          "name": "blocksSight",
-          "type": "bool",
-          "value": false
-        },
-        {
-          "name": "blocksAttacks",
-          "type": "bool",
-          "value": false
-        },
-        {
-          "name": "floorTexture",
-          "propertytype": "TextureRef",
-          "type": "string",
-          "value": "pack2:3,0"
-        },
-        {
-          "name": "ceilingTexture",
-          "propertytype": "TextureRef",
-          "type": "string",
-          "value": "pack2:3,0"
-        }
-      ]
-    },
-    {
-      "id": 24,
-      "type": "floorTerrain",
-      "properties": [
-        {
-          "name": "terrainId",
-          "type": "int",
-          "value": 24
-        },
-        {
-          "name": "terrainKind",
-          "type": "string",
-          "value": "floor"
-        },
-        {
-          "name": "blocking",
-          "type": "bool",
-          "value": false
-        },
-        {
-          "name": "label",
-          "type": "string",
-          "value": "24: pack2:4,0"
-        },
-        {
-          "name": "blocksSight",
-          "type": "bool",
-          "value": false
-        },
-        {
-          "name": "blocksAttacks",
-          "type": "bool",
-          "value": false
-        },
-        {
-          "name": "floorTexture",
-          "propertytype": "TextureRef",
-          "type": "string",
-          "value": "pack2:4,0"
-        },
-        {
-          "name": "ceilingTexture",
-          "propertytype": "TextureRef",
-          "type": "string",
-          "value": "pack2:4,0"
-        }
-      ]
-    },
-    {
-      "id": 25,
-      "type": "floorTerrain",
-      "properties": [
-        {
-          "name": "terrainId",
-          "type": "int",
-          "value": 25
-        },
-        {
-          "name": "terrainKind",
-          "type": "string",
-          "value": "floor"
-        },
-        {
-          "name": "blocking",
-          "type": "bool",
-          "value": false
-        },
-        {
-          "name": "label",
-          "type": "string",
-          "value": "25: pack2:0,1"
-        },
-        {
-          "name": "blocksSight",
-          "type": "bool",
-          "value": false
-        },
-        {
-          "name": "blocksAttacks",
-          "type": "bool",
-          "value": false
-        },
-        {
-          "name": "floorTexture",
-          "propertytype": "TextureRef",
-          "type": "string",
-          "value": "pack2:0,1"
-        },
-        {
-          "name": "ceilingTexture",
-          "propertytype": "TextureRef",
-          "type": "string",
-          "value": "pack2:0,1"
-        }
-      ]
-    },
-    {
-      "id": 26,
-      "type": "floorTerrain",
-      "properties": [
-        {
-          "name": "terrainId",
-          "type": "int",
-          "value": 26
-        },
-        {
-          "name": "terrainKind",
-          "type": "string",
-          "value": "floor"
-        },
-        {
-          "name": "blocking",
-          "type": "bool",
-          "value": false
-        },
-        {
-          "name": "label",
-          "type": "string",
-          "value": "26: pack2:1,1"
-        },
-        {
-          "name": "blocksSight",
-          "type": "bool",
-          "value": false
-        },
-        {
-          "name": "blocksAttacks",
-          "type": "bool",
-          "value": false
-        },
-        {
-          "name": "floorTexture",
-          "propertytype": "TextureRef",
-          "type": "string",
-          "value": "pack2:1,1"
-        },
-        {
-          "name": "ceilingTexture",
-          "propertytype": "TextureRef",
-          "type": "string",
-          "value": "pack2:1,1"
-        }
-      ]
-    },
-    {
-      "id": 27,
-      "type": "floorTerrain",
-      "properties": [
-        {
-          "name": "terrainId",
-          "type": "int",
-          "value": 27
-        },
-        {
-          "name": "terrainKind",
-          "type": "string",
-          "value": "floor"
-        },
-        {
-          "name": "blocking",
-          "type": "bool",
-          "value": false
-        },
-        {
-          "name": "label",
-          "type": "string",
-          "value": "27: pack2:2,1"
-        },
-        {
-          "name": "blocksSight",
-          "type": "bool",
-          "value": false
-        },
-        {
-          "name": "blocksAttacks",
-          "type": "bool",
-          "value": false
-        },
-        {
-          "name": "floorTexture",
-          "propertytype": "TextureRef",
-          "type": "string",
-          "value": "pack2:2,1"
-        },
-        {
-          "name": "ceilingTexture",
-          "propertytype": "TextureRef",
-          "type": "string",
-          "value": "pack2:2,1"
-        }
-      ]
-    },
-    {
-      "id": 28,
-      "type": "floorTerrain",
-      "properties": [
-        {
-          "name": "terrainId",
-          "type": "int",
-          "value": 28
-        },
-        {
-          "name": "terrainKind",
-          "type": "string",
-          "value": "floor"
-        },
-        {
-          "name": "blocking",
-          "type": "bool",
-          "value": false
-        },
-        {
-          "name": "label",
-          "type": "string",
-          "value": "28: pack2:3,1"
-        },
-        {
-          "name": "blocksSight",
-          "type": "bool",
-          "value": false
-        },
-        {
-          "name": "blocksAttacks",
-          "type": "bool",
-          "value": false
-        },
-        {
-          "name": "floorTexture",
-          "propertytype": "TextureRef",
-          "type": "string",
-          "value": "pack2:3,1"
-        },
-        {
-          "name": "ceilingTexture",
-          "propertytype": "TextureRef",
-          "type": "string",
-          "value": "pack2:3,1"
-        }
-      ]
-    },
-    {
-      "id": 29,
-      "type": "floorTerrain",
-      "properties": [
-        {
-          "name": "terrainId",
-          "type": "int",
-          "value": 29
-        },
-        {
-          "name": "terrainKind",
-          "type": "string",
-          "value": "floor"
-        },
-        {
-          "name": "blocking",
-          "type": "bool",
-          "value": false
-        },
-        {
-          "name": "label",
-          "type": "string",
-          "value": "29: pack2:4,1"
-        },
-        {
-          "name": "blocksSight",
-          "type": "bool",
-          "value": false
-        },
-        {
-          "name": "blocksAttacks",
-          "type": "bool",
-          "value": false
-        },
-        {
-          "name": "floorTexture",
-          "propertytype": "TextureRef",
-          "type": "string",
-          "value": "pack2:4,1"
-        },
-        {
-          "name": "ceilingTexture",
-          "propertytype": "TextureRef",
-          "type": "string",
-          "value": "pack2:4,1"
-        }
-      ]
-    },
-    {
-      "id": 30,
-      "type": "floorTerrain",
-      "properties": [
-        {
-          "name": "terrainId",
-          "type": "int",
-          "value": 30
-        },
-        {
-          "name": "terrainKind",
-          "type": "string",
-          "value": "floor"
-        },
-        {
-          "name": "blocking",
-          "type": "bool",
-          "value": false
-        },
-        {
-          "name": "label",
-          "type": "string",
-          "value": "30: pack2:0,2"
-        },
-        {
-          "name": "blocksSight",
-          "type": "bool",
-          "value": false
-        },
-        {
-          "name": "blocksAttacks",
-          "type": "bool",
-          "value": false
-        },
-        {
-          "name": "floorTexture",
-          "propertytype": "TextureRef",
-          "type": "string",
-          "value": "pack2:0,2"
-        },
-        {
-          "name": "ceilingTexture",
-          "propertytype": "TextureRef",
-          "type": "string",
-          "value": "pack2:0,2"
-        }
-      ]
-    },
-    {
-      "id": 31,
-      "type": "floorTerrain",
-      "properties": [
-        {
-          "name": "terrainId",
-          "type": "int",
-          "value": 31
-        },
-        {
-          "name": "terrainKind",
-          "type": "string",
-          "value": "floor"
-        },
-        {
-          "name": "blocking",
-          "type": "bool",
-          "value": false
-        },
-        {
-          "name": "label",
-          "type": "string",
-          "value": "31: pack2:1,2"
-        },
-        {
-          "name": "blocksSight",
-          "type": "bool",
-          "value": false
-        },
-        {
-          "name": "blocksAttacks",
-          "type": "bool",
-          "value": false
-        },
-        {
-          "name": "floorTexture",
-          "propertytype": "TextureRef",
-          "type": "string",
-          "value": "pack2:1,2"
-        },
-        {
-          "name": "ceilingTexture",
-          "propertytype": "TextureRef",
-          "type": "string",
-          "value": "pack2:1,2"
-        }
-      ]
-    },
-    {
-      "id": 32,
-      "type": "floorTerrain",
-      "properties": [
-        {
-          "name": "terrainId",
-          "type": "int",
-          "value": 32
-        },
-        {
-          "name": "terrainKind",
-          "type": "string",
-          "value": "floor"
-        },
-        {
-          "name": "blocking",
-          "type": "bool",
-          "value": false
-        },
-        {
-          "name": "label",
-          "type": "string",
-          "value": "32: pack2:2,2"
-        },
-        {
-          "name": "blocksSight",
-          "type": "bool",
-          "value": false
-        },
-        {
-          "name": "blocksAttacks",
-          "type": "bool",
-          "value": false
-        },
-        {
-          "name": "floorTexture",
-          "propertytype": "TextureRef",
-          "type": "string",
-          "value": "pack2:2,2"
-        },
-        {
-          "name": "ceilingTexture",
-          "propertytype": "TextureRef",
-          "type": "string",
-          "value": "pack2:2,2"
-        }
-      ]
-    },
-    {
-      "id": 33,
-      "type": "floorTerrain",
-      "properties": [
-        {
-          "name": "terrainId",
-          "type": "int",
-          "value": 33
-        },
-        {
-          "name": "terrainKind",
-          "type": "string",
-          "value": "floor"
-        },
-        {
-          "name": "blocking",
-          "type": "bool",
-          "value": false
-        },
-        {
-          "name": "label",
-          "type": "string",
-          "value": "33: pack2:3,2"
-        },
-        {
-          "name": "blocksSight",
-          "type": "bool",
-          "value": false
-        },
-        {
-          "name": "blocksAttacks",
-          "type": "bool",
-          "value": false
-        },
-        {
-          "name": "floorTexture",
-          "propertytype": "TextureRef",
-          "type": "string",
-          "value": "pack2:3,2"
-        },
-        {
-          "name": "ceilingTexture",
-          "propertytype": "TextureRef",
-          "type": "string",
-          "value": "pack2:3,2"
-        }
-      ]
-    },
-    {
-      "id": 34,
-      "type": "floorTerrain",
-      "properties": [
-        {
-          "name": "terrainId",
-          "type": "int",
-          "value": 34
-        },
-        {
-          "name": "terrainKind",
-          "type": "string",
-          "value": "floor"
-        },
-        {
-          "name": "blocking",
-          "type": "bool",
-          "value": false
-        },
-        {
-          "name": "label",
-          "type": "string",
-          "value": "34: pack2:4,2"
-        },
-        {
-          "name": "blocksSight",
-          "type": "bool",
-          "value": false
-        },
-        {
-          "name": "blocksAttacks",
-          "type": "bool",
-          "value": false
-        },
-        {
-          "name": "floorTexture",
-          "propertytype": "TextureRef",
-          "type": "string",
-          "value": "pack2:4,2"
-        },
-        {
-          "name": "ceilingTexture",
-          "propertytype": "TextureRef",
-          "type": "string",
-          "value": "pack2:4,2"
-        }
-      ]
-    },
-    {
-      "id": 35,
-      "type": "floorTerrain",
-      "properties": [
-        {
-          "name": "terrainId",
-          "type": "int",
-          "value": 35
-        },
-        {
-          "name": "terrainKind",
-          "type": "string",
-          "value": "floor"
-        },
-        {
-          "name": "blocking",
-          "type": "bool",
-          "value": false
-        },
-        {
-          "name": "label",
-          "type": "string",
-          "value": "35: pack2:0,3"
-        },
-        {
-          "name": "blocksSight",
-          "type": "bool",
-          "value": false
-        },
-        {
-          "name": "blocksAttacks",
-          "type": "bool",
-          "value": false
-        },
-        {
-          "name": "floorTexture",
-          "propertytype": "TextureRef",
-          "type": "string",
-          "value": "pack2:0,3"
-        },
-        {
-          "name": "ceilingTexture",
-          "propertytype": "TextureRef",
-          "type": "string",
-          "value": "pack2:0,3"
-        }
-      ]
-    },
-    {
-      "id": 36,
-      "type": "floorTerrain",
-      "properties": [
-        {
-          "name": "terrainId",
-          "type": "int",
-          "value": 36
-        },
-        {
-          "name": "terrainKind",
-          "type": "string",
-          "value": "floor"
-        },
-        {
-          "name": "blocking",
-          "type": "bool",
-          "value": false
-        },
-        {
-          "name": "label",
-          "type": "string",
-          "value": "36: pack2:1,3"
-        },
-        {
-          "name": "blocksSight",
-          "type": "bool",
-          "value": false
-        },
-        {
-          "name": "blocksAttacks",
-          "type": "bool",
-          "value": false
-        },
-        {
-          "name": "floorTexture",
-          "propertytype": "TextureRef",
-          "type": "string",
-          "value": "pack2:1,3"
-        },
-        {
-          "name": "ceilingTexture",
-          "propertytype": "TextureRef",
-          "type": "string",
-          "value": "pack2:1,3"
-        }
-      ]
-    },
-    {
-      "id": 37,
-      "type": "floorTerrain",
-      "properties": [
-        {
-          "name": "terrainId",
-          "type": "int",
-          "value": 37
-        },
-        {
-          "name": "terrainKind",
-          "type": "string",
-          "value": "floor"
-        },
-        {
-          "name": "blocking",
-          "type": "bool",
-          "value": false
-        },
-        {
-          "name": "label",
-          "type": "string",
-          "value": "37: pack2:2,3"
-        },
-        {
-          "name": "blocksSight",
-          "type": "bool",
-          "value": false
-        },
-        {
-          "name": "blocksAttacks",
-          "type": "bool",
-          "value": false
-        },
-        {
-          "name": "floorTexture",
-          "propertytype": "TextureRef",
-          "type": "string",
-          "value": "pack2:2,3"
-        },
-        {
-          "name": "ceilingTexture",
-          "propertytype": "TextureRef",
-          "type": "string",
-          "value": "pack2:2,3"
-        }
-      ]
-    },
-    {
-      "id": 38,
-      "type": "floorTerrain",
-      "properties": [
-        {
-          "name": "terrainId",
-          "type": "int",
-          "value": 38
-        },
-        {
-          "name": "terrainKind",
-          "type": "string",
-          "value": "floor"
-        },
-        {
-          "name": "blocking",
-          "type": "bool",
-          "value": false
-        },
-        {
-          "name": "label",
-          "type": "string",
-          "value": "38: pack2:3,3"
-        },
-        {
-          "name": "blocksSight",
-          "type": "bool",
-          "value": false
-        },
-        {
-          "name": "blocksAttacks",
-          "type": "bool",
-          "value": false
-        },
-        {
-          "name": "floorTexture",
-          "propertytype": "TextureRef",
-          "type": "string",
-          "value": "pack2:3,3"
-        },
-        {
-          "name": "ceilingTexture",
-          "propertytype": "TextureRef",
-          "type": "string",
-          "value": "pack2:3,3"
-        }
-      ]
-    },
-    {
-      "id": 39,
-      "type": "floorTerrain",
-      "properties": [
-        {
-          "name": "terrainId",
-          "type": "int",
-          "value": 39
-        },
-        {
-          "name": "terrainKind",
-          "type": "string",
-          "value": "floor"
-        },
-        {
-          "name": "blocking",
-          "type": "bool",
-          "value": false
-        },
-        {
-          "name": "label",
-          "type": "string",
-          "value": "39: pack2:4,3"
-        },
-        {
-          "name": "blocksSight",
-          "type": "bool",
-          "value": false
-        },
-        {
-          "name": "blocksAttacks",
-          "type": "bool",
-          "value": false
-        },
-        {
-          "name": "floorTexture",
-          "propertytype": "TextureRef",
-          "type": "string",
-          "value": "pack2:4,3"
-        },
-        {
-          "name": "ceilingTexture",
-          "propertytype": "TextureRef",
-          "type": "string",
-          "value": "pack2:4,3"
-        }
-      ]
-    },
-    {
-      "id": 40,
-      "type": "floorTerrain",
-      "properties": [
-        {
-          "name": "terrainId",
-          "type": "int",
-          "value": 40
-        },
-        {
-          "name": "terrainKind",
-          "type": "string",
-          "value": "floor"
-        },
-        {
-          "name": "blocking",
-          "type": "bool",
-          "value": false
-        },
-        {
-          "name": "label",
-          "type": "string",
-          "value": "40: pack3:0,0"
-        },
-        {
-          "name": "blocksSight",
-          "type": "bool",
-          "value": false
-        },
-        {
-          "name": "blocksAttacks",
-          "type": "bool",
-          "value": false
-        },
-        {
-          "name": "floorTexture",
-          "propertytype": "TextureRef",
-          "type": "string",
-          "value": "pack3:0,0"
-        },
-        {
-          "name": "ceilingTexture",
-          "propertytype": "TextureRef",
-          "type": "string",
-          "value": "pack3:0,0"
-        }
-      ]
-    },
-    {
-      "id": 41,
-      "type": "floorTerrain",
-      "properties": [
-        {
-          "name": "terrainId",
-          "type": "int",
-          "value": 41
-        },
-        {
-          "name": "terrainKind",
-          "type": "string",
-          "value": "floor"
-        },
-        {
-          "name": "blocking",
-          "type": "bool",
-          "value": false
-        },
-        {
-          "name": "label",
-          "type": "string",
-          "value": "41: pack3:1,0"
-        },
-        {
-          "name": "blocksSight",
-          "type": "bool",
-          "value": false
-        },
-        {
-          "name": "blocksAttacks",
-          "type": "bool",
-          "value": false
-        },
-        {
-          "name": "floorTexture",
-          "propertytype": "TextureRef",
-          "type": "string",
-          "value": "pack3:1,0"
-        },
-        {
-          "name": "ceilingTexture",
-          "propertytype": "TextureRef",
-          "type": "string",
-          "value": "pack3:1,0"
-        }
-      ]
-    },
-    {
-      "id": 42,
-      "type": "floorTerrain",
-      "properties": [
-        {
-          "name": "terrainId",
-          "type": "int",
-          "value": 42
-        },
-        {
-          "name": "terrainKind",
-          "type": "string",
-          "value": "floor"
-        },
-        {
-          "name": "blocking",
-          "type": "bool",
-          "value": false
-        },
-        {
-          "name": "label",
-          "type": "string",
-          "value": "42: pack3:2,0"
-        },
-        {
-          "name": "blocksSight",
-          "type": "bool",
-          "value": false
-        },
-        {
-          "name": "blocksAttacks",
-          "type": "bool",
-          "value": false
-        },
-        {
-          "name": "floorTexture",
-          "propertytype": "TextureRef",
-          "type": "string",
-          "value": "pack3:2,0"
-        },
-        {
-          "name": "ceilingTexture",
-          "propertytype": "TextureRef",
-          "type": "string",
-          "value": "pack3:2,0"
-        }
-      ]
-    },
-    {
-      "id": 43,
-      "type": "floorTerrain",
-      "properties": [
-        {
-          "name": "terrainId",
-          "type": "int",
-          "value": 43
-        },
-        {
-          "name": "terrainKind",
-          "type": "string",
-          "value": "floor"
-        },
-        {
-          "name": "blocking",
-          "type": "bool",
-          "value": false
-        },
-        {
-          "name": "label",
-          "type": "string",
-          "value": "43: pack3:3,0"
-        },
-        {
-          "name": "blocksSight",
-          "type": "bool",
-          "value": false
-        },
-        {
-          "name": "blocksAttacks",
-          "type": "bool",
-          "value": false
-        },
-        {
-          "name": "floorTexture",
-          "propertytype": "TextureRef",
-          "type": "string",
-          "value": "pack3:3,0"
-        },
-        {
-          "name": "ceilingTexture",
-          "propertytype": "TextureRef",
-          "type": "string",
-          "value": "pack3:3,0"
-        }
-      ]
-    },
-    {
-      "id": 44,
-      "type": "floorTerrain",
-      "properties": [
-        {
-          "name": "terrainId",
-          "type": "int",
-          "value": 44
-        },
-        {
-          "name": "terrainKind",
-          "type": "string",
-          "value": "floor"
-        },
-        {
-          "name": "blocking",
-          "type": "bool",
-          "value": false
-        },
-        {
-          "name": "label",
-          "type": "string",
-          "value": "44: pack3:4,0"
-        },
-        {
-          "name": "blocksSight",
-          "type": "bool",
-          "value": false
-        },
-        {
-          "name": "blocksAttacks",
-          "type": "bool",
-          "value": false
-        },
-        {
-          "name": "floorTexture",
-          "propertytype": "TextureRef",
-          "type": "string",
-          "value": "pack3:4,0"
-        },
-        {
-          "name": "ceilingTexture",
-          "propertytype": "TextureRef",
-          "type": "string",
-          "value": "pack3:4,0"
-        }
-      ]
-    },
-    {
-      "id": 45,
-      "type": "floorTerrain",
-      "properties": [
-        {
-          "name": "terrainId",
-          "type": "int",
-          "value": 45
-        },
-        {
-          "name": "terrainKind",
-          "type": "string",
-          "value": "floor"
-        },
-        {
-          "name": "blocking",
-          "type": "bool",
-          "value": false
-        },
-        {
-          "name": "label",
-          "type": "string",
-          "value": "45: pack3:0,1"
-        },
-        {
-          "name": "blocksSight",
-          "type": "bool",
-          "value": false
-        },
-        {
-          "name": "blocksAttacks",
-          "type": "bool",
-          "value": false
-        },
-        {
-          "name": "floorTexture",
-          "propertytype": "TextureRef",
-          "type": "string",
-          "value": "pack3:0,1"
-        },
-        {
-          "name": "ceilingTexture",
-          "propertytype": "TextureRef",
-          "type": "string",
-          "value": "pack3:0,1"
-        }
-      ]
-    },
-    {
-      "id": 46,
-      "type": "floorTerrain",
-      "properties": [
-        {
-          "name": "terrainId",
-          "type": "int",
-          "value": 46
-        },
-        {
-          "name": "terrainKind",
-          "type": "string",
-          "value": "floor"
-        },
-        {
-          "name": "blocking",
-          "type": "bool",
-          "value": false
-        },
-        {
-          "name": "label",
-          "type": "string",
-          "value": "46: pack3:1,1"
-        },
-        {
-          "name": "blocksSight",
-          "type": "bool",
-          "value": false
-        },
-        {
-          "name": "blocksAttacks",
-          "type": "bool",
-          "value": false
-        },
-        {
-          "name": "floorTexture",
-          "propertytype": "TextureRef",
-          "type": "string",
-          "value": "pack3:1,1"
-        },
-        {
-          "name": "ceilingTexture",
-          "propertytype": "TextureRef",
-          "type": "string",
-          "value": "pack3:1,1"
-        }
-      ]
-    },
-    {
-      "id": 47,
-      "type": "floorTerrain",
-      "properties": [
-        {
-          "name": "terrainId",
-          "type": "int",
-          "value": 47
-        },
-        {
-          "name": "terrainKind",
-          "type": "string",
-          "value": "floor"
-        },
-        {
-          "name": "blocking",
-          "type": "bool",
-          "value": false
-        },
-        {
-          "name": "label",
-          "type": "string",
-          "value": "47: pack3:2,1"
-        },
-        {
-          "name": "blocksSight",
-          "type": "bool",
-          "value": false
-        },
-        {
-          "name": "blocksAttacks",
-          "type": "bool",
-          "value": false
-        },
-        {
-          "name": "floorTexture",
-          "propertytype": "TextureRef",
-          "type": "string",
-          "value": "pack3:2,1"
-        },
-        {
-          "name": "ceilingTexture",
-          "propertytype": "TextureRef",
-          "type": "string",
-          "value": "pack3:2,1"
-        }
-      ]
-    },
-    {
-      "id": 48,
-      "type": "floorTerrain",
-      "properties": [
-        {
-          "name": "terrainId",
-          "type": "int",
-          "value": 48
-        },
-        {
-          "name": "terrainKind",
-          "type": "string",
-          "value": "floor"
-        },
-        {
-          "name": "blocking",
-          "type": "bool",
-          "value": false
-        },
-        {
-          "name": "label",
-          "type": "string",
-          "value": "48: pack3:3,1"
-        },
-        {
-          "name": "blocksSight",
-          "type": "bool",
-          "value": false
-        },
-        {
-          "name": "blocksAttacks",
-          "type": "bool",
-          "value": false
-        },
-        {
-          "name": "floorTexture",
-          "propertytype": "TextureRef",
-          "type": "string",
-          "value": "pack3:3,1"
-        },
-        {
-          "name": "ceilingTexture",
-          "propertytype": "TextureRef",
-          "type": "string",
-          "value": "pack3:3,1"
-        }
-      ]
-    },
-    {
-      "id": 49,
-      "type": "floorTerrain",
-      "properties": [
-        {
-          "name": "terrainId",
-          "type": "int",
-          "value": 49
-        },
-        {
-          "name": "terrainKind",
-          "type": "string",
-          "value": "floor"
-        },
-        {
-          "name": "blocking",
-          "type": "bool",
-          "value": false
-        },
-        {
-          "name": "label",
-          "type": "string",
-          "value": "49: pack3:4,1"
-        },
-        {
-          "name": "blocksSight",
-          "type": "bool",
-          "value": false
-        },
-        {
-          "name": "blocksAttacks",
-          "type": "bool",
-          "value": false
-        },
-        {
-          "name": "floorTexture",
-          "propertytype": "TextureRef",
-          "type": "string",
-          "value": "pack3:4,1"
-        },
-        {
-          "name": "ceilingTexture",
-          "propertytype": "TextureRef",
-          "type": "string",
-          "value": "pack3:4,1"
-        }
-      ]
-    },
-    {
-      "id": 50,
-      "type": "floorTerrain",
-      "properties": [
-        {
-          "name": "terrainId",
-          "type": "int",
-          "value": 50
-        },
-        {
-          "name": "terrainKind",
-          "type": "string",
-          "value": "floor"
-        },
-        {
-          "name": "blocking",
-          "type": "bool",
-          "value": false
-        },
-        {
-          "name": "label",
-          "type": "string",
-          "value": "50: pack3:0,2"
-        },
-        {
-          "name": "blocksSight",
-          "type": "bool",
-          "value": false
-        },
-        {
-          "name": "blocksAttacks",
-          "type": "bool",
-          "value": false
-        },
-        {
-          "name": "floorTexture",
-          "propertytype": "TextureRef",
-          "type": "string",
-          "value": "pack3:0,2"
-        },
-        {
-          "name": "ceilingTexture",
-          "propertytype": "TextureRef",
-          "type": "string",
-          "value": "pack3:0,2"
-        }
-      ]
-    },
-    {
-      "id": 51,
-      "type": "floorTerrain",
-      "properties": [
-        {
-          "name": "terrainId",
-          "type": "int",
-          "value": 51
-        },
-        {
-          "name": "terrainKind",
-          "type": "string",
-          "value": "floor"
-        },
-        {
-          "name": "blocking",
-          "type": "bool",
-          "value": false
-        },
-        {
-          "name": "label",
-          "type": "string",
-          "value": "51: pack3:1,2"
-        },
-        {
-          "name": "blocksSight",
-          "type": "bool",
-          "value": false
-        },
-        {
-          "name": "blocksAttacks",
-          "type": "bool",
-          "value": false
-        },
-        {
-          "name": "floorTexture",
-          "propertytype": "TextureRef",
-          "type": "string",
-          "value": "pack3:1,2"
-        },
-        {
-          "name": "ceilingTexture",
-          "propertytype": "TextureRef",
-          "type": "string",
-          "value": "pack3:1,2"
-        }
-      ]
-    },
-    {
-      "id": 52,
-      "type": "floorTerrain",
-      "properties": [
-        {
-          "name": "terrainId",
-          "type": "int",
-          "value": 52
-        },
-        {
-          "name": "terrainKind",
-          "type": "string",
-          "value": "floor"
-        },
-        {
-          "name": "blocking",
-          "type": "bool",
-          "value": false
-        },
-        {
-          "name": "label",
-          "type": "string",
-          "value": "52: pack3:2,2"
-        },
-        {
-          "name": "blocksSight",
-          "type": "bool",
-          "value": false
-        },
-        {
-          "name": "blocksAttacks",
-          "type": "bool",
-          "value": false
-        },
-        {
-          "name": "floorTexture",
-          "propertytype": "TextureRef",
-          "type": "string",
-          "value": "pack3:2,2"
-        },
-        {
-          "name": "ceilingTexture",
-          "propertytype": "TextureRef",
-          "type": "string",
-          "value": "pack3:2,2"
-        }
-      ]
-    },
-    {
-      "id": 53,
-      "type": "floorTerrain",
-      "properties": [
-        {
-          "name": "terrainId",
-          "type": "int",
-          "value": 53
-        },
-        {
-          "name": "terrainKind",
-          "type": "string",
-          "value": "floor"
-        },
-        {
-          "name": "blocking",
-          "type": "bool",
-          "value": false
-        },
-        {
-          "name": "label",
-          "type": "string",
-          "value": "53: pack3:3,2"
-        },
-        {
-          "name": "blocksSight",
-          "type": "bool",
-          "value": false
-        },
-        {
-          "name": "blocksAttacks",
-          "type": "bool",
-          "value": false
-        },
-        {
-          "name": "floorTexture",
-          "propertytype": "TextureRef",
-          "type": "string",
-          "value": "pack3:3,2"
-        },
-        {
-          "name": "ceilingTexture",
-          "propertytype": "TextureRef",
-          "type": "string",
-          "value": "pack3:3,2"
-        }
-      ]
-    },
-    {
-      "id": 54,
-      "type": "floorTerrain",
-      "properties": [
-        {
-          "name": "terrainId",
-          "type": "int",
-          "value": 54
-        },
-        {
-          "name": "terrainKind",
-          "type": "string",
-          "value": "floor"
-        },
-        {
-          "name": "blocking",
-          "type": "bool",
-          "value": false
-        },
-        {
-          "name": "label",
-          "type": "string",
-          "value": "54: pack3:4,2"
-        },
-        {
-          "name": "blocksSight",
-          "type": "bool",
-          "value": false
-        },
-        {
-          "name": "blocksAttacks",
-          "type": "bool",
-          "value": false
-        },
-        {
-          "name": "floorTexture",
-          "propertytype": "TextureRef",
-          "type": "string",
-          "value": "pack3:4,2"
-        },
-        {
-          "name": "ceilingTexture",
-          "propertytype": "TextureRef",
-          "type": "string",
-          "value": "pack3:4,2"
-        }
-      ]
-    },
-    {
-      "id": 55,
-      "type": "floorTerrain",
-      "properties": [
-        {
-          "name": "terrainId",
-          "type": "int",
-          "value": 55
-        },
-        {
-          "name": "terrainKind",
-          "type": "string",
-          "value": "floor"
-        },
-        {
-          "name": "blocking",
-          "type": "bool",
-          "value": false
-        },
-        {
-          "name": "label",
-          "type": "string",
-          "value": "55: pack3:0,3"
-        },
-        {
-          "name": "blocksSight",
-          "type": "bool",
-          "value": false
-        },
-        {
-          "name": "blocksAttacks",
-          "type": "bool",
-          "value": false
-        },
-        {
-          "name": "floorTexture",
-          "propertytype": "TextureRef",
-          "type": "string",
-          "value": "pack3:0,3"
-        },
-        {
-          "name": "ceilingTexture",
-          "propertytype": "TextureRef",
-          "type": "string",
-          "value": "pack3:0,3"
-        }
-      ]
-    },
-    {
-      "id": 56,
-      "type": "floorTerrain",
-      "properties": [
-        {
-          "name": "terrainId",
-          "type": "int",
-          "value": 56
-        },
-        {
-          "name": "terrainKind",
-          "type": "string",
-          "value": "floor"
-        },
-        {
-          "name": "blocking",
-          "type": "bool",
-          "value": false
-        },
-        {
-          "name": "label",
-          "type": "string",
-          "value": "56: pack3:1,3"
-        },
-        {
-          "name": "blocksSight",
-          "type": "bool",
-          "value": false
-        },
-        {
-          "name": "blocksAttacks",
-          "type": "bool",
-          "value": false
-        },
-        {
-          "name": "floorTexture",
-          "propertytype": "TextureRef",
-          "type": "string",
-          "value": "pack3:1,3"
-        },
-        {
-          "name": "ceilingTexture",
-          "propertytype": "TextureRef",
-          "type": "string",
-          "value": "pack3:1,3"
-        }
-      ]
-    },
-    {
-      "id": 57,
-      "type": "floorTerrain",
-      "properties": [
-        {
-          "name": "terrainId",
-          "type": "int",
-          "value": 57
-        },
-        {
-          "name": "terrainKind",
-          "type": "string",
-          "value": "floor"
-        },
-        {
-          "name": "blocking",
-          "type": "bool",
-          "value": false
-        },
-        {
-          "name": "label",
-          "type": "string",
-          "value": "57: pack3:2,3"
-        },
-        {
-          "name": "blocksSight",
-          "type": "bool",
-          "value": false
-        },
-        {
-          "name": "blocksAttacks",
-          "type": "bool",
-          "value": false
-        },
-        {
-          "name": "floorTexture",
-          "propertytype": "TextureRef",
-          "type": "string",
-          "value": "pack3:2,3"
-        },
-        {
-          "name": "ceilingTexture",
-          "propertytype": "TextureRef",
-          "type": "string",
-          "value": "pack3:2,3"
-        }
-      ]
-    },
-    {
-      "id": 58,
-      "type": "floorTerrain",
-      "properties": [
-        {
-          "name": "terrainId",
-          "type": "int",
-          "value": 58
-        },
-        {
-          "name": "terrainKind",
-          "type": "string",
-          "value": "floor"
-        },
-        {
-          "name": "blocking",
-          "type": "bool",
-          "value": false
-        },
-        {
-          "name": "label",
-          "type": "string",
-          "value": "58: pack3:3,3"
-        },
-        {
-          "name": "blocksSight",
-          "type": "bool",
-          "value": false
-        },
-        {
-          "name": "blocksAttacks",
-          "type": "bool",
-          "value": false
-        },
-        {
-          "name": "floorTexture",
-          "propertytype": "TextureRef",
-          "type": "string",
-          "value": "pack3:3,3"
-        },
-        {
-          "name": "ceilingTexture",
-          "propertytype": "TextureRef",
-          "type": "string",
-          "value": "pack3:3,3"
-        }
-      ]
-    },
-    {
-      "id": 59,
-      "type": "floorTerrain",
-      "properties": [
-        {
-          "name": "terrainId",
-          "type": "int",
-          "value": 59
-        },
-        {
-          "name": "terrainKind",
-          "type": "string",
-          "value": "floor"
-        },
-        {
-          "name": "blocking",
-          "type": "bool",
-          "value": false
-        },
-        {
-          "name": "label",
-          "type": "string",
-          "value": "59: pack3:4,3"
-        },
-        {
-          "name": "blocksSight",
-          "type": "bool",
-          "value": false
-        },
-        {
-          "name": "blocksAttacks",
-          "type": "bool",
-          "value": false
-        },
-        {
-          "name": "floorTexture",
-          "propertytype": "TextureRef",
-          "type": "string",
-          "value": "pack3:4,3"
-        },
-        {
-          "name": "ceilingTexture",
-          "propertytype": "TextureRef",
-          "type": "string",
-          "value": "pack3:4,3"
-        }
-      ]
-    }
-  ],
-  "tilewidth": 16,
-  "type": "tileset",
-  "version": "1.10"
+{ "columns":20,
+ "image":"floors.png",
+ "imageheight":48,
+ "imagewidth":320,
+ "margin":0,
+ "name":"floors",
+ "spacing":0,
+ "tilecount":60,
+ "tiledversion":"1.12.2",
+ "tileheight":16,
+ "tiles":[
+        {
+         "id":0,
+         "properties":[
+                {
+                 "name":"blocking",
+                 "type":"bool",
+                 "value":false
+                }, 
+                {
+                 "name":"blocksAttacks",
+                 "type":"bool",
+                 "value":false
+                }, 
+                {
+                 "name":"blocksSight",
+                 "type":"bool",
+                 "value":false
+                }, 
+                {
+                 "name":"ceilingTexture",
+                 "propertytype":"TextureRef",
+                 "type":"string",
+                 "value":"pack1:0,0"
+                }, 
+                {
+                 "name":"floorTexture",
+                 "propertytype":"TextureRef",
+                 "type":"string",
+                 "value":"pack1:0,0"
+                }, 
+                {
+                 "name":"label",
+                 "type":"string",
+                 "value":"0: pack1:0,0"
+                }, 
+                {
+                 "name":"terrainId",
+                 "type":"int",
+                 "value":0
+                }, 
+                {
+                 "name":"terrainKind",
+                 "type":"string",
+                 "value":"floor"
+                }],
+         "type":"floorTerrain"
+        }, 
+        {
+         "id":1,
+         "properties":[
+                {
+                 "name":"blocking",
+                 "type":"bool",
+                 "value":false
+                }, 
+                {
+                 "name":"blocksAttacks",
+                 "type":"bool",
+                 "value":false
+                }, 
+                {
+                 "name":"blocksSight",
+                 "type":"bool",
+                 "value":false
+                }, 
+                {
+                 "name":"ceilingTexture",
+                 "propertytype":"TextureRef",
+                 "type":"string",
+                 "value":"pack1:1,0"
+                }, 
+                {
+                 "name":"floorTexture",
+                 "propertytype":"TextureRef",
+                 "type":"string",
+                 "value":"pack1:1,0"
+                }, 
+                {
+                 "name":"label",
+                 "type":"string",
+                 "value":"1: pack1:1,0"
+                }, 
+                {
+                 "name":"terrainId",
+                 "type":"int",
+                 "value":1
+                }, 
+                {
+                 "name":"terrainKind",
+                 "type":"string",
+                 "value":"floor"
+                }],
+         "type":"floorTerrain"
+        }, 
+        {
+         "id":2,
+         "properties":[
+                {
+                 "name":"blocking",
+                 "type":"bool",
+                 "value":false
+                }, 
+                {
+                 "name":"blocksAttacks",
+                 "type":"bool",
+                 "value":false
+                }, 
+                {
+                 "name":"blocksSight",
+                 "type":"bool",
+                 "value":false
+                }, 
+                {
+                 "name":"ceilingTexture",
+                 "propertytype":"TextureRef",
+                 "type":"string",
+                 "value":"sky"
+                }, 
+                {
+                 "name":"floorTexture",
+                 "propertytype":"TextureRef",
+                 "type":"string",
+                 "value":"pack3:4,1"
+                }, 
+                {
+                 "name":"label",
+                 "type":"string",
+                 "value":"2: pack1:2,0"
+                }, 
+                {
+                 "name":"terrainId",
+                 "type":"int",
+                 "value":2
+                }, 
+                {
+                 "name":"terrainKind",
+                 "type":"string",
+                 "value":"floor"
+                }],
+         "type":"floorTerrain"
+        }, 
+        {
+         "id":3,
+         "properties":[
+                {
+                 "name":"blocking",
+                 "type":"bool",
+                 "value":false
+                }, 
+                {
+                 "name":"blocksAttacks",
+                 "type":"bool",
+                 "value":false
+                }, 
+                {
+                 "name":"blocksSight",
+                 "type":"bool",
+                 "value":false
+                }, 
+                {
+                 "name":"ceilingTexture",
+                 "propertytype":"TextureRef",
+                 "type":"string",
+                 "value":"pack1:3,0"
+                }, 
+                {
+                 "name":"floorTexture",
+                 "propertytype":"TextureRef",
+                 "type":"string",
+                 "value":"pack1:3,0"
+                }, 
+                {
+                 "name":"label",
+                 "type":"string",
+                 "value":"3: pack1:3,0"
+                }, 
+                {
+                 "name":"terrainId",
+                 "type":"int",
+                 "value":3
+                }, 
+                {
+                 "name":"terrainKind",
+                 "type":"string",
+                 "value":"floor"
+                }],
+         "type":"floorTerrain"
+        }, 
+        {
+         "id":4,
+         "properties":[
+                {
+                 "name":"blocking",
+                 "type":"bool",
+                 "value":false
+                }, 
+                {
+                 "name":"blocksAttacks",
+                 "type":"bool",
+                 "value":false
+                }, 
+                {
+                 "name":"blocksSight",
+                 "type":"bool",
+                 "value":false
+                }, 
+                {
+                 "name":"ceilingTexture",
+                 "propertytype":"TextureRef",
+                 "type":"string",
+                 "value":"pack1:4,0"
+                }, 
+                {
+                 "name":"floorTexture",
+                 "propertytype":"TextureRef",
+                 "type":"string",
+                 "value":"pack1:4,0"
+                }, 
+                {
+                 "name":"label",
+                 "type":"string",
+                 "value":"4: pack1:4,0"
+                }, 
+                {
+                 "name":"terrainId",
+                 "type":"int",
+                 "value":4
+                }, 
+                {
+                 "name":"terrainKind",
+                 "type":"string",
+                 "value":"floor"
+                }],
+         "type":"floorTerrain"
+        }, 
+        {
+         "id":5,
+         "properties":[
+                {
+                 "name":"blocking",
+                 "type":"bool",
+                 "value":false
+                }, 
+                {
+                 "name":"blocksAttacks",
+                 "type":"bool",
+                 "value":false
+                }, 
+                {
+                 "name":"blocksSight",
+                 "type":"bool",
+                 "value":false
+                }, 
+                {
+                 "name":"ceilingTexture",
+                 "propertytype":"TextureRef",
+                 "type":"string",
+                 "value":"pack1:0,1"
+                }, 
+                {
+                 "name":"floorTexture",
+                 "propertytype":"TextureRef",
+                 "type":"string",
+                 "value":"pack1:0,1"
+                }, 
+                {
+                 "name":"label",
+                 "type":"string",
+                 "value":"5: pack1:0,1"
+                }, 
+                {
+                 "name":"terrainId",
+                 "type":"int",
+                 "value":5
+                }, 
+                {
+                 "name":"terrainKind",
+                 "type":"string",
+                 "value":"floor"
+                }],
+         "type":"floorTerrain"
+        }, 
+        {
+         "id":6,
+         "properties":[
+                {
+                 "name":"blocking",
+                 "type":"bool",
+                 "value":false
+                }, 
+                {
+                 "name":"blocksAttacks",
+                 "type":"bool",
+                 "value":false
+                }, 
+                {
+                 "name":"blocksSight",
+                 "type":"bool",
+                 "value":false
+                }, 
+                {
+                 "name":"ceilingTexture",
+                 "propertytype":"TextureRef",
+                 "type":"string",
+                 "value":"pack1:1,1"
+                }, 
+                {
+                 "name":"floorTexture",
+                 "propertytype":"TextureRef",
+                 "type":"string",
+                 "value":"pack1:1,1"
+                }, 
+                {
+                 "name":"label",
+                 "type":"string",
+                 "value":"6: pack1:1,1"
+                }, 
+                {
+                 "name":"terrainId",
+                 "type":"int",
+                 "value":6
+                }, 
+                {
+                 "name":"terrainKind",
+                 "type":"string",
+                 "value":"floor"
+                }],
+         "type":"floorTerrain"
+        }, 
+        {
+         "id":7,
+         "properties":[
+                {
+                 "name":"blocking",
+                 "type":"bool",
+                 "value":false
+                }, 
+                {
+                 "name":"blocksAttacks",
+                 "type":"bool",
+                 "value":false
+                }, 
+                {
+                 "name":"blocksSight",
+                 "type":"bool",
+                 "value":false
+                }, 
+                {
+                 "name":"ceilingTexture",
+                 "propertytype":"TextureRef",
+                 "type":"string",
+                 "value":"pack1:2,1"
+                }, 
+                {
+                 "name":"floorTexture",
+                 "propertytype":"TextureRef",
+                 "type":"string",
+                 "value":"pack1:2,1"
+                }, 
+                {
+                 "name":"label",
+                 "type":"string",
+                 "value":"7: pack1:2,1"
+                }, 
+                {
+                 "name":"terrainId",
+                 "type":"int",
+                 "value":7
+                }, 
+                {
+                 "name":"terrainKind",
+                 "type":"string",
+                 "value":"floor"
+                }],
+         "type":"floorTerrain"
+        }, 
+        {
+         "id":8,
+         "properties":[
+                {
+                 "name":"blocking",
+                 "type":"bool",
+                 "value":false
+                }, 
+                {
+                 "name":"blocksAttacks",
+                 "type":"bool",
+                 "value":false
+                }, 
+                {
+                 "name":"blocksSight",
+                 "type":"bool",
+                 "value":false
+                }, 
+                {
+                 "name":"ceilingTexture",
+                 "propertytype":"TextureRef",
+                 "type":"string",
+                 "value":"pack1:3,1"
+                }, 
+                {
+                 "name":"floorTexture",
+                 "propertytype":"TextureRef",
+                 "type":"string",
+                 "value":"pack1:3,1"
+                }, 
+                {
+                 "name":"label",
+                 "type":"string",
+                 "value":"8: pack1:3,1"
+                }, 
+                {
+                 "name":"terrainId",
+                 "type":"int",
+                 "value":8
+                }, 
+                {
+                 "name":"terrainKind",
+                 "type":"string",
+                 "value":"floor"
+                }],
+         "type":"floorTerrain"
+        }, 
+        {
+         "id":9,
+         "properties":[
+                {
+                 "name":"blocking",
+                 "type":"bool",
+                 "value":false
+                }, 
+                {
+                 "name":"blocksAttacks",
+                 "type":"bool",
+                 "value":false
+                }, 
+                {
+                 "name":"blocksSight",
+                 "type":"bool",
+                 "value":false
+                }, 
+                {
+                 "name":"ceilingTexture",
+                 "propertytype":"TextureRef",
+                 "type":"string",
+                 "value":"pack1:4,1"
+                }, 
+                {
+                 "name":"floorTexture",
+                 "propertytype":"TextureRef",
+                 "type":"string",
+                 "value":"pack1:4,1"
+                }, 
+                {
+                 "name":"label",
+                 "type":"string",
+                 "value":"9: pack1:4,1"
+                }, 
+                {
+                 "name":"terrainId",
+                 "type":"int",
+                 "value":9
+                }, 
+                {
+                 "name":"terrainKind",
+                 "type":"string",
+                 "value":"floor"
+                }],
+         "type":"floorTerrain"
+        }, 
+        {
+         "id":10,
+         "properties":[
+                {
+                 "name":"blocking",
+                 "type":"bool",
+                 "value":false
+                }, 
+                {
+                 "name":"blocksAttacks",
+                 "type":"bool",
+                 "value":false
+                }, 
+                {
+                 "name":"blocksSight",
+                 "type":"bool",
+                 "value":false
+                }, 
+                {
+                 "name":"ceilingTexture",
+                 "propertytype":"TextureRef",
+                 "type":"string",
+                 "value":"pack1:0,2"
+                }, 
+                {
+                 "name":"floorTexture",
+                 "propertytype":"TextureRef",
+                 "type":"string",
+                 "value":"pack1:0,2"
+                }, 
+                {
+                 "name":"label",
+                 "type":"string",
+                 "value":"10: pack1:0,2"
+                }, 
+                {
+                 "name":"terrainId",
+                 "type":"int",
+                 "value":10
+                }, 
+                {
+                 "name":"terrainKind",
+                 "type":"string",
+                 "value":"floor"
+                }],
+         "type":"floorTerrain"
+        }, 
+        {
+         "id":11,
+         "properties":[
+                {
+                 "name":"blocking",
+                 "type":"bool",
+                 "value":false
+                }, 
+                {
+                 "name":"blocksAttacks",
+                 "type":"bool",
+                 "value":false
+                }, 
+                {
+                 "name":"blocksSight",
+                 "type":"bool",
+                 "value":false
+                }, 
+                {
+                 "name":"ceilingTexture",
+                 "propertytype":"TextureRef",
+                 "type":"string",
+                 "value":"pack1:1,2"
+                }, 
+                {
+                 "name":"floorTexture",
+                 "propertytype":"TextureRef",
+                 "type":"string",
+                 "value":"pack1:1,2"
+                }, 
+                {
+                 "name":"label",
+                 "type":"string",
+                 "value":"11: pack1:1,2"
+                }, 
+                {
+                 "name":"terrainId",
+                 "type":"int",
+                 "value":11
+                }, 
+                {
+                 "name":"terrainKind",
+                 "type":"string",
+                 "value":"floor"
+                }],
+         "type":"floorTerrain"
+        }, 
+        {
+         "id":12,
+         "properties":[
+                {
+                 "name":"blocking",
+                 "type":"bool",
+                 "value":false
+                }, 
+                {
+                 "name":"blocksAttacks",
+                 "type":"bool",
+                 "value":false
+                }, 
+                {
+                 "name":"blocksSight",
+                 "type":"bool",
+                 "value":false
+                }, 
+                {
+                 "name":"ceilingTexture",
+                 "propertytype":"TextureRef",
+                 "type":"string",
+                 "value":"pack1:2,2"
+                }, 
+                {
+                 "name":"floorTexture",
+                 "propertytype":"TextureRef",
+                 "type":"string",
+                 "value":"pack1:2,2"
+                }, 
+                {
+                 "name":"label",
+                 "type":"string",
+                 "value":"12: pack1:2,2"
+                }, 
+                {
+                 "name":"terrainId",
+                 "type":"int",
+                 "value":12
+                }, 
+                {
+                 "name":"terrainKind",
+                 "type":"string",
+                 "value":"floor"
+                }],
+         "type":"floorTerrain"
+        }, 
+        {
+         "id":13,
+         "properties":[
+                {
+                 "name":"blocking",
+                 "type":"bool",
+                 "value":false
+                }, 
+                {
+                 "name":"blocksAttacks",
+                 "type":"bool",
+                 "value":false
+                }, 
+                {
+                 "name":"blocksSight",
+                 "type":"bool",
+                 "value":false
+                }, 
+                {
+                 "name":"ceilingTexture",
+                 "propertytype":"TextureRef",
+                 "type":"string",
+                 "value":"pack1:3,2"
+                }, 
+                {
+                 "name":"floorTexture",
+                 "propertytype":"TextureRef",
+                 "type":"string",
+                 "value":"pack1:3,2"
+                }, 
+                {
+                 "name":"label",
+                 "type":"string",
+                 "value":"13: pack1:3,2"
+                }, 
+                {
+                 "name":"terrainId",
+                 "type":"int",
+                 "value":13
+                }, 
+                {
+                 "name":"terrainKind",
+                 "type":"string",
+                 "value":"floor"
+                }],
+         "type":"floorTerrain"
+        }, 
+        {
+         "id":14,
+         "properties":[
+                {
+                 "name":"blocking",
+                 "type":"bool",
+                 "value":false
+                }, 
+                {
+                 "name":"blocksAttacks",
+                 "type":"bool",
+                 "value":false
+                }, 
+                {
+                 "name":"blocksSight",
+                 "type":"bool",
+                 "value":false
+                }, 
+                {
+                 "name":"ceilingTexture",
+                 "propertytype":"TextureRef",
+                 "type":"string",
+                 "value":"pack1:4,2"
+                }, 
+                {
+                 "name":"floorTexture",
+                 "propertytype":"TextureRef",
+                 "type":"string",
+                 "value":"pack1:4,2"
+                }, 
+                {
+                 "name":"label",
+                 "type":"string",
+                 "value":"14: pack1:4,2"
+                }, 
+                {
+                 "name":"terrainId",
+                 "type":"int",
+                 "value":14
+                }, 
+                {
+                 "name":"terrainKind",
+                 "type":"string",
+                 "value":"floor"
+                }],
+         "type":"floorTerrain"
+        }, 
+        {
+         "id":15,
+         "properties":[
+                {
+                 "name":"blocking",
+                 "type":"bool",
+                 "value":false
+                }, 
+                {
+                 "name":"blocksAttacks",
+                 "type":"bool",
+                 "value":false
+                }, 
+                {
+                 "name":"blocksSight",
+                 "type":"bool",
+                 "value":false
+                }, 
+                {
+                 "name":"ceilingTexture",
+                 "propertytype":"TextureRef",
+                 "type":"string",
+                 "value":"pack1:0,3"
+                }, 
+                {
+                 "name":"floorTexture",
+                 "propertytype":"TextureRef",
+                 "type":"string",
+                 "value":"pack1:0,3"
+                }, 
+                {
+                 "name":"label",
+                 "type":"string",
+                 "value":"15: pack1:0,3"
+                }, 
+                {
+                 "name":"terrainId",
+                 "type":"int",
+                 "value":15
+                }, 
+                {
+                 "name":"terrainKind",
+                 "type":"string",
+                 "value":"floor"
+                }],
+         "type":"floorTerrain"
+        }, 
+        {
+         "id":16,
+         "properties":[
+                {
+                 "name":"blocking",
+                 "type":"bool",
+                 "value":false
+                }, 
+                {
+                 "name":"blocksAttacks",
+                 "type":"bool",
+                 "value":false
+                }, 
+                {
+                 "name":"blocksSight",
+                 "type":"bool",
+                 "value":false
+                }, 
+                {
+                 "name":"ceilingTexture",
+                 "propertytype":"TextureRef",
+                 "type":"string",
+                 "value":"pack1:1,3"
+                }, 
+                {
+                 "name":"floorTexture",
+                 "propertytype":"TextureRef",
+                 "type":"string",
+                 "value":"pack1:1,3"
+                }, 
+                {
+                 "name":"label",
+                 "type":"string",
+                 "value":"16: pack1:1,3"
+                }, 
+                {
+                 "name":"terrainId",
+                 "type":"int",
+                 "value":16
+                }, 
+                {
+                 "name":"terrainKind",
+                 "type":"string",
+                 "value":"floor"
+                }],
+         "type":"floorTerrain"
+        }, 
+        {
+         "id":17,
+         "properties":[
+                {
+                 "name":"blocking",
+                 "type":"bool",
+                 "value":false
+                }, 
+                {
+                 "name":"blocksAttacks",
+                 "type":"bool",
+                 "value":false
+                }, 
+                {
+                 "name":"blocksSight",
+                 "type":"bool",
+                 "value":false
+                }, 
+                {
+                 "name":"ceilingTexture",
+                 "propertytype":"TextureRef",
+                 "type":"string",
+                 "value":"pack1:2,3"
+                }, 
+                {
+                 "name":"floorTexture",
+                 "propertytype":"TextureRef",
+                 "type":"string",
+                 "value":"pack1:2,3"
+                }, 
+                {
+                 "name":"label",
+                 "type":"string",
+                 "value":"17: pack1:2,3"
+                }, 
+                {
+                 "name":"terrainId",
+                 "type":"int",
+                 "value":17
+                }, 
+                {
+                 "name":"terrainKind",
+                 "type":"string",
+                 "value":"floor"
+                }],
+         "type":"floorTerrain"
+        }, 
+        {
+         "id":18,
+         "properties":[
+                {
+                 "name":"blocking",
+                 "type":"bool",
+                 "value":false
+                }, 
+                {
+                 "name":"blocksAttacks",
+                 "type":"bool",
+                 "value":false
+                }, 
+                {
+                 "name":"blocksSight",
+                 "type":"bool",
+                 "value":false
+                }, 
+                {
+                 "name":"ceilingTexture",
+                 "propertytype":"TextureRef",
+                 "type":"string",
+                 "value":"pack1:3,3"
+                }, 
+                {
+                 "name":"floorTexture",
+                 "propertytype":"TextureRef",
+                 "type":"string",
+                 "value":"pack1:3,3"
+                }, 
+                {
+                 "name":"label",
+                 "type":"string",
+                 "value":"18: pack1:3,3"
+                }, 
+                {
+                 "name":"terrainId",
+                 "type":"int",
+                 "value":18
+                }, 
+                {
+                 "name":"terrainKind",
+                 "type":"string",
+                 "value":"floor"
+                }],
+         "type":"floorTerrain"
+        }, 
+        {
+         "id":19,
+         "properties":[
+                {
+                 "name":"blocking",
+                 "type":"bool",
+                 "value":false
+                }, 
+                {
+                 "name":"blocksAttacks",
+                 "type":"bool",
+                 "value":false
+                }, 
+                {
+                 "name":"blocksSight",
+                 "type":"bool",
+                 "value":false
+                }, 
+                {
+                 "name":"ceilingTexture",
+                 "propertytype":"TextureRef",
+                 "type":"string",
+                 "value":"pack1:4,3"
+                }, 
+                {
+                 "name":"floorTexture",
+                 "propertytype":"TextureRef",
+                 "type":"string",
+                 "value":"pack1:4,3"
+                }, 
+                {
+                 "name":"label",
+                 "type":"string",
+                 "value":"19: pack1:4,3"
+                }, 
+                {
+                 "name":"terrainId",
+                 "type":"int",
+                 "value":19
+                }, 
+                {
+                 "name":"terrainKind",
+                 "type":"string",
+                 "value":"floor"
+                }],
+         "type":"floorTerrain"
+        }, 
+        {
+         "id":20,
+         "properties":[
+                {
+                 "name":"blocking",
+                 "type":"bool",
+                 "value":false
+                }, 
+                {
+                 "name":"blocksAttacks",
+                 "type":"bool",
+                 "value":false
+                }, 
+                {
+                 "name":"blocksSight",
+                 "type":"bool",
+                 "value":false
+                }, 
+                {
+                 "name":"ceilingTexture",
+                 "propertytype":"TextureRef",
+                 "type":"string",
+                 "value":"pack2:0,0"
+                }, 
+                {
+                 "name":"floorTexture",
+                 "propertytype":"TextureRef",
+                 "type":"string",
+                 "value":"pack2:0,0"
+                }, 
+                {
+                 "name":"label",
+                 "type":"string",
+                 "value":"20: pack2:0,0"
+                }, 
+                {
+                 "name":"terrainId",
+                 "type":"int",
+                 "value":20
+                }, 
+                {
+                 "name":"terrainKind",
+                 "type":"string",
+                 "value":"floor"
+                }],
+         "type":"floorTerrain"
+        }, 
+        {
+         "id":21,
+         "properties":[
+                {
+                 "name":"blocking",
+                 "type":"bool",
+                 "value":false
+                }, 
+                {
+                 "name":"blocksAttacks",
+                 "type":"bool",
+                 "value":false
+                }, 
+                {
+                 "name":"blocksSight",
+                 "type":"bool",
+                 "value":false
+                }, 
+                {
+                 "name":"ceilingTexture",
+                 "propertytype":"TextureRef",
+                 "type":"string",
+                 "value":"pack2:1,0"
+                }, 
+                {
+                 "name":"floorTexture",
+                 "propertytype":"TextureRef",
+                 "type":"string",
+                 "value":"pack2:1,0"
+                }, 
+                {
+                 "name":"label",
+                 "type":"string",
+                 "value":"21: pack2:1,0"
+                }, 
+                {
+                 "name":"terrainId",
+                 "type":"int",
+                 "value":21
+                }, 
+                {
+                 "name":"terrainKind",
+                 "type":"string",
+                 "value":"floor"
+                }],
+         "type":"floorTerrain"
+        }, 
+        {
+         "id":22,
+         "properties":[
+                {
+                 "name":"blocking",
+                 "type":"bool",
+                 "value":false
+                }, 
+                {
+                 "name":"blocksAttacks",
+                 "type":"bool",
+                 "value":false
+                }, 
+                {
+                 "name":"blocksSight",
+                 "type":"bool",
+                 "value":false
+                }, 
+                {
+                 "name":"ceilingTexture",
+                 "propertytype":"TextureRef",
+                 "type":"string",
+                 "value":"pack2:2,0"
+                }, 
+                {
+                 "name":"floorTexture",
+                 "propertytype":"TextureRef",
+                 "type":"string",
+                 "value":"pack2:2,0"
+                }, 
+                {
+                 "name":"label",
+                 "type":"string",
+                 "value":"22: pack2:2,0"
+                }, 
+                {
+                 "name":"terrainId",
+                 "type":"int",
+                 "value":22
+                }, 
+                {
+                 "name":"terrainKind",
+                 "type":"string",
+                 "value":"floor"
+                }],
+         "type":"floorTerrain"
+        }, 
+        {
+         "id":23,
+         "properties":[
+                {
+                 "name":"blocking",
+                 "type":"bool",
+                 "value":false
+                }, 
+                {
+                 "name":"blocksAttacks",
+                 "type":"bool",
+                 "value":false
+                }, 
+                {
+                 "name":"blocksSight",
+                 "type":"bool",
+                 "value":false
+                }, 
+                {
+                 "name":"ceilingTexture",
+                 "propertytype":"TextureRef",
+                 "type":"string",
+                 "value":"pack2:3,0"
+                }, 
+                {
+                 "name":"floorTexture",
+                 "propertytype":"TextureRef",
+                 "type":"string",
+                 "value":"pack2:3,0"
+                }, 
+                {
+                 "name":"label",
+                 "type":"string",
+                 "value":"23: pack2:3,0"
+                }, 
+                {
+                 "name":"terrainId",
+                 "type":"int",
+                 "value":23
+                }, 
+                {
+                 "name":"terrainKind",
+                 "type":"string",
+                 "value":"floor"
+                }],
+         "type":"floorTerrain"
+        }, 
+        {
+         "id":24,
+         "properties":[
+                {
+                 "name":"blocking",
+                 "type":"bool",
+                 "value":false
+                }, 
+                {
+                 "name":"blocksAttacks",
+                 "type":"bool",
+                 "value":false
+                }, 
+                {
+                 "name":"blocksSight",
+                 "type":"bool",
+                 "value":false
+                }, 
+                {
+                 "name":"ceilingTexture",
+                 "propertytype":"TextureRef",
+                 "type":"string",
+                 "value":"pack2:4,0"
+                }, 
+                {
+                 "name":"floorTexture",
+                 "propertytype":"TextureRef",
+                 "type":"string",
+                 "value":"pack2:4,0"
+                }, 
+                {
+                 "name":"label",
+                 "type":"string",
+                 "value":"24: pack2:4,0"
+                }, 
+                {
+                 "name":"terrainId",
+                 "type":"int",
+                 "value":24
+                }, 
+                {
+                 "name":"terrainKind",
+                 "type":"string",
+                 "value":"floor"
+                }],
+         "type":"floorTerrain"
+        }, 
+        {
+         "id":25,
+         "properties":[
+                {
+                 "name":"blocking",
+                 "type":"bool",
+                 "value":false
+                }, 
+                {
+                 "name":"blocksAttacks",
+                 "type":"bool",
+                 "value":false
+                }, 
+                {
+                 "name":"blocksSight",
+                 "type":"bool",
+                 "value":false
+                }, 
+                {
+                 "name":"ceilingTexture",
+                 "propertytype":"TextureRef",
+                 "type":"string",
+                 "value":"pack2:0,1"
+                }, 
+                {
+                 "name":"floorTexture",
+                 "propertytype":"TextureRef",
+                 "type":"string",
+                 "value":"pack2:0,1"
+                }, 
+                {
+                 "name":"label",
+                 "type":"string",
+                 "value":"25: pack2:0,1"
+                }, 
+                {
+                 "name":"terrainId",
+                 "type":"int",
+                 "value":25
+                }, 
+                {
+                 "name":"terrainKind",
+                 "type":"string",
+                 "value":"floor"
+                }],
+         "type":"floorTerrain"
+        }, 
+        {
+         "id":26,
+         "properties":[
+                {
+                 "name":"blocking",
+                 "type":"bool",
+                 "value":false
+                }, 
+                {
+                 "name":"blocksAttacks",
+                 "type":"bool",
+                 "value":false
+                }, 
+                {
+                 "name":"blocksSight",
+                 "type":"bool",
+                 "value":false
+                }, 
+                {
+                 "name":"ceilingTexture",
+                 "propertytype":"TextureRef",
+                 "type":"string",
+                 "value":"pack2:1,1"
+                }, 
+                {
+                 "name":"floorTexture",
+                 "propertytype":"TextureRef",
+                 "type":"string",
+                 "value":"pack2:1,1"
+                }, 
+                {
+                 "name":"label",
+                 "type":"string",
+                 "value":"26: pack2:1,1"
+                }, 
+                {
+                 "name":"terrainId",
+                 "type":"int",
+                 "value":26
+                }, 
+                {
+                 "name":"terrainKind",
+                 "type":"string",
+                 "value":"floor"
+                }],
+         "type":"floorTerrain"
+        }, 
+        {
+         "id":27,
+         "properties":[
+                {
+                 "name":"blocking",
+                 "type":"bool",
+                 "value":false
+                }, 
+                {
+                 "name":"blocksAttacks",
+                 "type":"bool",
+                 "value":false
+                }, 
+                {
+                 "name":"blocksSight",
+                 "type":"bool",
+                 "value":false
+                }, 
+                {
+                 "name":"ceilingTexture",
+                 "propertytype":"TextureRef",
+                 "type":"string",
+                 "value":"pack2:2,1"
+                }, 
+                {
+                 "name":"floorTexture",
+                 "propertytype":"TextureRef",
+                 "type":"string",
+                 "value":"pack2:2,1"
+                }, 
+                {
+                 "name":"label",
+                 "type":"string",
+                 "value":"27: pack2:2,1"
+                }, 
+                {
+                 "name":"terrainId",
+                 "type":"int",
+                 "value":27
+                }, 
+                {
+                 "name":"terrainKind",
+                 "type":"string",
+                 "value":"floor"
+                }],
+         "type":"floorTerrain"
+        }, 
+        {
+         "id":28,
+         "properties":[
+                {
+                 "name":"blocking",
+                 "type":"bool",
+                 "value":false
+                }, 
+                {
+                 "name":"blocksAttacks",
+                 "type":"bool",
+                 "value":false
+                }, 
+                {
+                 "name":"blocksSight",
+                 "type":"bool",
+                 "value":false
+                }, 
+                {
+                 "name":"ceilingTexture",
+                 "propertytype":"TextureRef",
+                 "type":"string",
+                 "value":"pack2:3,1"
+                }, 
+                {
+                 "name":"floorTexture",
+                 "propertytype":"TextureRef",
+                 "type":"string",
+                 "value":"pack2:3,1"
+                }, 
+                {
+                 "name":"label",
+                 "type":"string",
+                 "value":"28: pack2:3,1"
+                }, 
+                {
+                 "name":"terrainId",
+                 "type":"int",
+                 "value":28
+                }, 
+                {
+                 "name":"terrainKind",
+                 "type":"string",
+                 "value":"floor"
+                }],
+         "type":"floorTerrain"
+        }, 
+        {
+         "id":29,
+         "properties":[
+                {
+                 "name":"blocking",
+                 "type":"bool",
+                 "value":false
+                }, 
+                {
+                 "name":"blocksAttacks",
+                 "type":"bool",
+                 "value":false
+                }, 
+                {
+                 "name":"blocksSight",
+                 "type":"bool",
+                 "value":false
+                }, 
+                {
+                 "name":"ceilingTexture",
+                 "propertytype":"TextureRef",
+                 "type":"string",
+                 "value":"pack2:4,1"
+                }, 
+                {
+                 "name":"floorTexture",
+                 "propertytype":"TextureRef",
+                 "type":"string",
+                 "value":"pack2:4,1"
+                }, 
+                {
+                 "name":"label",
+                 "type":"string",
+                 "value":"29: pack2:4,1"
+                }, 
+                {
+                 "name":"terrainId",
+                 "type":"int",
+                 "value":29
+                }, 
+                {
+                 "name":"terrainKind",
+                 "type":"string",
+                 "value":"floor"
+                }],
+         "type":"floorTerrain"
+        }, 
+        {
+         "id":30,
+         "properties":[
+                {
+                 "name":"blocking",
+                 "type":"bool",
+                 "value":false
+                }, 
+                {
+                 "name":"blocksAttacks",
+                 "type":"bool",
+                 "value":false
+                }, 
+                {
+                 "name":"blocksSight",
+                 "type":"bool",
+                 "value":false
+                }, 
+                {
+                 "name":"ceilingTexture",
+                 "propertytype":"TextureRef",
+                 "type":"string",
+                 "value":"pack2:0,2"
+                }, 
+                {
+                 "name":"floorTexture",
+                 "propertytype":"TextureRef",
+                 "type":"string",
+                 "value":"pack2:0,2"
+                }, 
+                {
+                 "name":"label",
+                 "type":"string",
+                 "value":"30: pack2:0,2"
+                }, 
+                {
+                 "name":"terrainId",
+                 "type":"int",
+                 "value":30
+                }, 
+                {
+                 "name":"terrainKind",
+                 "type":"string",
+                 "value":"floor"
+                }],
+         "type":"floorTerrain"
+        }, 
+        {
+         "id":31,
+         "properties":[
+                {
+                 "name":"blocking",
+                 "type":"bool",
+                 "value":false
+                }, 
+                {
+                 "name":"blocksAttacks",
+                 "type":"bool",
+                 "value":false
+                }, 
+                {
+                 "name":"blocksSight",
+                 "type":"bool",
+                 "value":false
+                }, 
+                {
+                 "name":"ceilingTexture",
+                 "propertytype":"TextureRef",
+                 "type":"string",
+                 "value":"pack2:1,2"
+                }, 
+                {
+                 "name":"floorTexture",
+                 "propertytype":"TextureRef",
+                 "type":"string",
+                 "value":"pack2:1,2"
+                }, 
+                {
+                 "name":"label",
+                 "type":"string",
+                 "value":"31: pack2:1,2"
+                }, 
+                {
+                 "name":"terrainId",
+                 "type":"int",
+                 "value":31
+                }, 
+                {
+                 "name":"terrainKind",
+                 "type":"string",
+                 "value":"floor"
+                }],
+         "type":"floorTerrain"
+        }, 
+        {
+         "id":32,
+         "properties":[
+                {
+                 "name":"blocking",
+                 "type":"bool",
+                 "value":false
+                }, 
+                {
+                 "name":"blocksAttacks",
+                 "type":"bool",
+                 "value":false
+                }, 
+                {
+                 "name":"blocksSight",
+                 "type":"bool",
+                 "value":false
+                }, 
+                {
+                 "name":"ceilingTexture",
+                 "propertytype":"TextureRef",
+                 "type":"string",
+                 "value":"pack2:2,2"
+                }, 
+                {
+                 "name":"floorTexture",
+                 "propertytype":"TextureRef",
+                 "type":"string",
+                 "value":"pack2:2,2"
+                }, 
+                {
+                 "name":"label",
+                 "type":"string",
+                 "value":"32: pack2:2,2"
+                }, 
+                {
+                 "name":"terrainId",
+                 "type":"int",
+                 "value":32
+                }, 
+                {
+                 "name":"terrainKind",
+                 "type":"string",
+                 "value":"floor"
+                }],
+         "type":"floorTerrain"
+        }, 
+        {
+         "id":33,
+         "properties":[
+                {
+                 "name":"blocking",
+                 "type":"bool",
+                 "value":false
+                }, 
+                {
+                 "name":"blocksAttacks",
+                 "type":"bool",
+                 "value":false
+                }, 
+                {
+                 "name":"blocksSight",
+                 "type":"bool",
+                 "value":false
+                }, 
+                {
+                 "name":"ceilingTexture",
+                 "propertytype":"TextureRef",
+                 "type":"string",
+                 "value":"pack2:3,2"
+                }, 
+                {
+                 "name":"floorTexture",
+                 "propertytype":"TextureRef",
+                 "type":"string",
+                 "value":"pack2:3,2"
+                }, 
+                {
+                 "name":"label",
+                 "type":"string",
+                 "value":"33: pack2:3,2"
+                }, 
+                {
+                 "name":"terrainId",
+                 "type":"int",
+                 "value":33
+                }, 
+                {
+                 "name":"terrainKind",
+                 "type":"string",
+                 "value":"floor"
+                }],
+         "type":"floorTerrain"
+        }, 
+        {
+         "id":34,
+         "properties":[
+                {
+                 "name":"blocking",
+                 "type":"bool",
+                 "value":false
+                }, 
+                {
+                 "name":"blocksAttacks",
+                 "type":"bool",
+                 "value":false
+                }, 
+                {
+                 "name":"blocksSight",
+                 "type":"bool",
+                 "value":false
+                }, 
+                {
+                 "name":"ceilingTexture",
+                 "propertytype":"TextureRef",
+                 "type":"string",
+                 "value":"pack2:4,2"
+                }, 
+                {
+                 "name":"floorTexture",
+                 "propertytype":"TextureRef",
+                 "type":"string",
+                 "value":"pack2:4,2"
+                }, 
+                {
+                 "name":"label",
+                 "type":"string",
+                 "value":"34: pack2:4,2"
+                }, 
+                {
+                 "name":"terrainId",
+                 "type":"int",
+                 "value":34
+                }, 
+                {
+                 "name":"terrainKind",
+                 "type":"string",
+                 "value":"floor"
+                }],
+         "type":"floorTerrain"
+        }, 
+        {
+         "id":35,
+         "properties":[
+                {
+                 "name":"blocking",
+                 "type":"bool",
+                 "value":false
+                }, 
+                {
+                 "name":"blocksAttacks",
+                 "type":"bool",
+                 "value":false
+                }, 
+                {
+                 "name":"blocksSight",
+                 "type":"bool",
+                 "value":false
+                }, 
+                {
+                 "name":"ceilingTexture",
+                 "propertytype":"TextureRef",
+                 "type":"string",
+                 "value":"pack2:0,3"
+                }, 
+                {
+                 "name":"floorTexture",
+                 "propertytype":"TextureRef",
+                 "type":"string",
+                 "value":"pack2:0,3"
+                }, 
+                {
+                 "name":"label",
+                 "type":"string",
+                 "value":"35: pack2:0,3"
+                }, 
+                {
+                 "name":"terrainId",
+                 "type":"int",
+                 "value":35
+                }, 
+                {
+                 "name":"terrainKind",
+                 "type":"string",
+                 "value":"floor"
+                }],
+         "type":"floorTerrain"
+        }, 
+        {
+         "id":36,
+         "properties":[
+                {
+                 "name":"blocking",
+                 "type":"bool",
+                 "value":false
+                }, 
+                {
+                 "name":"blocksAttacks",
+                 "type":"bool",
+                 "value":false
+                }, 
+                {
+                 "name":"blocksSight",
+                 "type":"bool",
+                 "value":false
+                }, 
+                {
+                 "name":"ceilingTexture",
+                 "propertytype":"TextureRef",
+                 "type":"string",
+                 "value":"pack2:1,3"
+                }, 
+                {
+                 "name":"floorTexture",
+                 "propertytype":"TextureRef",
+                 "type":"string",
+                 "value":"pack2:1,3"
+                }, 
+                {
+                 "name":"label",
+                 "type":"string",
+                 "value":"36: pack2:1,3"
+                }, 
+                {
+                 "name":"terrainId",
+                 "type":"int",
+                 "value":36
+                }, 
+                {
+                 "name":"terrainKind",
+                 "type":"string",
+                 "value":"floor"
+                }],
+         "type":"floorTerrain"
+        }, 
+        {
+         "id":37,
+         "properties":[
+                {
+                 "name":"blocking",
+                 "type":"bool",
+                 "value":false
+                }, 
+                {
+                 "name":"blocksAttacks",
+                 "type":"bool",
+                 "value":false
+                }, 
+                {
+                 "name":"blocksSight",
+                 "type":"bool",
+                 "value":false
+                }, 
+                {
+                 "name":"ceilingTexture",
+                 "propertytype":"TextureRef",
+                 "type":"string",
+                 "value":"pack2:2,3"
+                }, 
+                {
+                 "name":"floorTexture",
+                 "propertytype":"TextureRef",
+                 "type":"string",
+                 "value":"pack2:2,3"
+                }, 
+                {
+                 "name":"label",
+                 "type":"string",
+                 "value":"37: pack2:2,3"
+                }, 
+                {
+                 "name":"terrainId",
+                 "type":"int",
+                 "value":37
+                }, 
+                {
+                 "name":"terrainKind",
+                 "type":"string",
+                 "value":"floor"
+                }],
+         "type":"floorTerrain"
+        }, 
+        {
+         "id":38,
+         "properties":[
+                {
+                 "name":"blocking",
+                 "type":"bool",
+                 "value":false
+                }, 
+                {
+                 "name":"blocksAttacks",
+                 "type":"bool",
+                 "value":false
+                }, 
+                {
+                 "name":"blocksSight",
+                 "type":"bool",
+                 "value":false
+                }, 
+                {
+                 "name":"ceilingTexture",
+                 "propertytype":"TextureRef",
+                 "type":"string",
+                 "value":"pack2:3,3"
+                }, 
+                {
+                 "name":"floorTexture",
+                 "propertytype":"TextureRef",
+                 "type":"string",
+                 "value":"pack2:3,3"
+                }, 
+                {
+                 "name":"label",
+                 "type":"string",
+                 "value":"38: pack2:3,3"
+                }, 
+                {
+                 "name":"terrainId",
+                 "type":"int",
+                 "value":38
+                }, 
+                {
+                 "name":"terrainKind",
+                 "type":"string",
+                 "value":"floor"
+                }],
+         "type":"floorTerrain"
+        }, 
+        {
+         "id":39,
+         "properties":[
+                {
+                 "name":"blocking",
+                 "type":"bool",
+                 "value":false
+                }, 
+                {
+                 "name":"blocksAttacks",
+                 "type":"bool",
+                 "value":false
+                }, 
+                {
+                 "name":"blocksSight",
+                 "type":"bool",
+                 "value":false
+                }, 
+                {
+                 "name":"ceilingTexture",
+                 "propertytype":"TextureRef",
+                 "type":"string",
+                 "value":"pack2:4,3"
+                }, 
+                {
+                 "name":"floorTexture",
+                 "propertytype":"TextureRef",
+                 "type":"string",
+                 "value":"pack2:4,3"
+                }, 
+                {
+                 "name":"label",
+                 "type":"string",
+                 "value":"39: pack2:4,3"
+                }, 
+                {
+                 "name":"terrainId",
+                 "type":"int",
+                 "value":39
+                }, 
+                {
+                 "name":"terrainKind",
+                 "type":"string",
+                 "value":"floor"
+                }],
+         "type":"floorTerrain"
+        }, 
+        {
+         "id":40,
+         "properties":[
+                {
+                 "name":"blocking",
+                 "type":"bool",
+                 "value":false
+                }, 
+                {
+                 "name":"blocksAttacks",
+                 "type":"bool",
+                 "value":false
+                }, 
+                {
+                 "name":"blocksSight",
+                 "type":"bool",
+                 "value":false
+                }, 
+                {
+                 "name":"ceilingTexture",
+                 "propertytype":"TextureRef",
+                 "type":"string",
+                 "value":"pack3:0,0"
+                }, 
+                {
+                 "name":"floorTexture",
+                 "propertytype":"TextureRef",
+                 "type":"string",
+                 "value":"pack3:0,0"
+                }, 
+                {
+                 "name":"label",
+                 "type":"string",
+                 "value":"40: pack3:0,0"
+                }, 
+                {
+                 "name":"terrainId",
+                 "type":"int",
+                 "value":40
+                }, 
+                {
+                 "name":"terrainKind",
+                 "type":"string",
+                 "value":"floor"
+                }],
+         "type":"floorTerrain"
+        }, 
+        {
+         "id":41,
+         "properties":[
+                {
+                 "name":"blocking",
+                 "type":"bool",
+                 "value":false
+                }, 
+                {
+                 "name":"blocksAttacks",
+                 "type":"bool",
+                 "value":false
+                }, 
+                {
+                 "name":"blocksSight",
+                 "type":"bool",
+                 "value":false
+                }, 
+                {
+                 "name":"ceilingTexture",
+                 "propertytype":"TextureRef",
+                 "type":"string",
+                 "value":"pack3:1,0"
+                }, 
+                {
+                 "name":"floorTexture",
+                 "propertytype":"TextureRef",
+                 "type":"string",
+                 "value":"pack3:1,0"
+                }, 
+                {
+                 "name":"label",
+                 "type":"string",
+                 "value":"41: pack3:1,0"
+                }, 
+                {
+                 "name":"terrainId",
+                 "type":"int",
+                 "value":41
+                }, 
+                {
+                 "name":"terrainKind",
+                 "type":"string",
+                 "value":"floor"
+                }],
+         "type":"floorTerrain"
+        }, 
+        {
+         "id":42,
+         "properties":[
+                {
+                 "name":"blocking",
+                 "type":"bool",
+                 "value":false
+                }, 
+                {
+                 "name":"blocksAttacks",
+                 "type":"bool",
+                 "value":false
+                }, 
+                {
+                 "name":"blocksSight",
+                 "type":"bool",
+                 "value":false
+                }, 
+                {
+                 "name":"ceilingTexture",
+                 "propertytype":"TextureRef",
+                 "type":"string",
+                 "value":"pack3:2,0"
+                }, 
+                {
+                 "name":"floorTexture",
+                 "propertytype":"TextureRef",
+                 "type":"string",
+                 "value":"pack3:2,0"
+                }, 
+                {
+                 "name":"label",
+                 "type":"string",
+                 "value":"42: pack3:2,0"
+                }, 
+                {
+                 "name":"terrainId",
+                 "type":"int",
+                 "value":42
+                }, 
+                {
+                 "name":"terrainKind",
+                 "type":"string",
+                 "value":"floor"
+                }],
+         "type":"floorTerrain"
+        }, 
+        {
+         "id":43,
+         "properties":[
+                {
+                 "name":"blocking",
+                 "type":"bool",
+                 "value":false
+                }, 
+                {
+                 "name":"blocksAttacks",
+                 "type":"bool",
+                 "value":false
+                }, 
+                {
+                 "name":"blocksSight",
+                 "type":"bool",
+                 "value":false
+                }, 
+                {
+                 "name":"ceilingTexture",
+                 "propertytype":"TextureRef",
+                 "type":"string",
+                 "value":"pack3:3,0"
+                }, 
+                {
+                 "name":"floorTexture",
+                 "propertytype":"TextureRef",
+                 "type":"string",
+                 "value":"pack3:3,0"
+                }, 
+                {
+                 "name":"label",
+                 "type":"string",
+                 "value":"43: pack3:3,0"
+                }, 
+                {
+                 "name":"terrainId",
+                 "type":"int",
+                 "value":43
+                }, 
+                {
+                 "name":"terrainKind",
+                 "type":"string",
+                 "value":"floor"
+                }],
+         "type":"floorTerrain"
+        }, 
+        {
+         "id":44,
+         "properties":[
+                {
+                 "name":"blocking",
+                 "type":"bool",
+                 "value":false
+                }, 
+                {
+                 "name":"blocksAttacks",
+                 "type":"bool",
+                 "value":false
+                }, 
+                {
+                 "name":"blocksSight",
+                 "type":"bool",
+                 "value":false
+                }, 
+                {
+                 "name":"ceilingTexture",
+                 "propertytype":"TextureRef",
+                 "type":"string",
+                 "value":"pack3:4,0"
+                }, 
+                {
+                 "name":"floorTexture",
+                 "propertytype":"TextureRef",
+                 "type":"string",
+                 "value":"pack3:4,0"
+                }, 
+                {
+                 "name":"label",
+                 "type":"string",
+                 "value":"44: pack3:4,0"
+                }, 
+                {
+                 "name":"terrainId",
+                 "type":"int",
+                 "value":44
+                }, 
+                {
+                 "name":"terrainKind",
+                 "type":"string",
+                 "value":"floor"
+                }],
+         "type":"floorTerrain"
+        }, 
+        {
+         "id":45,
+         "properties":[
+                {
+                 "name":"blocking",
+                 "type":"bool",
+                 "value":false
+                }, 
+                {
+                 "name":"blocksAttacks",
+                 "type":"bool",
+                 "value":false
+                }, 
+                {
+                 "name":"blocksSight",
+                 "type":"bool",
+                 "value":false
+                }, 
+                {
+                 "name":"ceilingTexture",
+                 "propertytype":"TextureRef",
+                 "type":"string",
+                 "value":"pack3:0,1"
+                }, 
+                {
+                 "name":"floorTexture",
+                 "propertytype":"TextureRef",
+                 "type":"string",
+                 "value":"pack3:0,1"
+                }, 
+                {
+                 "name":"label",
+                 "type":"string",
+                 "value":"45: pack3:0,1"
+                }, 
+                {
+                 "name":"terrainId",
+                 "type":"int",
+                 "value":45
+                }, 
+                {
+                 "name":"terrainKind",
+                 "type":"string",
+                 "value":"floor"
+                }],
+         "type":"floorTerrain"
+        }, 
+        {
+         "id":46,
+         "properties":[
+                {
+                 "name":"blocking",
+                 "type":"bool",
+                 "value":false
+                }, 
+                {
+                 "name":"blocksAttacks",
+                 "type":"bool",
+                 "value":false
+                }, 
+                {
+                 "name":"blocksSight",
+                 "type":"bool",
+                 "value":false
+                }, 
+                {
+                 "name":"ceilingTexture",
+                 "propertytype":"TextureRef",
+                 "type":"string",
+                 "value":"pack3:1,1"
+                }, 
+                {
+                 "name":"floorTexture",
+                 "propertytype":"TextureRef",
+                 "type":"string",
+                 "value":"pack3:1,1"
+                }, 
+                {
+                 "name":"label",
+                 "type":"string",
+                 "value":"46: pack3:1,1"
+                }, 
+                {
+                 "name":"terrainId",
+                 "type":"int",
+                 "value":46
+                }, 
+                {
+                 "name":"terrainKind",
+                 "type":"string",
+                 "value":"floor"
+                }],
+         "type":"floorTerrain"
+        }, 
+        {
+         "id":47,
+         "properties":[
+                {
+                 "name":"blocking",
+                 "type":"bool",
+                 "value":false
+                }, 
+                {
+                 "name":"blocksAttacks",
+                 "type":"bool",
+                 "value":false
+                }, 
+                {
+                 "name":"blocksSight",
+                 "type":"bool",
+                 "value":false
+                }, 
+                {
+                 "name":"ceilingTexture",
+                 "propertytype":"TextureRef",
+                 "type":"string",
+                 "value":"pack3:2,1"
+                }, 
+                {
+                 "name":"floorTexture",
+                 "propertytype":"TextureRef",
+                 "type":"string",
+                 "value":"pack3:2,1"
+                }, 
+                {
+                 "name":"label",
+                 "type":"string",
+                 "value":"47: pack3:2,1"
+                }, 
+                {
+                 "name":"terrainId",
+                 "type":"int",
+                 "value":47
+                }, 
+                {
+                 "name":"terrainKind",
+                 "type":"string",
+                 "value":"floor"
+                }],
+         "type":"floorTerrain"
+        }, 
+        {
+         "id":48,
+         "properties":[
+                {
+                 "name":"blocking",
+                 "type":"bool",
+                 "value":false
+                }, 
+                {
+                 "name":"blocksAttacks",
+                 "type":"bool",
+                 "value":false
+                }, 
+                {
+                 "name":"blocksSight",
+                 "type":"bool",
+                 "value":false
+                }, 
+                {
+                 "name":"ceilingTexture",
+                 "propertytype":"TextureRef",
+                 "type":"string",
+                 "value":"pack3:3,1"
+                }, 
+                {
+                 "name":"floorTexture",
+                 "propertytype":"TextureRef",
+                 "type":"string",
+                 "value":"pack3:3,1"
+                }, 
+                {
+                 "name":"label",
+                 "type":"string",
+                 "value":"48: pack3:3,1"
+                }, 
+                {
+                 "name":"terrainId",
+                 "type":"int",
+                 "value":48
+                }, 
+                {
+                 "name":"terrainKind",
+                 "type":"string",
+                 "value":"floor"
+                }],
+         "type":"floorTerrain"
+        }, 
+        {
+         "id":49,
+         "properties":[
+                {
+                 "name":"blocking",
+                 "type":"bool",
+                 "value":false
+                }, 
+                {
+                 "name":"blocksAttacks",
+                 "type":"bool",
+                 "value":false
+                }, 
+                {
+                 "name":"blocksSight",
+                 "type":"bool",
+                 "value":false
+                }, 
+                {
+                 "name":"ceilingTexture",
+                 "propertytype":"TextureRef",
+                 "type":"string",
+                 "value":"pack3:4,1"
+                }, 
+                {
+                 "name":"floorTexture",
+                 "propertytype":"TextureRef",
+                 "type":"string",
+                 "value":"pack3:4,1"
+                }, 
+                {
+                 "name":"label",
+                 "type":"string",
+                 "value":"49: pack3:4,1"
+                }, 
+                {
+                 "name":"terrainId",
+                 "type":"int",
+                 "value":49
+                }, 
+                {
+                 "name":"terrainKind",
+                 "type":"string",
+                 "value":"floor"
+                }],
+         "type":"floorTerrain"
+        }, 
+        {
+         "id":50,
+         "properties":[
+                {
+                 "name":"blocking",
+                 "type":"bool",
+                 "value":false
+                }, 
+                {
+                 "name":"blocksAttacks",
+                 "type":"bool",
+                 "value":false
+                }, 
+                {
+                 "name":"blocksSight",
+                 "type":"bool",
+                 "value":false
+                }, 
+                {
+                 "name":"ceilingTexture",
+                 "propertytype":"TextureRef",
+                 "type":"string",
+                 "value":"pack3:0,2"
+                }, 
+                {
+                 "name":"floorTexture",
+                 "propertytype":"TextureRef",
+                 "type":"string",
+                 "value":"pack3:0,2"
+                }, 
+                {
+                 "name":"label",
+                 "type":"string",
+                 "value":"50: pack3:0,2"
+                }, 
+                {
+                 "name":"terrainId",
+                 "type":"int",
+                 "value":50
+                }, 
+                {
+                 "name":"terrainKind",
+                 "type":"string",
+                 "value":"floor"
+                }],
+         "type":"floorTerrain"
+        }, 
+        {
+         "id":51,
+         "properties":[
+                {
+                 "name":"blocking",
+                 "type":"bool",
+                 "value":false
+                }, 
+                {
+                 "name":"blocksAttacks",
+                 "type":"bool",
+                 "value":false
+                }, 
+                {
+                 "name":"blocksSight",
+                 "type":"bool",
+                 "value":false
+                }, 
+                {
+                 "name":"ceilingTexture",
+                 "propertytype":"TextureRef",
+                 "type":"string",
+                 "value":"pack3:1,2"
+                }, 
+                {
+                 "name":"floorTexture",
+                 "propertytype":"TextureRef",
+                 "type":"string",
+                 "value":"pack3:1,2"
+                }, 
+                {
+                 "name":"label",
+                 "type":"string",
+                 "value":"51: pack3:1,2"
+                }, 
+                {
+                 "name":"terrainId",
+                 "type":"int",
+                 "value":51
+                }, 
+                {
+                 "name":"terrainKind",
+                 "type":"string",
+                 "value":"floor"
+                }],
+         "type":"floorTerrain"
+        }, 
+        {
+         "id":52,
+         "properties":[
+                {
+                 "name":"blocking",
+                 "type":"bool",
+                 "value":false
+                }, 
+                {
+                 "name":"blocksAttacks",
+                 "type":"bool",
+                 "value":false
+                }, 
+                {
+                 "name":"blocksSight",
+                 "type":"bool",
+                 "value":false
+                }, 
+                {
+                 "name":"ceilingTexture",
+                 "propertytype":"TextureRef",
+                 "type":"string",
+                 "value":"pack3:2,2"
+                }, 
+                {
+                 "name":"floorTexture",
+                 "propertytype":"TextureRef",
+                 "type":"string",
+                 "value":"pack3:2,2"
+                }, 
+                {
+                 "name":"label",
+                 "type":"string",
+                 "value":"52: pack3:2,2"
+                }, 
+                {
+                 "name":"terrainId",
+                 "type":"int",
+                 "value":52
+                }, 
+                {
+                 "name":"terrainKind",
+                 "type":"string",
+                 "value":"floor"
+                }],
+         "type":"floorTerrain"
+        }, 
+        {
+         "id":53,
+         "properties":[
+                {
+                 "name":"blocking",
+                 "type":"bool",
+                 "value":false
+                }, 
+                {
+                 "name":"blocksAttacks",
+                 "type":"bool",
+                 "value":false
+                }, 
+                {
+                 "name":"blocksSight",
+                 "type":"bool",
+                 "value":false
+                }, 
+                {
+                 "name":"ceilingTexture",
+                 "propertytype":"TextureRef",
+                 "type":"string",
+                 "value":"pack3:3,2"
+                }, 
+                {
+                 "name":"floorTexture",
+                 "propertytype":"TextureRef",
+                 "type":"string",
+                 "value":"pack3:3,2"
+                }, 
+                {
+                 "name":"label",
+                 "type":"string",
+                 "value":"53: pack3:3,2"
+                }, 
+                {
+                 "name":"terrainId",
+                 "type":"int",
+                 "value":53
+                }, 
+                {
+                 "name":"terrainKind",
+                 "type":"string",
+                 "value":"floor"
+                }],
+         "type":"floorTerrain"
+        }, 
+        {
+         "id":54,
+         "properties":[
+                {
+                 "name":"blocking",
+                 "type":"bool",
+                 "value":false
+                }, 
+                {
+                 "name":"blocksAttacks",
+                 "type":"bool",
+                 "value":false
+                }, 
+                {
+                 "name":"blocksSight",
+                 "type":"bool",
+                 "value":false
+                }, 
+                {
+                 "name":"ceilingTexture",
+                 "propertytype":"TextureRef",
+                 "type":"string",
+                 "value":"pack3:4,2"
+                }, 
+                {
+                 "name":"floorTexture",
+                 "propertytype":"TextureRef",
+                 "type":"string",
+                 "value":"pack3:4,2"
+                }, 
+                {
+                 "name":"label",
+                 "type":"string",
+                 "value":"54: pack3:4,2"
+                }, 
+                {
+                 "name":"terrainId",
+                 "type":"int",
+                 "value":54
+                }, 
+                {
+                 "name":"terrainKind",
+                 "type":"string",
+                 "value":"floor"
+                }],
+         "type":"floorTerrain"
+        }, 
+        {
+         "id":55,
+         "properties":[
+                {
+                 "name":"blocking",
+                 "type":"bool",
+                 "value":false
+                }, 
+                {
+                 "name":"blocksAttacks",
+                 "type":"bool",
+                 "value":false
+                }, 
+                {
+                 "name":"blocksSight",
+                 "type":"bool",
+                 "value":false
+                }, 
+                {
+                 "name":"ceilingTexture",
+                 "propertytype":"TextureRef",
+                 "type":"string",
+                 "value":"pack3:0,3"
+                }, 
+                {
+                 "name":"floorTexture",
+                 "propertytype":"TextureRef",
+                 "type":"string",
+                 "value":"pack3:0,3"
+                }, 
+                {
+                 "name":"label",
+                 "type":"string",
+                 "value":"55: pack3:0,3"
+                }, 
+                {
+                 "name":"terrainId",
+                 "type":"int",
+                 "value":55
+                }, 
+                {
+                 "name":"terrainKind",
+                 "type":"string",
+                 "value":"floor"
+                }],
+         "type":"floorTerrain"
+        }, 
+        {
+         "id":56,
+         "properties":[
+                {
+                 "name":"blocking",
+                 "type":"bool",
+                 "value":false
+                }, 
+                {
+                 "name":"blocksAttacks",
+                 "type":"bool",
+                 "value":false
+                }, 
+                {
+                 "name":"blocksSight",
+                 "type":"bool",
+                 "value":false
+                }, 
+                {
+                 "name":"ceilingTexture",
+                 "propertytype":"TextureRef",
+                 "type":"string",
+                 "value":"pack3:1,3"
+                }, 
+                {
+                 "name":"floorTexture",
+                 "propertytype":"TextureRef",
+                 "type":"string",
+                 "value":"pack3:1,3"
+                }, 
+                {
+                 "name":"label",
+                 "type":"string",
+                 "value":"56: pack3:1,3"
+                }, 
+                {
+                 "name":"terrainId",
+                 "type":"int",
+                 "value":56
+                }, 
+                {
+                 "name":"terrainKind",
+                 "type":"string",
+                 "value":"floor"
+                }],
+         "type":"floorTerrain"
+        }, 
+        {
+         "id":57,
+         "properties":[
+                {
+                 "name":"blocking",
+                 "type":"bool",
+                 "value":false
+                }, 
+                {
+                 "name":"blocksAttacks",
+                 "type":"bool",
+                 "value":false
+                }, 
+                {
+                 "name":"blocksSight",
+                 "type":"bool",
+                 "value":false
+                }, 
+                {
+                 "name":"ceilingTexture",
+                 "propertytype":"TextureRef",
+                 "type":"string",
+                 "value":"pack3:2,3"
+                }, 
+                {
+                 "name":"floorTexture",
+                 "propertytype":"TextureRef",
+                 "type":"string",
+                 "value":"pack3:2,3"
+                }, 
+                {
+                 "name":"label",
+                 "type":"string",
+                 "value":"57: pack3:2,3"
+                }, 
+                {
+                 "name":"terrainId",
+                 "type":"int",
+                 "value":57
+                }, 
+                {
+                 "name":"terrainKind",
+                 "type":"string",
+                 "value":"floor"
+                }],
+         "type":"floorTerrain"
+        }, 
+        {
+         "id":58,
+         "properties":[
+                {
+                 "name":"blocking",
+                 "type":"bool",
+                 "value":false
+                }, 
+                {
+                 "name":"blocksAttacks",
+                 "type":"bool",
+                 "value":false
+                }, 
+                {
+                 "name":"blocksSight",
+                 "type":"bool",
+                 "value":false
+                }, 
+                {
+                 "name":"ceilingTexture",
+                 "propertytype":"TextureRef",
+                 "type":"string",
+                 "value":"pack3:3,3"
+                }, 
+                {
+                 "name":"floorTexture",
+                 "propertytype":"TextureRef",
+                 "type":"string",
+                 "value":"pack3:3,3"
+                }, 
+                {
+                 "name":"label",
+                 "type":"string",
+                 "value":"58: pack3:3,3"
+                }, 
+                {
+                 "name":"terrainId",
+                 "type":"int",
+                 "value":58
+                }, 
+                {
+                 "name":"terrainKind",
+                 "type":"string",
+                 "value":"floor"
+                }],
+         "type":"floorTerrain"
+        }, 
+        {
+         "id":59,
+         "properties":[
+                {
+                 "name":"blocking",
+                 "type":"bool",
+                 "value":false
+                }, 
+                {
+                 "name":"blocksAttacks",
+                 "type":"bool",
+                 "value":false
+                }, 
+                {
+                 "name":"blocksSight",
+                 "type":"bool",
+                 "value":false
+                }, 
+                {
+                 "name":"ceilingTexture",
+                 "propertytype":"TextureRef",
+                 "type":"string",
+                 "value":"pack3:4,3"
+                }, 
+                {
+                 "name":"floorTexture",
+                 "propertytype":"TextureRef",
+                 "type":"string",
+                 "value":"pack3:4,3"
+                }, 
+                {
+                 "name":"label",
+                 "type":"string",
+                 "value":"59: pack3:4,3"
+                }, 
+                {
+                 "name":"terrainId",
+                 "type":"int",
+                 "value":59
+                }, 
+                {
+                 "name":"terrainKind",
+                 "type":"string",
+                 "value":"floor"
+                }],
+         "type":"floorTerrain"
+        }],
+ "tilewidth":16,
+ "type":"tileset",
+ "version":"1.10"
 }

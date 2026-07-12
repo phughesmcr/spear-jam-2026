@@ -293,7 +293,10 @@
         "ceilingHook",
         "ceilingLight",
         "ceilingWires",
-        "mainframeCore"
+        "mainframeCore",
+        "tree1",
+        "tree2",
+        "tree3"
       ],
       "valuesAsFlags": false
     },
@@ -324,7 +327,8 @@
       "type": "enum",
       "values": [
         "ambientHum",
-        "ambientLightBuzz"
+        "ambientLightBuzz",
+        "ambientWind"
       ],
       "valuesAsFlags": false
     },

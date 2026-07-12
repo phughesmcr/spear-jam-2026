@@ -78,6 +78,7 @@ Deno.test("generatedTemplateSources includes all mapper-facing templates", () =>
       "game_assets/maps/templates/decor_ceiling_light.tx",
       "game_assets/maps/templates/light.tx",
       "game_assets/maps/templates/sound_ambient_hum.tx",
+      "game_assets/maps/templates/sound_ambient_wind.tx",
     ]
   ) {
     assert(templates[path] !== undefined, `${path} should be generated.`);

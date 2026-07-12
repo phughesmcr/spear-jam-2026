@@ -207,9 +207,18 @@ function isBlocking(map: GameMap, x: number, y: number): boolean {
   return terrainBlocksMovement(terrainAt(map, x, y));
 }
 
-/** Doors span the gap between their flanking walls. */
+/**
+ * Thin walls span between flanking blockers. Prefer a full opposite pair; for
+ * barrier fence ends / T-junction corners, follow whichever axis has a neighbor.
+ */
 export function doorAxis(map: GameMap, x: number, y: number): ThinWallAxis {
-  if (isBlocking(map, x - 1, y) && isBlocking(map, x + 1, y)) return THIN_AXIS_Y;
+  const left = isBlocking(map, x - 1, y);
+  const right = isBlocking(map, x + 1, y);
+  const up = isBlocking(map, x, y - 1);
+  const down = isBlocking(map, x, y + 1);
+  if (left && right) return THIN_AXIS_Y;
+  if (up && down) return THIN_AXIS_X;
+  if (left || right) return THIN_AXIS_Y;
   return THIN_AXIS_X;
 }
 

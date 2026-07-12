@@ -48,3 +48,12 @@ Deno.test("final chamber set-pieces have Tiled templates", () => {
   assertEquals(paths.includes("game_assets/maps/templates/decor_mainframe_core.tx"), true);
   assertEquals(paths.includes("game_assets/maps/templates/spear_turret.tx"), true);
 });
+
+Deno.test("tree decorations have Tiled templates", () => {
+  const paths = TEMPLATE_DEFINITIONS.map((template) => template.path);
+  assertEquals(paths.filter((path) => path.includes("/decor_tree_")), [
+    "game_assets/maps/templates/decor_tree_1.tx",
+    "game_assets/maps/templates/decor_tree_2.tx",
+    "game_assets/maps/templates/decor_tree_3.tx",
+  ]);
+});

@@ -1,10 +1,10 @@
-import { assert, assertEquals } from "@std/assert";
 import { SoundId } from "@/src/game/sound.ts";
-import { createGameMap, KeyColor, SKY_CEILING_TEXTURE, VICTORY_GOTO } from "@/src/map/map.ts";
 import type { TerrainTile } from "@/src/map/map.ts";
-import { GAME_MAPS } from "@/src/map/maps.ts";
+import { createGameMap, KeyColor, SKY_CEILING_TEXTURE, VICTORY_GOTO } from "@/src/map/map.ts";
 import { validateGameMaps } from "@/src/map/map_validation.ts";
+import { GAME_MAPS } from "@/src/map/maps.ts";
 import { DEFAULT_BARS_TERRAIN_ID, DEFAULT_WALL_TERRAIN_ID, isTexturePackRef } from "@/src/map/terrain_palettes.ts";
+import { assert, assertEquals } from "@std/assert";
 
 Deno.test("authored game maps pass softlock validation", () => {
   assertEquals(validateGameMaps(GAME_MAPS), []);
@@ -207,7 +207,7 @@ Deno.test("map validation allows sound emitters on blocking terrain", () => {
   );
 });
 
-Deno.test("map validation accepts doorway-like barrier terrain and rejects ambiguous barriers", () => {
+Deno.test("map validation accepts doorway-like and fence-run barriers and rejects floating ones", () => {
   assertEquals(
     validateGameMaps([
       createGameMap("Good Barrier", [
@@ -218,6 +218,28 @@ Deno.test("map validation accepts doorway-like barrier terrain and rejects ambig
         { prefab: "player", x: 0, y: 0, dir: 1 },
         { prefab: "uplinkCode", x: 0, y: 1 },
         { prefab: "uplinkTerminal", x: 1, y: 1, goto: VICTORY_GOTO },
+      ]),
+    ]),
+    [],
+  );
+
+  // Continuous fence with a T-junction end (Boot Sector-style), not only a doorway span.
+  assertEquals(
+    validateGameMaps([
+      createGameMap("Fence Barrier", [
+        [0, 0, 0, 0, 0],
+        [
+          DEFAULT_WALL_TERRAIN_ID,
+          DEFAULT_BARS_TERRAIN_ID,
+          DEFAULT_BARS_TERRAIN_ID,
+          DEFAULT_BARS_TERRAIN_ID,
+          0,
+        ],
+        [0, 0, 0, DEFAULT_BARS_TERRAIN_ID, 0],
+      ], [
+        { prefab: "player", x: 0, y: 0, dir: 1 },
+        { prefab: "uplinkCode", x: 1, y: 0 },
+        { prefab: "uplinkTerminal", x: 3, y: 0, goto: VICTORY_GOTO },
       ]),
     ]),
     [],
@@ -236,7 +258,7 @@ Deno.test("map validation accepts doorway-like barrier terrain and rejects ambig
       ]),
     ]),
     [
-      "Bad Barrier: barrier terrain at (1,1) must sit between exactly one opposite pair of movement-blocking terrain tiles.",
+      "Bad Barrier: barrier terrain at (1,1) must be anchored to movement-blocking terrain on at least one side, and must not sit in a four-way blocking cross.",
     ],
   );
 });

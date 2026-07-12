@@ -31,6 +31,7 @@ const TERMINAL_LOCKED = new URL("../../assets/game/audio/error.mp3", import.meta
 const TERMINAL_USE = new URL("../../assets/game/audio/terminal_use.wav", import.meta.url).href;
 const AMBIENT_HUM = new URL("../../assets/game/audio/ambient_hum.wav", import.meta.url).href;
 const AMBIENT_LIGHT_BUZZ = new URL("../../assets/game/audio/buzz.ogg", import.meta.url).href;
+const AMBIENT_WIND = new URL("../../assets/game/audio/wind.mp3", import.meta.url).href;
 const ENEMY_INVESTIGATE = new URL("../../assets/game/audio/enemy_investigate.wav", import.meta.url).href;
 const DOG_IDLE = new URL("../../assets/game/audio/dog_idle.wav", import.meta.url).href;
 const DOG_ALERT = new URL("../../assets/game/audio/dog_alert.wav", import.meta.url).href;
@@ -79,6 +80,7 @@ export const SOUND_CATALOG: Readonly<Record<SoundIdType, SoundCatalogEntry>> = {
   [SoundId.TerminalUse]: sfx(SoundId.TerminalUse, TERMINAL_USE, 0.7, 4),
   [SoundId.AmbientHum]: ambient(SoundId.AmbientHum, AMBIENT_HUM, 0.38, 7),
   [SoundId.AmbientLightBuzz]: ambient(SoundId.AmbientLightBuzz, AMBIENT_LIGHT_BUZZ, 0.3, 4),
+  [SoundId.AmbientWind]: ambient(SoundId.AmbientWind, AMBIENT_WIND, 0.35, 8),
   [SoundId.EnemyInvestigate]: sfx(SoundId.EnemyInvestigate, ENEMY_INVESTIGATE, 0.45, 4),
   [SoundId.DogIdle]: sfx(SoundId.DogIdle, DOG_IDLE, 0.42, 5),
   [SoundId.DogAlert]: sfx(SoundId.DogAlert, DOG_ALERT, 0.65, 6),

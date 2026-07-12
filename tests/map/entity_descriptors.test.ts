@@ -66,3 +66,7 @@ Deno.test("final chamber set-pieces are available to map authors", () => {
   assertEquals(DECORATION_KINDS.includes("mainframeCore"), true);
   assertEquals(ENTITY_DESCRIPTORS.some((descriptor) => descriptor.prefab === "spearTurret"), true);
 });
+
+Deno.test("tree decorations are available to map authors", () => {
+  assertEquals(DECORATION_KINDS.filter((kind) => kind.startsWith("tree")), ["tree1", "tree2", "tree3"]);
+});

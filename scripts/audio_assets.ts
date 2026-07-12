@@ -33,6 +33,7 @@ const ASSET_SPECS: Readonly<Record<SoundIdType, WaveSpec>> = {
   [SoundId.TerminalUse]: { durationSeconds: 0.4, frequency: 620, volume: 0.4, kind: "sweep" },
   [SoundId.AmbientHum]: { durationSeconds: 2, frequency: 85, volume: 0.24, kind: "sine" },
   [SoundId.AmbientLightBuzz]: { durationSeconds: 1.5, frequency: 120, volume: 0.2, kind: "noise" },
+  [SoundId.AmbientWind]: { durationSeconds: 2, frequency: 70, volume: 0.2, kind: "noise" },
   [SoundId.EnemyInvestigate]: { durationSeconds: 0.13, frequency: 880, volume: 0.3, kind: "sine" },
   [SoundId.DogIdle]: { durationSeconds: 0.4, frequency: 180, volume: 0.35, kind: "noise" },
   [SoundId.DogAlert]: { durationSeconds: 0.35, frequency: 220, volume: 0.4, kind: "square" },

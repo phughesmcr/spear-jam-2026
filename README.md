@@ -79,7 +79,8 @@ N.B. I found out there is another game called "Ghost Process" too late in the ja
 **Art Assets:**
 
 - [Aquilarius' Retro Textures (CC0)](https://aquilarius.itch.io/aquilariusrt)
-- [See-trough grids metal nets (CC0)](https://opengameart.org/content/see-trough-grids-metal-nets)
+- [Puffolotti's See-trough grids metal nets (CC0)](https://opengameart.org/content/see-trough-grids-metal-nets)
+- [Puffolotti's Plants (CC0)](https://opengameart.org/content/alien-trees-and-plants-for-climates-equivalent-to-earth-doom-palette-friendly)
 - Sprites/HUD and titlescreens generated with GPT Image 2
 
 **Sound Assets:**
