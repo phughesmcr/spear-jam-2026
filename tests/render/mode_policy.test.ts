@@ -33,6 +33,11 @@ Deno.test("renderLayerPolicy skips session and message underlays for opaque mode
     renderMessageLog: false,
     opaqueFirstPerson: false,
   });
+  assertEquals(renderLayerPolicy({ type: "victory" }, "firstPerson"), {
+    renderSession: false,
+    renderMessageLog: false,
+    opaqueFirstPerson: false,
+  });
 });
 
 Deno.test("renderLayerPolicy keeps overlay modes on top of the session world", () => {

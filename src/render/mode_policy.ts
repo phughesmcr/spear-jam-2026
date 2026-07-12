@@ -12,6 +12,7 @@ export function renderLayerPolicy(mode: GameMode, viewMode: ViewMode): RenderLay
     case "settings":
     case "intermission":
     case "loading":
+    case "victory":
       return { renderSession: false, renderMessageLog: false, opaqueFirstPerson: false };
     case "playing":
     case "verbMenu":
@@ -23,7 +24,6 @@ export function renderLayerPolicy(mode: GameMode, viewMode: ViewMode): RenderLay
     case "paused":
     case "help":
     case "dialogue":
-    case "victory":
     case "defeat":
     case "error":
       return { renderSession: true, renderMessageLog: true, opaqueFirstPerson: false };

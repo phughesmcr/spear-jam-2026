@@ -87,3 +87,14 @@ N.B. I found out there is another game called "Ghost Process" too late in the ja
 
 - [Tiled](https://www.mapeditor.org/)
 - [Pixelorama](https://pixelorama.org/)
+
+**Research:**
+
+- [bracket-lib Roguelike Tutorial (Rust, Specs): Entities & Components](https://bfnightly.bracketproductions.com/chapter_2.html); [Items and Inventory](https://bfnightly.bracketproductions.com/chapter_9.html); [Systems/Dispatch](http://bfnightly.bracketproductions.com/chapter_73.html)
+- [gridbugs, *Modifying ECS for Turn-Based Games*](https://www.gridbugs.org/modifying-entity-component-system-for-turn-based-games/)
+- [DreamCat Games, *Implementing a Turn-Based Game in an ECS with Specs-Task*](https://bonsairobo.medium.com/implementing-a-turn-based-game-in-an-entity-component-system-with-specs-task-d7f3358198b4)
+- [Bevy, *Turn-Based Patterns and Ideas* (discussion #3370)](https://github.com/bevyengine/bevy/discussions/3370)
+- [flecs: Relationships manual](https://www.flecs.dev/flecs/md_docs_2Relationships.html); [Prefabs manual](https://github.com/SanderMertens/flecs/blob/master/docs/PrefabsManual.md); [Designing with Flecs](https://www.flecs.dev/flecs/md_docs_2DesignWithFlecs.html)
+- [Meta Horizon OS Developers, *ECS Patterns* (anti-patterns, god components)](https://developers.meta.com/horizon/documentation/web/iwsdk-concept-ecs-patterns/)
+- [*Systems-driven design in Caves of Qud*](https://unity.com/resources/systems-driven-design-in-caves-of-qud); [Brian Bucklew, *Data-Driven Engines of Qud and Sproggiwood* (IRDC 2015)](https://www.youtube.com/watch?v=51QK1Y6nZ_E)
+- [The Liquid Fire, *D20 RPG – Component & System (ECS)*](http://theliquidfire.com/2023/05/05/d20-rpg-component-system-ecs/)

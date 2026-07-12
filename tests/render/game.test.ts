@@ -105,6 +105,20 @@ Deno.test("renderGameFrame requests the help image in help mode", () => {
   assert(document.images.some((image) => image.src.endsWith("/assets/game/help.png")));
 });
 
+Deno.test("renderGameFrame requests the victory background in victory mode", () => {
+  const document = new FakeGameDocument();
+  const ctx = new FakeGameContext(document);
+
+  const result = renderWithScratch({
+    ctx: ctx as unknown as CanvasRenderingContext2D,
+    canvasSize: FULL_CANVAS,
+    mode: { type: "victory" },
+  });
+
+  assertEquals(result, { needsFrame: false });
+  assert(document.images.some((image) => image.src.endsWith("/assets/game/endscreen.png")));
+});
+
 Deno.test("renderGameFrame skips the background clear before opaque first-person blit", () => {
   withFakeOffscreenCanvas((): void => {
     const ctx = new FakeGameContext();
