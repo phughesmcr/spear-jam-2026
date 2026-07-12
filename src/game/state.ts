@@ -75,7 +75,7 @@ export type IntermissionBackground = "system" | "victory";
 
 export type IntermissionCompletion =
   | { readonly type: "loadMap"; readonly mapName: string }
-  | { readonly type: "resetRun"; readonly mapName: string };
+  | { readonly type: "returnToTitle" };
 
 export type GameMode =
   | { readonly type: "title"; readonly intent: TitleIntent; readonly hoverButton?: TitleHoverButton }

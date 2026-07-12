@@ -896,6 +896,39 @@ Deno.test("first-person rendering places ceiling decorations near the ceiling", 
   });
 });
 
+Deno.test("first-person rendering passes the mainframe core ceiling-clip distance to raycast sprites", () => {
+  withFakeOffscreenCanvas((): void => {
+    const map = createGameMap(
+      "Mainframe Core Clipping",
+      [
+        [2, 2, 2],
+        [2, 1, 2],
+        [2, 1, 2],
+        [2, 2, 2],
+      ],
+      [],
+      {
+        palette: [
+          { kind: "floor", id: 1, color: "#000000", floor_texture: "floor", ceiling_texture: "ceiling" },
+          { kind: "wall", id: 2, color: "#ffffff", wall_texture: "wall" },
+        ],
+      },
+    );
+    const session = sessionFor(map, [
+      playerDrawable(1, 2, Direction.North),
+      { kind: DrawableKind.Sprite, entity: 2 as Entity, x: 1, y: 1, spriteId: SpriteId.MainframeCore },
+    ]);
+    const renderer = createFirstPersonRenderer();
+    const ctx = new FakeCanvasContext() as unknown as CanvasRenderingContext2D;
+
+    renderFirstPersonView(renderer, ctx, { x: 0, y: 0, width: 64, height: 64 }, session, 0);
+
+    const scene = renderer.sceneForMap(map);
+    assertAlmostEquals(scene.spriteHeight[0]!, 5, 1e-6);
+    assertAlmostEquals(scene.spriteCeilingClipDistance[0]!, 8, 1e-6);
+  });
+});
+
 Deno.test("first-person rendering uses ECS attack animation sheet row", () => {
   withFakeOffscreenCanvas((): void => {
     const nowMs = 100;

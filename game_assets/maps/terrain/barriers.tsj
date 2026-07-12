@@ -6,7 +6,7 @@
   "margin": 0,
   "name": "barriers",
   "spacing": 0,
-  "tilecount": 2,
+  "tilecount": 3,
   "tiledversion": "1.12.2",
   "tileheight": 16,
   "tiles": [
@@ -113,6 +113,59 @@
           "propertytype": "TextureRef",
           "type": "string",
           "value": "pack1:0,0"
+        }
+      ]
+    },
+    {
+      "id": 2,
+      "type": "barrierTerrain",
+      "properties": [
+        {
+          "name": "terrainId",
+          "type": "int",
+          "value": 122
+        },
+        {
+          "name": "terrainKind",
+          "type": "string",
+          "value": "barrier"
+        },
+        {
+          "name": "blocking",
+          "type": "bool",
+          "value": true
+        },
+        {
+          "name": "label",
+          "type": "string",
+          "value": "122: pack1:0,0"
+        },
+        {
+          "name": "blocksSight",
+          "type": "bool",
+          "value": false
+        },
+        {
+          "name": "blocksAttacks",
+          "type": "bool",
+          "value": true
+        },
+        {
+          "name": "barrierTexture",
+          "type": "string",
+          "value": "bars"
+        },
+        {
+          "name": "floorTexture",
+          "propertytype": "TextureRef",
+          "type": "string",
+          "value": "pack1:0,0"
+        },
+        {
+          "name": "ceilingTexture",
+          "propertytype": "TextureRef",
+          "type": "string",
+          "value": "sky"
         }
       ]
     }

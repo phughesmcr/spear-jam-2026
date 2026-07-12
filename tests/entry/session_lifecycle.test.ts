@@ -1,9 +1,4 @@
-import {
-  loadMapSession,
-  resetRunSession,
-  retryMapSession,
-  type SessionLifecycleSpec,
-} from "@/src/entry/session_lifecycle.ts";
+import { loadMapSession, retryMapSession, type SessionLifecycleSpec } from "@/src/entry/session_lifecycle.ts";
 import { SplitMix32 } from "@/src/game/rng.ts";
 import { START_MAP_NAME } from "@/src/map/maps.ts";
 import { assert, assertEquals, assertRejects } from "@std/assert";
@@ -47,20 +42,15 @@ Deno.test("loadMapSession reuses the current game session when it exists", async
   }
 });
 
-Deno.test("retryMapSession and resetRunSession require an existing session", async () => {
+Deno.test("retryMapSession requires an existing session", async () => {
   await assertRejects(
     () => retryMapSession({ ...lifecycleSpec(new AbortController()), mapName: START_MAP_NAME }),
     Error,
     "Cannot retry before the game session exists.",
   );
-  await assertRejects(
-    () => resetRunSession({ ...lifecycleSpec(new AbortController()), mapName: START_MAP_NAME }),
-    Error,
-    "Cannot reset before the game session exists.",
-  );
 });
 
-Deno.test("retryMapSession and resetRunSession return the current session", async () => {
+Deno.test("retryMapSession returns the current session", async () => {
   const controller = new AbortController();
   const initial = await loadMapSession({
     ...lifecycleSpec(controller),
@@ -75,16 +65,8 @@ Deno.test("retryMapSession and resetRunSession return the current session", asyn
       mapName: START_MAP_NAME,
       currentSession: initial.session,
     });
-    const reset = await resetRunSession({
-      ...lifecycleSpec(controller),
-      mapName: START_MAP_NAME,
-      currentSession: initial.session,
-    });
-
     assert(retried !== undefined);
-    assert(reset !== undefined);
     assert(retried.session === initial.session);
-    assert(reset.session === initial.session);
   } finally {
     initial.session[Symbol.dispose]();
   }

@@ -11,13 +11,14 @@ export const TEXTURE_TERRAIN_COUNT = TEXTURE_PACKS.length * TEXTURE_PACK_TILE_CO
 export const FLOOR_TERRAIN_BASE_ID = 0;
 export const WALL_TERRAIN_BASE_ID = FLOOR_TERRAIN_BASE_ID + TEXTURE_TERRAIN_COUNT;
 export const BARRIER_TERRAIN_BASE_ID = WALL_TERRAIN_BASE_ID + TEXTURE_TERRAIN_COUNT;
-export const BARRIER_TERRAIN_COUNT = 2;
+export const BARRIER_TERRAIN_COUNT = 3;
 export const TERRAIN_CATALOG_TILE_COUNT = BARRIER_TERRAIN_BASE_ID + BARRIER_TERRAIN_COUNT;
 export const TERRAIN_CATALOG_TILE_COLUMNS = TEXTURE_PACK_COLUMNS * TEXTURE_PACK_ROWS;
 
 export const DEFAULT_WALL_TERRAIN_ID = WALL_TERRAIN_BASE_ID;
 export const DEFAULT_BARS_TERRAIN_ID = BARRIER_TERRAIN_BASE_ID;
 export const DEFAULT_GLASS_TERRAIN_ID = BARRIER_TERRAIN_BASE_ID + 1;
+export const DEFAULT_SKY_BARS_TERRAIN_ID = BARRIER_TERRAIN_BASE_ID + 2;
 
 export const TERRAIN_CATALOG: readonly TerrainTile[] = [
   ...textureRefs().map((texture, index): TerrainTile => ({
@@ -48,6 +49,14 @@ export const TERRAIN_CATALOG: readonly TerrainTile[] = [
     barrier_texture: "glass",
     floor_texture: "pack1:0,0",
     ceiling_texture: "pack1:0,0",
+  },
+  {
+    kind: "barrier",
+    id: DEFAULT_SKY_BARS_TERRAIN_ID,
+    color: "#64748b",
+    barrier_texture: "bars",
+    floor_texture: "pack1:0,0",
+    ceiling_texture: SKY_CEILING_TEXTURE,
   },
 ];
 

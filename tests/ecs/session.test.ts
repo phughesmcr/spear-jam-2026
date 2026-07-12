@@ -52,26 +52,6 @@ Deno.test("createGameSession cheat option starts with full loadout", async () =>
   }
 });
 
-Deno.test("cheat resetRun restores the cheat loadout", async () => {
-  const session = await createGameSession(testMap([]), () => 0, { cheat: true });
-  try {
-    session.resetRun(flatTestMap(5, 3, [{ prefab: "player", x: 2, y: 1, dir: Direction.South }]));
-
-    assertEquals(session.getPlayerStatus(), {
-      heldKeys: [],
-      selectedWeapon: 1,
-      unlockedWeapons: [1, 2, 3],
-      ammo: { pistol: 99, cannon: 99 },
-      health: { current: 10, max: 10 },
-      hasUplinkCode: false,
-      hasSpear: true,
-      progress: { credits: 0, score: 0, xp: 0, levelCredits: 0 },
-    });
-  } finally {
-    session[Symbol.dispose]();
-  }
-});
-
 Deno.test("player movement collects map-authored pickups into player state", async () => {
   const session = await createGameSession(
     testMap([
@@ -799,42 +779,6 @@ Deno.test("retryMap restarts level statistics for the new attempt", async () => 
       moves: 1,
       monstersKilled: 0,
       totalMonsters: 0,
-    });
-  } finally {
-    session[Symbol.dispose]();
-  }
-});
-
-Deno.test("resetRun clears durable state and returns to the start map spawn", async () => {
-  const session = await createGameSession(
-    testMap([
-      { prefab: "key", x: 2, y: 1, color: KeyColor.Red },
-      { prefab: "uplinkCode", x: 3, y: 1 },
-      { prefab: "weaponPickup", x: 4, y: 1, slot: 2 },
-      { prefab: "item", x: 5, y: 1, item: "pistolAmmo", amount: 5 },
-    ], 7),
-    () => 0,
-  );
-  try {
-    session.handlePlayerCommand({ type: "move", direction: "forward" });
-    session.handlePlayerCommand({ type: "move", direction: "forward" });
-    session.handlePlayerCommand({ type: "move", direction: "forward" });
-    session.handlePlayerCommand({ type: "move", direction: "forward" });
-
-    session.resetRun(flatTestMap(5, 3, [{ prefab: "player", x: 2, y: 1, dir: Direction.South }]));
-
-    assertEquals(playerPosition(session), { x: 2, y: 1 });
-    assertEquals(session.getPlayerFacing(), { dir: Direction.South });
-    assertEquals(session.getStoryFlags(), []);
-    assertEquals(session.getPlayerStatus(), {
-      heldKeys: [],
-      selectedWeapon: 1,
-      unlockedWeapons: [1],
-      ammo: { pistol: 0, cannon: 0 },
-      health: { current: 10, max: 10 },
-      hasUplinkCode: false,
-      hasSpear: false,
-      progress: { credits: 0, score: 0, xp: 0, levelCredits: 0 },
     });
   } finally {
     session[Symbol.dispose]();

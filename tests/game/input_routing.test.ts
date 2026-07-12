@@ -248,6 +248,23 @@ Deno.test("routePointerInput maps verb menu pointer input to verb transition eve
       },
     },
   );
+
+  assertEquals(
+    routePointerInput(
+      modelWithMode({ type: "verbMenu", selectedIndex: 0 }),
+      CANVAS_SIZE,
+      pointer(centerOf(button, { phase: "down", pointerType: "touch" })),
+    ),
+    {
+      type: "transition",
+      event: {
+        type: "verbPointer",
+        phase: "down",
+        target: { kind: "control", control: "help" },
+        tap: true,
+      },
+    },
+  );
 });
 
 Deno.test("routePointerInput keeps fallback verb routing for unhandled modes", () => {

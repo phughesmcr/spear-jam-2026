@@ -21,6 +21,7 @@ export type SpriteAppearance = {
   readonly firstPersonSlot?: number;
   readonly firstPersonScale: number;
   readonly firstPersonElevation: number;
+  readonly firstPersonCeilingClipDistance?: number;
   readonly fallbackColor?: string;
   readonly asset?: SpriteAsset;
   readonly enemySheet: boolean;
@@ -39,6 +40,7 @@ const SCALE_DECOR_TALL = 1;
 const SCALE_DECOR_CEILING_LIGHT = 0.5;
 const SCALE_DECOR_CEILING_LONG = 1;
 const SCALE_MAINFRAME_CORE = 5;
+const MAINFRAME_CEILING_CLIP_DISTANCE = 8;
 const SCALE_SPEAR_TURRET = 1;
 const ELEVATION_CEILING_LIGHT = 1 - SCALE_DECOR_CEILING_LIGHT;
 const ELEVATION_CEILING_LONG = 1 - SCALE_DECOR_CEILING_LONG;
@@ -136,7 +138,13 @@ const SPRITE_APPEARANCES: Readonly<Record<SpriteIdType, SpriteAppearance>> = {
     DECOR_CEILING_WIRES,
   ),
   [SpriteId.Spear]: itemAppearance(98, "weapon", "#22d3ee", SPEAR, undefined, "S"),
-  [SpriteId.MainframeCore]: decorationAppearance(99, SCALE_MAINFRAME_CORE, 0, MAINFRAME_CORE),
+  [SpriteId.MainframeCore]: decorationAppearance(
+    99,
+    SCALE_MAINFRAME_CORE,
+    0,
+    MAINFRAME_CORE,
+    MAINFRAME_CEILING_CLIP_DISTANCE,
+  ),
   [SpriteId.SpearTurret]: decorationAppearance(100, SCALE_SPEAR_TURRET, 0, SPEAR_TURRET),
   [SpriteId.SpearTurretLoaded]: decorationAppearance(101, SCALE_SPEAR_TURRET, 0, SPEAR_TURRET_LOADED),
   [SpriteId.DecorTree1]: decorationAppearance(102, SCALE_DECOR_TALL, 0, TREE_1),
@@ -234,6 +242,9 @@ function appearance(
     firstPersonSlot,
     firstPersonScale,
     firstPersonElevation: options.firstPersonElevation ?? 0,
+    ...(options.firstPersonCeilingClipDistance === undefined ? {} : {
+      firstPersonCeilingClipDistance: options.firstPersonCeilingClipDistance,
+    }),
     ...(firstPersonSlot === undefined ? {} : { fallbackColor: options.fallbackColor ?? topDownColor }),
     ...(options.asset === undefined ? {} : { asset: options.asset }),
     enemySheet: options.enemySheet ?? false,
@@ -280,9 +291,11 @@ function decorationAppearance(
   firstPersonScale: number,
   firstPersonElevation: number,
   src: string,
+  firstPersonCeilingClipDistance?: number,
 ): SpriteAppearance {
   return appearance(firstPersonSlot, firstPersonScale, "none", "#000000", {
     asset: spriteAsset(src),
     firstPersonElevation,
+    firstPersonCeilingClipDistance,
   });
 }

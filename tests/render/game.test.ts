@@ -119,7 +119,7 @@ Deno.test("renderGameFrame requests the victory background for the ending interm
         pageIndex: 0,
         prompt: "Space to begin again",
         background: "victory",
-        completion: { type: "resetRun", mapName: "Level 1" },
+        completion: { type: "returnToTitle" },
         revealStartedAtMs: 0,
         revealed: true,
       },

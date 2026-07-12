@@ -66,19 +66,6 @@ export async function retryMapSession(spec: ExistingSessionMapSpec): Promise<Ses
   return { mapName: spec.mapName, session };
 }
 
-export async function resetRunSession(spec: ExistingSessionMapSpec): Promise<SessionLifecycleResult | undefined> {
-  await preloadSessionAssets(spec);
-  if (spec.signal.aborted) return undefined;
-
-  const session = spec.currentSession;
-  if (session === undefined) {
-    throw new Error("Cannot reset before the game session exists.");
-  }
-  session.resetRun(getMap(spec.mapName));
-  if (spec.signal.aborted) return undefined;
-  return { mapName: spec.mapName, session };
-}
-
 async function preloadSessionAssets(spec: SessionLifecycleSpec & { readonly mapName: string }): Promise<void> {
   await spec.preloadAssets(spec.mapName);
 }

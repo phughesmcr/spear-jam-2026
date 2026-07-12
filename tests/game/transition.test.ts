@@ -347,7 +347,7 @@ Deno.test("transition stores command result combat feedback in presentation", ()
   assertEquals(result.model.presentation.messages, [{ text: "You hit Drone for 3.", expiresAtMs: 2300 }]);
 });
 
-Deno.test("transition confirms pointer verbs only when down and up hit the same hotspot", () => {
+Deno.test("transition previews a newly selected verb before confirming it with cursor input", () => {
   let model = transition(createGameModel("Level 1"), {
     type: "mapLoaded",
     mapName: "Level 1",
@@ -356,8 +356,8 @@ Deno.test("transition confirms pointer verbs only when down and up hit the same 
   ({ model } = transition(model, { type: "gameCommand", command: { type: "action" } }));
   assertEquals(model.mode, { type: "verbMenu", selectedIndex: 0 });
 
-  ({ model } = transition(model, { type: "verbPointer", phase: "down", target: { kind: "verb", verbIndex: 1 } }));
-  assertEquals(model.mode, { type: "verbMenu", selectedIndex: 1 });
+  ({ model } = transition(model, { type: "verbPointer", phase: "down", target: { kind: "verb", verbIndex: 2 } }));
+  assertEquals(model.mode, { type: "verbMenu", selectedIndex: 2 });
 
   let result = transition(model, { type: "verbPointer", phase: "up", target: { kind: "verb", verbIndex: 2 } });
   model = result.model;
@@ -366,6 +366,30 @@ Deno.test("transition confirms pointer verbs only when down and up hit the same 
 
   ({ model } = transition(model, { type: "verbPointer", phase: "down", target: { kind: "verb", verbIndex: 2 } }));
   result = transition(model, { type: "verbPointer", phase: "up", target: { kind: "verb", verbIndex: 2 } });
+  assertEquals(result.model.mode, { type: "playing" });
+  assertEquals(result.effects, [{ type: "runPlayerCommand", command: { type: "interact", verb: "open" } }]);
+});
+
+Deno.test("transition confirms a newly selected verb with one tap", () => {
+  let model = transition(createGameModel("Level 1"), {
+    type: "mapLoaded",
+    mapName: "Level 1",
+  }).model;
+
+  ({ model } = transition(model, { type: "gameCommand", command: { type: "action" } }));
+  ({ model } = transition(model, {
+    type: "verbPointer",
+    phase: "down",
+    target: { kind: "verb", verbIndex: 2 },
+    tap: true,
+  }));
+  const result = transition(model, {
+    type: "verbPointer",
+    phase: "up",
+    target: { kind: "verb", verbIndex: 2 },
+    tap: true,
+  });
+
   assertEquals(result.model.mode, { type: "playing" });
   assertEquals(result.effects, [{ type: "runPlayerCommand", command: { type: "interact", verb: "open" } }]);
 });
@@ -710,7 +734,7 @@ Deno.test("transition retries defeat through a session-owned checkpoint effect",
   ]);
 });
 
-Deno.test("transition presents victory as an ending intermission before starting a fresh run", () => {
+Deno.test("transition presents victory as an ending intermission before returning to the title screen", () => {
   let model = transition(createGameModel("Level 1"), {
     type: "mapLoaded",
     mapName: "Final Level",
@@ -754,7 +778,7 @@ Deno.test("transition presents victory as an ending intermission before starting
   assertEquals(mode.pageIndex, 0);
   assertEquals(mode.prompt, "Space to begin again");
   assertEquals(mode.background, "victory");
-  assertEquals(mode.completion, { type: "resetRun", mapName: "Level 1" });
+  assertEquals(mode.completion, { type: "returnToTitle" });
   assertEquals(mode.revealStartedAtMs, 1000 + VICTORY_HOLD_MS + VICTORY_FADE_MS);
   assertEquals(mode.revealed, false);
   assertEquals(result.effects, [{ type: "render" }]);
@@ -763,10 +787,10 @@ Deno.test("transition presents victory as an ending intermission before starting
   model = { ...result.model, mode };
   result = transition(model, { type: "gameCommand", command: { type: "wait" }, nowMs: 1000 });
   assertEquals(result.model.presentation, { messages: [], combatFeedback: [] });
-  assertEquals(result.model.mode, { type: "loading", loaded: 0, total: 0 });
+  assertEquals(result.model.mode, { type: "title", intent: "start" });
   assertEquals(result.effects, [
     { type: "render" },
-    { type: "resetRun", mapName: "Level 1" },
+    { type: "endRun" },
   ]);
 });
 

@@ -60,7 +60,7 @@ export type GameEffect =
   | { readonly type: "scheduleVictory"; readonly delayMs: number }
   | { readonly type: "loadMap"; readonly mapName: string }
   | { readonly type: "retryMap"; readonly mapName: string }
-  | { readonly type: "resetRun"; readonly mapName: string }
+  | { readonly type: "endRun" }
   | { readonly type: "runPlayerCommand"; readonly command: PlayerCommand };
 
 export type GameTransitionEvent =
@@ -70,7 +70,12 @@ export type GameTransitionEvent =
   | { readonly type: "loadFailed"; readonly message: string }
   | { readonly type: "victoryTransitionComplete"; readonly nowMs?: number }
   | { readonly type: "gameCommand"; readonly command: GameCommand; readonly nowMs?: number }
-  | { readonly type: "verbPointer"; readonly phase: PointerPhase; readonly target?: VerbMenuTarget }
+  | {
+    readonly type: "verbPointer";
+    readonly phase: PointerPhase;
+    readonly target?: VerbMenuTarget;
+    readonly tap?: true;
+  }
   | { readonly type: "dialoguePointer"; readonly phase: PointerPhase; readonly optionSlot?: number }
   | {
     readonly type: "titlePointer";
@@ -164,7 +169,7 @@ export function transition(model: GameModel, event: GameTransitionEvent): GameTr
     case "gameCommand":
       return gameCommand(model, event.command, event.nowMs ?? 0);
     case "verbPointer":
-      return verbPointer(model, event.phase, event.target);
+      return verbPointer(model, event.phase, event.target, event.tap === true);
     case "dialoguePointer":
       return dialoguePointer(model, event.phase, event.optionSlot);
     case "titlePointer":
@@ -402,17 +407,22 @@ function intermissionCommand(
       },
     }, [{ type: "render" }]);
   }
-  const loadingModel = { ...model, mode: { type: "loading", loaded: 0, total: 0 } } satisfies GameModel;
   switch (mode.completion.type) {
-    case "loadMap":
+    case "loadMap": {
+      const loadingModel = { ...model, mode: { type: "loading", loaded: 0, total: 0 } } satisfies GameModel;
       return done(loadingModel, [
         { type: "render" },
         { type: "loadMap", mapName: mode.completion.mapName },
       ]);
-    case "resetRun":
-      return done({ ...loadingModel, presentation: createPresentationState() }, [
+    }
+    case "returnToTitle":
+      return done({
+        ...model,
+        presentation: createPresentationState(),
+        mode: { type: "title", intent: "start" },
+      }, [
         { type: "render" },
-        { type: "resetRun", mapName: mode.completion.mapName },
+        { type: "endRun" },
       ]);
     default: {
       const _exhaustive: never = mode.completion;
@@ -577,7 +587,7 @@ function completeVictoryTransition(model: GameModel, nowMs: number): GameTransit
       pages: [...VICTORY_INTERMISSION.pages, formatLevelStats(model.mode.levelStats)],
       prompt: VICTORY_INTERMISSION.prompt,
       background: "victory",
-      completion: { type: "resetRun", mapName: model.startMapName },
+      completion: { type: "returnToTitle" },
       nowMs,
     }),
     [{ type: "render" }],

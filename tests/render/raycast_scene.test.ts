@@ -67,20 +67,17 @@ function testAtlas(): RaycastAtlas {
   };
 }
 
-/**
- * A 5x3 map with a single open corridor from (1,1) to (3,1) and the camera
- * at (1,1) facing east, so rays travel toward the wall at x = 4.
- */
-function corridorScene(): RaycastScene {
-  const scene = createScene(5, 3);
+/** A single open east-west corridor with one wall cell at each end. */
+function corridorScene(width = 5): RaycastScene {
+  const scene = createScene(width, 3);
   for (let y = 0; y < 3; y++) {
-    for (let x = 0; x < 5; x++) {
-      const open = y === 1 && x >= 1 && x <= 3;
+    for (let x = 0; x < width; x++) {
+      const open = y === 1 && x >= 1 && x < width - 1;
       if (open) {
-        scene.floors[y * 5 + x] = FLOOR + 1;
-        scene.ceilings[y * 5 + x] = CEILING + 1;
+        scene.floors[y * width + x] = FLOOR + 1;
+        scene.ceilings[y * width + x] = CEILING + 1;
       } else {
-        scene.walls[y * 5 + x] = WALL + 1;
+        scene.walls[y * width + x] = WALL + 1;
       }
     }
   }
@@ -603,20 +600,23 @@ Deno.test("renderFrame preserves non-square sprite billboard dimensions", () => 
   assertNotEquals(pixel(frame, CENTER - 13, CENTER), texel(atlas, "sprites", SPRITE, 1));
 });
 
-Deno.test("renderFrame clips scaled sprites below the ceiling at every distance", () => {
+Deno.test("renderFrame clips a scaled sprite beyond its ceiling-clip distance", () => {
   const atlas = testAtlas();
+  const emptyFrame = createFrame(VIEW, VIEW);
+  renderFrame(emptyFrame, corridorScene(13), atlas, CAMERA);
 
-  for (const [spriteX, ceilingY] of [[2.5, 7], [3.5, 19]] as const) {
-    const emptyFrame = createFrame(VIEW, VIEW);
-    renderFrame(emptyFrame, corridorScene(), atlas, CAMERA);
-    const scene = corridorScene();
-    addSprite(scene, spriteX, 1.5, SPRITE, 5);
+  for (const [spriteX, ceilingY, clipped] of [[9.5, 20, false], [10.5, 20, true]] as const) {
+    const scene = corridorScene(13);
+    addSprite(scene, spriteX, 1.5, SPRITE, 5, 0, 5, 0, 0, 8);
     const frame = createFrame(VIEW, VIEW);
 
     renderFrame(frame, scene, atlas, CAMERA);
 
-    assertEquals(pixel(frame, CENTER, ceilingY), pixel(emptyFrame, CENTER, ceilingY));
-    assertNotEquals(pixel(frame, CENTER, CENTER), pixel(emptyFrame, CENTER, CENTER));
+    if (clipped) {
+      assertEquals(pixel(frame, CENTER, ceilingY), pixel(emptyFrame, CENTER, ceilingY));
+    } else {
+      assertNotEquals(pixel(frame, CENTER, ceilingY), pixel(emptyFrame, CENTER, ceilingY));
+    }
   }
 });
 

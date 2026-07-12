@@ -150,6 +150,8 @@ export type RaycastScene = {
   readonly spriteHeight: Float32Array;
   /** Vertical world-tile offset above the floor for floor-anchored sprites. */
   readonly spriteElevation: Float32Array;
+  /** Distance beyond which the sprite is clipped against the ceiling. */
+  readonly spriteCeilingClipDistance: Float32Array;
   /** Optional sprite health bar values; max 0 means no bar. */
   readonly spriteHealthCurrent: Uint8Array;
   readonly spriteHealthMax: Uint8Array;
@@ -173,6 +175,9 @@ export function createScene(mapWidth: number, mapHeight: number, options: Raycas
   lightRed.fill(255);
   lightGreen.fill(255);
   lightBlue.fill(255);
+
+  const spriteCeilingClipDistance = new Float32Array(spriteCapacity);
+  spriteCeilingClipDistance.fill(Number.POSITIVE_INFINITY);
 
   return {
     mapWidth,
@@ -204,6 +209,7 @@ export function createScene(mapWidth: number, mapHeight: number, options: Raycas
     spriteWidth: new Float32Array(spriteCapacity),
     spriteHeight: new Float32Array(spriteCapacity),
     spriteElevation: new Float32Array(spriteCapacity),
+    spriteCeilingClipDistance,
     spriteHealthCurrent: new Uint8Array(spriteCapacity),
     spriteHealthMax: new Uint8Array(spriteCapacity),
   };
@@ -301,6 +307,7 @@ export function addSprite(
   width = height,
   healthCurrent = 0,
   healthMax = 0,
+  ceilingClipDistance = Number.POSITIVE_INFINITY,
 ): void {
   if (scene.spriteCount >= scene.spriteX.length) {
     throw new Error(
@@ -314,6 +321,7 @@ export function addSprite(
   scene.spriteWidth[index] = width;
   scene.spriteHeight[index] = height;
   scene.spriteElevation[index] = elevation;
+  scene.spriteCeilingClipDistance[index] = ceilingClipDistance;
   scene.spriteHealthCurrent[index] = healthCurrent;
   scene.spriteHealthMax[index] = healthMax;
 }

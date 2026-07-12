@@ -199,7 +199,7 @@ Deno.test("generatedTerrainSources creates shared texture-backed terrain tileset
     60,
   );
   assertEquals(barriers.image, "barriers.png");
-  assertEquals(barriers.tilecount, 2);
+  assertEquals(barriers.tilecount, 3);
   assertEquals(
     barriers.tiles[0]!.properties.find((property) => property.name === "terrainKind")?.value,
     "barrier",
@@ -219,6 +219,18 @@ Deno.test("generatedTerrainSources creates shared texture-backed terrain tileset
   assertEquals(
     barriers.tiles[0]!.properties.find((property) => property.name === "barrierTexture")?.value,
     "bars",
+  );
+  assertEquals(
+    barriers.tiles[2]!.properties.find((property) => property.name === "barrierTexture")?.value,
+    "bars",
+  );
+  assertEquals(
+    barriers.tiles[2]!.properties.find((property) => property.name === "floorTexture")?.value,
+    "pack1:0,0",
+  );
+  assertEquals(
+    barriers.tiles[2]!.properties.find((property) => property.name === "ceilingTexture")?.value,
+    "sky",
   );
   assertEquals(
     new DataView(floorsPng.buffer, floorsPng.byteOffset, floorsPng.byteLength).getUint32(16),

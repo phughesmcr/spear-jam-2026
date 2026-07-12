@@ -176,12 +176,6 @@ export class GameSession implements Disposable {
     this.replaceRuntime(map, this.levelEntryCheckpoint);
   }
 
-  resetRun(map: GameMap): void {
-    this.replaceRuntime(map);
-    if (this.cheat) applyCheatPlayerLoadout(this.runtime.game, this.playerEntity);
-    this.levelEntryCheckpoint = capturePlayerProgressionCheckpoint(this.runtime.game, this.playerEntity);
-  }
-
   tick(nowMs: number): GameSessionTickResult {
     return { needsFrame: this.animations.advance(nowMs) };
   }

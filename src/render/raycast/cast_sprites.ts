@@ -95,6 +95,7 @@ export function renderSpritesAndThinWalls(
       scene.spriteWidth[sprite]!,
       scene.spriteHeight[sprite]!,
       scene.spriteElevation[sprite]!,
+      scene.spriteCeilingClipDistance[sprite]!,
       distance,
       healthBarMaxDistance,
       scene.spriteHealthCurrent[sprite]!,
@@ -149,6 +150,7 @@ function drawSprite(
   widthScale: number,
   heightScale: number,
   elevation: number,
+  ceilingClipDistance: number,
   distance: number,
   healthBarMaxDistance: number,
   healthCurrent: number,
@@ -174,6 +176,7 @@ function drawSprite(
   const bottom = horizon + ((CAMERA_HEIGHT - elevation) * focal) / depth;
   const top = bottom - spriteHeight;
   const ceiling = horizon - ((1 - CAMERA_HEIGHT) * focal) / depth;
+  const visibleTop = distance > ceilingClipDistance ? Math.max(top, ceiling) : top;
   const left = screenX - spriteWidth * 0.5;
   const healthRatio = healthRatioFor(healthCurrent, healthMax);
   const healthBarWidth = spriteWidth >= HEALTH_BAR_MIN_WIDTH && healthMax > 0 &&
@@ -189,7 +192,7 @@ function drawSprite(
   const healthBarBottom = healthBarTop + HEALTH_BAR_HEIGHT;
   const healthBarFillRight = healthBarLeft + HEALTH_BAR_BORDER +
     Math.round((healthBarWidth - HEALTH_BAR_BORDER * 2) * healthRatio);
-  let yStart = Math.ceil(Math.max(top, ceiling));
+  let yStart = Math.ceil(visibleTop);
   let yEnd = Math.ceil(bottom);
   if (yStart < 0) yStart = 0;
   if (yEnd > height) yEnd = height;

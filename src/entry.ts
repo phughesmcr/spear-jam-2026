@@ -3,7 +3,6 @@ import type { GameSession } from "@/src/ecs/session.ts";
 import {
   loadMapSession,
   type LoadMapSessionSpec,
-  resetRunSession,
   retryMapSession,
   type SessionLifecycleResult,
 } from "@/src/entry/session_lifecycle.ts";
@@ -47,7 +46,6 @@ const SESSION_TRANSITIONS: Record<
 > = {
   loadMap: loadMapSession,
   retryMap: retryMapSession,
-  resetRun: resetRunSession,
 };
 
 export function startGame(spec: GameSpec): GameController {
@@ -204,7 +202,7 @@ class Game implements GameController {
     this.executeEffects(next.effects);
     if (
       this.model.mode.type === "intermission" &&
-      (this.model.mode.completion.type === "loadMap" || this.model.mode.completion.type === "resetRun")
+      this.model.mode.completion.type === "loadMap"
     ) {
       this.runtime.warmAssets(this.model.mode.completion.mapName);
     }
@@ -234,12 +232,15 @@ class Game implements GameController {
         case "stopSounds":
           this.runtime.stopSounds();
           break;
+        case "endRun":
+          this.session?.[Symbol.dispose]();
+          this.session = undefined;
+          break;
         case "scheduleVictory":
           this.scheduleVictory(effect.delayMs);
           break;
         case "loadMap":
         case "retryMap":
-        case "resetRun":
           this.startSessionTransition(effect.type, effect.mapName);
           break;
         case "runPlayerCommand":

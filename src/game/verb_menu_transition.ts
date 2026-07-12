@@ -43,6 +43,7 @@ export function verbPointer(
   model: GameModel,
   phase: PointerPhase,
   target: VerbMenuTarget | undefined,
+  tap: boolean,
 ): GameTransition {
   const mode = model.mode;
   if (mode.type !== "verbMenu") return done(model);
@@ -53,7 +54,11 @@ export function verbPointer(
       const downMode = withVerbMenuPointerDown(mode, target);
       const downModel = { ...model, mode: downMode };
       if (target?.kind === "verb" && target.verbIndex !== mode.selectedIndex) {
-        return done(selectVerb(downModel, target.verbIndex), [{ type: "render" }]);
+        const selectedMode: VerbMenuMode = tap ? { ...downMode, selectedIndex: target.verbIndex } : {
+          type: "verbMenu",
+          selectedIndex: target.verbIndex,
+        };
+        return done({ ...downModel, mode: selectedMode }, [{ type: "render" }]);
       }
       return done(downModel);
     },
@@ -79,12 +84,6 @@ export function verbPointer(
     },
     cancel: () => done({ ...model, mode: withoutVerbMenuPointerDown(mode) }),
   });
-}
-
-function selectVerb(model: GameModel, selectedIndex: number): GameModel {
-  const mode = model.mode;
-  if (mode.type === "verbMenu" && selectedIndex === mode.selectedIndex) return model;
-  return { ...model, mode: { type: "verbMenu", selectedIndex } };
 }
 
 function hoverVerbMenuTarget(

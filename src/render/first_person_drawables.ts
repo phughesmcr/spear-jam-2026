@@ -78,6 +78,7 @@ function addFirstPersonSprite(
   elevation = 0,
   healthCurrent = 0,
   healthMax = 0,
+  ceilingClipDistance = Number.POSITIVE_INFINITY,
 ): void {
   addSprite(
     scene,
@@ -89,6 +90,7 @@ function addFirstPersonSprite(
     height * (state.spriteAspectBySlot.get(slot) ?? 1),
     healthCurrent,
     healthMax,
+    ceilingClipDistance,
   );
 }
 
@@ -109,6 +111,9 @@ function addAppearanceSprite(
     appearance.firstPersonSlot,
     appearance.firstPersonScale,
     appearance.firstPersonElevation + (appearance.itemBob ? itemElevation(nowMs) : 0),
+    0,
+    0,
+    appearance.firstPersonCeilingClipDistance,
   );
   return appearance.itemBob;
 }
