@@ -2,6 +2,13 @@ import { assertEquals } from "@std/assert";
 import { dirname, relative, resolve } from "@std/path";
 
 const SOURCE_ROOT = resolve(Deno.cwd(), "src");
+const TRANSITION_ROOT = resolve(SOURCE_ROOT, "game/model/transition");
+const TRANSITION_PUBLIC_MODULE = resolve(TRANSITION_ROOT, "mod.ts");
+const LEGACY_TRANSITION_MODULES = new Set([
+  resolve(SOURCE_ROOT, "game/model/transition.ts"),
+  resolve(SOURCE_ROOT, "game/model/mode_handlers.ts"),
+  resolve(SOURCE_ROOT, "game/model/verb_menu_transition.ts"),
+]);
 const ALLOWED_DEPENDENCIES = {
   app: new Set(["app", "engine", "game", "platform"]),
   engine: new Set(["engine"]),
@@ -35,6 +42,40 @@ function importedLayer(sourcePath: string, specifier: string): SourceLayer | und
   return sourceLayer(resolve(dirname(sourcePath), specifier));
 }
 
+function importedSourcePath(sourcePath: string, specifier: string): string | undefined {
+  if (specifier.startsWith("@/src/")) return resolve(SOURCE_ROOT, specifier.slice("@/src/".length));
+  if (specifier.startsWith(".")) return resolve(dirname(sourcePath), specifier);
+  return undefined;
+}
+
+function dependencyCycle(dependencies: ReadonlyMap<string, readonly string[]>): readonly string[] | undefined {
+  const visiting = new Set<string>();
+  const visited = new Set<string>();
+
+  function visit(path: string, stack: readonly string[]): readonly string[] | undefined {
+    const cycleStart = stack.indexOf(path);
+    if (cycleStart >= 0) return [...stack.slice(cycleStart), path];
+    if (visited.has(path)) return undefined;
+
+    visiting.add(path);
+    const nextStack = [...stack, path];
+    for (const dependency of dependencies.get(path) ?? []) {
+      const cycle = visit(dependency, nextStack);
+      if (cycle !== undefined) return cycle;
+    }
+    visiting.delete(path);
+    visited.add(path);
+    return undefined;
+  }
+
+  for (const path of dependencies.keys()) {
+    if (visiting.has(path) || visited.has(path)) continue;
+    const cycle = visit(path, []);
+    if (cycle !== undefined) return cycle;
+  }
+  return undefined;
+}
+
 function importSpecifiers(source: string): string[] {
   const specifiers: string[] = [];
   const patterns = [
@@ -63,6 +104,56 @@ Deno.test({
         if (dependency === undefined || ALLOWED_DEPENDENCIES[importer].has(dependency)) continue;
         violations.push(`${relative(SOURCE_ROOT, sourcePath)} imports ${specifier}`);
       }
+    }
+
+    assertEquals(violations.sort(), []);
+  },
+});
+
+Deno.test({
+  name: "game transition modules expose one sealed public boundary",
+  permissions: { read: [SOURCE_ROOT] },
+  fn: async () => {
+    const violations: string[] = [];
+    const files = await sourceFiles(SOURCE_ROOT);
+    const transitionFiles = new Set(files.filter((path) => path.startsWith(`${TRANSITION_ROOT}/`)));
+    const transitionDependencies = new Map([...transitionFiles].map((path) => [path, [] as string[]]));
+    for (const legacyPath of LEGACY_TRANSITION_MODULES) {
+      if (files.includes(legacyPath)) violations.push(`${relative(SOURCE_ROOT, legacyPath)} still exists`);
+    }
+
+    for (const sourcePath of files) {
+      const importer = relative(SOURCE_ROOT, sourcePath);
+      const isTransitionModule = sourcePath.startsWith(`${TRANSITION_ROOT}/`);
+
+      for (const specifier of importSpecifiers(await Deno.readTextFile(sourcePath))) {
+        const importedPath = importedSourcePath(sourcePath, specifier);
+        if (importedPath === undefined) continue;
+        if (isTransitionModule && transitionFiles.has(importedPath)) {
+          transitionDependencies.get(sourcePath)!.push(importedPath);
+        }
+        if (LEGACY_TRANSITION_MODULES.has(importedPath)) {
+          violations.push(`${importer} imports legacy ${specifier}`);
+          continue;
+        }
+        if (isTransitionModule && importedPath === TRANSITION_PUBLIC_MODULE) {
+          violations.push(`${importer} imports the transition public module`);
+          continue;
+        }
+        if (
+          !isTransitionModule && importedPath.startsWith(`${TRANSITION_ROOT}/`) &&
+          importedPath !== TRANSITION_PUBLIC_MODULE
+        ) {
+          violations.push(`${importer} bypasses game/model/transition/mod.ts via ${specifier}`);
+        }
+      }
+    }
+
+    const cycle = dependencyCycle(transitionDependencies);
+    if (cycle !== undefined) {
+      violations.push(
+        `transition dependency cycle: ${cycle.map((path) => relative(TRANSITION_ROOT, path)).join(" -> ")}`,
+      );
     }
 
     assertEquals(violations.sort(), []);

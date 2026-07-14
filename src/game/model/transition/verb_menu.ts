@@ -1,7 +1,8 @@
 import type { GameCommand } from "@/src/game/model/commands.ts";
-import { dispatchCommand, done, pointerGesture } from "@/src/game/model/mode_handlers.ts";
-import type { CommandSlot, VerbMenuControl, VerbMenuTarget, ViewMode } from "@/src/game/model/state.ts";
-import type { GameModel, GameTransition } from "@/src/game/model/transition.ts";
+import type { CommandSlot, VerbMenuControl, VerbMenuTarget } from "@/src/game/model/state.ts";
+import type { GameModel, GameTransition } from "@/src/game/model/transition/contracts.ts";
+import { dispatchCommand, done, pointerGesture } from "@/src/game/model/transition/result.ts";
+import { toggleView } from "@/src/game/model/transition/view.ts";
 import { VERBS, verbToCommand } from "@/src/game/model/verbs.ts";
 import type { PointerPhase } from "@/src/engine/input/mod.ts";
 
@@ -128,12 +129,8 @@ function confirmControlSelection(model: GameModel, control: VerbMenuControl): Ga
         mode: { type: "playing" },
       }, [{ type: "runPlayerCommand", command: { type: "wait" } }]);
     case "toggleView": {
-      const viewMode: ViewMode = model.viewMode === "firstPerson" ? "topDown" : "firstPerson";
-      return done({
-        ...model,
-        mode: { type: "playing" },
-        viewMode,
-      }, [{ type: "render" }]);
+      const toggled = toggleView(model);
+      return { ...toggled, model: { ...toggled.model, mode: { type: "playing" } } };
     }
     case "help":
       return done({

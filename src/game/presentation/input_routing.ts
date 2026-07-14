@@ -1,7 +1,7 @@
 import type { GameCommand } from "@/src/game/model/commands.ts";
 import type { PointerInput } from "@/src/engine/input/mod.ts";
 import type { GameMode } from "@/src/game/model/state.ts";
-import type { GameModel, GameTransitionEvent } from "@/src/game/model/transition.ts";
+import type { GameModel, GameTransitionEvent } from "@/src/game/model/transition/mod.ts";
 import type { GameCanvasSize } from "@/src/game/presentation/canvas_size.ts";
 import { dialogueOptionSlotAt } from "@/src/game/presentation/ui/dialogue.ts";
 import { settingsBackButtonHit, settingsSliderAt, settingsSliderUnit } from "@/src/game/presentation/ui/settings.ts";

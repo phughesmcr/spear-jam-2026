@@ -19,7 +19,7 @@ import {
   type GameModel,
   type GameTransitionEvent,
   transition,
-} from "@/src/game/model/transition.ts";
+} from "@/src/game/model/transition/mod.ts";
 import { directionDelta, normalizeDirection } from "@/src/game/world/direction.ts";
 import { START_MAP_NAME } from "@/src/game/world/campaign.ts";
 import { canvasSizeController } from "@/src/platform/web/canvas.ts";

@@ -19,7 +19,7 @@ import {
 } from "@/src/game/model/render_settings.ts";
 import type { RuntimeSession } from "@/src/game/presentation/session_view.ts";
 import type { EnemyIdleSoundSource, SoundCue, SoundEmitterSnapshot } from "@/src/game/model/sound.ts";
-import type { GameModel } from "@/src/game/model/transition.ts";
+import type { GameModel } from "@/src/game/model/transition/mod.ts";
 import { DEFAULT_GAME_CANVAS_SIZE, type GameCanvasSize } from "@/src/game/presentation/canvas_size.ts";
 import { createFirstPersonRenderer, type FirstPersonRenderer } from "@/src/game/presentation/first_person/renderer.ts";
 import {
