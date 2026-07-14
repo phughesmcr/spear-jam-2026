@@ -1,6 +1,6 @@
 import "../assets/styles.css";
-import { bootQueryFromSearch } from "../src/boot_query.ts";
-import { startGame } from "../src/entry.ts";
+import { bootQueryFromSearch } from "../src/app/boot_query.ts";
+import { startGame } from "../src/app/start.ts";
 
 function main(): void {
   const canvas = document.getElementById("gameCanvas");

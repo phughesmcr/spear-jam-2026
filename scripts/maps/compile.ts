@@ -17,8 +17,8 @@ import {
 } from "@/src/map/authoring/catalog.ts";
 import { compileTiledMap } from "@/src/map/authoring/compile.ts";
 import type { TiledMap, TiledTemplate, TiledTileset } from "@/src/map/authoring/tiled_types.ts";
-import { validateGameMaps } from "@/src/map/map_validation.ts";
-import { TEXTURE_PACK_COLUMNS, TEXTURE_PACK_ROWS } from "@/src/map/terrain_palettes.ts";
+import { validateGameMaps } from "@/src/game/world/validation.ts";
+import { TEXTURE_PACK_COLUMNS, TEXTURE_PACK_ROWS } from "@/src/game/world/terrain_palette.ts";
 import { parseJson } from "./json_utils.ts";
 import { pngDimensions } from "./png.ts";
 import type { CompiledMapData, CompiledMapsData, GeneratedMap } from "./types.ts";

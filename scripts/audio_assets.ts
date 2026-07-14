@@ -1,7 +1,7 @@
-import { MUSIC_TRACKS } from "@/src/audio/music_catalog.ts";
-import { SOUND_CATALOG } from "@/src/audio/sound_catalog.ts";
-import { VOICE_CATALOG } from "@/src/dialogue/voice.ts";
-import { SOUND_IDS, SoundId, type SoundId as SoundIdType } from "@/src/game/sound.ts";
+import { MUSIC_TRACKS } from "@/src/game/content/audio/music.ts";
+import { SOUND_CATALOG } from "@/src/game/content/audio/sounds.ts";
+import { VOICE_CATALOG } from "@/src/game/content/dialogue/voices.ts";
+import { SOUND_IDS, SoundId, type SoundId as SoundIdType } from "@/src/game/model/sound.ts";
 
 type WaveSpec = {
   readonly durationSeconds: number;

@@ -1,5 +1,5 @@
 import { PROPERTY_TYPES, TEMPLATE_DEFINITIONS } from "@/src/map/authoring/catalog.ts";
-import { PREFAB_AUTHORING_PROPERTY_NAMES } from "@/src/map/entity_descriptors.ts";
+import { PREFAB_AUTHORING_PROPERTY_NAMES } from "@/src/game/world/entities.ts";
 import { assertEquals } from "@std/assert";
 
 // The Tiled authoring catalog (object classes + templates) carries data that ENTITY_DEFINITIONS

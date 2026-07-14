@@ -3,7 +3,7 @@ import {
   DECORATION_KINDS,
   ENTITY_DESCRIPTORS,
   PREFAB_AUTHORING_PROPERTY_NAMES,
-} from "@/src/map/entity_descriptors.ts";
+} from "@/src/game/world/entities.ts";
 import { assertEquals } from "@std/assert";
 
 const AUTHORING_ONLY_PROPERTIES = new Set(["prefab", "facing", ...Object.keys(ATTACK_PROPERTY_MAP)]);

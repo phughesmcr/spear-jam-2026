@@ -51,6 +51,7 @@
   ],
   "imports": {
     "@/": "./",
+    "@std/path": "jsr:@std/path@^1.1.6",
     "turn-based-engine/crawler": "../turn-based-engine/src/crawler/mod.ts",
     "turn-based-engine/ecs": "../turn-based-engine/src/ecs/mod.ts",
     "@std/assert": "jsr:@std/assert@^1.0.13",

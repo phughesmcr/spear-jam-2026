@@ -1,5 +1,5 @@
 import type { CompiledTiledMap } from "@/src/map/authoring/compile.ts";
-import type { EntityDef } from "@/src/map/map.ts";
+import type { EntityDef } from "@/src/game/world/map.ts";
 
 export type GeneratedMap = CompiledTiledMap & {
   readonly sourcePath: string;

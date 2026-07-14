@@ -1,4 +1,4 @@
-import { startGame } from "@/src/entry.ts";
+import { startGame } from "@/src/app/start.ts";
 import { useEffect, useRef, useState } from "preact/hooks";
 
 export default function Game(

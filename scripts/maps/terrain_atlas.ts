@@ -11,10 +11,10 @@ import {
   wallTilesetPath,
 } from "@/src/map/authoring/catalog.ts";
 import type { TiledProperty } from "@/src/map/authoring/tiled_types.ts";
-import type { TerrainTile, TexturePackRef } from "@/src/map/map.ts";
-import { BarrierTexture } from "@/src/map/map.ts";
-import { isTexturePackRef, parseTexturePackRef, TERRAIN_CATALOG } from "@/src/map/terrain_palettes.ts";
-import { flagsBlockAttack, flagsBlockMovement, flagsBlockSight, terrainFlags } from "@/src/map/tile_flags.ts";
+import type { TerrainTile, TexturePackRef } from "@/src/game/world/map.ts";
+import { BarrierTexture } from "@/src/game/world/map.ts";
+import { isTexturePackRef, parseTexturePackRef, TERRAIN_CATALOG } from "@/src/game/world/terrain_palette.ts";
+import { flagsBlockAttack, flagsBlockMovement, flagsBlockSight, terrainFlags } from "@/src/game/world/terrain_flags.ts";
 import { averageSourcePixel, drawTileBorder, setPixel } from "./pixels.ts";
 import { encodePng, readPngImage, type RgbaImage } from "./png.ts";
 import { jsonSource, property } from "./json_utils.ts";

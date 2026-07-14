@@ -1,0 +1,687 @@
+import { TrackId, type TrackId as MusicTrackId } from "@/src/game/content/audio/music.ts";
+import { dialogueTreeNode } from "@/src/game/content/dialogue/trees.ts";
+import type { VoiceId } from "@/src/game/content/dialogue/voices.ts";
+import { type AudioSettings, DEFAULT_AUDIO_SETTINGS, withAudioVolume } from "@/src/game/model/audio_settings.ts";
+import {
+  type GameCommand,
+  isPlayerCommand,
+  type PlayerCommand,
+  type PlayerCommandResult,
+} from "@/src/game/model/commands.ts";
+import { hasNextIntermissionPage, type IntermissionMode, isMessageRevealed } from "@/src/game/model/intermission.ts";
+import { CONTINUE_INTERMISSION_PROMPT, INTRO_INTERMISSION } from "@/src/game/content/intro.ts";
+import { formatLevelStats } from "@/src/game/model/level_stats.ts";
+import { dispatchCommand, done, pointerGesture } from "@/src/game/model/mode_handlers.ts";
+import {
+  consumeGameEvents,
+  createPresentationState,
+  type PresentationState,
+} from "@/src/game/model/presentation_state.ts";
+import {
+  clampInteractiveFps,
+  DEFAULT_INTERACTIVE_FPS,
+  interactiveFpsFromUnit,
+  type SettingsSliderId,
+} from "@/src/game/model/render_settings.ts";
+import type { GameMode, TitleHoverButton, VerbMenuTarget, ViewMode } from "@/src/game/model/state.ts";
+import { openVerbMenu, verbMenuCommand, verbPointer } from "@/src/game/model/verb_menu_transition.ts";
+import { VICTORY_FADE_MS, VICTORY_HOLD_MS, VICTORY_INTERMISSION } from "@/src/game/content/victory.ts";
+import type { PointerPhase } from "@/src/engine/input/mod.ts";
+import type { Entity } from "turn-based-engine/ecs";
+
+type DialogueMode = Extract<GameMode, { readonly type: "dialogue" }>;
+type HelpMode = Extract<GameMode, { readonly type: "help" }>;
+type SettingsMode = Extract<GameMode, { readonly type: "settings" }>;
+type TitleMode = Extract<GameMode, { readonly type: "title" }>;
+type ModeCommandHandler = (model: GameModel, command: GameCommand, nowMs: number) => GameTransition;
+
+export type GameModelOptions = {
+  readonly showIntro?: boolean;
+  readonly showTitle?: boolean;
+};
+
+export type GameModel = {
+  readonly startMapName: string;
+  readonly showIntro: boolean;
+  readonly showTitle: boolean;
+  readonly currentMapName: string;
+  readonly presentation: PresentationState;
+  readonly mode: GameMode;
+  readonly viewMode: ViewMode;
+  readonly audio: AudioSettings;
+  readonly interactiveFps: number;
+  readonly lastVerbIndex: number;
+};
+
+export type GameEffect =
+  | { readonly type: "render" }
+  | { readonly type: "closeDialogue" }
+  | { readonly type: "setDialogueVoice"; readonly voice?: VoiceId }
+  | { readonly type: "ensureInput" }
+  | { readonly type: "applyAudioVolumes" }
+  | { readonly type: "playMusic"; readonly trackId: MusicTrackId }
+  | { readonly type: "stopSounds" }
+  | { readonly type: "scheduleVictory"; readonly delayMs: number }
+  | { readonly type: "loadMap"; readonly mapName: string }
+  | { readonly type: "retryMap"; readonly mapName: string }
+  | { readonly type: "endRun" }
+  | { readonly type: "runPlayerCommand"; readonly command: PlayerCommand };
+
+export type GameTransitionEvent =
+  | { readonly type: "start"; readonly nowMs?: number }
+  | { readonly type: "mapLoaded"; readonly mapName: string }
+  | { readonly type: "loadingProgress"; readonly loaded: number; readonly total: number }
+  | { readonly type: "loadFailed"; readonly message: string }
+  | { readonly type: "victoryTransitionComplete"; readonly nowMs?: number }
+  | { readonly type: "gameCommand"; readonly command: GameCommand; readonly nowMs?: number }
+  | {
+    readonly type: "verbPointer";
+    readonly phase: PointerPhase;
+    readonly target?: VerbMenuTarget;
+    readonly tap?: true;
+  }
+  | { readonly type: "dialoguePointer"; readonly phase: PointerPhase; readonly optionSlot?: number }
+  | {
+    readonly type: "titlePointer";
+    readonly phase: PointerPhase;
+    readonly hoverButton?: TitleHoverButton;
+  }
+  | {
+    readonly type: "settingsPointer";
+    readonly phase: PointerPhase;
+    readonly slider?: SettingsSliderId;
+    readonly volume?: number;
+  }
+  | {
+    readonly type: "playerCommandResult";
+    readonly result: PlayerCommandResult;
+    readonly playerEntity: Entity;
+    readonly nowMs?: number;
+  };
+
+export type GameTransition = {
+  readonly model: GameModel;
+  readonly effects: readonly GameEffect[];
+};
+
+/** Per-mode command policy. Modes omitted here ignore commands via {@link done}. */
+const MODE_COMMANDS: { readonly [K in GameMode["type"]]?: ModeCommandHandler } = {
+  title: titleCommand,
+  settings: (model, command) => {
+    const mode = model.mode;
+    return mode.type === "settings" ? settingsCommand(model, mode, command) : done(model);
+  },
+  intermission: (model, command, nowMs) => {
+    const mode = model.mode;
+    return mode.type === "intermission" ? intermissionCommand(model, mode, command, nowMs) : done(model);
+  },
+  dialogue: (model, command) => {
+    const mode = model.mode;
+    return mode.type === "dialogue" ? dialogueCommand(model, mode, command) : done(model);
+  },
+  help: (model, command) => {
+    const mode = model.mode;
+    return mode.type === "help" ? helpCommand(model, mode, command) : done(model);
+  },
+  verbMenu: (model, command) => {
+    const mode = model.mode;
+    return mode.type === "verbMenu" ? verbMenuCommand(model, mode, command) : done(model);
+  },
+  defeat: defeatCommand,
+  victoryTransition: (_model, _command) => done(_model),
+  playing: playingCommand,
+  paused: overlayCommand,
+  loading: overlayCommand,
+  error: overlayCommand,
+};
+
+export function createGameModel(startMapName: string, options: GameModelOptions = {}): GameModel {
+  return {
+    startMapName,
+    showIntro: options.showIntro ?? false,
+    showTitle: options.showTitle ?? false,
+    currentMapName: startMapName,
+    presentation: createPresentationState(),
+    mode: { type: "loading", loaded: 0, total: 0 },
+    viewMode: "firstPerson",
+    audio: DEFAULT_AUDIO_SETTINGS,
+    interactiveFps: DEFAULT_INTERACTIVE_FPS,
+    lastVerbIndex: 0,
+  };
+}
+
+export function transition(model: GameModel, event: GameTransitionEvent): GameTransition {
+  switch (event.type) {
+    case "start":
+      if (model.showTitle) {
+        return done({ ...model, mode: { type: "title", intent: "start" } }, [
+          { type: "ensureInput" },
+          { type: "applyAudioVolumes" },
+          { type: "playMusic", trackId: TrackId.Title },
+          { type: "render" },
+        ]);
+      }
+      return beginGame(model, event.nowMs ?? 0);
+    case "mapLoaded":
+      return mapLoaded(model, event.mapName);
+    case "loadingProgress":
+      return loadingProgress(model, event.loaded, event.total);
+    case "loadFailed":
+      return done({ ...model, mode: { type: "error", message: event.message } }, [{ type: "render" }]);
+    case "victoryTransitionComplete":
+      return completeVictoryTransition(model, event.nowMs ?? 0);
+    case "gameCommand":
+      return gameCommand(model, event.command, event.nowMs ?? 0);
+    case "verbPointer":
+      return verbPointer(model, event.phase, event.target, event.tap === true);
+    case "dialoguePointer":
+      return dialoguePointer(model, event.phase, event.optionSlot);
+    case "titlePointer":
+      return titlePointer(model, event.phase, event.hoverButton);
+    case "settingsPointer":
+      return settingsPointer(model, event.phase, event.slider, event.volume);
+    case "playerCommandResult":
+      return playerCommandResult(model, event.result, event.playerEntity, event.nowMs ?? 0);
+    default: {
+      const _exhaustive: never = event;
+      return _exhaustive;
+    }
+  }
+}
+
+function beginGame(model: GameModel, nowMs: number): GameTransition {
+  if (model.showIntro) {
+    return done(
+      enterIntermission(model, {
+        title: INTRO_INTERMISSION.title,
+        pages: INTRO_INTERMISSION.pages,
+        prompt: INTRO_INTERMISSION.prompt,
+        background: "system",
+        completion: { type: "loadMap", mapName: model.startMapName },
+        nowMs,
+      }),
+      [
+        { type: "ensureInput" },
+        { type: "applyAudioVolumes" },
+        { type: "playMusic", trackId: TrackId.Intro },
+        { type: "render" },
+      ],
+    );
+  }
+  return done({ ...model, mode: { type: "loading", loaded: 0, total: 0 } }, [
+    { type: "applyAudioVolumes" },
+    { type: "render" },
+    { type: "loadMap", mapName: model.startMapName },
+  ]);
+}
+
+function mapLoaded(model: GameModel, mapName: string): GameTransition {
+  return done({
+    ...model,
+    currentMapName: mapName,
+    presentation: createPresentationState(),
+    mode: { type: "playing" },
+  }, [{ type: "ensureInput" }, { type: "render" }]);
+}
+
+function loadingProgress(model: GameModel, loaded: number, total: number): GameTransition {
+  if (model.mode.type !== "loading") return done(model);
+  if (model.mode.loaded === loaded && model.mode.total === total) return done(model);
+  return done({ ...model, mode: { type: "loading", loaded, total } }, [{ type: "render" }]);
+}
+
+function gameCommand(model: GameModel, command: GameCommand, nowMs: number): GameTransition {
+  const handler = MODE_COMMANDS[model.mode.type];
+  return handler === undefined ? done(model) : handler(model, command, nowMs);
+}
+
+function playingCommand(model: GameModel, command: GameCommand, _nowMs: number): GameTransition {
+  if (isPlayerCommand(command)) return done(model, [{ type: "runPlayerCommand", command }]);
+  return dispatchCommand(model, command, {
+    action: () => done(openVerbMenu(model), [{ type: "render" }]),
+    menu: () => toggleMenu(model),
+    pause: () => togglePause(model),
+    toggleView: () => toggleView(model),
+  });
+}
+
+function overlayCommand(model: GameModel, command: GameCommand, _nowMs: number): GameTransition {
+  return dispatchCommand(model, command, {
+    menu: () => toggleMenu(model),
+    pause: () => togglePause(model),
+    toggleView: () => toggleView(model),
+  });
+}
+
+function titleCommand(model: GameModel, command: GameCommand, nowMs: number): GameTransition {
+  const mode = model.mode;
+  if (mode.type !== "title") return done(model);
+
+  return dispatchCommand(model, command, {
+    menu: () => mode.intent === "resume" ? closeTitleMenu(model) : done(model),
+    settings: () =>
+      done({
+        ...model,
+        mode: { type: "settings", returnIntent: mode.intent },
+      }, [{ type: "render" }]),
+    help: () =>
+      done({
+        ...model,
+        mode: { type: "help", returnTo: { kind: "title", intent: mode.intent } },
+      }, [{ type: "render" }]),
+    wait: () => mode.intent === "resume" ? closeTitleMenu(model) : beginGame(model, nowMs),
+  });
+}
+
+function titlePointer(
+  model: GameModel,
+  phase: PointerPhase,
+  hoverButton: TitleHoverButton | undefined,
+): GameTransition {
+  const mode = model.mode;
+  if (mode.type !== "title") return done(model);
+
+  return pointerGesture(model, phase, {
+    move: () => hoverTitleButton(model, mode, hoverButton),
+    down: () => done(model),
+    up: () => done(model),
+    cancel: () => done(model),
+  });
+}
+
+function hoverTitleButton(
+  model: GameModel,
+  mode: TitleMode,
+  hoverButton: TitleHoverButton | undefined,
+): GameTransition {
+  if (mode.hoverButton === hoverButton) return done(model);
+  return done({ ...model, mode: titleMode(mode.intent, hoverButton) }, [{ type: "render" }]);
+}
+
+function titleMode(intent: TitleMode["intent"], hoverButton: TitleHoverButton | undefined): TitleMode {
+  return hoverButton === undefined ? { type: "title", intent } : { type: "title", intent, hoverButton };
+}
+
+function settingsCommand(model: GameModel, mode: SettingsMode, command: GameCommand): GameTransition {
+  const close = (): GameTransition =>
+    done({
+      ...model,
+      mode: { type: "title", intent: mode.returnIntent },
+    }, [{ type: "render" }]);
+  return dispatchCommand(model, command, {
+    wait: close,
+    action: close,
+    menu: close,
+    settings: close,
+  });
+}
+
+function settingsPointer(
+  model: GameModel,
+  phase: PointerPhase,
+  slider: SettingsSliderId | undefined,
+  volume: number | undefined,
+): GameTransition {
+  const mode = model.mode;
+  if (mode.type !== "settings") return done(model);
+
+  return pointerGesture(model, phase, {
+    down: () => {
+      if (slider === undefined || volume === undefined) return done(model);
+      return applySettingsSlider(model, mode, slider, volume, true);
+    },
+    move: () => {
+      const dragging = mode.dragging;
+      if (dragging === undefined || volume === undefined) return done(model);
+      return applySettingsSlider(model, mode, dragging, volume, false);
+    },
+    up: () => {
+      if (mode.dragging === undefined) return done(model);
+      return done({
+        ...model,
+        mode: { type: "settings", returnIntent: mode.returnIntent },
+      });
+    },
+    cancel: () => {
+      if (mode.dragging === undefined) return done(model);
+      return done({
+        ...model,
+        mode: { type: "settings", returnIntent: mode.returnIntent },
+      });
+    },
+  });
+}
+
+function applySettingsSlider(
+  model: GameModel,
+  mode: SettingsMode,
+  slider: SettingsSliderId,
+  unit: number,
+  startDrag: boolean,
+): GameTransition {
+  switch (slider) {
+    case "music":
+    case "sound": {
+      const audio = withAudioVolume(model.audio, slider, unit);
+      if (!startDrag && audio === model.audio) return done(model);
+      return done({
+        ...model,
+        audio,
+        mode: startDrag ? { type: "settings", returnIntent: mode.returnIntent, dragging: slider } : model.mode,
+      }, [{ type: "applyAudioVolumes" }, { type: "render" }]);
+    }
+    case "fps": {
+      const interactiveFps = interactiveFpsFromUnit(unit);
+      if (!startDrag && interactiveFps === model.interactiveFps) return done(model);
+      return done({
+        ...model,
+        interactiveFps: clampInteractiveFps(interactiveFps),
+        mode: startDrag ? { type: "settings", returnIntent: mode.returnIntent, dragging: "fps" } : model.mode,
+      }, [{ type: "render" }]);
+    }
+    default: {
+      const _exhaustive: never = slider;
+      return _exhaustive;
+    }
+  }
+}
+
+function closeTitleMenu(model: GameModel): GameTransition {
+  return done({ ...model, mode: { type: "playing" } }, [{ type: "render" }]);
+}
+
+function intermissionCommand(
+  model: GameModel,
+  mode: IntermissionMode,
+  command: GameCommand,
+  nowMs: number,
+): GameTransition {
+  if (command.type !== "wait") return done(model);
+  if (!isMessageRevealed(mode, nowMs)) {
+    return done({ ...model, mode: { ...mode, revealed: true } }, [{ type: "render" }]);
+  }
+  if (hasNextIntermissionPage(mode)) {
+    return done({
+      ...model,
+      mode: {
+        ...mode,
+        pageIndex: mode.pageIndex + 1,
+        revealStartedAtMs: nowMs,
+        revealed: false,
+      },
+    }, [{ type: "render" }]);
+  }
+  switch (mode.completion.type) {
+    case "loadMap": {
+      const loadingModel = { ...model, mode: { type: "loading", loaded: 0, total: 0 } } satisfies GameModel;
+      return done(loadingModel, [
+        { type: "render" },
+        { type: "loadMap", mapName: mode.completion.mapName },
+      ]);
+    }
+    case "returnToTitle":
+      return done({
+        ...model,
+        presentation: createPresentationState(),
+        mode: { type: "title", intent: "start" },
+      }, [
+        { type: "render" },
+        { type: "endRun" },
+      ]);
+    default: {
+      const _exhaustive: never = mode.completion;
+      return _exhaustive;
+    }
+  }
+}
+
+function dialogueCommand(model: GameModel, mode: DialogueMode, command: GameCommand): GameTransition {
+  return dispatchCommand(model, command, {
+    wait: () => selectDialogueChoice(model, mode, 1),
+    selectWeapon: (select) => selectDialogueChoice(model, mode, select.slot),
+  });
+}
+
+function helpCommand(model: GameModel, mode: HelpMode, command: GameCommand): GameTransition {
+  const close = (): GameTransition => {
+    switch (mode.returnTo.kind) {
+      case "verbMenu":
+        return done({
+          ...model,
+          mode: { type: "verbMenu", selectedIndex: mode.returnTo.selectedIndex },
+        }, [{ type: "render" }]);
+      case "title":
+        return done({
+          ...model,
+          mode: { type: "title", intent: mode.returnTo.intent },
+        }, [{ type: "render" }]);
+      default: {
+        const _exhaustive: never = mode.returnTo;
+        return _exhaustive;
+      }
+    }
+  };
+  return dispatchCommand(model, command, {
+    wait: close,
+    action: close,
+    menu: close,
+  });
+}
+
+function selectDialogueChoice(model: GameModel, mode: DialogueMode, slot: number): GameTransition {
+  const choice = mode.choices[slot - 1];
+  if (choice === undefined) return done(model);
+  if (choice.next === undefined || mode.treeKey === undefined) return closeDialogue(model);
+
+  const node = dialogueTreeNode(mode.treeKey, choice.next);
+  return done({
+    ...model,
+    mode: {
+      type: "dialogue",
+      title: mode.title,
+      ...(mode.art === undefined ? {} : { art: mode.art }),
+      speaker: mode.speaker,
+      treeKey: mode.treeKey,
+      message: node.text,
+      ...(node.voice === undefined ? {} : { voice: node.voice }),
+      choices: node.choices,
+    },
+  }, dialogueRenderEffects(mode.voice, node.voice));
+}
+
+function defeatCommand(model: GameModel, command: GameCommand): GameTransition {
+  if (command.type !== "wait") return done(model);
+
+  const resetModel = {
+    ...model,
+    presentation: createPresentationState(),
+    mode: { type: "loading", loaded: 0, total: 0 },
+  } satisfies GameModel;
+  return done(resetModel, [{ type: "render" }, { type: "retryMap", mapName: model.currentMapName }]);
+}
+
+function dialoguePointer(
+  model: GameModel,
+  phase: PointerPhase,
+  optionSlot: number | undefined,
+): GameTransition {
+  const mode = model.mode;
+  if (mode.type !== "dialogue") return done(model);
+
+  return pointerGesture(model, phase, {
+    down: () => {
+      const downMode = optionSlot === undefined ?
+        withoutDialoguePointerDown(mode) :
+        { ...mode, pointerDownSlot: optionSlot };
+      return done({ ...model, mode: downMode });
+    },
+    up: () => {
+      const downSlot = mode.pointerDownSlot;
+      const upMode = withoutDialoguePointerDown(mode);
+      const upModel = { ...model, mode: upMode };
+      if (optionSlot !== undefined && downSlot === optionSlot) {
+        return selectDialogueChoice(upModel, upMode, optionSlot);
+      }
+      return done(upModel);
+    },
+    cancel: () => done({ ...model, mode: withoutDialoguePointerDown(mode) }),
+  });
+}
+
+function playerCommandResult(
+  model: GameModel,
+  result: PlayerCommandResult,
+  playerEntity: Entity,
+  nowMs: number,
+): GameTransition {
+  const modelWithPresentation = applyPresentation(model, playerEntity, result, nowMs);
+  switch (result.type) {
+    case "continue":
+      return done(modelWithPresentation, [{ type: "render" }]);
+    case "outcome": {
+      if (result.outcome === "defeat") {
+        return done({ ...modelWithPresentation, mode: { type: "defeat" } }, [{ type: "render" }]);
+      }
+      return done(
+        {
+          ...modelWithPresentation,
+          mode: {
+            type: "victoryTransition",
+            fadeStartsAtMs: nowMs + VICTORY_HOLD_MS,
+            completesAtMs: nowMs + VICTORY_HOLD_MS + VICTORY_FADE_MS,
+            levelStats: result.levelStats,
+          },
+        },
+        [
+          { type: "stopSounds" },
+          { type: "playMusic", trackId: TrackId.Title },
+          { type: "scheduleVictory", delayMs: VICTORY_HOLD_MS + VICTORY_FADE_MS },
+          { type: "render" },
+        ],
+      );
+    }
+    case "mapChange":
+      return done(
+        enterIntermission(modelWithPresentation, {
+          pages: [formatLevelStats(result.levelStats), `Entering ${result.mapChange.goto}.`],
+          prompt: CONTINUE_INTERMISSION_PROMPT,
+          background: "system",
+          completion: { type: "loadMap", mapName: result.mapChange.goto },
+          nowMs,
+        }),
+        [{ type: "render" }],
+      );
+    case "dialogue":
+      return done({
+        ...modelWithPresentation,
+        mode: { type: "dialogue", ...result.dialogue },
+      }, dialogueRenderEffects(undefined, result.dialogue.voice));
+    default: {
+      const _exhaustive: never = result;
+      return _exhaustive;
+    }
+  }
+}
+
+function completeVictoryTransition(model: GameModel, nowMs: number): GameTransition {
+  if (model.mode.type !== "victoryTransition") return done(model);
+  return done(
+    enterIntermission(model, {
+      title: VICTORY_INTERMISSION.title,
+      pages: [...VICTORY_INTERMISSION.pages, formatLevelStats(model.mode.levelStats)],
+      prompt: VICTORY_INTERMISSION.prompt,
+      background: "victory",
+      completion: { type: "returnToTitle" },
+      nowMs,
+    }),
+    [{ type: "render" }],
+  );
+}
+
+function toggleMenu(model: GameModel): GameTransition {
+  if (model.mode.type === "playing") {
+    return done({ ...model, mode: { type: "title", intent: "resume" } }, [{ type: "render" }]);
+  }
+  return done(model, [{ type: "render" }]);
+}
+
+function toggleView(model: GameModel): GameTransition {
+  const viewMode: ViewMode = model.viewMode === "firstPerson" ? "topDown" : "firstPerson";
+  return done({ ...model, viewMode }, [{ type: "render" }]);
+}
+
+function togglePause(model: GameModel): GameTransition {
+  switch (model.mode.type) {
+    case "playing":
+      return done({ ...model, mode: { type: "paused" } }, [{ type: "render" }]);
+    case "paused":
+      return done({ ...model, mode: { type: "playing" } }, [{ type: "render" }]);
+    default:
+      return done(model, [{ type: "render" }]);
+  }
+}
+
+function closeDialogue(model: GameModel): GameTransition {
+  const voice = model.mode.type === "dialogue" ? model.mode.voice : undefined;
+  const effects: readonly GameEffect[] = voice === undefined ?
+    [{ type: "closeDialogue" }, { type: "render" }] :
+    [{ type: "setDialogueVoice" }, { type: "closeDialogue" }, { type: "render" }];
+  return done({ ...model, mode: { type: "playing" } }, effects);
+}
+
+function dialogueRenderEffects(previousVoice: VoiceId | undefined, voice: VoiceId | undefined): readonly GameEffect[] {
+  if (previousVoice === voice) return [{ type: "render" }];
+  const voiceEffect: GameEffect = voice === undefined ?
+    { type: "setDialogueVoice" } :
+    { type: "setDialogueVoice", voice };
+  return [voiceEffect, { type: "render" }];
+}
+
+function withoutDialoguePointerDown(mode: DialogueMode): DialogueMode {
+  if (mode.pointerDownSlot === undefined) return mode;
+  const { pointerDownSlot: _, ...rest } = mode;
+  return rest;
+}
+
+function applyPresentation(
+  model: GameModel,
+  playerEntity: Entity,
+  result: PlayerCommandResult,
+  nowMs: number,
+): GameModel {
+  return {
+    ...model,
+    presentation: consumeGameEvents(model.presentation, {
+      playerEntity,
+      events: result.events,
+      nowMs,
+    }),
+  };
+}
+
+function enterIntermission(
+  model: GameModel,
+  input: {
+    readonly title?: string;
+    readonly pages: readonly string[];
+    readonly prompt: string;
+    readonly background: IntermissionMode["background"];
+    readonly completion: IntermissionMode["completion"];
+    readonly nowMs: number;
+  },
+): GameModel {
+  return {
+    ...model,
+    mode: {
+      type: "intermission",
+      ...(input.title === undefined ? {} : { title: input.title }),
+      pages: input.pages,
+      pageIndex: 0,
+      prompt: input.prompt,
+      background: input.background,
+      completion: input.completion,
+      revealStartedAtMs: input.nowMs,
+      revealed: false,
+    },
+  };
+}

@@ -1,16 +1,16 @@
-import path from "node:path";
+import { join, resolve } from "@std/path";
 import { defineConfig } from "vite";
 
 const projectRoot = import.meta.dirname!;
-const engineRoot = path.resolve(projectRoot, "../turn-based-engine/src");
+const engineRoot = resolve(projectRoot, "../turn-based-engine/src");
 
 /** Static client build for itch.io HTML5 hosting (relative asset URLs). */
 export default defineConfig({
   base: "./",
-  root: path.join(projectRoot, "itch"),
-  publicDir: path.join(projectRoot, "static"),
+  root: join(projectRoot, "itch"),
+  publicDir: join(projectRoot, "static"),
   build: {
-    outDir: path.join(projectRoot, "dist/itch"),
+    outDir: join(projectRoot, "dist/itch"),
     emptyOutDir: true,
     target: "esnext",
     assetsDir: "assets",
@@ -20,11 +20,11 @@ export default defineConfig({
       { find: "@/", replacement: `${projectRoot}/` },
       {
         find: "turn-based-engine/crawler",
-        replacement: path.join(engineRoot, "crawler/mod.ts"),
+        replacement: join(engineRoot, "crawler/mod.ts"),
       },
       {
         find: "turn-based-engine/ecs",
-        replacement: path.join(engineRoot, "ecs/mod.ts"),
+        replacement: join(engineRoot, "ecs/mod.ts"),
       },
     ],
   },

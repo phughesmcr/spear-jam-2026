@@ -1,12 +1,12 @@
-import { DialogueTreeId } from "@/src/dialogue/dialogue.ts";
-import { ExamineTextId } from "@/src/game/examine_content.ts";
-import { DisplayName } from "@/src/game/names.ts";
-import { SoundId } from "@/src/game/sound.ts";
-import { StoryEventId, StoryTargetId } from "@/src/game/story.ts";
+import { DialogueTreeId } from "@/src/game/content/dialogue/trees.ts";
+import { ExamineTextId } from "@/src/game/content/examine_text.ts";
+import { DisplayName } from "@/src/game/content/names.ts";
+import { SoundId } from "@/src/game/model/sound.ts";
+import { StoryEventId, StoryTargetId } from "@/src/game/content/story.ts";
 import { compileTiledMap } from "@/src/map/authoring/compile.ts";
 import type { TiledMap, TiledObject, TiledProperty, TiledTemplate } from "@/src/map/authoring/tiled_types.ts";
-import { KeyColor, VICTORY_GOTO } from "@/src/map/map.ts";
-import { DEFAULT_BARS_TERRAIN_ID, DEFAULT_WALL_TERRAIN_ID, TERRAIN_CATALOG } from "@/src/map/terrain_palettes.ts";
+import { KeyColor, VICTORY_GOTO } from "@/src/game/world/map.ts";
+import { DEFAULT_BARS_TERRAIN_ID, DEFAULT_WALL_TERRAIN_ID, TERRAIN_CATALOG } from "@/src/game/world/terrain_palette.ts";
 import { assertEquals, assertThrows } from "@std/assert";
 
 const TILE_SIZE = 16;

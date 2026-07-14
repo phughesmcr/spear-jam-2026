@@ -5,7 +5,7 @@ import { buildScaffoldMap } from "@/scripts/maps/scaffold.ts";
 import { generatedTemplateSources } from "@/scripts/maps/templates.ts";
 import { generatedTerrainSources } from "@/scripts/maps/terrain_atlas.ts";
 import { generatedTiledProjectSource } from "@/scripts/maps/tiled_project.ts";
-import { AMBIENT_SOUND_IDS } from "@/src/game/sound.ts";
+import { AMBIENT_SOUND_IDS } from "@/src/game/model/sound.ts";
 import { assert, assertEquals } from "@std/assert";
 
 Deno.test("buildScaffoldMap creates a bordered Tiled map ready for authoring", () => {

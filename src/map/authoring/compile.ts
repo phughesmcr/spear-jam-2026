@@ -23,10 +23,10 @@ import {
   type EntityPrefab,
   mapEntityPrefab,
   PREFAB_AUTHORING_PROPERTY_NAMES,
-} from "@/src/map/entity_descriptors.ts";
-import { createGameMap, type EntityDef, type GameMap, type LightDef, type SoundDef } from "@/src/map/map.ts";
-import { TERRAIN_CATALOG } from "@/src/map/terrain_palettes.ts";
-import { flagsBlockAttack, flagsBlockMovement, flagsBlockSight, terrainFlags } from "@/src/map/tile_flags.ts";
+} from "@/src/game/world/entities.ts";
+import { createGameMap, type EntityDef, type GameMap, type LightDef, type SoundDef } from "@/src/game/world/map.ts";
+import { TERRAIN_CATALOG } from "@/src/game/world/terrain_palette.ts";
+import { flagsBlockAttack, flagsBlockMovement, flagsBlockSight, terrainFlags } from "@/src/game/world/terrain_flags.ts";
 
 export type CompileTiledMapOptions = {
   readonly sourcePath?: string;

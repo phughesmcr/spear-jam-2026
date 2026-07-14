@@ -5,7 +5,7 @@ import {
   type EntityMarkerType,
 } from "@/src/map/authoring/catalog.ts";
 import type { TiledProperty } from "@/src/map/authoring/tiled_types.ts";
-import { VICTORY_GOTO } from "@/src/map/map.ts";
+import { VICTORY_GOTO } from "@/src/game/world/map.ts";
 import { jsonSource, property } from "./json_utils.ts";
 import { drawTileBorder, fillRect, setPixel } from "./pixels.ts";
 import { encodePng } from "./png.ts";

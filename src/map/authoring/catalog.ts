@@ -6,19 +6,19 @@ import {
   KNOWN_EXAMINE_TEXT_IDS,
   KNOWN_STORY_EVENT_IDS,
   KNOWN_STORY_TARGET_IDS,
-} from "@/src/content/known_ids.ts";
-import { ATTACK_PATTERN_AUTHORING_KEYS, ATTACK_TARGET_MODE_AUTHORING_KEYS } from "@/src/game/attack.ts";
+} from "@/src/game/content/known_ids.ts";
+import { ATTACK_PATTERN_AUTHORING_KEYS, ATTACK_TARGET_MODE_AUTHORING_KEYS } from "@/src/game/model/attack.ts";
 import type { TiledObject, TiledProperty, TiledTilesetReference } from "@/src/map/authoring/tiled_types.ts";
-import { VICTORY_GOTO } from "@/src/map/destinations.ts";
-import { ENTITY_PREFABS, type EntityPrefab } from "@/src/map/entity_descriptors.ts";
-import { DECORATION_KINDS, KeyColor, SKY_CEILING_TEXTURE, TexturePack } from "@/src/map/map.ts";
+import { VICTORY_GOTO } from "@/src/game/world/destinations.ts";
+import { ENTITY_PREFABS, type EntityPrefab } from "@/src/game/world/entities.ts";
+import { DECORATION_KINDS, KeyColor, SKY_CEILING_TEXTURE, TexturePack } from "@/src/game/world/map.ts";
 import {
   BARRIER_TERRAIN_COUNT,
   TERRAIN_CATALOG_TILE_COLUMNS,
   TEXTURE_PACK_COLUMNS,
   TEXTURE_PACK_ROWS,
   TEXTURE_TERRAIN_COUNT,
-} from "@/src/map/terrain_palettes.ts";
+} from "@/src/game/world/terrain_palette.ts";
 
 export const MAPS_DIR = "game_assets/maps";
 export const TEMPLATE_DIR = `${MAPS_DIR}/templates`;
