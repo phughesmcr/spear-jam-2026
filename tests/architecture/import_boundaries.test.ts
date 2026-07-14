@@ -18,6 +18,12 @@ const SEALED_ENGINE_MODULES = ["audio", "canvas", "input", "raycast"].map((name)
   const root = resolve(SOURCE_ROOT, `engine/${name}`);
   return { name, root, publicModule: resolve(root, "mod.ts") };
 });
+const PRESENTATION_RENDER_COORDINATOR = resolve(SOURCE_ROOT, "game/presentation/render.ts");
+const PRESENTATION_RENDER_PASSES = [
+  "@/src/game/presentation/overlay_pass.ts",
+  "@/src/game/presentation/session_pass.ts",
+  "@/src/game/presentation/shell_pass.ts",
+];
 const ALLOWED_DEPENDENCIES = {
   app: new Set(["app", "engine", "game", "platform"]),
   engine: new Set(["engine"]),
@@ -201,5 +207,35 @@ Deno.test({
       violations.push(...moduleViolations.map((violation) => `${module.name}: ${violation}`));
     }
     assertEquals(violations.sort(), []);
+  },
+});
+
+Deno.test({
+  name: "presentation render coordinator delegates concrete passes",
+  permissions: { read: [SOURCE_ROOT] },
+  fn: async () => {
+    const specifiers = importSpecifiers(await Deno.readTextFile(PRESENTATION_RENDER_COORDINATOR));
+    const passImports = specifiers.filter((specifier) => PRESENTATION_RENDER_PASSES.includes(specifier));
+    const directImplementationImports = specifiers.filter((specifier) =>
+      specifier.includes("/game/presentation/ui/") ||
+      specifier.includes("/game/presentation/top_down/") ||
+      specifier === "@/src/game/presentation/preload.ts"
+    );
+
+    assertEquals(passImports.sort(), [...PRESENTATION_RENDER_PASSES].sort());
+    assertEquals(directImplementationImports.sort(), []);
+
+    const forbiddenPassImports: string[] = [];
+    for (const passSpecifier of PRESENTATION_RENDER_PASSES) {
+      const passPath = resolve(SOURCE_ROOT, passSpecifier.slice("@/src/".length));
+      const forbiddenSpecifiers = new Set([
+        "@/src/game/presentation/render.ts",
+        ...PRESENTATION_RENDER_PASSES.filter((specifier) => specifier !== passSpecifier),
+      ]);
+      for (const imported of importSpecifiers(await Deno.readTextFile(passPath))) {
+        if (forbiddenSpecifiers.has(imported)) forbiddenPassImports.push(`${passSpecifier} imports ${imported}`);
+      }
+    }
+    assertEquals(forbiddenPassImports, []);
   },
 });

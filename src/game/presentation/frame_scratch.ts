@@ -15,6 +15,12 @@ export type GameFrameResultScratch = {
   ambientOnly: boolean;
 };
 
+export type GameFrameResult = {
+  readonly needsFrame: boolean;
+  /** True when the only continuous demand is ambient first-person animation. */
+  readonly ambientOnly?: boolean;
+};
+
 export type RenderSpy = {
   sessionRenderCount: number;
   messageLogRenderCount: number;

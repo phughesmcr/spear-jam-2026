@@ -1,12 +1,14 @@
 import { SpriteId } from "@/src/game/content/sprite_ids.ts";
 import { GAME_MAPS, getMap, START_MAP_NAME } from "@/src/game/world/campaign.ts";
 import type { FirstPersonRenderer } from "@/src/game/presentation/first_person/renderer.ts";
-import { warmDeferredAssets, warmMapAssets, warmShellAssets } from "@/src/game/presentation/render.ts";
 import {
   criticalSpriteIdsForMap,
   mapNeedsDialogueAssets,
   mapNeedsSpearRevealAsset,
   spriteIdsForEntity,
+  warmDeferredAssets,
+  warmMapAssets,
+  warmShellAssets,
 } from "@/src/game/presentation/preload.ts";
 import { assert, assertEquals } from "@std/assert";
 

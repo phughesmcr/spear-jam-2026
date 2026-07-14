@@ -24,11 +24,11 @@ import { DEFAULT_GAME_CANVAS_SIZE, type GameCanvasSize } from "@/src/game/presen
 import { createFirstPersonRenderer, type FirstPersonRenderer } from "@/src/game/presentation/first_person/renderer.ts";
 import {
   preloadGameAssets,
-  renderGameFrame,
   warmDeferredAssets,
   warmMapAssets,
   warmShellAssets,
-} from "@/src/game/presentation/render.ts";
+} from "@/src/game/presentation/preload.ts";
+import { renderGameFrame } from "@/src/game/presentation/render.ts";
 import { createGameRenderScratch } from "@/src/game/presentation/frame_scratch.ts";
 import { createWebAudioRuntime } from "@/src/platform/web/audio/runtime.ts";
 
