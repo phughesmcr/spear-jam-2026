@@ -1,5 +1,5 @@
 import type { CombatFeedback, CombatFeedbackSide, CombatFeedbackTone } from "@/src/game/model/combat_feedback.ts";
-import { createImageAsset, loadedImage, preloadImageAssets } from "@/src/engine/canvas/image_assets.ts";
+import { createImageAsset, imageForAsset, preloadImageAssets } from "@/src/engine/canvas/mod.ts";
 import type { GameCanvasSize } from "@/src/game/presentation/canvas_size.ts";
 import type { MapRenderMetrics } from "@/src/game/presentation/top_down/map.ts";
 import { fitText, monoFont } from "@/src/game/presentation/ui/text.ts";
@@ -102,7 +102,6 @@ export function renderFirstPersonCombatFeedback(
   ctx: CanvasRenderingContext2D,
   canvasSize: GameCanvasSize,
   feedback: readonly CombatFeedback[],
-  onAssetLoad?: () => void,
 ): void {
   const panels = firstPersonCombatFeedbackPanels(canvasSize, feedback);
   if (panels.length === 0) return;
@@ -112,7 +111,7 @@ export function renderFirstPersonCombatFeedback(
   ctx.imageSmoothingEnabled = false;
 
   for (const panel of panels) {
-    renderFirstPersonCombatPanel(ctx, panel, onAssetLoad);
+    renderFirstPersonCombatPanel(ctx, panel);
   }
 
   ctx.imageSmoothingEnabled = smoothing;
@@ -187,10 +186,9 @@ function firstPersonCombatPanelRect(canvasSize: GameCanvasSize, side: CombatFeed
 function renderFirstPersonCombatPanel(
   ctx: CanvasRenderingContext2D,
   panel: FirstPersonCombatFeedbackPanel,
-  onAssetLoad?: () => void,
 ): void {
-  const frame = loadedImage(ctx, combatPanelAsset, onAssetLoad);
-  const d20Faces = loadedImage(ctx, d20FacesAsset, onAssetLoad);
+  const frame = imageForAsset(combatPanelAsset);
+  const d20Faces = imageForAsset(d20FacesAsset);
 
   ctx.save();
   renderFirstPersonCombatBackdrop(ctx, panel, frame);

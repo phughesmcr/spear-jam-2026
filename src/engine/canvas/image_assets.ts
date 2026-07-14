@@ -14,16 +14,8 @@ export function createImageAsset(src: string): ImageAsset {
   return { src, loaded: false, failed: false };
 }
 
-export function loadedImage(
-  ctx: CanvasRenderingContext2D,
-  asset: ImageAsset,
-  onAssetLoad?: () => void,
-): HTMLImageElement | undefined {
-  if (asset.loaded) return asset.image;
-  if (asset.failed) return undefined;
-
-  void ensureImageAsset(ctx.canvas.ownerDocument, asset, onAssetLoad);
-  return undefined;
+export function imageForAsset(asset: ImageAsset): HTMLImageElement | undefined {
+  return asset.loaded ? asset.image : undefined;
 }
 
 export async function preloadImageAssets(

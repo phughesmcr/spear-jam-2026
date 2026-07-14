@@ -19,7 +19,6 @@ export function renderFirstPersonHud(
   canvasSize: GameCanvasSize,
   playerState: PlayerStatusSnapshot,
   options: FirstPersonHudOptions = {},
-  onAssetLoad?: () => void,
 ): void {
   if (options.compassAngle !== undefined) {
     renderFirstPersonCompassAtAngle(ctx, canvasSize, options.compassAngle);
@@ -27,5 +26,5 @@ export function renderFirstPersonHud(
     renderFirstPersonCompass(ctx, canvasSize, options.facing);
   }
 
-  renderFirstPersonMeterPanels(ctx, canvasSize, playerState, { showKeys: options.showKeys }, onAssetLoad);
+  renderFirstPersonMeterPanels(ctx, canvasSize, playerState, { showKeys: options.showKeys });
 }

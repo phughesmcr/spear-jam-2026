@@ -1,11 +1,6 @@
 import type { CommandSlot, VerbMenuControl, VerbMenuTarget } from "@/src/game/model/state.ts";
 import { type VerbId, VERBS } from "@/src/game/model/verbs.ts";
-import {
-  createImageAsset,
-  type ImageAsset,
-  loadedImage,
-  preloadImageAssets,
-} from "@/src/engine/canvas/image_assets.ts";
+import { createImageAsset, type ImageAsset, imageForAsset, preloadImageAssets } from "@/src/engine/canvas/mod.ts";
 import type { GameCanvasSize } from "@/src/game/presentation/canvas_size.ts";
 import { monoFont } from "@/src/game/presentation/ui/text.ts";
 
@@ -170,11 +165,10 @@ export function renderVerbMenu(
   canvasSize: GameCanvasSize,
   _selectedIndex: number,
   hoverTarget?: VerbMenuTarget,
-  onAssetLoad?: () => void,
 ): void {
-  const sprite = loadedImage(ctx, spriteAsset, onAssetLoad);
+  const sprite = imageForAsset(spriteAsset);
   if (sprite !== undefined) {
-    renderSpriteVerbMenu(ctx, canvasSize, hoverTarget, sprite, onAssetLoad);
+    renderSpriteVerbMenu(ctx, canvasSize, hoverTarget, sprite);
     return;
   }
   renderTextVerbMenu(ctx, canvasSize, hoverTarget);
@@ -352,15 +346,12 @@ function renderSpriteVerbMenu(
   canvasSize: GameCanvasSize,
   hoverTarget: VerbMenuTarget | undefined,
   sprite: HTMLImageElement,
-  onAssetLoad?: () => void,
 ): void {
   const rect = verbMenuSpriteRect(canvasSize);
   const activeTarget = hoverTarget;
   const selectedVerb = activeTarget?.kind === "verb" ? VERBS[activeTarget.verbIndex] : undefined;
   const selectedHotspot = selectedVerb === undefined ? undefined : HOTSPOTS_BY_VERB_ID[selectedVerb.id];
-  const selectedGlow = selectedHotspot === undefined ?
-    undefined :
-    loadedImage(ctx, glowAssets[selectedHotspot.verbId], onAssetLoad);
+  const selectedGlow = selectedHotspot === undefined ? undefined : imageForAsset(glowAssets[selectedHotspot.verbId]);
 
   ctx.save();
   ctx.fillStyle = MENU_SCRIM;

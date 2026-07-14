@@ -4,7 +4,7 @@ import {
   isMessageRevealed,
   visibleCharacterCount,
 } from "@/src/game/model/intermission.ts";
-import { createImageAsset, loadedImage, preloadImageAsset } from "@/src/engine/canvas/image_assets.ts";
+import { createImageAsset, imageForAsset, preloadImageAsset } from "@/src/engine/canvas/mod.ts";
 import type { GameCanvasSize } from "@/src/game/presentation/canvas_size.ts";
 import type { RenderSpy } from "@/src/game/presentation/frame_scratch.ts";
 import { fitText, monoFont } from "@/src/game/presentation/ui/text.ts";
@@ -269,7 +269,7 @@ function drawSystemBackground(ctx: CanvasRenderingContext2D, canvasSize: GameCan
 }
 
 function drawVictoryBackground(ctx: CanvasRenderingContext2D, canvasSize: GameCanvasSize): void {
-  const image = loadedImage(ctx, victoryBackgroundAsset);
+  const image = imageForAsset(victoryBackgroundAsset);
   if (image === undefined) {
     drawSystemBackground(ctx, canvasSize);
     return;

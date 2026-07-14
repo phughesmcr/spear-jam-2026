@@ -1,11 +1,6 @@
 import type { CommandSlot } from "@/src/game/model/state.ts";
 import type { WeaponHudPhase } from "@/src/game/model/presentation_state.ts";
-import {
-  createImageAsset,
-  type ImageAsset,
-  loadedImage,
-  preloadImageAssets,
-} from "@/src/engine/canvas/image_assets.ts";
+import { createImageAsset, type ImageAsset, imageForAsset, preloadImageAssets } from "@/src/engine/canvas/mod.ts";
 import type { GameCanvasSize } from "@/src/game/presentation/canvas_size.ts";
 
 export type WeaponHudImageSize = {
@@ -56,12 +51,11 @@ export function renderWeaponHud(
   canvasSize: GameCanvasSize,
   selectedWeapon: CommandSlot,
   phase: WeaponHudPhase,
-  onAssetLoad?: () => void,
 ): void {
   const selectedAsset = weaponHudAssets[selectedWeapon][phase];
   const fallbackAsset = phase === "active" ? weaponHudAssets[selectedWeapon].idle : undefined;
-  const image = loadedImage(ctx, selectedAsset, onAssetLoad) ??
-    (fallbackAsset === undefined ? undefined : loadedImage(ctx, fallbackAsset, onAssetLoad));
+  const image = imageForAsset(selectedAsset) ??
+    (fallbackAsset === undefined ? undefined : imageForAsset(fallbackAsset));
   if (image === undefined) return;
 
   const imageWidth = image.naturalWidth || image.width;

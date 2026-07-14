@@ -100,8 +100,9 @@ class Game implements GameController {
   start(): void {
     this.runtime.start();
     this.apply({ type: "start", nowMs: performance.now() });
+    this.runtime.warmShellAssets();
     if (this.model.mode.type === "title" || this.model.mode.type === "intermission") {
-      this.runtime.warmAssets(this.model.startMapName);
+      this.runtime.warmMapAssets(this.model.startMapName);
     }
   }
 
@@ -207,7 +208,7 @@ class Game implements GameController {
       this.model.mode.type === "intermission" &&
       this.model.mode.completion.type === "loadMap"
     ) {
-      this.runtime.warmAssets(this.model.mode.completion.mapName);
+      this.runtime.warmMapAssets(this.model.mode.completion.mapName);
     }
   }
 

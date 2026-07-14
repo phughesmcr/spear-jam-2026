@@ -25,8 +25,9 @@ import { createFirstPersonRenderer, type FirstPersonRenderer } from "@/src/game/
 import {
   preloadGameAssets,
   renderGameFrame,
-  warmDeferredGameAssets,
-  warmGameAssets,
+  warmDeferredAssets,
+  warmMapAssets,
+  warmShellAssets,
 } from "@/src/game/presentation/render.ts";
 import { createGameRenderScratch } from "@/src/game/presentation/frame_scratch.ts";
 import { createWebAudioRuntime } from "@/src/platform/web/audio/runtime.ts";
@@ -57,7 +58,8 @@ export interface GameRuntimeLoop extends Disposable {
   resize(size: GameCanvasSize): void;
   renderNow(): void;
   preloadAssets(mapName: string): Promise<void>;
-  warmAssets(mapName: string): void;
+  warmShellAssets(): void;
+  warmMapAssets(mapName: string): void;
   warmDeferredAssets(mapName: string): void;
   resetFirstPerson(): void;
   bumpFirstPerson(dx: number, dy: number, nowMs: number): void;
@@ -138,8 +140,16 @@ class RuntimeLoop implements GameRuntimeLoop {
     });
   }
 
-  warmAssets(mapName: string): void {
-    warmGameAssets(
+  warmShellAssets(): void {
+    warmShellAssets(
+      this.spec.document,
+      this.spec.onError,
+      this.renderLoadedAssets,
+    );
+  }
+
+  warmMapAssets(mapName: string): void {
+    warmMapAssets(
       this.spec.document,
       this.firstPersonRenderer,
       mapName,
@@ -149,7 +159,7 @@ class RuntimeLoop implements GameRuntimeLoop {
   }
 
   warmDeferredAssets(mapName: string): void {
-    warmDeferredGameAssets(
+    warmDeferredAssets(
       this.spec.document,
       this.firstPersonRenderer,
       mapName,
@@ -232,7 +242,6 @@ class RuntimeLoop implements GameRuntimeLoop {
       interactiveFps: model.interactiveFps,
       firstPersonRenderer: this.firstPersonRenderer,
       nowMs,
-      onAssetLoad: this.renderLoadedAssets,
     });
     this.lastRenderMs = nowMs;
     this.wantsFrame = tickResult.needsFrame || this.renderScratch.presentation.needsFrame || renderResult.needsFrame;

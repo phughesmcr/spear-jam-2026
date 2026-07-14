@@ -13,7 +13,7 @@ import {
   type WallTexture,
 } from "@/src/game/world/map.ts";
 import { isTexturePackRef, parseTexturePackRef, SKY_CEILING_TEXTURE } from "@/src/game/world/terrain_palette.ts";
-import { createImageAsset, type ImageAsset, preloadImageAsset } from "@/src/engine/canvas/image_assets.ts";
+import { createImageAsset, type ImageAsset, preloadImageAsset } from "@/src/engine/canvas/mod.ts";
 import {
   type ContentCrop,
   createImageTextureBaker,

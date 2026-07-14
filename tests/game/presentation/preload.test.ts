@@ -1,12 +1,70 @@
 import { SpriteId } from "@/src/game/content/sprite_ids.ts";
 import { GAME_MAPS, getMap, START_MAP_NAME } from "@/src/game/world/campaign.ts";
+import type { FirstPersonRenderer } from "@/src/game/presentation/first_person/renderer.ts";
+import { warmDeferredAssets, warmMapAssets, warmShellAssets } from "@/src/game/presentation/render.ts";
 import {
   criticalSpriteIdsForMap,
   mapNeedsDialogueAssets,
   mapNeedsSpearRevealAsset,
   spriteIdsForEntity,
 } from "@/src/game/presentation/preload.ts";
-import { assertEquals } from "@std/assert";
+import { assert, assertEquals } from "@std/assert";
+
+Deno.test("asset warm lifecycle separates shell, map-critical, and deferred presentation assets", async () => {
+  const document = new LoadingDocument();
+  const firstPersonStages: string[] = [];
+  const errors: unknown[] = [];
+  const renderer: FirstPersonRenderer = {
+    preloadMapAssets: () => {
+      firstPersonStages.push("map-critical");
+      return Promise.resolve();
+    },
+    warmRemainingAssets: () => {
+      firstPersonStages.push("deferred");
+      return Promise.resolve();
+    },
+    reset(): void {},
+    bump(): void {},
+    render(): void {},
+  };
+
+  await withImmediateIdleCallback(async () => {
+    warmShellAssets(
+      document as unknown as Document,
+      (error) => errors.push(error),
+    );
+    warmMapAssets(
+      document as unknown as Document,
+      renderer,
+      START_MAP_NAME,
+      (error) => errors.push(error),
+    );
+    await flushWarmWork();
+
+    const criticalSources = [...document.sources];
+    assert(criticalSources.some((source) => source.endsWith("/assets/game/titlescreen_mobile.png")));
+    assert(criticalSources.some((source) => source.endsWith("/assets/game/help.png")));
+    assert(criticalSources.some((source) => source.endsWith("/assets/game/ui/health_bar.png")));
+    assert(criticalSources.some((source) => source.endsWith("/assets/game/ui/weapon_1_idle.png")));
+    assert(criticalSources.some((source) => source.endsWith("/assets/game/ui/dialogue_john.png")));
+    assertEquals(firstPersonStages, ["map-critical"]);
+
+    warmDeferredAssets(
+      document as unknown as Document,
+      renderer,
+      START_MAP_NAME,
+      (error) => errors.push(error),
+    );
+    await flushWarmWork();
+
+    const deferredSources = document.sources.slice(criticalSources.length);
+    assert(deferredSources.some((source) => source.endsWith("/assets/game/endscreen.png")));
+    assert(deferredSources.some((source) => source.endsWith("/assets/game/ui/spear_reveal.png")));
+    assertEquals(deferredSources.some((source) => source.endsWith("/assets/game/help.png")), false);
+    assertEquals(firstPersonStages, ["map-critical", "deferred"]);
+    assertEquals(errors, []);
+  });
+});
 
 Deno.test("spriteIdsForEntity maps authored prefabs to sprite ids", () => {
   assertEquals(spriteIdsForEntity({ prefab: "player", x: 0, y: 0, dir: 0 }), []);
@@ -70,3 +128,67 @@ Deno.test("mapNeedsSpearRevealAsset matches spear pickup presence", () => {
   assertEquals(mapNeedsSpearRevealAsset(getMap("The Nexus")), true);
   assertEquals(mapNeedsSpearRevealAsset(getMap("Data Conduit")), false);
 });
+
+async function withImmediateIdleCallback(run: () => Promise<void>): Promise<void> {
+  const hadOwnIdleCallback = Object.hasOwn(globalThis, "requestIdleCallback");
+  const ownIdleCallback = Object.getOwnPropertyDescriptor(globalThis, "requestIdleCallback");
+  Object.defineProperty(globalThis, "requestIdleCallback", {
+    configurable: true,
+    writable: true,
+    value: (callback: () => void): number => {
+      callback();
+      return 1;
+    },
+  });
+  try {
+    await run();
+  } finally {
+    if (hadOwnIdleCallback && ownIdleCallback !== undefined) {
+      Object.defineProperty(globalThis, "requestIdleCallback", ownIdleCallback);
+    } else {
+      delete (globalThis as { requestIdleCallback?: typeof requestIdleCallback }).requestIdleCallback;
+    }
+  }
+}
+
+async function flushWarmWork(): Promise<void> {
+  await new Promise((resolve) => setTimeout(resolve, 0));
+}
+
+class LoadingDocument {
+  readonly sources: string[] = [];
+
+  createElement(tagName: string): LoadingImage {
+    if (tagName !== "img") throw new Error(`Unexpected element ${tagName}.`);
+    return new LoadingImage(this.sources);
+  }
+}
+
+class LoadingImage {
+  decoding: "async" | "auto" | "sync" = "auto";
+  private readonly sources: string[];
+  private readonly loadListeners: EventListener[] = [];
+  private source = "";
+
+  constructor(sources: string[]) {
+    this.sources = sources;
+  }
+
+  get src(): string {
+    return this.source;
+  }
+
+  set src(value: string) {
+    this.source = value;
+    this.sources.push(value);
+    queueMicrotask(() => {
+      const event = new Event("load");
+      for (const listener of this.loadListeners) listener(event);
+    });
+  }
+
+  addEventListener(type: string, listener: EventListenerOrEventListenerObject): void {
+    if (type !== "load" || typeof listener !== "function") return;
+    this.loadListeners.push(listener);
+  }
+}

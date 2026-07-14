@@ -1,5 +1,5 @@
 import { assert, assertEquals } from "@std/assert";
-import { createImageAsset, loadedImage, preloadImageAssets } from "@/src/engine/canvas/image_assets.ts";
+import { createImageAsset, imageForAsset, preloadImageAsset, preloadImageAssets } from "@/src/engine/canvas/mod.ts";
 
 type FakeImageEvent = "load" | "error";
 type FakeImageListener = () => void;
@@ -33,19 +33,27 @@ class FakeDocument {
   }
 }
 
-function fakeContext(document: FakeDocument): CanvasRenderingContext2D {
-  return {
-    canvas: { ownerDocument: document },
-  } as unknown as CanvasRenderingContext2D;
-}
-
-Deno.test("loadedImage reuses the asset image after load", () => {
+Deno.test("imageForAsset is a pure read that cannot start an image request", () => {
   const document = new FakeDocument();
-  const ctx = fakeContext(document);
+  const asset = createImageAsset("sprite.png");
+
+  assertEquals(imageForAsset(asset), undefined);
+  assertEquals(document.images.length, 0);
+  assertEquals(asset.loaded, false);
+  assertEquals(asset.failed, false);
+});
+
+Deno.test("imageForAsset exposes the asset image after explicit preload", async () => {
+  const document = new FakeDocument();
   const asset = createImageAsset("sprite.png");
   let callbackCount = 0;
 
-  assertEquals(loadedImage(ctx, asset, () => callbackCount++), undefined);
+  assertEquals(imageForAsset(asset), undefined);
+  const preload = preloadImageAsset(
+    document as unknown as Document,
+    asset,
+    () => callbackCount++,
+  );
 
   const image = document.images[0]!;
   assertEquals(document.images.length, 1);
@@ -53,26 +61,31 @@ Deno.test("loadedImage reuses the asset image after load", () => {
   assertEquals(image.src, "sprite.png");
 
   image.dispatch("load");
+  await preload;
 
   assertEquals(callbackCount, 1);
   assertEquals(asset.loaded, true);
   assertEquals(asset.failed, false);
-  assert(loadedImage(ctx, asset) === (image as unknown as HTMLImageElement));
+  assert(imageForAsset(asset) === (image as unknown as HTMLImageElement));
 });
 
-Deno.test("loadedImage marks failed assets and leaves fallback to callers", () => {
+Deno.test("imageForAsset leaves failed assets to caller fallbacks", async () => {
   const document = new FakeDocument();
-  const ctx = fakeContext(document);
   const asset = createImageAsset("missing.png");
   let callbackCount = 0;
 
-  assertEquals(loadedImage(ctx, asset, () => callbackCount++), undefined);
+  const preload = preloadImageAsset(
+    document as unknown as Document,
+    asset,
+    () => callbackCount++,
+  );
   document.images[0]!.dispatch("error");
+  await preload;
 
   assertEquals(callbackCount, 1);
   assertEquals(asset.loaded, false);
   assertEquals(asset.failed, true);
-  assertEquals(loadedImage(ctx, asset, () => callbackCount++), undefined);
+  assertEquals(imageForAsset(asset), undefined);
   assertEquals(document.images.length, 1);
   assertEquals(callbackCount, 1);
 });

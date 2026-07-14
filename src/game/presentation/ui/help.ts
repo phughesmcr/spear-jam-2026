@@ -1,4 +1,4 @@
-import { createImageAsset, loadedImage, preloadImageAsset } from "@/src/engine/canvas/image_assets.ts";
+import { createImageAsset, imageForAsset, preloadImageAsset } from "@/src/engine/canvas/mod.ts";
 import type { GameCanvasSize } from "@/src/game/presentation/canvas_size.ts";
 import { monoFont } from "@/src/game/presentation/ui/text.ts";
 
@@ -19,8 +19,8 @@ export async function preloadHelpAssets(document: Document, onAssetLoad?: () => 
   await preloadImageAsset(document, helpAsset, onAssetLoad);
 }
 
-export function renderHelp(ctx: CanvasRenderingContext2D, canvasSize: GameCanvasSize, onAssetLoad?: () => void): void {
-  const image = loadedImage(ctx, helpAsset, onAssetLoad);
+export function renderHelp(ctx: CanvasRenderingContext2D, canvasSize: GameCanvasSize): void {
+  const image = imageForAsset(helpAsset);
 
   ctx.save();
   ctx.fillStyle = HELP_BACKGROUND;

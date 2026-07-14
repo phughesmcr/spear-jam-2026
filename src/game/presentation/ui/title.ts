@@ -1,5 +1,5 @@
 import type { TitleHoverButton, TitleIntent } from "@/src/game/model/state.ts";
-import { createImageAsset, loadedImage, preloadImageAsset } from "@/src/engine/canvas/image_assets.ts";
+import { createImageAsset, imageForAsset, preloadImageAsset } from "@/src/engine/canvas/mod.ts";
 import type { GameCanvasSize } from "@/src/game/presentation/canvas_size.ts";
 import type { RenderSpy } from "@/src/game/presentation/frame_scratch.ts";
 import { monoFont } from "@/src/game/presentation/ui/text.ts";
@@ -145,7 +145,6 @@ export function renderTitle(
   canvasSize: GameCanvasSize,
   intent: TitleIntent,
   nowMs = 0,
-  onAssetLoad?: () => void,
   hoverButton?: TitleHoverButton,
   _spy?: RenderSpy,
 ): void {
@@ -153,7 +152,7 @@ export function renderTitle(
   const startButton = geometry.startButton;
   const settingsButton = geometry.settingsButton;
   const helpButton = geometry.helpButton;
-  const image = loadedImage(ctx, titleBackgroundAsset, onAssetLoad);
+  const image = imageForAsset(titleBackgroundAsset);
 
   ctx.save();
   ctx.fillStyle = FALLBACK_BACKGROUND;

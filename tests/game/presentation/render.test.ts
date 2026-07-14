@@ -1,5 +1,6 @@
 import type { FrameRenderSession } from "@/src/game/presentation/session_view.ts";
-import type { PlayerStatusSnapshot } from "@/src/game/model/state.ts";
+import type { GameMode, PlayerStatusSnapshot } from "@/src/game/model/state.ts";
+import { DisplayName } from "@/src/game/content/names.ts";
 import { Direction } from "@/src/game/world/direction.ts";
 import { createGameMap } from "@/src/game/world/map.ts";
 import type { FirstPersonRenderer } from "@/src/game/presentation/first_person/renderer.ts";
@@ -76,7 +77,6 @@ Deno.test("renderGameFrame does not schedule RAF or tick the session in top-down
       mode: { type: "playing" },
       viewMode: "topDown",
       nowMs: 120,
-      onAssetLoad: () => {},
     });
 
     assertEquals(result, { needsFrame: false });
@@ -91,42 +91,89 @@ Deno.test("renderGameFrame does not schedule RAF or tick the session in top-down
   }
 });
 
-Deno.test("renderGameFrame requests the help image in help mode", () => {
-  const document = new FakeGameDocument();
-  const ctx = new FakeGameContext(document);
-
-  const result = renderWithScratch({
-    ctx: ctx as unknown as CanvasRenderingContext2D,
-    canvasSize: FULL_CANVAS,
-    mode: { type: "help", returnTo: { kind: "verbMenu", selectedIndex: 0 } },
-  });
-
-  assertEquals(result, { needsFrame: false });
-  assert(document.images.some((image) => image.src.endsWith("/assets/game/help.png")));
-});
-
-Deno.test("renderGameFrame requests the victory background for the ending intermission", () => {
+Deno.test("renderGameFrame performs no image requests in any asset-bearing presentation path", () => {
   withFakeOffscreenCanvas((): void => {
-    const document = new FakeGameDocument();
-    const ctx = new FakeGameContext(document);
-
-    const result = renderWithScratch({
-      ctx: ctx as unknown as CanvasRenderingContext2D,
-      canvasSize: FULL_CANVAS,
-      mode: {
-        type: "intermission",
-        pages: ["The System is gone."],
-        pageIndex: 0,
-        prompt: "Space to begin again",
-        background: "victory",
-        completion: { type: "returnToTitle" },
-        revealStartedAtMs: 0,
-        revealed: true,
+    const cases: readonly {
+      readonly name: string;
+      readonly mode: GameMode;
+      readonly session?: FrameRenderSession;
+      readonly combatFeedback?: boolean;
+    }[] = [
+      { name: "title", mode: { type: "title", intent: "start" } },
+      {
+        name: "help",
+        mode: { type: "help", returnTo: { kind: "verbMenu", selectedIndex: 0 } },
       },
-    });
+      {
+        name: "portrait dialogue",
+        mode: {
+          type: "dialogue",
+          title: "JOHN",
+          message: "The network is listening.",
+          choices: [{ label: "CONTINUE." }],
+          speaker: DisplayName.John,
+        },
+      },
+      {
+        name: "spear dialogue",
+        mode: {
+          type: "dialogue",
+          title: "THE SPEAR",
+          message: "Power online.",
+          choices: [{ label: "CONTINUE." }],
+          art: "spearReveal",
+        },
+      },
+      {
+        name: "victory intermission",
+        mode: {
+          type: "intermission",
+          pages: ["The System is gone."],
+          pageIndex: 0,
+          prompt: "Space to begin again",
+          background: "victory",
+          completion: { type: "returnToTitle" },
+          revealStartedAtMs: 0,
+          revealed: true,
+        },
+      },
+      {
+        name: "verb menu",
+        mode: { type: "verbMenu", selectedIndex: 0 },
+      },
+      {
+        name: "first-person HUD, weapon, and combat feedback",
+        mode: { type: "playing" },
+        session: fakeSession(),
+        combatFeedback: true,
+      },
+    ];
 
-    assertEquals(result, { needsFrame: true, ambientOnly: false });
-    assert(document.images.some((image) => image.src.endsWith("/assets/game/endscreen.png")));
+    for (const testCase of cases) {
+      const document = new FakeGameDocument();
+      const ctx = new FakeGameContext(document);
+      const scratch = createGameRenderScratch();
+      if (testCase.combatFeedback === true) {
+        scratch.presentation.combatFeedback = [{
+          text: "HIT 4",
+          tone: "hit",
+          side: "player",
+          roll: 18,
+          total: 22,
+        }];
+      }
+
+      renderWithScratch({
+        ctx: ctx as unknown as CanvasRenderingContext2D,
+        canvasSize: FULL_CANVAS,
+        scratch,
+        mode: testCase.mode,
+        session: testCase.session,
+        firstPersonRenderer: testCase.session === undefined ? undefined : fakeFirstPersonRenderer(),
+      });
+
+      assertEquals(document.images, [], testCase.name);
+    }
   });
 });
 
@@ -437,6 +484,8 @@ class FakeGameContext {
   imageSmoothingEnabled = true;
   lineCap: CanvasLineCap = "butt";
   lineWidth = 1;
+  shadowBlur = 0;
+  shadowColor = "";
   strokeStyle: FakeFillStyle = "";
   textAlign: CanvasTextAlign = "start";
   textBaseline: CanvasTextBaseline = "alphabetic";
@@ -486,6 +535,12 @@ class FakeGameContext {
     return gradient as unknown as CanvasGradient;
   }
 
+  createLinearGradient(x0: number, y0: number, x1: number, y1: number): CanvasGradient {
+    const gradient = new FakeCanvasGradient([x0, y0, 0, x1, y1, 0]);
+    this.gradients.push(gradient);
+    return gradient as unknown as CanvasGradient;
+  }
+
   fillRect(x: number, y: number, width: number, height: number): void {
     this.fillRects.push({
       rect: { x, y, width, height },
@@ -495,6 +550,8 @@ class FakeGameContext {
     });
   }
 
+  arc(): void {}
+  arcTo(): void {}
   beginPath(): void {}
   closePath(): void {}
   clip(): void {}
@@ -507,8 +564,10 @@ class FakeGameContext {
   lineTo(): void {}
   moveTo(): void {}
   rect(): void {}
+  scale(): void {}
   stroke(): void {}
   strokeRect(): void {}
+  translate(): void {}
 
   measureText(text: string): TextMetrics {
     return { width: text.length * 8 } as TextMetrics;

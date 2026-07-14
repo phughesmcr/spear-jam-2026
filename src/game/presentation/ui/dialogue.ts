@@ -1,11 +1,6 @@
 import type { DialogueState } from "@/src/game/model/state.ts";
 import { DisplayName } from "@/src/game/content/names.ts";
-import {
-  createImageAsset,
-  type ImageAsset,
-  loadedImage,
-  preloadImageAssets,
-} from "@/src/engine/canvas/image_assets.ts";
+import { createImageAsset, type ImageAsset, imageForAsset, preloadImageAssets } from "@/src/engine/canvas/mod.ts";
 import type { GameCanvasSize } from "@/src/game/presentation/canvas_size.ts";
 import { fitText, monoFont } from "@/src/game/presentation/ui/text.ts";
 
@@ -97,7 +92,6 @@ export function renderDialogue(
   ctx: CanvasRenderingContext2D,
   canvasSize: GameCanvasSize,
   dialogue: DialogueState,
-  onAssetLoad?: () => void,
 ): void {
   const layout = dialogueLayout(canvasSize, dialogue.choices);
 
@@ -105,7 +99,7 @@ export function renderDialogue(
   ctx.fillStyle = SCRIM;
   ctx.fillRect(0, 0, canvasSize.width, canvasSize.height);
 
-  if (dialogue.art === "spearReveal" && drawSpearReveal(ctx, canvasSize, dialogue, onAssetLoad)) {
+  if (dialogue.art === "spearReveal" && drawSpearReveal(ctx, canvasSize, dialogue)) {
     ctx.restore();
     return;
   }
@@ -113,7 +107,7 @@ export function renderDialogue(
   drawPanel(ctx, layout.panel);
   drawHeader(ctx, layout.header, dialogue.title);
   drawMessage(ctx, layout.message, dialogue.message);
-  drawPortrait(ctx, layout.portrait, dialogue.title, dialogue.speaker, onAssetLoad);
+  drawPortrait(ctx, layout.portrait, dialogue.title, dialogue.speaker);
   drawChoices(ctx, layout.choices);
 
   ctx.restore();
@@ -285,9 +279,8 @@ function drawSpearReveal(
   ctx: CanvasRenderingContext2D,
   canvasSize: GameCanvasSize,
   dialogue: DialogueState,
-  onAssetLoad?: () => void,
 ): boolean {
-  const image = loadedImage(ctx, SPEAR_REVEAL_ASSET, onAssetLoad);
+  const image = imageForAsset(SPEAR_REVEAL_ASSET);
   if (image === undefined) return false;
 
   const layout = spearRevealLayout(canvasSize, dialogue.choices);
@@ -359,7 +352,6 @@ function drawPortrait(
   rect: DialogueRect,
   title: string,
   speaker?: DisplayName,
-  onAssetLoad?: () => void,
 ): void {
   ctx.save();
   ctx.beginPath();
@@ -373,7 +365,7 @@ function drawPortrait(
   ctx.fillRect(rect.x, rect.y, rect.width, rect.height);
 
   const portrait = speaker === undefined ? undefined : DIALOGUE_PORTRAIT_ASSETS[speaker];
-  const image = portrait === undefined ? undefined : loadedImage(ctx, portrait, onAssetLoad);
+  const image = portrait === undefined ? undefined : imageForAsset(portrait);
   if (image !== undefined) {
     drawPortraitImage(ctx, rect, image);
   } else {

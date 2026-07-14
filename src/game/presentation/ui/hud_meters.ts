@@ -1,6 +1,6 @@
 import type { AmmoKind, PlayerHealthState, PlayerStatusSnapshot } from "@/src/game/model/state.ts";
 import { KeyColor } from "@/src/game/content/map_entities.ts";
-import { createImageAsset, loadedImage, preloadImageAssets } from "@/src/engine/canvas/image_assets.ts";
+import { createImageAsset, imageForAsset, preloadImageAssets } from "@/src/engine/canvas/mod.ts";
 import type { GameCanvasSize } from "@/src/game/presentation/canvas_size.ts";
 import { fitText, monoFont } from "@/src/game/presentation/ui/text.ts";
 
@@ -107,7 +107,6 @@ export function renderFirstPersonMeterPanels(
   canvasSize: GameCanvasSize,
   playerState: PlayerStatusSnapshot,
   options: FirstPersonMeterOptions = {},
-  onAssetLoad?: () => void,
 ): void {
   const panels = firstPersonHudPanels(canvasSize, playerState, options);
   if (panels.length === 0) return;
@@ -119,13 +118,13 @@ export function renderFirstPersonMeterPanels(
   for (const panel of panels) {
     switch (panel.kind) {
       case "health":
-        renderHealthPanel(ctx, panel, onAssetLoad);
+        renderHealthPanel(ctx, panel);
         break;
       case "ammo":
-        renderAmmoPanel(ctx, panel, onAssetLoad);
+        renderAmmoPanel(ctx, panel);
         break;
       case "keys":
-        renderKeyPanel(ctx, panel, onAssetLoad);
+        renderKeyPanel(ctx, panel);
         break;
     }
   }
@@ -241,9 +240,8 @@ function scaledPanelSize(
 function renderHealthPanel(
   ctx: CanvasRenderingContext2D,
   panel: Extract<FirstPersonHudPanel, { kind: "health" }>,
-  onAssetLoad?: () => void,
 ): void {
-  const image = loadedImage(ctx, firstPersonHudAssets.health, onAssetLoad);
+  const image = imageForAsset(firstPersonHudAssets.health);
   if (image === undefined) return;
 
   const valueRect = rectInPanel(panel.rect, HEALTH_VALUE_RECT);
@@ -259,9 +257,8 @@ function renderHealthPanel(
 function renderAmmoPanel(
   ctx: CanvasRenderingContext2D,
   panel: Extract<FirstPersonHudPanel, { kind: "ammo" }>,
-  onAssetLoad?: () => void,
 ): void {
-  const image = loadedImage(ctx, firstPersonHudAssets.ammo, onAssetLoad);
+  const image = imageForAsset(firstPersonHudAssets.ammo);
   if (image === undefined) return;
 
   const valueRect = rectInPanel(panel.rect, AMMO_VALUE_RECT);
@@ -279,9 +276,8 @@ function renderAmmoPanel(
 function renderKeyPanel(
   ctx: CanvasRenderingContext2D,
   panel: Extract<FirstPersonHudPanel, { kind: "keys" }>,
-  onAssetLoad?: () => void,
 ): void {
-  const image = loadedImage(ctx, firstPersonHudAssets.keys, onAssetLoad);
+  const image = imageForAsset(firstPersonHudAssets.keys);
   if (image === undefined) return;
 
   for (const key of panel.heldKeys) {

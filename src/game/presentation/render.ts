@@ -54,7 +54,6 @@ export type FrameProps = {
   readonly interactiveFps?: number;
   readonly firstPersonRenderer?: FirstPersonRenderer;
   readonly nowMs?: number;
-  readonly onAssetLoad?: () => void;
   readonly spy?: RenderSpy;
 };
 
@@ -114,8 +113,25 @@ export async function preloadGameAssets(
   }));
 }
 
-/** Non-blocking warm of title art + map-critical assets (shared ImageAsset instances). */
-export function warmGameAssets(
+/** Non-blocking warm of shell art shared by every boot path. */
+export function warmShellAssets(
+  document: Document,
+  onError: (error: unknown) => void,
+  onAssetLoad?: () => void,
+): void {
+  scheduleIdle(
+    async () => {
+      await Promise.all([
+        preloadTitleAssets(document, onAssetLoad),
+        preloadHelpAssets(document, onAssetLoad),
+      ]);
+    },
+    onError,
+  );
+}
+
+/** Non-blocking warm of map-critical assets. */
+export function warmMapAssets(
   document: Document,
   firstPersonRenderer: FirstPersonRenderer,
   mapName: string,
@@ -124,17 +140,14 @@ export function warmGameAssets(
 ): void {
   scheduleIdle(
     async () => {
-      await Promise.all([
-        preloadTitleAssets(document, onAssetLoad),
-        preloadGameAssets(document, firstPersonRenderer, { mapName, onAssetLoad }),
-      ]);
+      await preloadGameAssets(document, firstPersonRenderer, { mapName, onAssetLoad });
     },
     onError,
   );
 }
 
-/** After playing starts, warm deferred FP sprites plus help/endscreen. */
-export function warmDeferredGameAssets(
+/** After playing starts, warm deferred first-person sprites and ending art. */
+export function warmDeferredAssets(
   document: Document,
   firstPersonRenderer: FirstPersonRenderer,
   mapName: string,
@@ -146,7 +159,6 @@ export function warmDeferredGameAssets(
       const map = getMap(mapName);
       const jobs = [
         firstPersonRenderer.warmRemainingAssets(document, onAssetLoad),
-        preloadHelpAssets(document, onAssetLoad),
         preloadIntermissionAssets(document, onAssetLoad),
       ];
       if (!mapNeedsDialogueAssets(map)) jobs.push(preloadDialogueAssets(document, onAssetLoad));
@@ -181,7 +193,6 @@ export function renderGameFrame({
   interactiveFps = DEFAULT_INTERACTIVE_FPS,
   firstPersonRenderer,
   nowMs = 0,
-  onAssetLoad,
   spy = scratch.spy,
 }: FrameProps): GameFrameResult {
   const policy = renderLayerPolicy(mode, viewMode);
@@ -206,7 +217,6 @@ export function renderGameFrame({
       firstPersonRenderer,
       firstPersonFrame: scratch.firstPersonFrame,
       nowMs,
-      onAssetLoad,
       frameResult,
     });
   }
@@ -218,7 +228,7 @@ export function renderGameFrame({
 
   switch (mode.type) {
     case "title":
-      renderTitle(ctx, canvasSize, mode.intent, nowMs, onAssetLoad, mode.hoverButton, spy);
+      renderTitle(ctx, canvasSize, mode.intent, nowMs, mode.hoverButton, spy);
       frameResult.needsFrame = true;
       return frameResultFromScratch(frameResult);
     case "settings":
@@ -234,10 +244,10 @@ export function renderGameFrame({
       renderOverlay(ctx, canvasSize, "PAUSED", "P to resume");
       return { needsFrame: false };
     case "help":
-      renderHelp(ctx, canvasSize, onAssetLoad);
+      renderHelp(ctx, canvasSize);
       return { needsFrame: false };
     case "dialogue":
-      renderDialogue(ctx, canvasSize, mode, onAssetLoad);
+      renderDialogue(ctx, canvasSize, mode);
       return { needsFrame: false };
     case "intermission":
       renderIntermission(ctx, canvasSize, mode, nowMs, spy);
@@ -255,7 +265,7 @@ export function renderGameFrame({
       renderOverlay(ctx, canvasSize, "LOAD FAILED", mode.message);
       return { needsFrame: false };
     case "verbMenu":
-      renderVerbMenu(ctx, canvasSize, mode.selectedIndex, mode.hoverTarget, onAssetLoad);
+      renderVerbMenu(ctx, canvasSize, mode.selectedIndex, mode.hoverTarget);
       return finalizePlayingFrame(frameResult, presentation);
     case "playing":
       return finalizePlayingFrame(frameResult, presentation);
@@ -292,7 +302,6 @@ function renderSessionFrame(input: {
   readonly firstPersonRenderer?: FirstPersonRenderer;
   readonly firstPersonFrame?: FirstPersonFrameScratch;
   readonly nowMs: number;
-  readonly onAssetLoad?: () => void;
   readonly frameResult: GameFrameResultScratch;
 }): void {
   const {
@@ -305,7 +314,6 @@ function renderSessionFrame(input: {
     firstPersonRenderer,
     firstPersonFrame,
     nowMs,
-    onAssetLoad,
     frameResult,
   } = input;
   const map = session.getMap();
@@ -330,15 +338,14 @@ function renderSessionFrame(input: {
     frameResult.needsFrame ||= firstPersonFrame.needsFrame;
     frameResult.ambientOnly = firstPersonFrame.ambientOnly;
     renderFirstPersonVignette(ctx, playRect);
-    renderWeaponHud(ctx, canvasSize, playerStatus.selectedWeapon, presentation.weaponHudPhase, onAssetLoad);
+    renderWeaponHud(ctx, canvasSize, playerStatus.selectedWeapon, presentation.weaponHudPhase);
     renderFirstPersonHud(
       ctx,
       canvasSize,
       playerStatus,
       { showKeys: presentation.showKeys, compassAngle: firstPersonFrame.cameraAngle },
-      onAssetLoad,
     );
-    renderFirstPersonCombatFeedback(ctx, canvasSize, presentation.combatFeedback, onAssetLoad);
+    renderFirstPersonCombatFeedback(ctx, canvasSize, presentation.combatFeedback);
     return;
   }
 
