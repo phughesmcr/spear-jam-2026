@@ -9,6 +9,11 @@ const LEGACY_TRANSITION_MODULES = new Set([
   resolve(SOURCE_ROOT, "game/model/mode_handlers.ts"),
   resolve(SOURCE_ROOT, "game/model/verb_menu_transition.ts"),
 ]);
+const FIRST_PERSON_ASSET_ROOT = resolve(SOURCE_ROOT, "game/presentation/first_person/assets");
+const FIRST_PERSON_ASSET_PUBLIC_MODULE = resolve(FIRST_PERSON_ASSET_ROOT, "mod.ts");
+const LEGACY_FIRST_PERSON_ASSET_MODULES = new Set([
+  resolve(SOURCE_ROOT, "game/presentation/first_person/assets.ts"),
+]);
 const ALLOWED_DEPENDENCIES = {
   app: new Set(["app", "engine", "game", "platform"]),
   engine: new Set(["engine"]),
@@ -89,6 +94,52 @@ function importSpecifiers(source: string): string[] {
   return specifiers;
 }
 
+async function sealedModuleViolations(
+  root: string,
+  publicModule: string,
+  legacyModules: ReadonlySet<string>,
+): Promise<string[]> {
+  const violations: string[] = [];
+  const files = await sourceFiles(SOURCE_ROOT);
+  const moduleFiles = new Set(files.filter((path) => path.startsWith(`${root}/`)));
+  const moduleDependencies = new Map([...moduleFiles].map((path) => [path, [] as string[]]));
+  for (const legacyPath of legacyModules) {
+    if (files.includes(legacyPath)) violations.push(`${relative(SOURCE_ROOT, legacyPath)} still exists`);
+  }
+
+  for (const sourcePath of files) {
+    const importer = relative(SOURCE_ROOT, sourcePath);
+    const isModule = sourcePath.startsWith(`${root}/`);
+
+    for (const specifier of importSpecifiers(await Deno.readTextFile(sourcePath))) {
+      const importedPath = importedSourcePath(sourcePath, specifier);
+      if (importedPath === undefined) continue;
+      if (isModule && moduleFiles.has(importedPath)) {
+        moduleDependencies.get(sourcePath)!.push(importedPath);
+      }
+      if (legacyModules.has(importedPath)) {
+        violations.push(`${importer} imports legacy ${specifier}`);
+        continue;
+      }
+      if (isModule && importedPath === publicModule) {
+        violations.push(`${importer} imports its public module`);
+        continue;
+      }
+      if (!isModule && importedPath.startsWith(`${root}/`) && importedPath !== publicModule) {
+        violations.push(`${importer} bypasses ${relative(SOURCE_ROOT, publicModule)} via ${specifier}`);
+      }
+    }
+  }
+
+  const cycle = dependencyCycle(moduleDependencies);
+  if (cycle !== undefined) {
+    violations.push(
+      `module dependency cycle: ${cycle.map((path) => relative(root, path)).join(" -> ")}`,
+    );
+  }
+  return violations;
+}
+
 Deno.test({
   name: "source layers only import permitted dependencies",
   permissions: { read: [SOURCE_ROOT] },
@@ -114,48 +165,24 @@ Deno.test({
   name: "game transition modules expose one sealed public boundary",
   permissions: { read: [SOURCE_ROOT] },
   fn: async () => {
-    const violations: string[] = [];
-    const files = await sourceFiles(SOURCE_ROOT);
-    const transitionFiles = new Set(files.filter((path) => path.startsWith(`${TRANSITION_ROOT}/`)));
-    const transitionDependencies = new Map([...transitionFiles].map((path) => [path, [] as string[]]));
-    for (const legacyPath of LEGACY_TRANSITION_MODULES) {
-      if (files.includes(legacyPath)) violations.push(`${relative(SOURCE_ROOT, legacyPath)} still exists`);
-    }
+    const violations = await sealedModuleViolations(
+      TRANSITION_ROOT,
+      TRANSITION_PUBLIC_MODULE,
+      LEGACY_TRANSITION_MODULES,
+    );
+    assertEquals(violations.sort(), []);
+  },
+});
 
-    for (const sourcePath of files) {
-      const importer = relative(SOURCE_ROOT, sourcePath);
-      const isTransitionModule = sourcePath.startsWith(`${TRANSITION_ROOT}/`);
-
-      for (const specifier of importSpecifiers(await Deno.readTextFile(sourcePath))) {
-        const importedPath = importedSourcePath(sourcePath, specifier);
-        if (importedPath === undefined) continue;
-        if (isTransitionModule && transitionFiles.has(importedPath)) {
-          transitionDependencies.get(sourcePath)!.push(importedPath);
-        }
-        if (LEGACY_TRANSITION_MODULES.has(importedPath)) {
-          violations.push(`${importer} imports legacy ${specifier}`);
-          continue;
-        }
-        if (isTransitionModule && importedPath === TRANSITION_PUBLIC_MODULE) {
-          violations.push(`${importer} imports the transition public module`);
-          continue;
-        }
-        if (
-          !isTransitionModule && importedPath.startsWith(`${TRANSITION_ROOT}/`) &&
-          importedPath !== TRANSITION_PUBLIC_MODULE
-        ) {
-          violations.push(`${importer} bypasses game/model/transition/mod.ts via ${specifier}`);
-        }
-      }
-    }
-
-    const cycle = dependencyCycle(transitionDependencies);
-    if (cycle !== undefined) {
-      violations.push(
-        `transition dependency cycle: ${cycle.map((path) => relative(TRANSITION_ROOT, path)).join(" -> ")}`,
-      );
-    }
-
+Deno.test({
+  name: "first-person assets expose one sealed public boundary",
+  permissions: { read: [SOURCE_ROOT] },
+  fn: async () => {
+    const violations = await sealedModuleViolations(
+      FIRST_PERSON_ASSET_ROOT,
+      FIRST_PERSON_ASSET_PUBLIC_MODULE,
+      LEGACY_FIRST_PERSON_ASSET_MODULES,
+    );
     assertEquals(violations.sort(), []);
   },
 });

@@ -22,6 +22,7 @@ import { type EnemyIdleSoundSource, type SoundEmitterSnapshot, SoundId } from "@
 import type { PlayerStatusSnapshot } from "@/src/game/model/state.ts";
 import { createGameModel, type GameModel } from "@/src/game/model/transition/mod.ts";
 import { Direction } from "@/src/game/world/direction.ts";
+import { START_MAP_NAME } from "@/src/game/world/campaign.ts";
 import { createGameMap } from "@/src/game/world/map.ts";
 import type { FirstPersonRenderer } from "@/src/game/presentation/first_person/renderer.ts";
 import { assertEquals } from "@std/assert";
@@ -38,6 +39,7 @@ Deno.test("runtime renderNow cancels a pending RAF before rendering immediately"
     document: new FakeDocument() as unknown as Document,
     ctx: new FakeContext() as unknown as CanvasRenderingContext2D,
     signal: new AbortController().signal,
+    onError: ignoreError,
     getModel: () => model,
     getSession: () => undefined,
     dependencies: { audio, firstPersonRenderer: fakeFirstPersonRenderer() },
@@ -60,6 +62,7 @@ Deno.test("runtime RAF callback clears the pending frame before requesting anoth
     document: new FakeDocument() as unknown as Document,
     ctx: new FakeContext() as unknown as CanvasRenderingContext2D,
     signal: new AbortController().signal,
+    onError: ignoreError,
     getModel: () => modelNeedingFrame(),
     getSession: () => undefined,
     dependencies: { audio: new FakeAudioRuntime(), firstPersonRenderer: fakeFirstPersonRenderer() },
@@ -90,6 +93,7 @@ Deno.test("runtime RAF skips work until the interactive fps budget elapses", () 
       document: new FakeDocument() as unknown as Document,
       ctx: new FakeContext() as unknown as CanvasRenderingContext2D,
       signal: new AbortController().signal,
+      onError: ignoreError,
       getModel: () => {
         updateCount++;
         return modelNeedingFrame();
@@ -135,6 +139,7 @@ Deno.test("runtime RAF uses the model interactiveFps for the interactive budget"
       document: new FakeDocument() as unknown as Document,
       ctx: new FakeContext() as unknown as CanvasRenderingContext2D,
       signal: new AbortController().signal,
+      onError: ignoreError,
       getModel: () => {
         updateCount++;
         return { ...modelNeedingFrame(), interactiveFps: 12 };
@@ -186,6 +191,7 @@ Deno.test("runtime RAF uses a 12 fps budget for ambient-only first-person animat
       document: new FakeDocument() as unknown as Document,
       ctx: new FakeContext() as unknown as CanvasRenderingContext2D,
       signal: new AbortController().signal,
+      onError: ignoreError,
       getModel: () => {
         updateCount++;
         return playingModel();
@@ -231,6 +237,7 @@ Deno.test("runtime dispose cancels pending RAF and disposes audio", () => {
     document: new FakeDocument() as unknown as Document,
     ctx: new FakeContext() as unknown as CanvasRenderingContext2D,
     signal: new AbortController().signal,
+    onError: ignoreError,
     getModel: () => modelNeedingFrame(),
     getSession: () => undefined,
     dependencies: { audio, firstPersonRenderer: fakeFirstPersonRenderer() },
@@ -244,6 +251,50 @@ Deno.test("runtime dispose cancels pending RAF and disposes audio", () => {
   assertEquals(audio.disposed, true);
 });
 
+Deno.test("runtime forwards a rejected background asset warm to onError exactly once", async () => {
+  const failure = new Error("warm failed");
+  const errors: unknown[] = [];
+  const hadOwnIdleCallback = Object.hasOwn(globalThis, "requestIdleCallback");
+  const ownIdleCallback = Object.getOwnPropertyDescriptor(globalThis, "requestIdleCallback");
+  Object.defineProperty(globalThis, "requestIdleCallback", {
+    configurable: true,
+    writable: true,
+    value: (callback: () => void): number => {
+      callback();
+      return 1;
+    },
+  });
+
+  try {
+    const runtime = createGameRuntimeLoop({
+      host: new FakeWindow() as unknown as Window,
+      document: new FakeDocument() as unknown as Document,
+      ctx: new FakeContext() as unknown as CanvasRenderingContext2D,
+      signal: new AbortController().signal,
+      onError: (error) => errors.push(error),
+      getModel: () => modelWithoutFrame(),
+      getSession: () => undefined,
+      dependencies: {
+        audio: new FakeAudioRuntime(),
+        firstPersonRenderer: fakeFirstPersonRenderer({ needsFrame: false }, failure),
+      },
+    });
+
+    runtime.warmDeferredAssets(START_MAP_NAME);
+    await new Promise((resolve) => setTimeout(resolve, 0));
+
+    assertEquals(errors.length, 1);
+    assertEquals(errors[0], failure);
+    runtime[Symbol.dispose]();
+  } finally {
+    if (hadOwnIdleCallback && ownIdleCallback !== undefined) {
+      Object.defineProperty(globalThis, "requestIdleCallback", ownIdleCallback);
+    } else {
+      delete (globalThis as { requestIdleCallback?: typeof requestIdleCallback }).requestIdleCallback;
+    }
+  }
+});
+
 Deno.test("runtime audio world sync clears stale emitters when the session disappears", () => {
   const audio = new FakeAudioRuntime();
   let session: RuntimeSession | undefined = fakeAudioSession();
@@ -252,6 +303,7 @@ Deno.test("runtime audio world sync clears stale emitters when the session disap
     document: new FakeDocument() as unknown as Document,
     ctx: new FakeContext() as unknown as CanvasRenderingContext2D,
     signal: new AbortController().signal,
+    onError: ignoreError,
     getModel: () => modelWithoutFrame(),
     getSession: () => session,
     dependencies: { audio, firstPersonRenderer: fakeFirstPersonRenderer() },
@@ -274,6 +326,7 @@ Deno.test("runtime updateAudioListener uses the current session pose", () => {
     document: new FakeDocument() as unknown as Document,
     ctx: new FakeContext() as unknown as CanvasRenderingContext2D,
     signal: new AbortController().signal,
+    onError: ignoreError,
     getModel: () => modelWithoutFrame(),
     getSession: () => fakeAudioSession(),
     dependencies: { audio, firstPersonRenderer: fakeFirstPersonRenderer() },
@@ -291,6 +344,7 @@ Deno.test("runtime forwards the selected music track to audio", () => {
     document: new FakeDocument() as unknown as Document,
     ctx: new FakeContext() as unknown as CanvasRenderingContext2D,
     signal: new AbortController().signal,
+    onError: ignoreError,
     getModel: () => modelWithoutFrame(),
     getSession: () => undefined,
     dependencies: { audio, firstPersonRenderer: fakeFirstPersonRenderer() },
@@ -309,6 +363,7 @@ Deno.test("runtime forwards dialogue voice changes to audio", () => {
     document: new FakeDocument() as unknown as Document,
     ctx: new FakeContext() as unknown as CanvasRenderingContext2D,
     signal: new AbortController().signal,
+    onError: ignoreError,
     getModel: () => modelWithoutFrame(),
     getSession: () => undefined,
     dependencies: { audio, firstPersonRenderer: fakeFirstPersonRenderer() },
@@ -346,17 +401,14 @@ function playingModel(): GameModel {
 
 function fakeFirstPersonRenderer(
   result: { readonly needsFrame: boolean; readonly ambientOnly?: boolean } = { needsFrame: false },
+  warmError?: unknown,
 ): FirstPersonRenderer {
   return {
-    preloadAssets() {
+    preloadMapAssets() {
       return Promise.resolve();
     },
-    warmDeferredAssets() {
-      return Promise.resolve();
-    },
-    bakeLoadedAssets() {},
-    sceneForMap() {
-      throw new Error("Unexpected sceneForMap call.");
+    warmRemainingAssets() {
+      return warmError === undefined ? Promise.resolve() : Promise.reject(warmError);
     },
     reset() {},
     bump() {},
@@ -367,6 +419,8 @@ function fakeFirstPersonRenderer(
     },
   };
 }
+
+function ignoreError(_error: unknown): void {}
 
 function fakePlayingSession(): RuntimeSession {
   return {

@@ -86,7 +86,7 @@ export async function preloadGameAssets(
   const map = getMap(options.mapName);
   const spriteIds = criticalSpriteIdsForMap(map);
   const jobs: Array<(onAssetLoad?: () => void) => Promise<void>> = [
-    (onAssetLoad) => firstPersonRenderer.preloadAssets(document, spriteIds, onAssetLoad),
+    (onAssetLoad) => firstPersonRenderer.preloadMapAssets(document, map, spriteIds, onAssetLoad),
     (onAssetLoad) => preloadVerbMenuAssets(document, onAssetLoad),
     (onAssetLoad) => preloadWeaponHudAssets(document, onAssetLoad),
     (onAssetLoad) => preloadHudAssets(document, onAssetLoad),
@@ -119,12 +119,18 @@ export function warmGameAssets(
   document: Document,
   firstPersonRenderer: FirstPersonRenderer,
   mapName: string,
+  onError: (error: unknown) => void,
   onAssetLoad?: () => void,
 ): void {
-  scheduleIdle(() => {
-    void preloadTitleAssets(document, onAssetLoad);
-    void preloadGameAssets(document, firstPersonRenderer, { mapName, onAssetLoad });
-  });
+  scheduleIdle(
+    async () => {
+      await Promise.all([
+        preloadTitleAssets(document, onAssetLoad),
+        preloadGameAssets(document, firstPersonRenderer, { mapName, onAssetLoad }),
+      ]);
+    },
+    onError,
+  );
 }
 
 /** After playing starts, warm deferred FP sprites plus help/endscreen. */
@@ -132,29 +138,35 @@ export function warmDeferredGameAssets(
   document: Document,
   firstPersonRenderer: FirstPersonRenderer,
   mapName: string,
+  onError: (error: unknown) => void,
   onAssetLoad?: () => void,
 ): void {
-  scheduleIdle(() => {
-    const spriteIds = criticalSpriteIdsForMap(getMap(mapName));
-    void firstPersonRenderer.warmDeferredAssets(document, spriteIds, onAssetLoad);
-    void preloadHelpAssets(document, onAssetLoad);
-    void preloadIntermissionAssets(document, onAssetLoad);
-    if (!mapNeedsDialogueAssets(getMap(mapName))) {
-      void preloadDialogueAssets(document, onAssetLoad);
-    }
-    if (!mapNeedsSpearRevealAsset(getMap(mapName))) {
-      void preloadSpearRevealAsset(document, onAssetLoad);
-    }
-  });
+  scheduleIdle(
+    async () => {
+      const map = getMap(mapName);
+      const jobs = [
+        firstPersonRenderer.warmRemainingAssets(document, onAssetLoad),
+        preloadHelpAssets(document, onAssetLoad),
+        preloadIntermissionAssets(document, onAssetLoad),
+      ];
+      if (!mapNeedsDialogueAssets(map)) jobs.push(preloadDialogueAssets(document, onAssetLoad));
+      if (!mapNeedsSpearRevealAsset(map)) jobs.push(preloadSpearRevealAsset(document, onAssetLoad));
+      await Promise.all(jobs);
+    },
+    onError,
+  );
 }
 
-function scheduleIdle(work: () => void): void {
+function scheduleIdle(work: () => Promise<void>, onError: (error: unknown) => void): void {
+  const run = (): void => {
+    void work().catch(onError);
+  };
   const ric = globalThis.requestIdleCallback as ((cb: () => void) => number) | undefined;
   if (typeof ric === "function") {
-    ric(work);
+    ric(run);
     return;
   }
-  globalThis.setTimeout(work, 0);
+  globalThis.setTimeout(run, 0);
 }
 
 export function renderGameFrame({
@@ -313,7 +325,6 @@ function renderSessionFrame(input: {
       session,
       nowMs,
       firstPersonFrame,
-      onAssetLoad,
       playerWeaponSpec(playerStatus.selectedWeapon).range,
     );
     frameResult.needsFrame ||= firstPersonFrame.needsFrame;

@@ -1,25 +1,31 @@
 import { SpriteId } from "@/src/game/content/sprite_ids.ts";
-import { spriteAppearance, spriteIdForDecoration } from "@/src/game/content/sprites.ts";
+import { spriteIdForDecoration, topDownSpriteAppearance } from "@/src/game/content/sprites.ts";
 import { assertEquals } from "@std/assert";
 
-Deno.test("tree decorations resolve to their renderable sprite assets", () => {
+Deno.test("tree decorations resolve to top-down-hidden sprite identities", () => {
   const trees = [
-    ["tree1", SpriteId.DecorTree1, "/assets/game/sprites/tree_1.png"],
-    ["tree2", SpriteId.DecorTree2, "/assets/game/sprites/tree_2.png"],
-    ["tree3", SpriteId.DecorTree3, "/assets/game/sprites/tree_3.png"],
+    ["tree1", SpriteId.DecorTree1],
+    ["tree2", SpriteId.DecorTree2],
+    ["tree3", SpriteId.DecorTree3],
   ] as const;
 
-  for (const [kind, spriteId, assetPath] of trees) {
+  for (const [kind, spriteId] of trees) {
     assertEquals(spriteIdForDecoration(kind), spriteId);
-    const appearance = spriteAppearance(spriteId);
-    assertEquals(appearance.asset?.src.endsWith(assetPath), true);
-    assertEquals(appearance.firstPersonScale, 1);
-    assertEquals(appearance.firstPersonElevation, 0);
+    assertEquals(topDownSpriteAppearance(spriteId), {
+      shape: "none",
+      color: "#000000",
+    });
   }
 });
 
-Deno.test("mainframe core renders as a room-scale set-piece", () => {
-  const appearance = spriteAppearance(SpriteId.MainframeCore);
-  assertEquals(appearance.firstPersonScale, 5);
-  assertEquals(appearance.firstPersonCeilingClipDistance, 8);
+Deno.test("top-down appearances contain no first-person asset concerns", () => {
+  assertEquals(topDownSpriteAppearance(SpriteId.DigitalDog), {
+    shape: "actor",
+    color: "#ef4444",
+    symbol: "D",
+  });
+  assertEquals(topDownSpriteAppearance(SpriteId.Player), {
+    shape: "player",
+    color: "#f0c84b",
+  });
 });

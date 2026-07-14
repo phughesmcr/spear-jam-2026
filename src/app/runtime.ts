@@ -41,6 +41,7 @@ export type GameRuntimeLoopSpec = {
   readonly signal: AbortSignal;
   readonly getModel: () => GameModel;
   readonly getSession: () => RuntimeSession | undefined;
+  readonly onError: (error: unknown) => void;
   readonly dependencies?: GameRuntimeLoopDependencies;
   readonly onLoadingProgress?: (loaded: number, total: number) => void;
 };
@@ -135,15 +136,26 @@ class RuntimeLoop implements GameRuntimeLoop {
       onAssetLoad: this.renderLoadedAssets,
       onProgress: (progress) => this.spec.onLoadingProgress?.(progress.loaded, progress.total),
     });
-    this.firstPersonRenderer.bakeLoadedAssets(this.spec.ctx);
   }
 
   warmAssets(mapName: string): void {
-    warmGameAssets(this.spec.document, this.firstPersonRenderer, mapName, this.renderLoadedAssets);
+    warmGameAssets(
+      this.spec.document,
+      this.firstPersonRenderer,
+      mapName,
+      this.spec.onError,
+      this.renderLoadedAssets,
+    );
   }
 
   warmDeferredAssets(mapName: string): void {
-    warmDeferredGameAssets(this.spec.document, this.firstPersonRenderer, mapName, this.renderLoadedAssets);
+    warmDeferredGameAssets(
+      this.spec.document,
+      this.firstPersonRenderer,
+      mapName,
+      this.spec.onError,
+      this.renderLoadedAssets,
+    );
   }
 
   resetFirstPerson(): void {

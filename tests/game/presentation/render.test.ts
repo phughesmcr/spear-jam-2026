@@ -268,12 +268,8 @@ function renderWithScratch(
 
 function fakeFirstPersonRenderer(needsFrame = false, ambientOnly = false): FirstPersonRenderer {
   return {
-    preloadAssets: () => Promise.resolve(),
-    warmDeferredAssets: () => Promise.resolve(),
-    bakeLoadedAssets(): void {},
-    sceneForMap(): never {
-      throw new Error("Unexpected sceneForMap call.");
-    },
+    preloadMapAssets: () => Promise.resolve(),
+    warmRemainingAssets: () => Promise.resolve(),
     reset(): void {},
     bump(): void {},
     render: (_ctx, _rect, _session, _nowMs, out) => {

@@ -1,15 +1,16 @@
-import { type SpriteAppearance, spriteAppearance } from "@/src/game/content/sprites.ts";
 import { type DrawableEntity } from "@/src/game/simulation/drawables.ts";
+import type { SpriteId } from "@/src/game/content/sprite_ids.ts";
 import { SpriteAnimationKind, type SpriteAnimationSchema } from "@/src/game/simulation/components.ts";
 import { DrawableKind } from "@/src/game/simulation/drawable_kind.ts";
 import { type CardinalDirection, normalizeDirection } from "@/src/game/world/direction.ts";
 import type { GameMap } from "@/src/game/world/map.ts";
 import {
-  doorTexture,
-  ENEMY_SHEET_COLUMNS,
-  type FirstPersonAssetState,
-  glassDoorTexture,
-} from "@/src/game/presentation/first_person/assets.ts";
+  type FirstPersonDeathFrame,
+  type FirstPersonMaterials,
+  type FirstPersonSpriteAnimation,
+  type FirstPersonSpriteFacing,
+  type FirstPersonSpriteMaterial,
+} from "@/src/game/presentation/first_person/assets/mod.ts";
 import { doorAxis, doorSlideForAxis, secretWallTextureSlot } from "@/src/game/presentation/first_person/scene.ts";
 import { addSlidingSolidWall, addSprite, addThinWall, type RaycastScene } from "@/src/engine/raycast/scene.ts";
 import {
@@ -25,19 +26,20 @@ import {
   type SpriteTween,
 } from "@/src/game/presentation/first_person/tween.ts";
 
-export type FirstPersonDrawableState = FirstPersonAssetState & {
+export type FirstPersonDrawableState = {
   readonly spriteTweens: Map<DrawableEntity["entity"], SpriteTween>;
   readonly spritePoint: SpritePoint;
   readonly doorTweens: Map<DrawableEntity["entity"], ScalarTween>;
   readonly doorSample: ScalarSample;
 };
 
-const ENEMY_ROW_IDLE = 0;
-const ENEMY_ROW_WALK = 1;
-const ENEMY_ROW_ATTACK = 2;
-const ENEMY_ROW_DEATH = 3;
-/** Relative facing (entity dir - camera dir) to enemy sheet column. */
-const REL_DIR_TO_SHEET_COLUMN: readonly [number, number, number, number] = [2, 3, 0, 1];
+/** Relative facing (entity dir - camera dir) as seen by the camera. */
+const RELATIVE_FACING: readonly [
+  FirstPersonSpriteFacing,
+  FirstPersonSpriteFacing,
+  FirstPersonSpriteFacing,
+  FirstPersonSpriteFacing,
+] = ["back", "right", "front", "left"];
 
 const ITEM_BOB_PERIOD_MS = 1_200;
 const ITEM_BOB_BASE_ELEVATION = 0.03;
@@ -66,53 +68,50 @@ function itemElevation(nowMs: number): number {
 }
 
 function addFirstPersonSprite(
-  state: FirstPersonDrawableState,
   scene: RaycastScene,
   x: number,
   y: number,
-  slot: number,
-  height: number,
-  elevation = 0,
+  material: FirstPersonSpriteMaterial,
+  elevation = material.elevation,
   healthCurrent = 0,
   healthMax = 0,
-  ceilingClipDistance = Number.POSITIVE_INFINITY,
+  ceilingClipDistance = material.ceilingClipDistance,
 ): void {
   addSprite(
     scene,
     x,
     y,
-    slot,
-    height,
+    material.slot,
+    material.scale,
     elevation,
-    height * (state.spriteAspectBySlot.get(slot) ?? 1),
+    material.scale * material.aspect,
     healthCurrent,
     healthMax,
     ceilingClipDistance,
   );
 }
 
-function addAppearanceSprite(
-  state: FirstPersonDrawableState,
+function addMaterialSprite(
+  materials: FirstPersonMaterials,
   scene: RaycastScene,
   x: number,
   y: number,
-  appearance: SpriteAppearance,
+  spriteId: SpriteId,
   nowMs: number,
 ): boolean {
-  if (appearance.firstPersonSlot === undefined) return false;
+  const material = materials.sprite(spriteId);
+  if (material === undefined) return false;
   addFirstPersonSprite(
-    state,
     scene,
     x,
     y,
-    appearance.firstPersonSlot,
-    appearance.firstPersonScale,
-    appearance.firstPersonElevation + (appearance.itemBob ? itemElevation(nowMs) : 0),
+    material,
+    material.elevation + (material.itemBob ? itemElevation(nowMs) : 0),
     0,
     0,
-    appearance.firstPersonCeilingClipDistance,
+    material.ceilingClipDistance,
   );
-  return appearance.itemBob;
+  return material.itemBob;
 }
 
 /** Per-drawable animation demand: interactive stays at full fps; ambient may throttle. */
@@ -122,15 +121,18 @@ export type DrawableFrameDemand = {
 };
 
 const NO_FRAME_DEMAND: DrawableFrameDemand = { interactive: false, ambient: false };
+const INTERACTIVE_FRAME_DEMAND: DrawableFrameDemand = { interactive: true, ambient: false };
+const AMBIENT_FRAME_DEMAND: DrawableFrameDemand = { interactive: false, ambient: true };
+const INTERACTIVE_AMBIENT_FRAME_DEMAND: DrawableFrameDemand = { interactive: true, ambient: true };
 
 function frameDemand(interactive: boolean, ambient = false): DrawableFrameDemand {
-  if (!interactive && !ambient) return NO_FRAME_DEMAND;
-  return { interactive, ambient };
+  if (interactive) return ambient ? INTERACTIVE_AMBIENT_FRAME_DEMAND : INTERACTIVE_FRAME_DEMAND;
+  return ambient ? AMBIENT_FRAME_DEMAND : NO_FRAME_DEMAND;
 }
 
-function enemySprite(baseSlot: number, dir: number, cameraDir: CardinalDirection, row: number): number {
+function relativeSpriteFacing(dir: number, cameraDir: CardinalDirection): FirstPersonSpriteFacing {
   const relative = (normalizeDirection(dir) - cameraDir + 4) & 3;
-  return baseSlot + row * ENEMY_SHEET_COLUMNS + REL_DIR_TO_SHEET_COLUMN[relative]!;
+  return RELATIVE_FACING[relative]!;
 }
 
 function animationIsActive(animation: SpriteAnimationSchema | undefined, nowMs: number): boolean {
@@ -145,13 +147,21 @@ function animationFrame(animation: SpriteAnimationSchema, nowMs: number, frameCo
 }
 
 /** Pick the sheet row for an enemy: ECS presentation state or default idle. */
-function enemySheetRow(animation: SpriteAnimationSchema | undefined, nowMs: number): number {
-  if (animation === undefined || !animationIsActive(animation, nowMs)) return ENEMY_ROW_IDLE;
-  if (animation.kind === SpriteAnimationKind.Attack) return ENEMY_ROW_ATTACK;
+function enemySpriteAnimation(
+  animation: SpriteAnimationSchema | undefined,
+  nowMs: number,
+): FirstPersonSpriteAnimation {
+  if (animation === undefined || !animationIsActive(animation, nowMs)) return "idle";
+  if (animation.kind === SpriteAnimationKind.Attack) return "attack";
   if (animation.kind === SpriteAnimationKind.Walk) {
-    return animationFrame(animation, nowMs, 2) === 0 ? ENEMY_ROW_IDLE : ENEMY_ROW_WALK;
+    return animationFrame(animation, nowMs, 2) === 0 ? "idle" : "walk";
   }
-  return ENEMY_ROW_IDLE;
+  return "idle";
+}
+
+function deathSpriteFrame(animation: SpriteAnimationSchema, nowMs: number): FirstPersonDeathFrame {
+  const frame = animationFrame(animation, nowMs, 4);
+  return frame === 0 || frame === 1 || frame === 2 ? frame : 3;
 }
 
 /** Tweened world position for a moving entity; updates spritePoint. */
@@ -176,6 +186,7 @@ function spriteMoveDuration(drawable: DrawableEntity): number | undefined {
 /** Returns whether this drawable still needs interactive and/or ambient frames. */
 export function addDrawable(
   state: FirstPersonDrawableState,
+  materials: FirstPersonMaterials,
   scene: RaycastScene,
   map: GameMap,
   drawable: DrawableEntity,
@@ -189,31 +200,18 @@ export function addDrawable(
       return NO_FRAME_DEMAND;
     case DrawableKind.Actor: {
       tweenedSpritePosition(state, drawable, nowMs);
-      const appearance = spriteAppearance(drawable.spriteId);
-      if (!appearance.enemySheet) {
-        const bobbing = addAppearanceSprite(
-          state,
-          scene,
-          state.spritePoint.x,
-          state.spritePoint.y,
-          appearance,
-          nowMs,
-        );
-        return frameDemand(!state.spritePoint.settled, bobbing);
-      }
-      if (appearance.firstPersonSlot === undefined) {
-        return frameDemand(!state.spritePoint.settled);
-      }
-      const row = enemySheetRow(drawable.animation, nowMs);
-      const sprite = enemySprite(appearance.firstPersonSlot, drawable.dir, cameraDir, row);
+      const material = materials.directionalSprite(
+        drawable.spriteId,
+        enemySpriteAnimation(drawable.animation, nowMs),
+        relativeSpriteFacing(drawable.dir, cameraDir),
+      );
+      if (material === undefined) return frameDemand(!state.spritePoint.settled);
       addFirstPersonSprite(
-        state,
         scene,
         state.spritePoint.x,
         state.spritePoint.y,
-        sprite,
-        appearance.firstPersonScale,
-        0,
+        material,
+        material.elevation,
         drawable.health?.current ?? 0,
         drawable.health?.max ?? 0,
       );
@@ -229,7 +227,7 @@ export function addDrawable(
           scene,
           drawable.x,
           drawable.y,
-          secretWallTextureSlot(state, map, drawable.x, drawable.y),
+          secretWallTextureSlot(materials, map, drawable.x, drawable.y),
           secretAxis,
           doorSlideForAxis(drawable.slide, secretAxis),
           state.doorSample.value,
@@ -243,7 +241,7 @@ export function addDrawable(
           scene,
           drawable.x,
           drawable.y,
-          glassDoorTexture(drawable.open),
+          materials.glassDoor(drawable.open),
           axis,
         );
         return frameDemand(false);
@@ -254,7 +252,7 @@ export function addDrawable(
         scene,
         drawable.x,
         drawable.y,
-        doorTexture(drawable.locked, drawable.color),
+        materials.door(drawable.locked, drawable.color),
         axis,
         doorSlideForAxis(drawable.slide, axis),
         state.doorSample.value,
@@ -262,24 +260,21 @@ export function addDrawable(
       return frameDemand(!state.doorSample.settled);
     }
     case DrawableKind.Sprite: {
-      const appearance = spriteAppearance(drawable.spriteId);
-      if (
-        appearance.enemySheet &&
-        appearance.firstPersonSlot !== undefined &&
-        drawable.animation?.kind === SpriteAnimationKind.Death
-      ) {
-        const frame = animationFrame(drawable.animation, nowMs, ENEMY_SHEET_COLUMNS);
+      if (drawable.animation?.kind === SpriteAnimationKind.Death) {
+        const material = materials.deathSprite(
+          drawable.spriteId,
+          deathSpriteFrame(drawable.animation, nowMs),
+        );
+        if (material === undefined) return frameDemand(animationIsActive(drawable.animation, nowMs));
         addFirstPersonSprite(
-          state,
           scene,
           centerX,
           centerY,
-          appearance.firstPersonSlot + ENEMY_ROW_DEATH * ENEMY_SHEET_COLUMNS + frame,
-          appearance.firstPersonScale,
+          material,
         );
         return frameDemand(animationIsActive(drawable.animation, nowMs));
       }
-      return frameDemand(false, addAppearanceSprite(state, scene, centerX, centerY, appearance, nowMs));
+      return frameDemand(false, addMaterialSprite(materials, scene, centerX, centerY, drawable.spriteId, nowMs));
     }
     default: {
       const _exhaustive: never = drawable;

@@ -82,6 +82,7 @@ class Game implements GameController {
       signal: controller.signal,
       getModel: () => this.model,
       getSession: () => this.session,
+      onError: (error) => this.handleLoadError(error),
       onLoadingProgress: (loaded, total) => {
         this.apply({ type: "loadingProgress", loaded, total });
       },

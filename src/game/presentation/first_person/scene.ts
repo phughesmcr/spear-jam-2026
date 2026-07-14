@@ -8,13 +8,7 @@ import {
   terrainIsBarrier,
 } from "@/src/game/world/map.ts";
 import { SKY_CEILING_TEXTURE } from "@/src/game/world/terrain_palette.ts";
-import {
-  barrierTextureSlot,
-  ceilingTextureSlot,
-  type FirstPersonAssetState,
-  floorTextureSlot,
-  wallTextureSlot,
-} from "@/src/game/presentation/first_person/assets.ts";
+import type { FirstPersonMaterials } from "@/src/game/presentation/first_person/assets/mod.ts";
 import {
   addThinWall,
   createScene,
@@ -41,7 +35,7 @@ export type TerrainBarrier = {
   readonly axis: ThinWallAxis;
 };
 
-export type FirstPersonSceneState = FirstPersonAssetState & {
+export type FirstPersonSceneState = {
   sceneByMap: WeakMap<GameMap, RaycastScene>;
   terrainBarriersByScene: WeakMap<RaycastScene, readonly TerrainBarrier[]>;
 };
@@ -65,7 +59,11 @@ export function sceneHasSkyCeiling(scene: RaycastScene, atlas: RaycastAtlas): bo
   return atlas.skyPlane !== undefined && scene.hasSkyCeiling;
 }
 
-export function sceneForMapForState(state: FirstPersonSceneState, map: GameMap): RaycastScene {
+export function sceneForMap(
+  state: FirstPersonSceneState,
+  materials: FirstPersonMaterials,
+  map: GameMap,
+): RaycastScene {
   const cached = state.sceneByMap.get(map);
   if (cached !== undefined) return cached;
 
@@ -81,21 +79,21 @@ export function sceneForMapForState(state: FirstPersonSceneState, map: GameMap):
       const terrain = terrainAt(map, x, y);
       // Missing terrain blocks movement, so render it as wall to match.
       if (terrain === undefined) {
-        scene.walls[cell] = wallTextureSlot(state, "wall") + 1;
+        scene.walls[cell] = materials.wall("wall") + 1;
         continue;
       }
       if (terrain.kind === "wall") {
-        scene.walls[cell] = wallTextureSlot(state, terrain.wall_texture) + 1;
+        scene.walls[cell] = materials.wall(terrain.wall_texture) + 1;
         continue;
       }
-      scene.floors[cell] = floorTextureSlot(state, terrain.floor_texture) + 1;
-      scene.ceilings[cell] = ceilingTextureSlot(state, terrain.ceiling_texture) + 1;
+      scene.floors[cell] = materials.floor(terrain.floor_texture) + 1;
+      scene.ceilings[cell] = materials.ceiling(terrain.ceiling_texture) + 1;
       if (terrain.ceiling_texture === SKY_CEILING_TEXTURE) scene.hasSkyCeiling = true;
       if (terrainIsBarrier(terrain)) {
         terrainBarriers.push({
           x,
           y,
-          texture: barrierTextureSlot(terrain.barrier_texture),
+          texture: materials.barrier(terrain.barrier_texture),
           axis: doorAxis(map, x, y),
         });
       }
@@ -227,14 +225,19 @@ export function doorAxis(map: GameMap, x: number, y: number): ThinWallAxis {
  * Texture for a disguised secret door: match a flanking wall so it blends into
  * the surrounding terrain, falling back to the default wall texture.
  */
-export function secretWallTextureSlot(state: FirstPersonAssetState, map: GameMap, x: number, y: number): number {
+export function secretWallTextureSlot(
+  materials: FirstPersonMaterials,
+  map: GameMap,
+  x: number,
+  y: number,
+): number {
   for (const [nx, ny] of [[x - 1, y], [x + 1, y], [x, y - 1], [x, y + 1]] as const) {
     const terrain = terrainAt(map, nx, ny);
     if (terrain?.kind === "wall") {
-      return wallTextureSlot(state, terrain.wall_texture);
+      return materials.wall(terrain.wall_texture);
     }
   }
-  return wallTextureSlot(state, "wall");
+  return materials.wall("wall");
 }
 
 export function addTerrainBarriers(state: FirstPersonSceneState, scene: RaycastScene): void {

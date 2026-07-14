@@ -1,4 +1,4 @@
-import { spriteAppearance } from "@/src/game/content/sprites.ts";
+import { topDownSpriteAppearance } from "@/src/game/content/sprites.ts";
 import { SpriteId } from "@/src/game/content/sprite_ids.ts";
 import {
   type ActorDrawableEntity,
@@ -88,14 +88,14 @@ function renderActorDrawable(
   drawable: ActorDrawableEntity,
   metrics: MapRenderMetrics,
 ): void {
-  const appearance = spriteAppearance(drawable.spriteId);
+  const appearance = topDownSpriteAppearance(drawable.spriteId);
   renderActorSymbol(
     ctx,
     drawable.x,
     drawable.y,
     drawable.dir,
-    appearance.topDownColor,
-    appearance.topDownSymbol,
+    appearance.color,
+    appearance.symbol,
     metrics,
   );
   renderEnemyHealth(ctx, drawable.x, drawable.y, drawable.health, metrics);
@@ -106,35 +106,35 @@ function renderSpriteDrawable(
   drawable: SpriteDrawableEntity,
   metrics: MapRenderMetrics,
 ): void {
-  const appearance = spriteAppearance(drawable.spriteId);
-  switch (appearance.topDownShape) {
+  const appearance = topDownSpriteAppearance(drawable.spriteId);
+  switch (appearance.shape) {
     case "actor":
-      renderActorSymbol(ctx, drawable.x, drawable.y, 0, appearance.topDownColor, appearance.topDownSymbol, metrics);
+      renderActorSymbol(ctx, drawable.x, drawable.y, 0, appearance.color, appearance.symbol, metrics);
       return;
     case "badge":
-      renderBadge(ctx, drawable.x, drawable.y, appearance.topDownColor, appearance.topDownSymbol ?? "", metrics);
+      renderBadge(ctx, drawable.x, drawable.y, appearance.color, appearance.symbol ?? "", metrics);
       return;
     case "corpse":
-      renderCorpse(ctx, drawable.x, drawable.y, appearance.topDownColor, metrics);
+      renderCorpse(ctx, drawable.x, drawable.y, appearance.color, metrics);
       return;
     case "key":
-      renderKey(ctx, drawable.x, drawable.y, appearance.topDownColor, metrics);
+      renderKey(ctx, drawable.x, drawable.y, appearance.color, metrics);
       return;
     case "none":
       return;
     case "player":
       return;
     case "terminal":
-      renderUplinkTerminal(ctx, drawable.x, drawable.y, appearance.topDownColor, metrics);
+      renderUplinkTerminal(ctx, drawable.x, drawable.y, appearance.color, metrics);
       return;
     case "uplinkCode":
-      renderUplinkCode(ctx, drawable.x, drawable.y, appearance.topDownColor, metrics);
+      renderUplinkCode(ctx, drawable.x, drawable.y, appearance.color, metrics);
       return;
     case "weapon":
-      renderWeaponPickup(ctx, drawable.x, drawable.y, appearance.topDownColor, appearance.topDownSymbol ?? "", metrics);
+      renderWeaponPickup(ctx, drawable.x, drawable.y, appearance.color, appearance.symbol ?? "", metrics);
       return;
     default: {
-      const _exhaustive: never = appearance.topDownShape;
+      const _exhaustive: never = appearance.shape;
       return _exhaustive;
     }
   }
@@ -394,7 +394,7 @@ function renderPlayer(
   const baseCenterY = centerY - forward.dy * radius;
   const baseOffset = radius * PLAYER_BASE_WIDTH_RATIO;
 
-  ctx.fillStyle = spriteAppearance(SpriteId.Player).topDownColor;
+  ctx.fillStyle = topDownSpriteAppearance(SpriteId.Player).color;
   ctx.beginPath();
   ctx.moveTo(centerX + forward.dx * radius, centerY + forward.dy * radius);
   ctx.lineTo(baseCenterX + sideX * baseOffset, baseCenterY + sideY * baseOffset);

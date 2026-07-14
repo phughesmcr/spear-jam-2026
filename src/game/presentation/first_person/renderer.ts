@@ -1,10 +1,9 @@
 /**
  * First-person view adapter.
  *
- * Bridges the game session to the raycast renderer: bakes PNG assets into
- * TEX_SIZE texel bands (with procedural fallbacks while images load), builds the
- * static terrain arrays once per map, and rebuilds the cheap dynamic scene
- * (doors as thin walls, drawables as billboard sprites) each frame.
+ * Bridges the game session and precompiled first-person assets to the raycast
+ * renderer. Static terrain arrays are cached per map; cheap dynamic geometry
+ * is rebuilt each frame without loading, rasterizing, or baking assets.
  *
  * Enemy sprite sheets are 4x4 grids (rows: idle, walk, attack, death;
  * columns: front, facing-left, back, facing-right). The idle row is baked
@@ -20,21 +19,13 @@ import {
 } from "@/src/game/simulation/drawables.ts";
 import { DrawableKind } from "@/src/game/simulation/drawable_kind.ts";
 import { type CardinalDirection, Direction, directionDelta, normalizeDirection } from "@/src/game/world/direction.ts";
-import type { GameMap, TexturePackRef } from "@/src/game/world/map.ts";
-import { preloadImageAssets } from "@/src/engine/canvas/image_assets.ts";
-import {
-  bakeLoadedAssets,
-  buildAtlas,
-  type ContentCrop,
-  createAssetCatalog,
-  deferredCatalogAssets,
-  preloadAssetCatalogForSprites,
-} from "@/src/game/presentation/first_person/assets.ts";
+import type { GameMap } from "@/src/game/world/map.ts";
+import { createFirstPersonAssets, type FirstPersonMaterials } from "@/src/game/presentation/first_person/assets/mod.ts";
 import { addDrawable } from "@/src/game/presentation/first_person/drawables.ts";
 import {
   addTerrainBarriers,
   createLightUpdateThrottle,
-  sceneForMapForState,
+  sceneForMap,
   sceneHasSkyCeiling,
   type TerrainBarrier,
   updateSceneLights,
@@ -71,14 +62,13 @@ export type FirstPersonFrameScratch = {
 };
 
 export interface FirstPersonRenderer {
-  preloadAssets(document: Document, spriteIds: ReadonlySet<SpriteId>, onAssetLoad?: () => void): Promise<void>;
-  warmDeferredAssets(
+  preloadMapAssets(
     document: Document,
+    map: GameMap,
     spriteIds: ReadonlySet<SpriteId>,
-    onAssetLoad?: () => void,
+    onChange?: () => void,
   ): Promise<void>;
-  bakeLoadedAssets(ctx: CanvasRenderingContext2D): void;
-  sceneForMap(map: GameMap): RaycastScene;
+  warmRemainingAssets(document: Document, onChange?: () => void): Promise<void>;
   reset(): void;
   bump(dirX: number, dirY: number, nowMs: number): void;
   render(
@@ -87,24 +77,15 @@ export interface FirstPersonRenderer {
     session: FirstPersonRenderSession,
     nowMs: number,
     out: FirstPersonFrameScratch,
-    onAssetLoad?: () => void,
     healthBarMaxDistance?: number,
   ): void;
 }
 
-function createFirstPersonRendererState() {
+function createFirstPersonRendererState(materials: FirstPersonMaterials) {
   const state = {
-    atlas: buildAtlas(),
     view: createRaycastView(),
-    assetCatalog: createAssetCatalog(),
     sceneByMap: new WeakMap<GameMap, RaycastScene>(),
     terrainBarriersByScene: new WeakMap<RaycastScene, readonly TerrainBarrier[]>(),
-    packWallSlots: new Map<TexturePackRef, number>(),
-    packPlaneSlots: new Map<TexturePackRef, number>(),
-    spriteCropBySlot: new Map<number, ContentCrop | undefined>(),
-    spriteCropReady: new Set<number>(),
-    spriteAspectBySlot: new Map<number, number>(),
-    allTargetsBaked: false,
     drawableMap: undefined as GameMap | undefined,
     drawableScene: undefined as RaycastScene | undefined,
     drawableNowMs: 0,
@@ -116,7 +97,6 @@ function createFirstPersonRendererState() {
     spritesAmbient: false,
     visitPlayerDrawable: (_drawable: DrawableEntity): void => {},
     visitSceneDrawable: (_drawable: DrawableEntity): void => {},
-    rasterCanvas: undefined as OffscreenCanvas | undefined,
     poseTween: createPoseTween(),
     poseSample: { x: 0, y: 0, angle: 0, progress: 1, moving: false, settled: true } satisfies PoseSample,
     nudgeTween: createNudgeTween(),
@@ -138,6 +118,7 @@ function createFirstPersonRendererState() {
     if (drawable.kind === DrawableKind.Player) return;
     const demand = addDrawable(
       state,
+      materials,
       state.drawableScene!,
       state.drawableMap!,
       drawable,
@@ -153,19 +134,14 @@ function createFirstPersonRendererState() {
 type FirstPersonRendererState = ReturnType<typeof createFirstPersonRendererState>;
 
 export function createFirstPersonRenderer(): FirstPersonRenderer {
-  const state = createFirstPersonRendererState();
+  const assets = createFirstPersonAssets();
+  const state = createFirstPersonRendererState(assets.materials);
   return {
-    preloadAssets(document, spriteIds, onAssetLoad) {
-      return preloadAssetCatalogForSprites(document, state.assetCatalog, spriteIds, onAssetLoad);
+    preloadMapAssets(document, map, spriteIds, onChange) {
+      return assets.preloadRequired(document, map, spriteIds, onChange);
     },
-    warmDeferredAssets(document, spriteIds, onAssetLoad) {
-      return preloadImageAssets(document, deferredCatalogAssets(state.assetCatalog, spriteIds), onAssetLoad);
-    },
-    bakeLoadedAssets(ctx) {
-      bakeLoadedAssets(state, ctx);
-    },
-    sceneForMap(map) {
-      return sceneForMapForState(state, map);
+    warmRemainingAssets(document, onChange) {
+      return assets.warmRemaining(document, onChange);
     },
     reset() {
       resetFirstPersonRendererState(state);
@@ -173,8 +149,8 @@ export function createFirstPersonRenderer(): FirstPersonRenderer {
     bump(dirX, dirY, nowMs) {
       bumpFirstPersonRenderer(state, dirX, dirY, nowMs);
     },
-    render(ctx, rect, session, nowMs, out, onAssetLoad, healthBarMaxDistance) {
-      renderFirstPersonView(state, ctx, rect, session, nowMs, out, onAssetLoad, healthBarMaxDistance);
+    render(ctx, rect, session, nowMs, out, healthBarMaxDistance) {
+      renderFirstPersonView(state, assets, ctx, rect, session, nowMs, out, healthBarMaxDistance);
     },
   };
 }
@@ -202,17 +178,16 @@ function bumpFirstPersonRenderer(state: FirstPersonRendererState, dirX: number, 
  */
 function renderFirstPersonView(
   state: FirstPersonRendererState,
+  assets: ReturnType<typeof createFirstPersonAssets>,
   ctx: CanvasRenderingContext2D,
   rect: ViewRect,
   session: FirstPersonRenderSession,
   nowMs: number,
   out: FirstPersonFrameScratch,
-  onAssetLoad?: () => void,
   healthBarMaxDistance = 0,
 ): void {
   const map = session.getMap();
-  const scene = sceneForMapForState(state, map);
-  bakeLoadedAssets(state, ctx, onAssetLoad);
+  const scene = sceneForMap(state, assets.materials, map);
   clearSceneDynamic(scene);
   addTerrainBarriers(state, scene);
   const lightsAnimating = updateSceneLights(scene, session, nowMs, state.lightThrottle);
@@ -248,7 +223,7 @@ function renderFirstPersonView(
 
   samplePoseTween(state.poseTween, nowMs, state.poseSample);
   sampleNudgeTween(state.nudgeTween, nowMs, state.nudgeSample);
-  const skyAnimating = sceneHasSkyCeiling(scene, state.atlas);
+  const skyAnimating = sceneHasSkyCeiling(scene, assets.atlas);
   const interactive = !state.poseSample.settled || !state.nudgeSample.settled || state.spritesInteractive;
   const ambient = state.spritesAmbient || lightsAnimating || skyAnimating;
   const needsFrame = interactive || ambient;
@@ -257,7 +232,7 @@ function renderFirstPersonView(
     ctx,
     rect,
     scene,
-    state.atlas,
+    assets.atlas,
     cameraForAngle(
       state.poseSample.x + state.nudgeSample.dx,
       state.poseSample.y + state.nudgeSample.dy,
