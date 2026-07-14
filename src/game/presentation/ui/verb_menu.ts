@@ -1,6 +1,11 @@
 import type { CommandSlot, VerbMenuControl, VerbMenuTarget } from "@/src/game/model/state.ts";
 import { type VerbId, VERBS } from "@/src/game/model/verbs.ts";
-import { createImageAsset, type ImageAsset, loadedImage, preloadImageAssets } from "@/src/platform/web/assets.ts";
+import {
+  createImageAsset,
+  type ImageAsset,
+  loadedImage,
+  preloadImageAssets,
+} from "@/src/engine/canvas/image_assets.ts";
 import type { GameCanvasSize } from "@/src/game/presentation/canvas_size.ts";
 import { monoFont } from "@/src/game/presentation/ui/text.ts";
 

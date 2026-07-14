@@ -1,4 +1,4 @@
-import { createImageAsset, loadedImage, preloadImageAsset } from "@/src/platform/web/assets.ts";
+import { createImageAsset, loadedImage, preloadImageAsset } from "@/src/engine/canvas/image_assets.ts";
 import type { GameCanvasSize } from "@/src/game/presentation/canvas_size.ts";
 import { monoFont } from "@/src/game/presentation/ui/text.ts";
 

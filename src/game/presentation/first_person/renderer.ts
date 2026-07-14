@@ -21,7 +21,7 @@ import {
 import { DrawableKind } from "@/src/game/simulation/drawable_kind.ts";
 import { type CardinalDirection, Direction, directionDelta, normalizeDirection } from "@/src/game/world/direction.ts";
 import type { GameMap, TexturePackRef } from "@/src/game/world/map.ts";
-import { preloadImageAssets } from "@/src/platform/web/assets.ts";
+import { preloadImageAssets } from "@/src/engine/canvas/image_assets.ts";
 import {
   bakeLoadedAssets,
   buildAtlas,

@@ -1,6 +1,11 @@
 import type { CommandSlot } from "@/src/game/model/state.ts";
 import type { WeaponHudPhase } from "@/src/game/model/presentation_state.ts";
-import { createImageAsset, type ImageAsset, loadedImage, preloadImageAssets } from "@/src/platform/web/assets.ts";
+import {
+  createImageAsset,
+  type ImageAsset,
+  loadedImage,
+  preloadImageAssets,
+} from "@/src/engine/canvas/image_assets.ts";
 import type { GameCanvasSize } from "@/src/game/presentation/canvas_size.ts";
 
 export type WeaponHudImageSize = {

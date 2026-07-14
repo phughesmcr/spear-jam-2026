@@ -17,7 +17,12 @@ import {
   TEXTURE_PACK_COLUMNS,
   TEXTURE_PACK_ROWS,
 } from "@/src/game/world/terrain_palette.ts";
-import { createImageAsset, type ImageAsset, loadedImage, preloadImageAssets } from "@/src/platform/web/assets.ts";
+import {
+  createImageAsset,
+  type ImageAsset,
+  loadedImage,
+  preloadImageAssets,
+} from "@/src/engine/canvas/image_assets.ts";
 import type { RaycastAtlas } from "@/src/engine/raycast/scene.ts";
 import {
   type BakedTexture,

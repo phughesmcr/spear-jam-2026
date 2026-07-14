@@ -5,7 +5,7 @@
   "unstable": ["tsgo"],
   "nodeModulesDir": "manual",
   "tasks": {
-    "check": "export CI=1 && deno task audio:check && deno fmt --check . && deno lint . && deno check && deno test",
+    "check": "export CI=1 && deno task audio:check && deno fmt --check . && deno lint . && deno check && deno test --allow-read=src",
     "audio:generate": "deno run -A scripts/audio_assets.ts generate",
     "audio:check": "deno run -A scripts/audio_assets.ts check",
     "dev": "vite",

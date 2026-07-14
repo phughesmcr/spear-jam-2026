@@ -1,6 +1,6 @@
 import type { AmmoKind, PlayerHealthState, PlayerStatusSnapshot } from "@/src/game/model/state.ts";
 import { KeyColor } from "@/src/game/content/map_entities.ts";
-import { createImageAsset, loadedImage, preloadImageAssets } from "@/src/platform/web/assets.ts";
+import { createImageAsset, loadedImage, preloadImageAssets } from "@/src/engine/canvas/image_assets.ts";
 import type { GameCanvasSize } from "@/src/game/presentation/canvas_size.ts";
 import { fitText, monoFont } from "@/src/game/presentation/ui/text.ts";
 

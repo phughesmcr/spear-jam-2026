@@ -1,5 +1,5 @@
 import type { CombatFeedback, CombatFeedbackSide, CombatFeedbackTone } from "@/src/game/model/combat_feedback.ts";
-import { createImageAsset, loadedImage, preloadImageAssets } from "@/src/platform/web/assets.ts";
+import { createImageAsset, loadedImage, preloadImageAssets } from "@/src/engine/canvas/image_assets.ts";
 import type { GameCanvasSize } from "@/src/game/presentation/canvas_size.ts";
 import type { MapRenderMetrics } from "@/src/game/presentation/top_down/map.ts";
 import { fitText, monoFont } from "@/src/game/presentation/ui/text.ts";

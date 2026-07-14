@@ -1,5 +1,5 @@
 import { assert, assertEquals } from "@std/assert";
-import { createImageAsset, loadedImage, preloadImageAssets } from "@/src/platform/web/assets.ts";
+import { createImageAsset, loadedImage, preloadImageAssets } from "@/src/engine/canvas/image_assets.ts";
 
 type FakeImageEvent = "load" | "error";
 type FakeImageListener = () => void;
