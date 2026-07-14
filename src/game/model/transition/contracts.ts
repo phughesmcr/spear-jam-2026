@@ -28,6 +28,8 @@ export type GameModel = {
 
 export type GameEffect =
   | { readonly type: "render" }
+  | { readonly type: "resetFirstPerson" }
+  | { readonly type: "warmMapAssets"; readonly mapName: string }
   | { readonly type: "closeDialogue" }
   | { readonly type: "setDialogueVoice"; readonly voice?: VoiceId }
   | { readonly type: "ensureInput" }

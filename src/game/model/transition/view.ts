@@ -4,5 +4,5 @@ import { done } from "@/src/game/model/transition/result.ts";
 
 export function toggleView(model: GameModel): GameTransition {
   const viewMode: ViewMode = model.viewMode === "firstPerson" ? "topDown" : "firstPerson";
-  return done({ ...model, viewMode }, [{ type: "render" }]);
+  return done({ ...model, viewMode }, [{ type: "resetFirstPerson" }, { type: "render" }]);
 }

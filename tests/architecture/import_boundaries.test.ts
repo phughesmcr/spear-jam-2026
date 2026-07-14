@@ -24,6 +24,32 @@ const PRESENTATION_RENDER_PASSES = [
   "@/src/game/presentation/session_pass.ts",
   "@/src/game/presentation/shell_pass.ts",
 ];
+const LEGACY_APPLICATION_RUNTIME = resolve(SOURCE_ROOT, "app/runtime.ts");
+const PRESENTATION_RUNTIME = resolve(SOURCE_ROOT, "app/presentation_runtime.ts");
+const AUDIO_RUNTIME = resolve(SOURCE_ROOT, "app/audio_runtime.ts");
+const GAME_EXECUTION = resolve(SOURCE_ROOT, "app/game_execution.ts");
+const APPLICATION_START = resolve(SOURCE_ROOT, "app/start.ts");
+const PRESENTATION_RUNTIME_IMPORTS = new Set([
+  "@/src/game/model/presentation_state.ts",
+  "@/src/game/model/render_settings.ts",
+  "@/src/game/model/transition/mod.ts",
+  "@/src/game/presentation/canvas_size.ts",
+  "@/src/game/presentation/first_person/renderer.ts",
+  "@/src/game/presentation/frame_scratch.ts",
+  "@/src/game/presentation/preload.ts",
+  "@/src/game/presentation/render.ts",
+  "@/src/game/presentation/session_view.ts",
+]);
+const AUDIO_RUNTIME_IMPORTS = new Set([
+  "@/src/engine/audio/mod.ts",
+  "@/src/game/content/audio/music.ts",
+  "@/src/game/content/dialogue/voices.ts",
+  "@/src/game/model/audio_settings.ts",
+  "@/src/game/model/sound.ts",
+  "@/src/game/presentation/audio.ts",
+  "@/src/game/presentation/session_view.ts",
+  "@/src/platform/web/audio/runtime.ts",
+]);
 const ALLOWED_DEPENDENCIES = {
   app: new Set(["app", "engine", "game", "platform"]),
   engine: new Set(["engine"]),
@@ -164,6 +190,97 @@ Deno.test({
         const dependency = importedLayer(sourcePath, specifier);
         if (dependency === undefined || ALLOWED_DEPENDENCIES[importer].has(dependency)) continue;
         violations.push(`${relative(SOURCE_ROOT, sourcePath)} imports ${specifier}`);
+      }
+    }
+
+    assertEquals(violations.sort(), []);
+  },
+});
+
+Deno.test({
+  name: "application output channels and game execution have discrete owners",
+  permissions: { read: [SOURCE_ROOT] },
+  fn: async () => {
+    const files = new Set(await sourceFiles(SOURCE_ROOT));
+    const violations: string[] = [];
+    if (files.has(LEGACY_APPLICATION_RUNTIME)) violations.push("app/runtime.ts still exists");
+    if (!files.has(PRESENTATION_RUNTIME)) violations.push("app/presentation_runtime.ts is missing");
+    if (!files.has(AUDIO_RUNTIME)) violations.push("app/audio_runtime.ts is missing");
+    if (!files.has(GAME_EXECUTION)) violations.push("app/game_execution.ts is missing");
+
+    const startSource = await Deno.readTextFile(APPLICATION_START);
+    const startImports = importSpecifiers(startSource);
+    for (
+      const required of [
+        "@/src/app/presentation_runtime.ts",
+        "@/src/app/audio_runtime.ts",
+        "@/src/app/game_execution.ts",
+      ]
+    ) {
+      if (!startImports.includes(required)) violations.push(`app/start.ts does not import ${required}`);
+    }
+    for (
+      const forbidden of [
+        "@/src/app/runtime.ts",
+        "@/src/app/session_lifecycle.ts",
+        "@/src/game/simulation/session.ts",
+        "@/src/engine/random.ts",
+        "@/src/game/content/audio/music.ts",
+        "@/src/game/world/direction.ts",
+      ]
+    ) {
+      if (startImports.includes(forbidden)) violations.push(`app/start.ts imports ${forbidden}`);
+    }
+    if (/\bswitch\s*\(\s*effect\.type\s*\)/.test(startSource)) {
+      violations.push("app/start.ts interprets game effects");
+    }
+    if (/\bSESSION_TRANSITIONS\b/.test(startSource)) {
+      violations.push("app/start.ts owns session transition dispatch");
+    }
+    if (/\bpreviousViewMode\b|\bcompletion\.type\b/.test(startSource)) {
+      violations.push("app/start.ts interprets transition consequences");
+    }
+    if (/\.warmMapAssets\s*\(/.test(startSource)) {
+      violations.push("app/start.ts directly warms transition-selected map assets");
+    }
+
+    if (files.has(PRESENTATION_RUNTIME)) {
+      const presentationImports = importSpecifiers(await Deno.readTextFile(PRESENTATION_RUNTIME));
+      for (const specifier of presentationImports) {
+        if (!PRESENTATION_RUNTIME_IMPORTS.has(specifier)) {
+          violations.push(`app/presentation_runtime.ts imports unapproved ${specifier}`);
+        }
+      }
+    }
+
+    if (files.has(AUDIO_RUNTIME)) {
+      const audioImports = importSpecifiers(await Deno.readTextFile(AUDIO_RUNTIME));
+      for (const specifier of audioImports) {
+        if (!AUDIO_RUNTIME_IMPORTS.has(specifier)) {
+          violations.push(`app/audio_runtime.ts imports unapproved ${specifier}`);
+        }
+      }
+    }
+
+    if (files.has(GAME_EXECUTION)) {
+      const executionSource = await Deno.readTextFile(GAME_EXECUTION);
+      const executionImports = importSpecifiers(executionSource);
+      if (!executionImports.includes("@/src/app/session_lifecycle.ts")) {
+        violations.push("app/game_execution.ts does not own session lifecycle dispatch");
+      }
+      if (!/\bswitch\s*\(\s*effect\.type\s*\)/.test(executionSource)) {
+        violations.push("app/game_execution.ts does not interpret game effects");
+      }
+      for (
+        const forbidden of [
+          "@/src/app/input.ts",
+          "@/src/game/presentation/input_routing.ts",
+          "@/src/platform/web/canvas.ts",
+        ]
+      ) {
+        if (executionImports.includes(forbidden)) {
+          violations.push(`app/game_execution.ts imports ${forbidden}`);
+        }
       }
     }
 

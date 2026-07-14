@@ -25,6 +25,7 @@ Deno.test("transition can start on the title screen before beginning the game", 
     { type: "applyAudioVolumes" },
     { type: "playMusic", trackId: TrackId.Title },
     { type: "render" },
+    { type: "warmMapAssets", mapName: "Level 1" },
   ]);
 
   result = transition(result.model, { type: "gameCommand", command: { type: "wait" }, nowMs: 1000 });
@@ -36,6 +37,7 @@ Deno.test("transition can start on the title screen before beginning the game", 
     { type: "applyAudioVolumes" },
     { type: "playMusic", trackId: TrackId.Intro },
     { type: "render" },
+    { type: "warmMapAssets", mapName: "Level 1" },
   ]);
 });
 
@@ -71,6 +73,7 @@ Deno.test("transition can start with an intro intermission before loading the fi
     { type: "applyAudioVolumes" },
     { type: "playMusic", trackId: TrackId.Intro },
     { type: "render" },
+    { type: "warmMapAssets", mapName: "Level 1" },
   ]);
 
   result = transition(result.model, { type: "gameCommand", command: { type: "wait" }, nowMs: 1000 });
@@ -115,10 +118,11 @@ Deno.test("transition toggles the playing view mode with a render", () => {
 
   const toggled = transition(model, { type: "gameCommand", command: { type: "toggleView" } });
   assertEquals(toggled.model.viewMode, "topDown");
-  assertEquals(toggled.effects, [{ type: "render" }]);
+  assertEquals(toggled.effects, [{ type: "resetFirstPerson" }, { type: "render" }]);
 
   const restored = transition(toggled.model, { type: "gameCommand", command: { type: "toggleView" } });
   assertEquals(restored.model.viewMode, "firstPerson");
+  assertEquals(restored.effects, [{ type: "resetFirstPerson" }, { type: "render" }]);
 });
 
 Deno.test("transition keeps the view mode across map loads", () => {

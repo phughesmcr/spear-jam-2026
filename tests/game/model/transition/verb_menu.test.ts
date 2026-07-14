@@ -172,7 +172,7 @@ Deno.test("transition confirms pointer control buttons only when down and up hit
   result = transition(model, { type: "verbPointer", phase: "up", target: { kind: "control", control: "toggleView" } });
   assertEquals(result.model.mode, { type: "playing" });
   assertEquals(result.model.viewMode, "topDown");
-  assertEquals(result.effects, [{ type: "render" }]);
+  assertEquals(result.effects, [{ type: "resetFirstPerson" }, { type: "render" }]);
 
   ({ model } = transition(result.model, { type: "gameCommand", command: { type: "action" } }));
   ({ model } = transition(model, {

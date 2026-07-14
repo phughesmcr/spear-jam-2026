@@ -82,7 +82,7 @@ export function playerCommandResult(
           completion: { type: "loadMap", mapName: result.mapChange.goto },
           nowMs,
         }),
-        [{ type: "render" }],
+        [{ type: "render" }, { type: "warmMapAssets", mapName: result.mapChange.goto }],
       );
     case "dialogue":
       return done({

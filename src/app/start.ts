@@ -1,28 +1,21 @@
 import { setupInput } from "@/src/app/input.ts";
-import { musicTrackForMap } from "@/src/game/content/audio/music.ts";
+import { type AudioRuntime, createAudioRuntime } from "@/src/app/audio_runtime.ts";
+import { createGameExecution, type GameExecution } from "@/src/app/game_execution.ts";
+import { createPresentationRuntime, type PresentationRuntime } from "@/src/app/presentation_runtime.ts";
 import type { PointerInput } from "@/src/engine/input/mod.ts";
-import type { GameSession } from "@/src/game/simulation/session.ts";
-import {
-  loadMapSession,
-  type LoadMapSessionSpec,
-  retryMapSession,
-  type SessionLifecycleResult,
-} from "@/src/app/session_lifecycle.ts";
-import { type GameCommand, type PlayerCommand, relativeMoveDirectionOffset } from "@/src/game/model/commands.ts";
+import type { GameCommand } from "@/src/game/model/commands.ts";
 import { firstPersonTouchGesturesEnabled, routePointerInput } from "@/src/game/presentation/input_routing.ts";
 import { DEFAULT_GAME_CANVAS_SIZE } from "@/src/game/presentation/canvas_size.ts";
-import { SplitMix32 } from "@/src/engine/random.ts";
-import { createGameRuntimeLoop, type GameRuntimeLoop } from "@/src/app/runtime.ts";
 import {
   createGameModel,
-  type GameEffect,
   type GameModel,
   type GameTransitionEvent,
   transition,
 } from "@/src/game/model/transition/mod.ts";
-import { directionDelta, normalizeDirection } from "@/src/game/world/direction.ts";
 import { START_MAP_NAME } from "@/src/game/world/campaign.ts";
 import { canvasSizeController } from "@/src/platform/web/canvas.ts";
+
+const NO_FRAME = { needsFrame: false } as const;
 
 export interface GameSpec {
   ctx: CanvasRenderingContext2D;
@@ -37,18 +30,6 @@ export interface GameController extends Disposable {
   unlockAudio(): Promise<void>;
 }
 
-/** The map-loading effects, each carrying a `mapName`, that drive a session transition. */
-type SessionTransitionKind = Extract<GameEffect, { readonly mapName: string }>["type"];
-
-/** Maps each session-transition effect to the lifecycle function that fulfils it. */
-const SESSION_TRANSITIONS: Record<
-  SessionTransitionKind,
-  (spec: LoadMapSessionSpec) => Promise<SessionLifecycleResult | undefined>
-> = {
-  loadMap: loadMapSession,
-  retryMap: retryMapSession,
-};
-
 export function startGame(spec: GameSpec): GameController {
   const controller = new AbortController();
   const game = new Game(spec, controller);
@@ -59,13 +40,12 @@ export function startGame(spec: GameSpec): GameController {
 class Game implements GameController {
   private readonly spec: GameSpec;
   private readonly controller: AbortController;
-  private readonly runtime: GameRuntimeLoop;
-  private readonly rng: SplitMix32;
+  private readonly presentation: PresentationRuntime;
+  private readonly audio: AudioRuntime;
+  private readonly execution: GameExecution;
   private model: GameModel;
   private canvasController: Disposable;
   private inputController?: Disposable;
-  private session?: GameSession;
-  private victoryTimeoutId?: number;
 
   constructor(spec: GameSpec, controller: AbortController) {
     this.spec = spec;
@@ -75,69 +55,55 @@ class Game implements GameController {
       showTitle: fullBoot,
       showIntro: fullBoot,
     });
-    this.runtime = createGameRuntimeLoop({
+    const executionRef: { current?: GameExecution } = {};
+    const getSession = () => executionRef.current?.getSession();
+    this.presentation = createPresentationRuntime({
       host: spec.host,
       document: spec.canvas.ownerDocument,
       ctx: spec.ctx,
       signal: controller.signal,
       getModel: () => this.model,
-      getSession: () => this.session,
+      getSession,
+      tickSession: (modeType, nowMs) => executionRef.current?.tick(modeType, nowMs) ?? NO_FRAME,
       onError: (error) => this.handleLoadError(error),
       onLoadingProgress: (loaded, total) => {
         this.apply({ type: "loadingProgress", loaded, total });
       },
     });
-    this.rng = new SplitMix32(spec.seed);
+    this.audio = createAudioRuntime({
+      host: spec.host,
+      getSession,
+    });
+    executionRef.current = createGameExecution({
+      host: spec.host,
+      signal: controller.signal,
+      seed: spec.seed,
+      cheat: spec.cheat,
+      presentation: this.presentation,
+      audio: this.audio,
+      getModel: () => this.model,
+      apply: (event) => this.apply(event),
+      ensureInput: () => this.ensureInput(),
+      onError: (error) => this.handleLoadError(error),
+    });
+    this.execution = executionRef.current;
     this.canvasController = canvasSizeController(
       spec.host,
       spec.canvas,
       spec.ctx,
       DEFAULT_GAME_CANVAS_SIZE,
-      (size) => this.runtime.resize(size),
+      (size) => this.presentation.resize(size),
     );
   }
 
   start(): void {
-    this.runtime.start();
+    this.presentation.start();
     this.apply({ type: "start", nowMs: performance.now() });
-    this.runtime.warmShellAssets();
-    if (this.model.mode.type === "title" || this.model.mode.type === "intermission") {
-      this.runtime.warmMapAssets(this.model.startMapName);
-    }
+    this.presentation.warmShellAssets();
   }
 
   unlockAudio(): Promise<void> {
-    return this.runtime.unlockAudio();
-  }
-
-  private startSessionTransition(kind: SessionTransitionKind, mapName: string): void {
-    void this.runSessionTransition(kind, mapName).catch((error: unknown) => this.handleLoadError(error));
-  }
-
-  private async runSessionTransition(kind: SessionTransitionKind, mapName: string): Promise<void> {
-    const result = await SESSION_TRANSITIONS[kind]({
-      signal: this.controller.signal,
-      preloadAssets: (mapName) => this.runtime.preloadAssets(mapName),
-      mapName,
-      currentSession: this.session,
-      random: () => this.rng.nextFloat(),
-      cheat: this.spec.cheat,
-    });
-    if (result === undefined) return;
-
-    this.session = result.session;
-    this.finishMapLoad(result.mapName);
-  }
-
-  private finishMapLoad(mapName: string): void {
-    this.runtime.resetFirstPerson();
-    // Position the listener at the new map's player spawn before starting
-    // ambient emitters/music so the first loops are spatialized correctly.
-    this.runtime.updateAudioListener();
-    this.runtime.syncAudioWorld();
-    this.runtime.playMusic(musicTrackForMap(mapName));
-    this.apply({ type: "mapLoaded", mapName });
-    this.runtime.warmDeferredAssets(mapName);
+    return this.audio.unlock();
   }
 
   private handleLoadError(error: unknown): void {
@@ -150,14 +116,14 @@ class Game implements GameController {
   }
 
   private handleGameCommand(command: GameCommand): void {
-    void this.runtime.unlockAudio();
+    void this.audio.unlock();
     this.apply({ type: "gameCommand", command, nowMs: performance.now() });
   }
 
   private handlePointerInput(input: PointerInput): void {
-    if (input.phase === "down") void this.runtime.unlockAudio();
+    if (input.phase === "down") void this.audio.unlock();
 
-    const route = routePointerInput(this.model, this.runtime.canvasSize, input);
+    const route = routePointerInput(this.model, this.presentation.canvasSize, input);
     if (route.type === "command") {
       this.handleGameCommand(route.command);
       return;
@@ -165,125 +131,29 @@ class Game implements GameController {
     if (route.type === "transition") this.apply(route.event);
   }
 
-  private handlePlayerCommand(command: PlayerCommand): void {
-    if (!this.session) return;
-
-    const nowMs = performance.now();
-    const playerEntity = this.session.getPlayerEntity();
-    const moveFrom = command.type === "move" ? this.session.getPlayerPosition() : undefined;
-    const result = this.session.handlePlayerCommand(command);
-    // Refresh the listener pose before spatializing cues so movement, pickup,
-    // door and attack sounds are panned from the player's new position/facing.
-    this.runtime.updateAudioListener();
-    this.runtime.playCues(result.soundCues ?? []);
-    this.runtime.syncAudioWorld();
-    if (command.type === "move" && moveFrom !== undefined) {
-      const position = this.session.getPlayerPosition();
-      if (position.x === moveFrom.x && position.y === moveFrom.y) {
-        // The move was blocked: play a recoil lunge toward the obstacle.
-        const worldDir = normalizeDirection(
-          this.session.getPlayerFacing().dir + relativeMoveDirectionOffset(command.direction),
-        );
-        const delta = directionDelta(worldDir);
-        this.runtime.bumpFirstPerson(delta.dx, delta.dy, nowMs);
-      }
-    }
-    this.apply({
-      type: "playerCommandResult",
-      result,
-      playerEntity,
-      nowMs,
-    });
-  }
-
   private apply(event: GameTransitionEvent): void {
-    const previousViewMode = this.model.viewMode;
     const next = transition(this.model, event);
     this.model = next.model;
-    if (this.model.viewMode !== previousViewMode) {
-      this.runtime.resetFirstPerson();
-    }
-    this.executeEffects(next.effects);
-    if (
-      this.model.mode.type === "intermission" &&
-      this.model.mode.completion.type === "loadMap"
-    ) {
-      this.runtime.warmMapAssets(this.model.mode.completion.mapName);
-    }
-  }
-
-  private executeEffects(effects: readonly GameEffect[]): void {
-    for (const effect of effects) {
-      switch (effect.type) {
-        case "render":
-          this.runtime.renderNow();
-          break;
-        case "closeDialogue":
-          this.session?.closeDialogue();
-          break;
-        case "setDialogueVoice":
-          this.runtime.setDialogueVoice(effect.voice);
-          break;
-        case "ensureInput":
-          this.ensureInput();
-          break;
-        case "applyAudioVolumes":
-          this.runtime.setAudioVolumes(this.model.audio);
-          break;
-        case "playMusic":
-          this.runtime.playMusic(effect.trackId);
-          break;
-        case "stopSounds":
-          this.runtime.stopSounds();
-          break;
-        case "endRun":
-          this.session?.[Symbol.dispose]();
-          this.session = undefined;
-          break;
-        case "scheduleVictory":
-          this.scheduleVictory(effect.delayMs);
-          break;
-        case "loadMap":
-        case "retryMap":
-          this.startSessionTransition(effect.type, effect.mapName);
-          break;
-        case "runPlayerCommand":
-          this.handlePlayerCommand(effect.command);
-          break;
-        default: {
-          const _exhaustive: never = effect;
-          return _exhaustive;
-        }
-      }
-    }
+    this.execution.execute(next.effects);
   }
 
   private ensureInput(): void {
     this.inputController ??= setupInput(
       this.spec.host,
       this.spec.canvas,
-      () => this.runtime.canvasSize,
+      () => this.presentation.canvasSize,
       (command) => this.handleGameCommand(command),
       (input) => this.handlePointerInput(input),
       () => firstPersonTouchGesturesEnabled(this.model),
     );
   }
 
-  private scheduleVictory(delayMs: number): void {
-    if (this.victoryTimeoutId !== undefined) this.spec.host.clearTimeout(this.victoryTimeoutId);
-    this.victoryTimeoutId = this.spec.host.setTimeout(() => {
-      this.victoryTimeoutId = undefined;
-      if (this.controller.signal.aborted) return;
-      this.apply({ type: "victoryTransitionComplete", nowMs: performance.now() });
-    }, delayMs);
-  }
-
   [Symbol.dispose](): void {
     this.controller.abort();
-    if (this.victoryTimeoutId !== undefined) this.spec.host.clearTimeout(this.victoryTimeoutId);
-    this.runtime[Symbol.dispose]();
     this.inputController?.[Symbol.dispose]();
-    this.session?.[Symbol.dispose]();
+    this.execution[Symbol.dispose]();
+    this.presentation[Symbol.dispose]();
+    this.audio[Symbol.dispose]();
     this.canvasController?.[Symbol.dispose]();
   }
 }

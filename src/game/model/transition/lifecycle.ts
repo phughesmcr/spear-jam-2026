@@ -29,6 +29,7 @@ export function startGame(model: GameModel, nowMs: number): GameTransition {
       { type: "applyAudioVolumes" },
       { type: "playMusic", trackId: TrackId.Title },
       { type: "render" },
+      { type: "warmMapAssets", mapName: model.startMapName },
     ]);
   }
   return beginGame(model, nowMs);
@@ -50,6 +51,7 @@ export function beginGame(model: GameModel, nowMs: number): GameTransition {
         { type: "applyAudioVolumes" },
         { type: "playMusic", trackId: TrackId.Intro },
         { type: "render" },
+        { type: "warmMapAssets", mapName: model.startMapName },
       ],
     );
   }

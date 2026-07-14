@@ -43,7 +43,7 @@ Deno.test("transition derives command result intermission state", () => {
     revealed: false,
   });
   assertEquals(result.model.presentation.messages, [{ text: "The uplink hums.", expiresAtMs: 2200 }]);
-  assertEquals(result.effects, [{ type: "render" }]);
+  assertEquals(result.effects, [{ type: "render" }, { type: "warmMapAssets", mapName: "Level 2" }]);
 });
 
 Deno.test("transition stores command result combat feedback in presentation", () => {

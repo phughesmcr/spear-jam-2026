@@ -30,6 +30,7 @@ export async function loadMapSession(spec: LoadMapSessionSpec): Promise<SessionL
   let loadedSession: GameSession;
   try {
     await preloadSessionAssets(spec);
+    if (spec.signal.aborted) return undefined;
     if (currentSession === undefined) {
       createdSession = await createGameSession(map, spec.random, { cheat: spec.cheat });
       loadedSession = createdSession;

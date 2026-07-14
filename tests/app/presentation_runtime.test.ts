@@ -1,24 +1,5 @@
-import { TrackId } from "@/src/game/content/audio/music.ts";
-import { VoiceId as DialogueVoiceId } from "@/src/game/content/dialogue/voices.ts";
-import { createGameRuntimeLoop } from "@/src/app/runtime.ts";
-import type {
-  AudioClip,
-  AudioCue,
-  AudioEmitter,
-  AudioRuntime,
-  AudioTrack,
-  IdleAudioSource,
-  ListenerPose,
-} from "@/src/engine/audio/mod.ts";
-import {
-  audioEmitterFor,
-  audioTrackFor,
-  audioVoiceFor,
-  idleAudioSourceFor,
-  listenerPoseFor,
-} from "@/src/game/presentation/audio.ts";
-import type { RuntimeSession } from "@/src/game/presentation/session_view.ts";
-import { type EnemyIdleSoundSource, type SoundEmitterSnapshot, SoundId } from "@/src/game/model/sound.ts";
+import { createPresentationRuntime } from "@/src/app/presentation_runtime.ts";
+import type { FrameRenderSession } from "@/src/game/presentation/session_view.ts";
 import type { PlayerStatusSnapshot } from "@/src/game/model/state.ts";
 import { createGameModel, type GameModel } from "@/src/game/model/transition/mod.ts";
 import { Direction } from "@/src/game/world/direction.ts";
@@ -26,15 +7,11 @@ import { START_MAP_NAME } from "@/src/game/world/campaign.ts";
 import { createGameMap } from "@/src/game/world/map.ts";
 import type { FirstPersonRenderer } from "@/src/game/presentation/first_person/renderer.ts";
 import { assertEquals } from "@std/assert";
-import type { Entity } from "turn-based-engine/ecs";
 
-const EMITTER = 2 as Entity;
-
-Deno.test("runtime renderNow cancels a pending RAF before rendering immediately", () => {
+Deno.test("presentation runtime renderNow cancels a pending RAF before rendering immediately", () => {
   const window = new FakeWindow();
-  const audio = new FakeAudioRuntime();
   let model = modelNeedingFrame();
-  const runtime = createGameRuntimeLoop({
+  const runtime = createPresentationRuntime({
     host: window as unknown as Window,
     document: new FakeDocument() as unknown as Document,
     ctx: new FakeContext() as unknown as CanvasRenderingContext2D,
@@ -42,7 +19,8 @@ Deno.test("runtime renderNow cancels a pending RAF before rendering immediately"
     onError: ignoreError,
     getModel: () => model,
     getSession: () => undefined,
-    dependencies: { audio, firstPersonRenderer: fakeFirstPersonRenderer() },
+    tickSession: noFrameTick,
+    firstPersonRenderer: fakeFirstPersonRenderer(),
   });
 
   runtime.start();
@@ -55,9 +33,9 @@ Deno.test("runtime renderNow cancels a pending RAF before rendering immediately"
   runtime[Symbol.dispose]();
 });
 
-Deno.test("runtime RAF callback clears the pending frame before requesting another", () => {
+Deno.test("presentation runtime RAF callback clears the pending frame before requesting another", () => {
   const window = new FakeWindow();
-  const runtime = createGameRuntimeLoop({
+  const runtime = createPresentationRuntime({
     host: window as unknown as Window,
     document: new FakeDocument() as unknown as Document,
     ctx: new FakeContext() as unknown as CanvasRenderingContext2D,
@@ -65,7 +43,8 @@ Deno.test("runtime RAF callback clears the pending frame before requesting anoth
     onError: ignoreError,
     getModel: () => modelNeedingFrame(),
     getSession: () => undefined,
-    dependencies: { audio: new FakeAudioRuntime(), firstPersonRenderer: fakeFirstPersonRenderer() },
+    tickSession: noFrameTick,
+    firstPersonRenderer: fakeFirstPersonRenderer(),
   });
 
   runtime.start();
@@ -77,7 +56,7 @@ Deno.test("runtime RAF callback clears the pending frame before requesting anoth
   runtime[Symbol.dispose]();
 });
 
-Deno.test("runtime RAF skips work until the interactive fps budget elapses", () => {
+Deno.test("presentation runtime RAF skips work until the interactive fps budget elapses", () => {
   const window = new FakeWindow();
   let updateCount = 0;
   const nowMs = 1_000;
@@ -88,7 +67,7 @@ Deno.test("runtime RAF skips work until the interactive fps budget elapses", () 
   });
 
   try {
-    const runtime = createGameRuntimeLoop({
+    const runtime = createPresentationRuntime({
       host: window as unknown as Window,
       document: new FakeDocument() as unknown as Document,
       ctx: new FakeContext() as unknown as CanvasRenderingContext2D,
@@ -99,7 +78,8 @@ Deno.test("runtime RAF skips work until the interactive fps budget elapses", () 
         return modelNeedingFrame();
       },
       getSession: () => undefined,
-      dependencies: { audio: new FakeAudioRuntime(), firstPersonRenderer: fakeFirstPersonRenderer() },
+      tickSession: noFrameTick,
+      firstPersonRenderer: fakeFirstPersonRenderer(),
     });
 
     runtime.start();
@@ -123,7 +103,7 @@ Deno.test("runtime RAF skips work until the interactive fps budget elapses", () 
   }
 });
 
-Deno.test("runtime RAF uses the model interactiveFps for the interactive budget", () => {
+Deno.test("presentation runtime RAF uses the model interactiveFps for the interactive budget", () => {
   const window = new FakeWindow();
   let updateCount = 0;
   const nowMs = 1_000;
@@ -134,7 +114,7 @@ Deno.test("runtime RAF uses the model interactiveFps for the interactive budget"
   });
 
   try {
-    const runtime = createGameRuntimeLoop({
+    const runtime = createPresentationRuntime({
       host: window as unknown as Window,
       document: new FakeDocument() as unknown as Document,
       ctx: new FakeContext() as unknown as CanvasRenderingContext2D,
@@ -145,7 +125,8 @@ Deno.test("runtime RAF uses the model interactiveFps for the interactive budget"
         return { ...modelNeedingFrame(), interactiveFps: 12 };
       },
       getSession: () => undefined,
-      dependencies: { audio: new FakeAudioRuntime(), firstPersonRenderer: fakeFirstPersonRenderer() },
+      tickSession: noFrameTick,
+      firstPersonRenderer: fakeFirstPersonRenderer(),
     });
 
     runtime.start();
@@ -169,7 +150,7 @@ Deno.test("runtime RAF uses the model interactiveFps for the interactive budget"
   }
 });
 
-Deno.test("runtime RAF uses a 12 fps budget for ambient-only first-person animation", () => {
+Deno.test("presentation runtime RAF uses a 12 fps budget for ambient-only first-person animation", () => {
   const window = new FakeWindow();
   let updateCount = 0;
   const nowMs = 1_000;
@@ -186,7 +167,7 @@ Deno.test("runtime RAF uses a 12 fps budget for ambient-only first-person animat
   });
 
   try {
-    const runtime = createGameRuntimeLoop({
+    const runtime = createPresentationRuntime({
       host: window as unknown as Window,
       document: new FakeDocument() as unknown as Document,
       ctx: new FakeContext() as unknown as CanvasRenderingContext2D,
@@ -197,10 +178,8 @@ Deno.test("runtime RAF uses a 12 fps budget for ambient-only first-person animat
         return playingModel();
       },
       getSession: () => fakePlayingSession(),
-      dependencies: {
-        audio: new FakeAudioRuntime(),
-        firstPersonRenderer: fakeFirstPersonRenderer({ needsFrame: true, ambientOnly: true }),
-      },
+      tickSession: noFrameTick,
+      firstPersonRenderer: fakeFirstPersonRenderer({ needsFrame: true, ambientOnly: true }),
     });
 
     runtime.start();
@@ -229,10 +208,9 @@ Deno.test("runtime RAF uses a 12 fps budget for ambient-only first-person animat
   }
 });
 
-Deno.test("runtime dispose cancels pending RAF and disposes audio", () => {
+Deno.test("presentation runtime dispose cancels its pending RAF", () => {
   const window = new FakeWindow();
-  const audio = new FakeAudioRuntime();
-  const runtime = createGameRuntimeLoop({
+  const runtime = createPresentationRuntime({
     host: window as unknown as Window,
     document: new FakeDocument() as unknown as Document,
     ctx: new FakeContext() as unknown as CanvasRenderingContext2D,
@@ -240,7 +218,8 @@ Deno.test("runtime dispose cancels pending RAF and disposes audio", () => {
     onError: ignoreError,
     getModel: () => modelNeedingFrame(),
     getSession: () => undefined,
-    dependencies: { audio, firstPersonRenderer: fakeFirstPersonRenderer() },
+    tickSession: noFrameTick,
+    firstPersonRenderer: fakeFirstPersonRenderer(),
   });
 
   runtime.start();
@@ -248,10 +227,9 @@ Deno.test("runtime dispose cancels pending RAF and disposes audio", () => {
   runtime[Symbol.dispose]();
 
   assertEquals(window.cancelledFrameIds, [1]);
-  assertEquals(audio.disposed, true);
 });
 
-Deno.test("runtime forwards a rejected background asset warm to onError exactly once", async () => {
+Deno.test("presentation runtime forwards a rejected background asset warm to onError exactly once", async () => {
   const failure = new Error("warm failed");
   const errors: unknown[] = [];
   const hadOwnIdleCallback = Object.hasOwn(globalThis, "requestIdleCallback");
@@ -266,7 +244,7 @@ Deno.test("runtime forwards a rejected background asset warm to onError exactly 
   });
 
   try {
-    const runtime = createGameRuntimeLoop({
+    const runtime = createPresentationRuntime({
       host: new FakeWindow() as unknown as Window,
       document: new FakeDocument() as unknown as Document,
       ctx: new FakeContext() as unknown as CanvasRenderingContext2D,
@@ -274,10 +252,8 @@ Deno.test("runtime forwards a rejected background asset warm to onError exactly 
       onError: (error) => errors.push(error),
       getModel: () => modelWithoutFrame(),
       getSession: () => undefined,
-      dependencies: {
-        audio: new FakeAudioRuntime(),
-        firstPersonRenderer: fakeFirstPersonRenderer({ needsFrame: false }, failure),
-      },
+      tickSession: noFrameTick,
+      firstPersonRenderer: fakeFirstPersonRenderer({ needsFrame: false }, failure),
     });
 
     runtime.warmDeferredAssets(START_MAP_NAME);
@@ -293,87 +269,6 @@ Deno.test("runtime forwards a rejected background asset warm to onError exactly 
       delete (globalThis as { requestIdleCallback?: typeof requestIdleCallback }).requestIdleCallback;
     }
   }
-});
-
-Deno.test("runtime audio world sync clears stale emitters when the session disappears", () => {
-  const audio = new FakeAudioRuntime();
-  let session: RuntimeSession | undefined = fakeAudioSession();
-  const runtime = createGameRuntimeLoop({
-    host: new FakeWindow() as unknown as Window,
-    document: new FakeDocument() as unknown as Document,
-    ctx: new FakeContext() as unknown as CanvasRenderingContext2D,
-    signal: new AbortController().signal,
-    onError: ignoreError,
-    getModel: () => modelWithoutFrame(),
-    getSession: () => session,
-    dependencies: { audio, firstPersonRenderer: fakeFirstPersonRenderer() },
-  });
-
-  runtime.syncAudioWorld();
-  assertEquals(audio.ambientEmitters, [audioEmitterFor(ambientEmitter())]);
-  assertEquals(audio.idleSources, [idleAudioSourceFor(enemyIdleSource())]);
-
-  session = undefined;
-  runtime.syncAudioWorld();
-  assertEquals(audio.ambientEmitters, []);
-  assertEquals(audio.idleSources, []);
-});
-
-Deno.test("runtime updateAudioListener uses the current session pose", () => {
-  const audio = new FakeAudioRuntime();
-  const runtime = createGameRuntimeLoop({
-    host: new FakeWindow() as unknown as Window,
-    document: new FakeDocument() as unknown as Document,
-    ctx: new FakeContext() as unknown as CanvasRenderingContext2D,
-    signal: new AbortController().signal,
-    onError: ignoreError,
-    getModel: () => modelWithoutFrame(),
-    getSession: () => fakeAudioSession(),
-    dependencies: { audio, firstPersonRenderer: fakeFirstPersonRenderer() },
-  });
-
-  runtime.updateAudioListener();
-
-  assertEquals(audio.listenerPose, listenerPoseFor({ x: 3, y: 4 }, 1));
-});
-
-Deno.test("runtime forwards the selected music track to audio", () => {
-  const audio = new FakeAudioRuntime();
-  const runtime = createGameRuntimeLoop({
-    host: new FakeWindow() as unknown as Window,
-    document: new FakeDocument() as unknown as Document,
-    ctx: new FakeContext() as unknown as CanvasRenderingContext2D,
-    signal: new AbortController().signal,
-    onError: ignoreError,
-    getModel: () => modelWithoutFrame(),
-    getSession: () => undefined,
-    dependencies: { audio, firstPersonRenderer: fakeFirstPersonRenderer() },
-  });
-
-  runtime.playMusic(TrackId.Map3);
-
-  assertEquals(audio.musicTrack, audioTrackFor(TrackId.Map3));
-});
-
-Deno.test("runtime forwards dialogue voice changes to audio", () => {
-  const window = new FakeWindow();
-  const audio = new FakeAudioRuntime();
-  const runtime = createGameRuntimeLoop({
-    host: window as unknown as Window,
-    document: new FakeDocument() as unknown as Document,
-    ctx: new FakeContext() as unknown as CanvasRenderingContext2D,
-    signal: new AbortController().signal,
-    onError: ignoreError,
-    getModel: () => modelWithoutFrame(),
-    getSession: () => undefined,
-    dependencies: { audio, firstPersonRenderer: fakeFirstPersonRenderer() },
-  });
-
-  runtime.setDialogueVoice(DialogueVoiceId.JohnNexusGreet);
-  assertEquals(audio.voice, audioVoiceFor(DialogueVoiceId.JohnNexusGreet));
-
-  runtime.setDialogueVoice(undefined);
-  assertEquals(audio.voice, undefined);
 });
 
 function modelNeedingFrame(): GameModel {
@@ -422,12 +317,14 @@ function fakeFirstPersonRenderer(
 
 function ignoreError(_error: unknown): void {}
 
-function fakePlayingSession(): RuntimeSession {
+function noFrameTick(): { readonly needsFrame: false } {
+  return { needsFrame: false };
+}
+
+function fakePlayingSession(): FrameRenderSession {
   return {
     getPlayerPosition: () => ({ x: 0, y: 0 }),
     getPlayerFacing: () => ({ dir: Direction.East }),
-    forEachSoundEmitter() {},
-    forEachEnemyIdleSoundSource() {},
     getMap: () =>
       createGameMap("Fake Map", [[1]], [], {
         palette: [{ kind: "floor", id: 1, floor_texture: "floor", ceiling_texture: "ceiling" }],
@@ -436,31 +333,6 @@ function fakePlayingSession(): RuntimeSession {
     getVisibility: () => ({ isVisible: () => false, isExplored: () => false }),
     forEachDrawable() {},
     forEachLight() {},
-    tick: () => ({ needsFrame: false }),
-    getPlayerEntity: () => 1 as Entity,
-  };
-}
-
-function fakeAudioSession(): RuntimeSession {
-  return {
-    getPlayerPosition: () => ({ x: 3, y: 4 }),
-    getPlayerFacing: () => ({ dir: Direction.East }),
-    forEachSoundEmitter(visit: (emitter: SoundEmitterSnapshot) => void): void {
-      visit(ambientEmitter());
-    },
-    forEachEnemyIdleSoundSource(visit: (source: EnemyIdleSoundSource) => void): void {
-      visit(enemyIdleSource());
-    },
-    getMap: () =>
-      createGameMap("Fake Map", [[1]], [], {
-        palette: [{ kind: "floor", id: 1, floor_texture: "floor", ceiling_texture: "ceiling" }],
-      }),
-    getPlayerStatus: () => playerSnapshot(),
-    getVisibility: () => ({ isVisible: () => false, isExplored: () => false }),
-    forEachDrawable() {},
-    forEachLight() {},
-    tick: () => ({ needsFrame: false }),
-    getPlayerEntity: () => 1 as Entity,
   };
 }
 
@@ -480,86 +352,6 @@ function playerSnapshot(): PlayerStatusSnapshot {
       levelCredits: 0,
     },
   };
-}
-
-function ambientEmitter(): SoundEmitterSnapshot {
-  return {
-    entity: EMITTER,
-    soundId: SoundId.AmbientHum,
-    x: 5,
-    y: 6,
-    radius: 7,
-    volume: 0.8,
-  };
-}
-
-function enemyIdleSource(): EnemyIdleSoundSource {
-  return {
-    entity: EMITTER,
-    soundId: SoundId.DogIdle,
-    x: 5,
-    y: 6,
-    radius: 7,
-    volume: 0.8,
-    minDelayMs: 100,
-    maxDelayMs: 200,
-  };
-}
-
-class FakeAudioRuntime implements AudioRuntime {
-  disposed = false;
-  listenerPose?: ListenerPose;
-  ambientEmitters: readonly AudioEmitter[] = [];
-  idleSources: readonly IdleAudioSource[] = [];
-  cues: readonly AudioCue[] = [];
-  musicTrack?: AudioTrack;
-  voice?: AudioClip;
-  unlocks = 0;
-  volumes?: { readonly musicVolume: number; readonly soundVolume: number };
-
-  unlock(): Promise<void> {
-    this.unlocks++;
-    return Promise.resolve();
-  }
-
-  playMusic(track: AudioTrack): void {
-    this.musicTrack = track;
-  }
-
-  stopSounds(): void {
-    this.cues = [];
-    this.voice = undefined;
-    this.ambientEmitters = [];
-    this.idleSources = [];
-  }
-
-  setVolumes(volumes: { readonly musicVolume: number; readonly soundVolume: number }): void {
-    this.volumes = { ...volumes };
-  }
-
-  updateListener(pose: ListenerPose): void {
-    this.listenerPose = pose;
-  }
-
-  playCues(cues: readonly AudioCue[]): void {
-    this.cues = [...cues];
-  }
-
-  setVoice(voice: AudioClip | undefined): void {
-    this.voice = voice;
-  }
-
-  syncAmbientEmitters(emitters: readonly AudioEmitter[]): void {
-    this.ambientEmitters = emitters.map((emitter) => ({ ...emitter }));
-  }
-
-  syncIdleSources(sources: readonly IdleAudioSource[]): void {
-    this.idleSources = sources.map((source) => ({ ...source }));
-  }
-
-  [Symbol.dispose](): void {
-    this.disposed = true;
-  }
 }
 
 class FakeWindow {

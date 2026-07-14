@@ -1,6 +1,6 @@
 import { loadMapSession, retryMapSession, type SessionLifecycleSpec } from "@/src/app/session_lifecycle.ts";
 import { SplitMix32 } from "@/src/engine/random.ts";
-import { START_MAP_NAME } from "@/src/game/world/campaign.ts";
+import { GAME_MAPS, START_MAP_NAME } from "@/src/game/world/campaign.ts";
 import { assert, assertEquals, assertRejects } from "@std/assert";
 
 Deno.test("loadMapSession creates a new game session when none exists", async () => {
@@ -83,6 +83,39 @@ Deno.test("loadMapSession returns no session when aborted before commit", async 
   });
 
   assertEquals(result, undefined);
+});
+
+Deno.test("loadMapSession does not mutate an existing session when aborted during preload", async () => {
+  const initialController = new AbortController();
+  const initial = await loadMapSession({
+    ...lifecycleSpec(initialController),
+    mapName: START_MAP_NAME,
+    random: randomSource(),
+  });
+  assert(initial !== undefined);
+  const destination = GAME_MAPS.find((map) => map.name !== START_MAP_NAME);
+  assert(destination !== undefined);
+  const controller = new AbortController();
+  let finishPreload: (() => void) | undefined;
+  const preload = new Promise<void>((resolve) => finishPreload = resolve);
+
+  try {
+    const loading = loadMapSession({
+      signal: controller.signal,
+      preloadAssets: () => preload,
+      mapName: destination.name,
+      currentSession: initial.session,
+      random: randomSource(),
+    });
+    await Promise.resolve();
+    controller.abort();
+    finishPreload?.();
+
+    assertEquals(await loading, undefined);
+    assertEquals(initial.session.getMap().name, START_MAP_NAME);
+  } finally {
+    initial.session[Symbol.dispose]();
+  }
 });
 
 function lifecycleSpec(controller: AbortController): SessionLifecycleSpec {
