@@ -1,7 +1,7 @@
 import type { SpriteId as SpriteIdType } from "@/src/game/content/sprite_ids.ts";
 import type { KeyColor } from "@/src/game/content/map_entities.ts";
 import type { BarrierTexture, CeilingTexture, FloorTexture, GameMap, WallTexture } from "@/src/game/world/map.ts";
-import type { RaycastAtlas } from "@/src/engine/raycast/scene_data.ts";
+import type { RaycastAtlas } from "@/src/engine/raycast/mod.ts";
 import { createFirstPersonAssetPipeline } from "@/src/game/presentation/first_person/assets/pipeline.ts";
 
 export type FirstPersonSpriteAnimation = "idle" | "walk" | "attack";

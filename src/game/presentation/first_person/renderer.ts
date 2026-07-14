@@ -30,8 +30,13 @@ import {
   type TerrainBarrier,
   updateSceneLights,
 } from "@/src/game/presentation/first_person/scene.ts";
-import { cameraForAngle, clearSceneDynamic, type RaycastScene } from "@/src/engine/raycast/scene.ts";
-import { createRaycastView, type ViewRect } from "@/src/engine/raycast/view.ts";
+import {
+  cameraForAngle,
+  clearSceneDynamic,
+  createRaycastView,
+  type RaycastScene,
+  type ViewRect,
+} from "@/src/engine/raycast/mod.ts";
 import {
   createNudgeTween,
   createPoseTween,

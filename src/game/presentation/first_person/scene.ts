@@ -22,7 +22,7 @@ import {
   THIN_SLIDE_UP,
   type ThinWallAxis,
   type ThinWallSlide,
-} from "@/src/engine/raycast/scene.ts";
+} from "@/src/engine/raycast/mod.ts";
 
 type LightProvider = {
   forEachLight(visit: LightEntityVisitor): void;

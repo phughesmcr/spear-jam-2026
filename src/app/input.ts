@@ -1,5 +1,4 @@
-import type { InputSize, PointerInput } from "@/src/engine/input/mod.ts";
-import { type TouchGestureEnabled, TouchGestures } from "@/src/engine/input/touch_gestures.ts";
+import { type InputSize, type PointerInput, type TouchGestureEnabled, TouchGestures } from "@/src/engine/input/mod.ts";
 import type { GameCommand } from "@/src/game/model/commands.ts";
 import { commandForKeyPress, commandForTouchGesture } from "@/src/game/presentation/input.ts";
 import { setupKeyboard } from "@/src/platform/web/input/keyboard.ts";

@@ -1,6 +1,11 @@
 import { assertEquals } from "@std/assert";
-import type { InputSize, PointerInput, TouchGesture } from "@/src/engine/input/mod.ts";
-import { TouchGestures, type TouchGestureScheduler } from "@/src/engine/input/touch_gestures.ts";
+import {
+  type InputSize,
+  type PointerInput,
+  type TouchGesture,
+  TouchGestures,
+  type TouchGestureScheduler,
+} from "@/src/engine/input/mod.ts";
 
 const CANVAS_SIZE: InputSize = { width: 720, height: 1280 };
 

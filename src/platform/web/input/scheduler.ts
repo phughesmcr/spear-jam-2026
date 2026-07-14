@@ -1,4 +1,4 @@
-import type { TouchGestureScheduler } from "@/src/engine/input/touch_gestures.ts";
+import type { TouchGestureScheduler } from "@/src/engine/input/mod.ts";
 
 export function windowTouchGestureScheduler(host: Window): TouchGestureScheduler {
   return {

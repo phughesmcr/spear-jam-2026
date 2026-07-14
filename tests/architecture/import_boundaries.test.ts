@@ -14,8 +14,10 @@ const FIRST_PERSON_ASSET_PUBLIC_MODULE = resolve(FIRST_PERSON_ASSET_ROOT, "mod.t
 const LEGACY_FIRST_PERSON_ASSET_MODULES = new Set([
   resolve(SOURCE_ROOT, "game/presentation/first_person/assets.ts"),
 ]);
-const CANVAS_ROOT = resolve(SOURCE_ROOT, "engine/canvas");
-const CANVAS_PUBLIC_MODULE = resolve(CANVAS_ROOT, "mod.ts");
+const SEALED_ENGINE_MODULES = ["audio", "canvas", "input", "raycast"].map((name) => {
+  const root = resolve(SOURCE_ROOT, `engine/${name}`);
+  return { name, root, publicModule: resolve(root, "mod.ts") };
+});
 const ALLOWED_DEPENDENCIES = {
   app: new Set(["app", "engine", "game", "platform"]),
   engine: new Set(["engine"]),
@@ -190,14 +192,14 @@ Deno.test({
 });
 
 Deno.test({
-  name: "engine canvas exposes one sealed public boundary",
+  name: "engine modules expose one sealed public boundary",
   permissions: { read: [SOURCE_ROOT] },
   fn: async () => {
-    const violations = await sealedModuleViolations(
-      CANVAS_ROOT,
-      CANVAS_PUBLIC_MODULE,
-      new Set(),
-    );
+    const violations: string[] = [];
+    for (const module of SEALED_ENGINE_MODULES) {
+      const moduleViolations = await sealedModuleViolations(module.root, module.publicModule, new Set());
+      violations.push(...moduleViolations.map((violation) => `${module.name}: ${violation}`));
+    }
     assertEquals(violations.sort(), []);
   },
 });

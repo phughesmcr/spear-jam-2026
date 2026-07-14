@@ -19,9 +19,9 @@ import {
   createImageTextureBaker,
   type ImageCropPolicy,
   type ImageTextureBaker,
+  type RaycastAtlas,
   type SourceFrame,
-} from "@/src/engine/raycast/image_texture_baker.ts";
-import type { RaycastAtlas } from "@/src/engine/raycast/scene_data.ts";
+} from "@/src/engine/raycast/mod.ts";
 import {
   BARRIER_SLOT_BY_TEXTURE,
   createFirstPersonAssetCatalog,

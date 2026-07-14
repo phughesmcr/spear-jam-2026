@@ -1,4 +1,4 @@
-import type { InputSize, PointerInput, TouchGesture } from "@/src/engine/input/mod.ts";
+import type { InputSize, PointerInput, TouchGesture } from "@/src/engine/input/contracts.ts";
 
 const TAP_DELAY_MS = 220;
 const TAP_MAX_MOVE_FRACTION = 0.05;

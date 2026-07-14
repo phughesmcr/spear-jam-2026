@@ -4,14 +4,14 @@ import {
   type TexturePackRef,
 } from "@/src/game/world/map.ts";
 import { TEXTURE_PACK_COLUMNS, TEXTURE_PACK_ROWS, TEXTURE_PACKS } from "@/src/game/world/terrain_palette.ts";
-import type { RaycastAtlas } from "@/src/engine/raycast/scene_data.ts";
 import {
   type BakedTexture,
   bakeSolidTexture,
   bakeTexture,
+  type RaycastAtlas,
   TEX_SIZE,
   type TexelSource,
-} from "@/src/engine/raycast/textures.ts";
+} from "@/src/engine/raycast/mod.ts";
 import {
   BARRIER_SLOT_BY_TEXTURE,
   createFirstPersonAssetCatalog,
