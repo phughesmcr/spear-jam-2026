@@ -1,12 +1,13 @@
 import {
   DEFAULT_ENEMY_ARCHETYPE,
-  enemyArchetypeForAuthoringKey,
+  enemyArchetypeForKey,
   spriteIdForEnemyArchetype,
 } from "@/src/game/content/enemies.ts";
-import { AUTHORING_ITEM_KINDS, ItemKind } from "@/src/game/content/items.ts";
+import { ITEM_KIND_BY_CONTENT_KEY, ItemKind } from "@/src/game/content/items.ts";
 import { SpriteId, type SpriteId as SpriteIdType } from "@/src/game/content/sprite_ids.ts";
 import { spriteIdForDecoration, spriteIdForDisplayName, spriteIdForItem } from "@/src/game/content/sprites.ts";
-import { type EntityDef, type GameMap, keyColorCode } from "@/src/game/world/map.ts";
+import type { EntityDef } from "@/src/game/content/map_entities.ts";
+import { type GameMap, keyColorCode } from "@/src/game/world/map.ts";
 
 /** Sprites that can appear mid-map without being authored on the entity list. */
 const ALWAYS_CRITICAL_SPRITES: readonly SpriteIdType[] = [SpriteId.Corpse];
@@ -35,7 +36,7 @@ export function spriteIdsForEntity(entity: EntityDef): readonly SpriteIdType[] {
     case "enemy": {
       const archetype = entity.archetype === undefined ?
         DEFAULT_ENEMY_ARCHETYPE :
-        enemyArchetypeForAuthoringKey(entity.archetype);
+        enemyArchetypeForKey(entity.archetype);
       return [spriteIdForEnemyArchetype(archetype)];
     }
     case "key":
@@ -47,7 +48,7 @@ export function spriteIdsForEntity(entity: EntityDef): readonly SpriteIdType[] {
     case "weaponPickup":
       return [spriteIdForItem(ItemKind.Weapon, entity.slot)];
     case "item":
-      return [spriteIdForItem(AUTHORING_ITEM_KINDS[entity.item], entity.amount)];
+      return [spriteIdForItem(ITEM_KIND_BY_CONTENT_KEY[entity.item], entity.amount)];
     case "decoration":
       return [spriteIdForDecoration(entity.decoration)];
     case "spearPickup":

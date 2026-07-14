@@ -43,7 +43,7 @@ export const PROJECTION_PLANE_LENGTH = CAMERA_PLANE_LENGTH;
  * which places the eye halfway up the one-tile-tall walls. Floor and ceiling
  * casting must use the same height (and its mirror, `1 - CAMERA_HEIGHT`, for
  * the ceiling) or plane tile boundaries detach from wall bases and the planes
- * render over-tiled. At 0.5 the mirror is free: one row distance serves both.
+ * render overly repetitive. At 0.5 the mirror is free: one row distance serves both.
  */
 export const CAMERA_HEIGHT = 0.5;
 

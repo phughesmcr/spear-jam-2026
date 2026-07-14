@@ -1,10 +1,10 @@
 import { assertEquals, assertThrows } from "@std/assert";
 import { SoundId } from "@/src/game/model/sound.ts";
 import { TERRAIN_CATALOG } from "@/src/game/world/terrain_palette.ts";
-import { loadGameMapsData } from "@/src/game/world/campaign.ts";
+import { loadCampaignContent } from "@/src/game/world/campaign.ts";
 
-Deno.test("loadGameMapsData validates compact compiled map data", () => {
-  const loaded = loadGameMapsData({
+Deno.test("loadCampaignContent validates native map content", () => {
+  const loaded = loadCampaignContent({
     startMapName: "Fixture",
     maps: [
       {
@@ -32,10 +32,10 @@ Deno.test("loadGameMapsData validates compact compiled map data", () => {
   ]);
 });
 
-Deno.test("loadGameMapsData rejects malformed compiled map data", () => {
+Deno.test("loadCampaignContent rejects malformed native map content", () => {
   assertThrows(
     () =>
-      loadGameMapsData({
+      loadCampaignContent({
         startMapName: "Fixture",
         maps: [
           {
@@ -52,7 +52,7 @@ Deno.test("loadGameMapsData rejects malformed compiled map data", () => {
 
   assertThrows(
     () =>
-      loadGameMapsData({
+      loadCampaignContent({
         startMapName: "Fixture",
         maps: [
           {
@@ -69,7 +69,7 @@ Deno.test("loadGameMapsData rejects malformed compiled map data", () => {
   );
 });
 
-Deno.test("loadGameMapsData rejects unknown compiled content ids", () => {
+Deno.test("loadCampaignContent rejects unknown map content ids", () => {
   const invalidEntities = [
     { prefab: "npc", x: 3, y: 0, dir: 3, displayName: "missingName" },
     { prefab: "npc", x: 3, y: 0, dir: 3, displayName: "john", dialogueTreeId: "missingDialogue" },
@@ -82,14 +82,14 @@ Deno.test("loadGameMapsData rejects unknown compiled content ids", () => {
 
   for (const entity of invalidEntities) {
     assertThrows(
-      () => loadGameMapsData(compiledMapWith(entity)),
+      () => loadCampaignContent(campaignWith(entity)),
       Error,
-      "Invalid compiled map data",
+      "Invalid campaign content",
     );
   }
 });
 
-function compiledMapWith(entity: Record<string, unknown>): unknown {
+function campaignWith(entity: Record<string, unknown>): unknown {
   return {
     startMapName: "Fixture",
     maps: [

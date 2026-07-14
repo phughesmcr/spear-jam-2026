@@ -1,8 +1,8 @@
 import { assert, assertEquals, assertThrows } from "@std/assert";
+import { KeyColor } from "@/src/game/content/map_entities.ts";
 import {
   BarrierTexture,
   createGameMap,
-  KeyColor,
   keyColorCode,
   keyColorForCode,
   mapDimensions,
@@ -125,15 +125,13 @@ Deno.test("createGameMap accepts a custom terrain texture palette", () => {
         {
           kind: "floor",
           id: 2,
-          color: "#111111",
           floor_texture: `${TexturePack.Pack1}:0,0`,
           ceiling_texture: "ceiling",
         },
-        { kind: "wall", id: 3, color: "#eeeeee", wall_texture: `${TexturePack.Pack2}:4,3` },
+        { kind: "wall", id: 3, wall_texture: `${TexturePack.Pack2}:4,3` },
         {
           kind: "barrier",
           id: 4,
-          color: "#38bdf8",
           barrier_texture: BarrierTexture.Bars,
           floor_texture: `${TexturePack.Pack1}:0,0`,
           ceiling_texture: "ceiling",

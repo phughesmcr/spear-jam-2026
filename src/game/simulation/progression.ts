@@ -25,7 +25,8 @@ import {
   storyFlagsToMask,
 } from "@/src/game/content/story.ts";
 import { playerWeaponSpec } from "@/src/game/content/weapons.ts";
-import { KeyColor, type KeyColor as KeyColorType, keyColorCode } from "@/src/game/world/map.ts";
+import { KeyColor, type KeyColor as KeyColorType } from "@/src/game/content/map_entities.ts";
+import { keyColorCode } from "@/src/game/world/map.ts";
 import type { Entity } from "turn-based-engine/ecs";
 
 const ENEMY_DEFEAT_CREDITS = 10;

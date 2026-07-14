@@ -2,7 +2,7 @@ import { createCodeRegistry } from "@/src/game/content/code_registry.ts";
 
 /**
  * Runtime item kind codes stored on the ECS `Item` component.
- * Authoring pickup strings (`healthPatch`, …) map onto a subset of these codes in prefabs.
+ * Map content pickup strings (`healthPatch`, …) map onto a subset of these codes in prefabs.
  */
 export const ItemKind = {
   HealthPatch: 1,
@@ -45,9 +45,11 @@ export function itemKindForCode(kind: number): ItemKind {
   return kind as ItemKind;
 }
 
-/** Authoring pickup strings → runtime ECS item codes. */
-export const AUTHORING_ITEM_KINDS = {
+export const ITEM_KIND_BY_CONTENT_KEY = {
   healthPatch: ItemKind.HealthPatch,
   pistolAmmo: ItemKind.PistolAmmo,
   cannonAmmo: ItemKind.CannonAmmo,
 } as const;
+
+export type MapItemKind = keyof typeof ITEM_KIND_BY_CONTENT_KEY;
+export const MAP_ITEM_KINDS = Object.keys(ITEM_KIND_BY_CONTENT_KEY) as MapItemKind[];

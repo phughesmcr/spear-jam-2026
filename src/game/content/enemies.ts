@@ -100,7 +100,7 @@ export type EnemyArchetypeKey =
   | "systemSentinel"
   | "agenticAcolyte";
 
-export const ENEMY_ARCHETYPE_AUTHORING_KEYS = [
+export const ENEMY_ARCHETYPE_KEYS = [
   "meleeDog",
   "gunslinger",
   "networkNeophyte",
@@ -110,7 +110,7 @@ export const ENEMY_ARCHETYPE_AUTHORING_KEYS = [
 
 type EnemyArchetypeDefinition = {
   readonly code: EnemyArchetypeCode;
-  readonly authoringKey: EnemyArchetypeKey;
+  readonly key: EnemyArchetypeKey;
   readonly spriteId: SpriteIdType;
   readonly catalog: EnemyCatalogEntry;
 };
@@ -118,7 +118,7 @@ type EnemyArchetypeDefinition = {
 const ENEMY_ARCHETYPE_DEFINITIONS = [
   {
     code: EnemyArchetypeCode.MeleeDog,
-    authoringKey: "meleeDog",
+    key: "meleeDog",
     spriteId: SpriteId.DigitalDog,
     catalog: {
       displayName: DisplayName.DigitalDog,
@@ -145,7 +145,7 @@ const ENEMY_ARCHETYPE_DEFINITIONS = [
   },
   {
     code: EnemyArchetypeCode.Gunslinger,
-    authoringKey: "gunslinger",
+    key: "gunslinger",
     spriteId: SpriteId.GigabitGunslinger,
     catalog: {
       displayName: DisplayName.GigabitGunslinger,
@@ -172,7 +172,7 @@ const ENEMY_ARCHETYPE_DEFINITIONS = [
   },
   {
     code: EnemyArchetypeCode.NetworkNeophyte,
-    authoringKey: "networkNeophyte",
+    key: "networkNeophyte",
     spriteId: SpriteId.NetworkNeophyte,
     catalog: {
       displayName: DisplayName.NetworkNeophyte,
@@ -199,7 +199,7 @@ const ENEMY_ARCHETYPE_DEFINITIONS = [
   },
   {
     code: EnemyArchetypeCode.SystemSentinel,
-    authoringKey: "systemSentinel",
+    key: "systemSentinel",
     spriteId: SpriteId.SystemSentinel,
     catalog: {
       displayName: DisplayName.SystemSentinel,
@@ -226,7 +226,7 @@ const ENEMY_ARCHETYPE_DEFINITIONS = [
   },
   {
     code: EnemyArchetypeCode.AgenticAcolyte,
-    authoringKey: "agenticAcolyte",
+    key: "agenticAcolyte",
     spriteId: SpriteId.AgenticAcolyte,
     catalog: {
       displayName: DisplayName.AgenticAcolyte,
@@ -256,7 +256,7 @@ const ENEMY_ARCHETYPE_DEFINITIONS = [
 ] as const satisfies readonly EnemyArchetypeDefinition[];
 
 const ENEMY_ARCHETYPE_KEYS_BY_CODE = Object.fromEntries(
-  ENEMY_ARCHETYPE_DEFINITIONS.map((definition) => [definition.code, definition.authoringKey]),
+  ENEMY_ARCHETYPE_DEFINITIONS.map((definition) => [definition.code, definition.key]),
 ) as Readonly<Record<EnemyArchetypeCode, EnemyArchetypeKey>>;
 
 const ENEMY_SPRITE_IDS_BY_CODE = Object.fromEntries(
@@ -267,14 +267,14 @@ const ENEMY_CATALOG_BY_CODE = Object.fromEntries(
   ENEMY_ARCHETYPE_DEFINITIONS.map((definition) => [definition.code, definition.catalog]),
 ) as Readonly<Record<EnemyArchetypeCode, EnemyCatalogEntry>>;
 
-const ENEMY_ARCHETYPE_REGISTRY = createCodeRegistry("enemy archetype", ENEMY_ARCHETYPE_AUTHORING_KEYS);
+const ENEMY_ARCHETYPE_REGISTRY = createCodeRegistry("enemy archetype", ENEMY_ARCHETYPE_KEYS);
 
-export function enemyArchetypeAuthoringKey(archetype: EnemyArchetypeCode): EnemyArchetypeKey {
+export function enemyArchetypeKey(archetype: EnemyArchetypeCode): EnemyArchetypeKey {
   return ENEMY_ARCHETYPE_KEYS_BY_CODE[archetype];
 }
 
-export function enemyArchetypeForAuthoringKey(authoringKey: EnemyArchetypeKey): EnemyArchetypeCode {
-  return ENEMY_ARCHETYPE_REGISTRY.encode(authoringKey) as EnemyArchetypeCode;
+export function enemyArchetypeForKey(key: EnemyArchetypeKey): EnemyArchetypeCode {
+  return ENEMY_ARCHETYPE_REGISTRY.encode(key) as EnemyArchetypeCode;
 }
 
 export function enemyArchetypeForCode(archetype: number): EnemyArchetypeCode {

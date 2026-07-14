@@ -15,7 +15,7 @@ import {
 import { createRuntime } from "@/src/game/simulation/runtime.ts";
 import { StoryFlag } from "@/src/game/content/story.ts";
 import { Direction } from "@/src/game/world/direction.ts";
-import { KeyColor } from "@/src/game/world/map.ts";
+import { KeyColor } from "@/src/game/content/map_entities.ts";
 import { flatTestMap } from "@/tests/game/simulation/helpers.ts";
 import { assertEquals, assertThrows } from "@std/assert";
 

@@ -19,7 +19,7 @@ Deno.test("storyEventDefinition resolves John spoken into a one-shot move action
   });
 });
 
-Deno.test("story id mappers reject unknown authoring ids", () => {
+Deno.test("story id mappers reject unknown content ids", () => {
   assertEquals(storyEventIdFor("johnSpoken", "npc onTalkEvent"), StoryEventId.JohnSpoken);
   assertEquals(storyTargetIdFor("john", "npc storyId"), StoryTargetId.John);
 

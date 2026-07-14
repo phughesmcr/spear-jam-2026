@@ -1,11 +1,11 @@
 import {
   DEFAULT_ENEMY_ARCHETYPE,
-  enemyArchetypeForAuthoringKey,
+  enemyArchetypeForKey,
   type EnemyCatalogEntry,
   enemyCatalogEntry,
   spriteIdForEnemyArchetype,
 } from "@/src/game/content/enemies.ts";
-import { AUTHORING_ITEM_KINDS, ItemKind } from "@/src/game/content/items.ts";
+import { ITEM_KIND_BY_CONTENT_KEY, ItemKind } from "@/src/game/content/items.ts";
 import { SpriteId } from "@/src/game/content/sprite_ids.ts";
 import { spriteIdForDecoration, spriteIdForDisplayName, spriteIdForItem } from "@/src/game/content/sprites.ts";
 import { dialogueTreeCode } from "@/src/game/content/dialogue/trees.ts";
@@ -25,7 +25,7 @@ import {
   DEFAULT_PLAYER_PROGRESS,
 } from "@/src/game/simulation/progression.ts";
 import type { GameRuntime } from "@/src/game/simulation/runtime.ts";
-import { attackDefFromAuthoring, DEFAULT_ATTACK } from "@/src/game/model/attack.ts";
+import { attackOverridesFromContent, DEFAULT_ATTACK } from "@/src/game/model/attack.ts";
 import { examineTextCode } from "@/src/game/content/examine_text.ts";
 import { displayNameCode } from "@/src/game/content/names.ts";
 import { soundIdCode } from "@/src/game/model/sound.ts";
@@ -34,11 +34,9 @@ import { normalizeDirection } from "@/src/game/world/direction.ts";
 import {
   type DecorationDef,
   type DoorDef,
-  doorSlideCode,
   type EnemyDef,
   type EntityDef,
   type ItemDef,
-  keyColorCode,
   type KeyDef,
   type LightDef,
   type NpcDef,
@@ -49,7 +47,8 @@ import {
   type UplinkCodeDef,
   type UplinkTerminalDef,
   type WeaponPickupDef,
-} from "@/src/game/world/map.ts";
+} from "@/src/game/content/map_entities.ts";
+import { doorSlideCode, keyColorCode } from "@/src/game/world/map.ts";
 import { terminalDestinationCode } from "@/src/game/world/campaign.ts";
 import { TerrainBlock } from "turn-based-engine/crawler";
 import type { Entity } from "turn-based-engine/ecs";
@@ -113,9 +112,7 @@ export function createNpc(runtime: GameRuntime, prefab: NpcPrefab): Entity {
 export type EnemyPrefab = Omit<EnemyDef, "prefab">;
 
 export function createEnemy(runtime: GameRuntime, prefab: EnemyPrefab): Entity {
-  const archetype = prefab.archetype === undefined ?
-    DEFAULT_ENEMY_ARCHETYPE :
-    enemyArchetypeForAuthoringKey(prefab.archetype);
+  const archetype = prefab.archetype === undefined ? DEFAULT_ENEMY_ARCHETYPE : enemyArchetypeForKey(prefab.archetype);
   const catalog = enemyCatalogEntry(archetype);
   const health = prefab.health ?? catalog.health;
   const displayName = prefab.displayName ?? catalog.displayName;
@@ -146,7 +143,7 @@ function createAttackSpec(prefab: EnemyPrefab, catalog: EnemyCatalogEntry): Atta
     ...catalog.attack,
     minDamage: damage,
     maxDamage: damage,
-    ...attackDefFromAuthoring(prefab.attack),
+    ...attackOverridesFromContent(prefab.attack),
   };
 }
 
@@ -226,7 +223,7 @@ export function createWeaponPickup(runtime: GameRuntime, prefab: Omit<WeaponPick
 }
 
 export function createItem(runtime: GameRuntime, prefab: Omit<ItemDef, "prefab">): Entity {
-  return createPickup(runtime, prefab, AUTHORING_ITEM_KINDS[prefab.item], prefab.amount);
+  return createPickup(runtime, prefab, ITEM_KIND_BY_CONTENT_KEY[prefab.item], prefab.amount);
 }
 
 export function createDecoration(runtime: GameRuntime, prefab: Omit<DecorationDef, "prefab">): Entity {

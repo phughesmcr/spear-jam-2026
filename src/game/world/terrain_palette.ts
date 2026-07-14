@@ -11,8 +11,6 @@ export const TEXTURE_TERRAIN_COUNT = TEXTURE_PACKS.length * TEXTURE_PACK_TILE_CO
 export const FLOOR_TERRAIN_BASE_ID = 0;
 export const WALL_TERRAIN_BASE_ID = FLOOR_TERRAIN_BASE_ID + TEXTURE_TERRAIN_COUNT;
 export const BARRIER_TERRAIN_BASE_ID = WALL_TERRAIN_BASE_ID + TEXTURE_TERRAIN_COUNT;
-export const BARRIER_TERRAIN_COUNT = 3;
-export const TERRAIN_CATALOG_TILE_COLUMNS = TEXTURE_PACK_COLUMNS * TEXTURE_PACK_ROWS;
 
 export const DEFAULT_WALL_TERRAIN_ID = WALL_TERRAIN_BASE_ID;
 export const DEFAULT_BARS_TERRAIN_ID = BARRIER_TERRAIN_BASE_ID;
@@ -23,20 +21,17 @@ export const TERRAIN_CATALOG: readonly TerrainTile[] = [
   ...textureRefs().map((texture, index): TerrainTile => ({
     kind: "floor" as const,
     id: FLOOR_TERRAIN_BASE_ID + index,
-    color: terrainColor(index, false),
     floor_texture: index === 2 ? "pack3:4,1" : texture,
     ceiling_texture: index === 2 ? SKY_CEILING_TEXTURE : texture,
   })),
   ...textureRefs().map((texture, index) => ({
     kind: "wall" as const,
     id: WALL_TERRAIN_BASE_ID + index,
-    color: terrainColor(index, true),
     wall_texture: texture,
   })),
   {
     kind: "barrier",
     id: DEFAULT_BARS_TERRAIN_ID,
-    color: "#64748b",
     barrier_texture: "bars",
     floor_texture: "pack1:0,0",
     ceiling_texture: "pack1:0,0",
@@ -44,7 +39,6 @@ export const TERRAIN_CATALOG: readonly TerrainTile[] = [
   {
     kind: "barrier",
     id: DEFAULT_GLASS_TERRAIN_ID,
-    color: "#38bdf8",
     barrier_texture: "glass",
     floor_texture: "pack1:0,0",
     ceiling_texture: "pack1:0,0",
@@ -52,7 +46,6 @@ export const TERRAIN_CATALOG: readonly TerrainTile[] = [
   {
     kind: "barrier",
     id: DEFAULT_SKY_BARS_TERRAIN_ID,
-    color: "#64748b",
     barrier_texture: "bars",
     floor_texture: "pack1:0,0",
     ceiling_texture: SKY_CEILING_TEXTURE,
@@ -108,35 +101,4 @@ function textureRefs(): readonly TexturePackRef[] {
         `${pack}:${tileId % TEXTURE_PACK_COLUMNS},${Math.floor(tileId / TEXTURE_PACK_COLUMNS)}` as TexturePackRef,
     )
   );
-}
-
-function terrainColor(index: number, blocking: boolean): string {
-  const hue = (index * 47) % 360;
-  const saturation = blocking ? 48 : 58;
-  const lightness = blocking ? 34 : 42;
-  return hslToHex(hue, saturation, lightness);
-}
-
-function hslToHex(hue: number, saturationPercent: number, lightnessPercent: number): string {
-  const saturation = saturationPercent / 100;
-  const lightness = lightnessPercent / 100;
-  const chroma = (1 - Math.abs(2 * lightness - 1)) * saturation;
-  const x = chroma * (1 - Math.abs((hue / 60) % 2 - 1));
-  const match = lightness - chroma / 2;
-  const [red, green, blue] = hue < 60 ?
-    [chroma, x, 0] :
-    hue < 120 ?
-    [x, chroma, 0] :
-    hue < 180 ?
-    [0, chroma, x] :
-    hue < 240 ?
-    [0, x, chroma] :
-    hue < 300 ?
-    [x, 0, chroma] :
-    [chroma, 0, x];
-  return `#${hexChannel(red + match)}${hexChannel(green + match)}${hexChannel(blue + match)}`;
-}
-
-function hexChannel(value: number): string {
-  return Math.round(value * 255).toString(16).padStart(2, "0");
 }

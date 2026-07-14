@@ -5,19 +5,14 @@
   "unstable": ["tsgo"],
   "nodeModulesDir": "manual",
   "tasks": {
-    "check": "export CI=1 && deno task audio:check && deno task maps:check && deno fmt --check . && deno lint . && deno check && deno test",
+    "check": "export CI=1 && deno task audio:check && deno fmt --check . && deno lint . && deno check && deno test",
     "audio:generate": "deno run -A scripts/audio_assets.ts generate",
     "audio:check": "deno run -A scripts/audio_assets.ts check",
     "dev": "vite",
     "build": "vite build",
     "build:itch": "deno run -A scripts/itch.ts",
     "preview:itch": "deno run -A npm:vite preview --config vite.itch.config.ts --host",
-    "maps:compile": "deno run -A scripts/maps.ts compile",
     "images:optimize": "deno run -A scripts/optimize_images.ts",
-    "maps:check": "deno run -A scripts/maps.ts check",
-    "maps:play": "deno run -A scripts/maps.ts play",
-    "maps:sync-authoring": "deno run -A scripts/maps.ts sync-authoring",
-    "maps:new": "deno run -A scripts/maps.ts new",
     "start": "deno serve -A _fresh/server.js",
     "update": "deno run -A -r jsr:@fresh/update ."
   },
@@ -116,6 +111,6 @@
     "trailingCommas": "onlyMultiLine",
     "useBraces": "whenNotSingleLine",
     "useTabs": false,
-    "exclude": ["*.md", "**/*.md", "LICENSE", "**/*.tiled.json", "src/map/compiled_maps.json"]
+    "exclude": ["*.md", "**/*.md", "LICENSE", "src/game/content/maps/*.json"]
   }
 }

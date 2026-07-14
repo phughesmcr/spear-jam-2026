@@ -1,12 +1,15 @@
 import { SoundId } from "@/src/game/model/sound.ts";
 import type { TerrainTile } from "@/src/game/world/map.ts";
-import { createGameMap, KeyColor, SKY_CEILING_TEXTURE, VICTORY_GOTO } from "@/src/game/world/map.ts";
+import { KeyColor } from "@/src/game/content/map_entities.ts";
+import { VICTORY_GOTO } from "@/src/game/world/destinations.ts";
+import { createGameMap } from "@/src/game/world/map.ts";
 import { validateGameMaps } from "@/src/game/world/validation.ts";
 import { GAME_MAPS } from "@/src/game/world/campaign.ts";
 import {
   DEFAULT_BARS_TERRAIN_ID,
   DEFAULT_WALL_TERRAIN_ID,
   isTexturePackRef,
+  SKY_CEILING_TEXTURE,
 } from "@/src/game/world/terrain_palette.ts";
 import { assert, assertEquals } from "@std/assert";
 

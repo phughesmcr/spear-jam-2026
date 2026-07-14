@@ -1,46 +1,14 @@
-import { VICTORY_GOTO } from "@/src/game/world/destinations.ts";
 import {
-  DECORATION_KINDS,
   DOOR_SLIDES,
   type DoorSlide,
   type EntityDef,
-  KeyColor as ContentKeyColor,
+  KeyColor,
   type KeyColor as KeyColorType,
-} from "@/src/game/world/entities.ts";
+} from "@/src/game/content/map_entities.ts";
 import { dimensions, terrainAt as staticTerrainAt } from "@/src/game/world/grid.ts";
 import { SKY_CEILING_TEXTURE, TERRAIN_CATALOG } from "@/src/game/world/terrain_palette.ts";
 import { flagsBlockAttack, flagsBlockMovement, flagsBlockSight, terrainFlags } from "@/src/game/world/terrain_flags.ts";
 import { createCodeRegistry } from "@/src/game/content/code_registry.ts";
-
-export { VICTORY_GOTO };
-
-export const KeyColor = ContentKeyColor;
-export { DECORATION_KINDS };
-export type KeyColor = KeyColorType;
-export type {
-  DecorationDef,
-  DecorationKind,
-  DoorDef,
-  DoorSlide,
-  EnemyArchetype,
-  EnemyDef,
-  EntityDef,
-  EntityDefFor,
-  EntityPrefab,
-  ItemDef,
-  ItemKind,
-  KeyDef,
-  LightDef,
-  NpcDef,
-  PlayerDef,
-  SoundDef,
-  SpearPickupDef,
-  SpearTurretDef,
-  UplinkCodeDef,
-  UplinkTerminalDef,
-  WeaponPickupDef,
-} from "@/src/game/world/entities.ts";
-export { SKY_CEILING_TEXTURE };
 
 export const TexturePack = {
   Pack1: "pack1",
@@ -64,14 +32,12 @@ export type BarrierTexture = (typeof BarrierTexture)[keyof typeof BarrierTexture
 export type WallTile = {
   kind: "wall";
   id: number;
-  color: string;
   wall_texture: WallTexture;
 };
 
 export type FloorTile = {
   kind: "floor";
   id: number;
-  color: string;
   floor_texture: FloorTexture;
   ceiling_texture: CeilingTexture;
 };
@@ -79,7 +45,6 @@ export type FloorTile = {
 export type BarrierTile = {
   kind: "barrier";
   id: number;
-  color: string;
   barrier_texture: BarrierTexture;
   floor_texture: FloorTexture;
   ceiling_texture: CeilingTexture;
@@ -90,9 +55,9 @@ export type TerrainTile = BarrierTile | FloorTile | WallTile;
 export const DEFAULT_TERRAIN_PALETTE: readonly TerrainTile[] = TERRAIN_CATALOG;
 
 const KEY_COLOR_REGISTRY = createCodeRegistry("key color", [
-  ContentKeyColor.Red,
-  ContentKeyColor.Blue,
-  ContentKeyColor.Yellow,
+  KeyColor.Red,
+  KeyColor.Blue,
+  KeyColor.Yellow,
 ]);
 
 export function keyColorCode(color: KeyColorType): number {

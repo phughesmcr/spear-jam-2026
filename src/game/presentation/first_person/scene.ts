@@ -1,13 +1,13 @@
 import type { LightEntityVisitor } from "@/src/game/simulation/drawables.ts";
+import type { DoorSlide } from "@/src/game/content/map_entities.ts";
 import {
-  type DoorSlide,
   type GameMap,
   mapDimensions,
-  SKY_CEILING_TEXTURE,
   terrainAt,
   terrainBlocksMovement,
   terrainIsBarrier,
 } from "@/src/game/world/map.ts";
+import { SKY_CEILING_TEXTURE } from "@/src/game/world/terrain_palette.ts";
 import {
   barrierTextureSlot,
   ceilingTextureSlot,

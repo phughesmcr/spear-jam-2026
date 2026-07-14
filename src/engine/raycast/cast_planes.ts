@@ -4,7 +4,7 @@
  * Draws by horizontal scanline: distance and shade are constant per row, so
  * one world-space step per pixel textures both the floor and ceiling in the
  * same inner loop. Ceilings mapped to the atlas's sky plane(s) instead sample
- * a parallax-scrolling band rather than a tiled texture.
+ * a parallax-scrolling band rather than a repeating texture.
  */
 
 import {

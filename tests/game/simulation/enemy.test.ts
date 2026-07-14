@@ -1,4 +1,4 @@
-import { enemyArchetypeAuthoringKey, EnemyArchetypeCode } from "@/src/game/content/enemies.ts";
+import { EnemyArchetypeCode, enemyArchetypeKey } from "@/src/game/content/enemies.ts";
 import { readComponent, writeComponent } from "@/src/game/simulation/components.ts";
 import { createEnemy, createPlayer } from "@/src/game/simulation/prefabs.ts";
 import { createRuntime } from "@/src/game/simulation/runtime.ts";
@@ -238,7 +238,7 @@ function spawnEnemy(
     x,
     y,
     dir,
-    archetype: enemyArchetypeAuthoringKey(archetype),
+    archetype: enemyArchetypeKey(archetype),
     displayName: displayNameFor(archetype),
   });
 }

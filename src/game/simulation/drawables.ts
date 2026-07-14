@@ -3,13 +3,8 @@ import { type LightEmitterSchema, type SpriteAnimationSchema } from "@/src/game/
 import { DrawableKind } from "@/src/game/simulation/drawable_kind.ts";
 import type { GameRuntime } from "@/src/game/simulation/runtime.ts";
 import { Direction } from "@/src/game/world/direction.ts";
-import {
-  DEFAULT_DOOR_OPEN_MS,
-  type DoorSlide,
-  doorSlideForCode,
-  type KeyColor as KeyColorType,
-  keyColorForCode,
-} from "@/src/game/world/map.ts";
+import type { DoorSlide, KeyColor as KeyColorType } from "@/src/game/content/map_entities.ts";
+import { DEFAULT_DOOR_OPEN_MS, doorSlideForCode, keyColorForCode } from "@/src/game/world/map.ts";
 import type { Entity, SlotIndex } from "turn-based-engine/ecs";
 
 type DrawableBase = { readonly entity: Entity; readonly x: number; readonly y: number };

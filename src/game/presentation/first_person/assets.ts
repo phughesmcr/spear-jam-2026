@@ -1,18 +1,22 @@
 import type { SpriteId as SpriteIdType } from "@/src/game/content/sprite_ids.ts";
 import { SpriteId } from "@/src/game/content/sprite_ids.ts";
 import { spriteAppearance, spriteAppearances } from "@/src/game/content/sprites.ts";
+import { KeyColor } from "@/src/game/content/map_entities.ts";
 import {
   BarrierTexture,
   type BarrierTexture as BarrierTextureType,
   type CeilingTexture,
   type FloorTexture,
-  KeyColor,
-  SKY_CEILING_TEXTURE,
   TexturePack,
   type TexturePackRef,
   type WallTexture,
 } from "@/src/game/world/map.ts";
-import { parseTexturePackRef, TEXTURE_PACK_COLUMNS, TEXTURE_PACK_ROWS } from "@/src/game/world/terrain_palette.ts";
+import {
+  parseTexturePackRef,
+  SKY_CEILING_TEXTURE,
+  TEXTURE_PACK_COLUMNS,
+  TEXTURE_PACK_ROWS,
+} from "@/src/game/world/terrain_palette.ts";
 import { createImageAsset, type ImageAsset, loadedImage, preloadImageAssets } from "@/src/platform/web/assets.ts";
 import type { RaycastAtlas } from "@/src/engine/raycast/scene.ts";
 import {

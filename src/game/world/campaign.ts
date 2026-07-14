@@ -1,40 +1,16 @@
-import compiledMapsData from "@/src/map/compiled_maps.json" with { type: "json" };
-import { ENTITY_SCHEMA } from "@/src/game/world/entities.ts";
-import { createGameMap, type GameMap, VICTORY_GOTO } from "@/src/game/world/map.ts";
+import { type MapContent, parseCampaignContent } from "@/src/game/content/map_schema.ts";
+import { CAMPAIGN_CONTENT } from "@/src/game/content/maps/mod.ts";
+import { VICTORY_GOTO } from "@/src/game/world/destinations.ts";
+import { createGameMap, type GameMap } from "@/src/game/world/map.ts";
 import { validateGameMaps } from "@/src/game/world/validation.ts";
 import { createCodeRegistry } from "@/src/game/content/code_registry.ts";
-import { z } from "zod";
 
 export type LoadedGameMaps = {
   readonly startMapName: string;
   readonly gameMaps: readonly GameMap[];
 };
 
-const INTEGER_SCHEMA = z.number().int();
-const NON_NEGATIVE_INTEGER_SCHEMA = INTEGER_SCHEMA.nonnegative();
-
-const COMPILED_MAP_SCHEMA = z.object({
-  name: z.string().min(1),
-  tiles: z.array(z.array(NON_NEGATIVE_INTEGER_SCHEMA).nonempty()).nonempty(),
-  entities: z.array(ENTITY_SCHEMA),
-}).strict();
-
-const COMPILED_MAPS_SCHEMA = z.object({
-  startMapName: z.string().min(1),
-  maps: z.array(COMPILED_MAP_SCHEMA).nonempty(),
-}).strict()
-  .refine((data) => data.maps.some((map) => map.name === data.startMapName), {
-    message: "startMapName must match a compiled map name",
-    path: ["startMapName"],
-  })
-  .refine((data) => new Set(data.maps.map((map) => map.name)).size === data.maps.length, {
-    message: "map names must be unique",
-    path: ["maps"],
-  });
-
-type CompiledMap = z.infer<typeof COMPILED_MAP_SCHEMA>;
-
-const LOADED_GAME_MAPS = loadGameMapsData(compiledMapsData);
+const LOADED_GAME_MAPS = loadCampaignContent(CAMPAIGN_CONTENT);
 
 export const START_MAP_NAME = LOADED_GAME_MAPS.startMapName;
 export const GAME_MAPS = LOADED_GAME_MAPS.gameMaps;
@@ -64,28 +40,20 @@ export function getMap(name: string): GameMap {
   return map;
 }
 
-export function loadGameMapsData(data: unknown): LoadedGameMaps {
-  const parsed = COMPILED_MAPS_SCHEMA.safeParse(data);
-  if (!parsed.success) {
-    throw new Error(`Invalid compiled map data:\n${formatZodError(parsed.error)}`);
-  }
-
-  const gameMaps = parsed.data.maps.map(gameMapFromCompiledMap);
+export function loadCampaignContent(data: unknown): LoadedGameMaps {
+  const content = parseCampaignContent(data);
+  const gameMaps = content.maps.map(gameMapFromContent);
   const validationIssues = validateGameMaps(gameMaps);
   if (validationIssues.length > 0) {
-    throw new Error(`Invalid compiled game maps:\n${validationIssues.join("\n")}`);
+    throw new Error(`Invalid campaign maps:\n${validationIssues.join("\n")}`);
   }
 
   return {
-    startMapName: parsed.data.startMapName,
+    startMapName: content.startMapName,
     gameMaps,
   };
 }
 
-function gameMapFromCompiledMap(map: CompiledMap): GameMap {
+function gameMapFromContent(map: MapContent): GameMap {
   return createGameMap(map.name, map.tiles, map.entities);
-}
-
-function formatZodError(error: z.ZodError): string {
-  return error.issues.map((issue) => `${issue.path.join(".") || "<root>"}: ${issue.message}`).join("\n");
 }

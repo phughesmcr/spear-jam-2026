@@ -2,7 +2,7 @@ import type { DialogueChoice } from "@/src/game/content/dialogue/trees.ts";
 import type { VoiceId } from "@/src/game/content/dialogue/voices.ts";
 import type { LevelStats } from "@/src/game/model/level_stats.ts";
 import type { DisplayName } from "@/src/game/content/names.ts";
-import type { KeyColor } from "@/src/game/world/map.ts";
+import type { KeyColor } from "@/src/game/content/map_entities.ts";
 
 export type CommandSlot = 1 | 2 | 3;
 export type VerbMenuControl = "wait" | "toggleView" | "help" | "close";

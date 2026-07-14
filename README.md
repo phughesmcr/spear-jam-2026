@@ -7,7 +7,7 @@ Finished: Sunday 12th July 2026
 
 I built the game to learn how to put an [ECS engine](https://github.com/phughesmcr/Miski) I'd built through its paces, and the DX of building a game in the browser. The assets are mostly AI-generated, unless otherwise noted below.
 
-The game uses Deno. You can make changes to maps in Tiled, then run `deno task maps:compile` to compile them into a format the game can use.
+The game uses Deno. Maps are game-native JSON files under `src/game/content/maps/`; tests validate them directly, with no compilation step.
 Run the game with `deno task build && deno task start` for production, or `deno task dev` for development.
 
 ## Gameplay and Controls
@@ -95,7 +95,6 @@ N.B. I found out there is another game called "Ghost Process" too late in the ja
 
 **Tools:**
 
-- [Tiled](https://www.mapeditor.org/)
 - [Pixelorama](https://pixelorama.org/)
 
 **Research:**

@@ -1,4 +1,4 @@
-import { enemyArchetypeAuthoringKey, EnemyArchetypeCode } from "@/src/game/content/enemies.ts";
+import { EnemyArchetypeCode, enemyArchetypeKey } from "@/src/game/content/enemies.ts";
 import { AttackPattern, AttackTargetMode } from "@/src/game/simulation/components.ts";
 import type { AttackSchema } from "@/src/game/simulation/components.ts";
 import { attackEntity, attackTargets, resolveAttack } from "@/src/game/simulation/combat.ts";
@@ -83,7 +83,7 @@ Deno.test("defeat emits events, writes an effect, and despawns the defender", ()
     y: 1,
     dir: Direction.West,
     health: 1,
-    archetype: enemyArchetypeAuthoringKey(EnemyArchetypeCode.MeleeDog),
+    archetype: enemyArchetypeKey(EnemyArchetypeCode.MeleeDog),
     displayName: DisplayName.DigitalDog,
   });
   let effect: { x: number; y: number; sprite: number } | undefined;
@@ -99,7 +99,7 @@ function spawnEnemy(runtime: ReturnType<typeof createRuntime>, x: number, y: num
     x,
     y,
     dir: Direction.West,
-    archetype: enemyArchetypeAuthoringKey(EnemyArchetypeCode.MeleeDog),
+    archetype: enemyArchetypeKey(EnemyArchetypeCode.MeleeDog),
     displayName: DisplayName.DigitalDog,
   });
 }

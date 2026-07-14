@@ -8,7 +8,7 @@ import {
 import { DrawableKind } from "@/src/game/simulation/drawable_kind.ts";
 import type { FrameRenderSession } from "@/src/game/presentation/session_view.ts";
 import { directionDelta } from "@/src/game/world/direction.ts";
-import { KeyColor, type KeyColor as KeyColorType } from "@/src/game/world/map.ts";
+import { KeyColor, type KeyColor as KeyColorType } from "@/src/game/content/map_entities.ts";
 import type { MapRenderMetrics } from "@/src/game/presentation/top_down/map.ts";
 import { monoFont } from "@/src/game/presentation/ui/text.ts";
 

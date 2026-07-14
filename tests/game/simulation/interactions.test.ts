@@ -9,7 +9,7 @@ import {
 import { createDoor, createKey, createPlayer, createSpearTurret } from "@/src/game/simulation/prefabs.ts";
 import { createRuntime } from "@/src/game/simulation/runtime.ts";
 import { Direction } from "@/src/game/world/direction.ts";
-import { KeyColor } from "@/src/game/world/map.ts";
+import { KeyColor } from "@/src/game/content/map_entities.ts";
 import { flatTestMap } from "@/tests/game/simulation/helpers.ts";
 import { assertEquals, assertThrows } from "@std/assert";
 import { TerrainBlock } from "turn-based-engine/crawler";

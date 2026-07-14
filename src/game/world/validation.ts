@@ -1,16 +1,18 @@
 import { CARDINAL_DELTAS } from "@/src/game/world/direction.ts";
 import { VICTORY_GOTO } from "@/src/game/world/destinations.ts";
-import { prefabBlocksMovement } from "@/src/game/world/entities.ts";
 import {
   type DoorDef,
-  type GameMap,
   KeyColor,
   type KeyColor as KeyColorType,
+  prefabBlocksMovement,
+  type UplinkTerminalDef,
+} from "@/src/game/content/map_entities.ts";
+import {
+  type GameMap,
   mapDimensions,
   terrainAt,
   terrainBlocksMovement,
   terrainIsBarrier,
-  type UplinkTerminalDef,
 } from "@/src/game/world/map.ts";
 
 type ReachabilityResult = {

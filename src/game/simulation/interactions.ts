@@ -12,7 +12,8 @@ import type { InteractVerb } from "@/src/game/model/commands.ts";
 import type { GameEvent } from "@/src/game/model/events.ts";
 import { displayNameForCode, displayNameText } from "@/src/game/content/names.ts";
 import { type AmmoKind, type CommandSlot, commandSlotForCode, type DialogueState } from "@/src/game/model/state.ts";
-import { type KeyColor, keyColorForCode } from "@/src/game/world/map.ts";
+import type { KeyColor } from "@/src/game/content/map_entities.ts";
+import { keyColorForCode } from "@/src/game/world/map.ts";
 import type { CrawlerMutation } from "turn-based-engine/crawler";
 import type { Entity } from "turn-based-engine/ecs";
 

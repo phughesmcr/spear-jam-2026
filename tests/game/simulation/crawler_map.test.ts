@@ -29,7 +29,6 @@ Deno.test("createCrawlerMap derives channels from tile flags rather than terrain
     palette: [{
       kind: "barrier",
       id: 7,
-      color: "#fff",
       barrier_texture: BarrierTexture.Glass,
       floor_texture: "floor",
       ceiling_texture: "ceiling",

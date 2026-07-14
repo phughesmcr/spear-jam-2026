@@ -288,7 +288,7 @@ function fakeSession(onTick?: () => void): FrameRenderSession & { tick(): { read
   return {
     getMap: () =>
       createGameMap("Fake Map", [[1]], [], {
-        palette: [{ kind: "floor", id: 1, color: "#000000", floor_texture: "floor", ceiling_texture: "ceiling" }],
+        palette: [{ kind: "floor", id: 1, floor_texture: "floor", ceiling_texture: "ceiling" }],
       }),
     getPlayerStatus: () => playerSnapshot(),
     getVisibility: () => ({ isVisible: () => false, isExplored: () => false }),

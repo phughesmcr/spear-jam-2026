@@ -5,8 +5,8 @@ import {
   type DecorationKind as DecorationKindType,
   KeyColor,
   type KeyColor as KeyColorType,
-  keyColorForCode,
-} from "@/src/game/world/map.ts";
+} from "@/src/game/content/map_entities.ts";
+import { keyColorForCode } from "@/src/game/world/map.ts";
 
 type TopDownShape = "actor" | "badge" | "corpse" | "key" | "none" | "player" | "terminal" | "uplinkCode" | "weapon";
 type SpriteSourceFrame = readonly [number, number, number, number];

@@ -1,4 +1,4 @@
-import { enemyArchetypeAuthoringKey, EnemyArchetypeCode } from "@/src/game/content/enemies.ts";
+import { EnemyArchetypeCode, enemyArchetypeKey } from "@/src/game/content/enemies.ts";
 import { IDLE_AWARENESS } from "@/src/game/simulation/components.ts";
 import { createEnemy, createNpc, createPlayer } from "@/src/game/simulation/prefabs.ts";
 import { applyItemPickupToPlayer } from "@/src/game/simulation/progression.ts";
@@ -81,7 +81,7 @@ function spawnEnemy(runtime: ReturnType<typeof createRuntime>, x: number, y: num
     x,
     y,
     dir: Direction.West,
-    archetype: enemyArchetypeAuthoringKey(EnemyArchetypeCode.NetworkNeophyte),
+    archetype: enemyArchetypeKey(EnemyArchetypeCode.NetworkNeophyte),
     displayName: DisplayName.NetworkNeophyte,
   });
 }

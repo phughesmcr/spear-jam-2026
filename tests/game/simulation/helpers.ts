@@ -1,4 +1,5 @@
-import type { EntityDef, GameMap } from "@/src/game/world/map.ts";
+import type { EntityDef } from "@/src/game/content/map_entities.ts";
+import type { GameMap } from "@/src/game/world/map.ts";
 
 export function flatTestMap(
   width = 3,
@@ -13,7 +14,6 @@ export function flatTestMap(
         {
           kind: "floor",
           id: 0,
-          color: "#000",
           floor_texture: "floor",
           ceiling_texture: "ceiling",
         },

@@ -1,4 +1,4 @@
-import { enemyArchetypeAuthoringKey, EnemyArchetypeCode } from "@/src/game/content/enemies.ts";
+import { EnemyArchetypeCode, enemyArchetypeKey } from "@/src/game/content/enemies.ts";
 import { SpriteId } from "@/src/game/content/sprite_ids.ts";
 import { hasComponent } from "@/src/game/simulation/components.ts";
 import { DialogueTreeId } from "@/src/game/content/dialogue/trees.ts";
@@ -19,7 +19,7 @@ import { DisplayName } from "@/src/game/content/names.ts";
 import { SoundId } from "@/src/game/model/sound.ts";
 import { StoryEventId, StoryTargetId } from "@/src/game/content/story.ts";
 import { Direction } from "@/src/game/world/direction.ts";
-import { KeyColor } from "@/src/game/world/map.ts";
+import { KeyColor } from "@/src/game/content/map_entities.ts";
 import { flatTestMap } from "@/tests/game/simulation/helpers.ts";
 import { assertEquals, assertThrows } from "@std/assert";
 import { TerrainBlock } from "turn-based-engine/crawler";
@@ -31,7 +31,7 @@ Deno.test("prefabs attach custom components and exact crawler masks", () => {
     x: 2,
     y: 1,
     dir: Direction.West,
-    archetype: enemyArchetypeAuthoringKey(EnemyArchetypeCode.MeleeDog),
+    archetype: enemyArchetypeKey(EnemyArchetypeCode.MeleeDog),
     displayName: DisplayName.DigitalDog,
   });
   const normalDoor = createDoor(runtime, { x: 3, y: 1, locked: true, color: KeyColor.Red });

@@ -16,6 +16,5 @@ vendor/
 
 .claude/
 *.DS_Store
-*.tiled-session
 AGENTS.md
 GAME.md

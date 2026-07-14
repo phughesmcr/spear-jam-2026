@@ -1,6 +1,6 @@
 import type { PlayerStatusSnapshot } from "@/src/game/model/state.ts";
 import { Direction } from "@/src/game/world/direction.ts";
-import { KeyColor } from "@/src/game/world/map.ts";
+import { KeyColor } from "@/src/game/content/map_entities.ts";
 import { renderFirstPersonHud } from "@/src/game/presentation/ui/hud.ts";
 import {
   firstPersonCompassMarkers,
