@@ -27,6 +27,27 @@ const PRESENTATION_RENDER_PASSES = [
 const LEGACY_APPLICATION_RUNTIME = resolve(SOURCE_ROOT, "app/runtime.ts");
 const PRESENTATION_RUNTIME = resolve(SOURCE_ROOT, "app/presentation_runtime.ts");
 const AUDIO_RUNTIME = resolve(SOURCE_ROOT, "app/audio_runtime.ts");
+const GAME_AUDIO_ROOT = resolve(SOURCE_ROOT, "game/audio");
+const GAME_AUDIO_PUBLIC_MODULE = resolve(GAME_AUDIO_ROOT, "mod.ts");
+const WEB_AUDIO_ROOT = resolve(SOURCE_ROOT, "platform/web/audio");
+const WEB_AUDIO_PUBLIC_MODULE = resolve(WEB_AUDIO_ROOT, "mod.ts");
+const LEGACY_AUDIO_MODULES = new Set([
+  resolve(SOURCE_ROOT, "game/presentation/audio.ts"),
+]);
+const SIMULATION_ROOT = resolve(SOURCE_ROOT, "game/simulation");
+const SIMULATION_PUBLIC_MODULE = resolve(SIMULATION_ROOT, "mod.ts");
+const LEGACY_SIMULATION_OUTPUT_MODULES = new Set([
+  resolve(SIMULATION_ROOT, "drawable_kind.ts"),
+]);
+const PRESENTATION_ROOT = resolve(SOURCE_ROOT, "game/presentation");
+const GAME_SESSION = resolve(SOURCE_ROOT, "game/simulation/session.ts");
+const GAME_SESSION_MODULES = [
+  "command_resolution.ts",
+  "map_lifecycle.ts",
+  "output_readers.ts",
+  "progression_statistics.ts",
+].map((name) => resolve(SIMULATION_ROOT, `session/${name}`));
+const LEGACY_GAME_SESSION_LIFECYCLE = resolve(SIMULATION_ROOT, "session/lifecycle.ts");
 const GAME_EXECUTION = resolve(SOURCE_ROOT, "app/game_execution.ts");
 const APPLICATION_START = resolve(SOURCE_ROOT, "app/start.ts");
 const PRESENTATION_RUNTIME_IMPORTS = new Set([
@@ -42,13 +63,8 @@ const PRESENTATION_RUNTIME_IMPORTS = new Set([
 ]);
 const AUDIO_RUNTIME_IMPORTS = new Set([
   "@/src/engine/audio/mod.ts",
-  "@/src/game/content/audio/music.ts",
-  "@/src/game/content/dialogue/voices.ts",
-  "@/src/game/model/audio_settings.ts",
-  "@/src/game/model/sound.ts",
-  "@/src/game/presentation/audio.ts",
-  "@/src/game/presentation/session_view.ts",
-  "@/src/platform/web/audio/runtime.ts",
+  "@/src/game/audio/mod.ts",
+  "@/src/platform/web/audio/mod.ts",
 ]);
 const ALLOWED_DEPENDENCIES = {
   app: new Set(["app", "engine", "game", "platform"]),
@@ -262,6 +278,21 @@ Deno.test({
       }
     }
 
+    const presentationSessionSource = await Deno.readTextFile(
+      resolve(SOURCE_ROOT, "game/presentation/session_view.ts"),
+    );
+    for (
+      const forbiddenName of [
+        "AudioWorldSession",
+        "SoundEmitterVisitor",
+        "EnemyIdleSoundSourceVisitor",
+      ]
+    ) {
+      if (presentationSessionSource.includes(forbiddenName)) {
+        violations.push(`game/presentation/session_view.ts owns ${forbiddenName}`);
+      }
+    }
+
     if (files.has(GAME_EXECUTION)) {
       const executionSource = await Deno.readTextFile(GAME_EXECUTION);
       const executionImports = importSpecifiers(executionSource);
@@ -323,6 +354,110 @@ Deno.test({
       const moduleViolations = await sealedModuleViolations(module.root, module.publicModule, new Set());
       violations.push(...moduleViolations.map((violation) => `${module.name}: ${violation}`));
     }
+    assertEquals(violations.sort(), []);
+  },
+});
+
+Deno.test({
+  name: "audio verticals expose sealed public boundaries",
+  permissions: { read: [SOURCE_ROOT] },
+  fn: async () => {
+    const violations = [
+      ...await sealedModuleViolations(
+        GAME_AUDIO_ROOT,
+        GAME_AUDIO_PUBLIC_MODULE,
+        LEGACY_AUDIO_MODULES,
+      ),
+      ...await sealedModuleViolations(
+        WEB_AUDIO_ROOT,
+        WEB_AUDIO_PUBLIC_MODULE,
+        new Set(),
+      ),
+    ];
+    assertEquals(violations.sort(), []);
+  },
+});
+
+Deno.test({
+  name: "simulation exposes one sealed public boundary without owning output contracts",
+  permissions: { read: [SOURCE_ROOT] },
+  fn: async () => {
+    const violations = await sealedModuleViolations(
+      SIMULATION_ROOT,
+      SIMULATION_PUBLIC_MODULE,
+      LEGACY_SIMULATION_OUTPUT_MODULES,
+    );
+
+    for (const root of [PRESENTATION_ROOT, GAME_AUDIO_ROOT]) {
+      for (const sourcePath of await sourceFiles(root)) {
+        for (const specifier of importSpecifiers(await Deno.readTextFile(sourcePath))) {
+          const importedPath = importedSourcePath(sourcePath, specifier);
+          if (importedPath?.startsWith(`${SIMULATION_ROOT}/`)) {
+            violations.push(`${relative(SOURCE_ROOT, sourcePath)} imports ${specifier}`);
+          }
+        }
+      }
+    }
+
+    assertEquals(violations.sort(), []);
+  },
+});
+
+Deno.test({
+  name: "game session facade delegates to concrete responsibility owners",
+  permissions: { read: [SOURCE_ROOT] },
+  fn: async () => {
+    const files = new Set(await sourceFiles(SOURCE_ROOT));
+    const violations: string[] = [];
+    for (const modulePath of GAME_SESSION_MODULES) {
+      if (!files.has(modulePath)) violations.push(`${relative(SOURCE_ROOT, modulePath)} is missing`);
+    }
+    if (files.has(LEGACY_GAME_SESSION_LIFECYCLE)) {
+      violations.push(`${relative(SOURCE_ROOT, LEGACY_GAME_SESSION_LIFECYCLE)} still exists`);
+    }
+
+    const source = await Deno.readTextFile(GAME_SESSION);
+    const imports = new Set(importSpecifiers(source));
+    for (const modulePath of GAME_SESSION_MODULES) {
+      const specifier = `@/src/${relative(SOURCE_ROOT, modulePath)}`;
+      if (!imports.has(specifier)) violations.push(`game/simulation/session.ts does not import ${specifier}`);
+    }
+    for (
+      const forbidden of [
+        "@/src/game/simulation/components.ts",
+        "@/src/game/simulation/drawables.ts",
+        "@/src/game/simulation/prefabs.ts",
+        "@/src/game/simulation/progression.ts",
+        "@/src/game/simulation/runtime.ts",
+        "@/src/game/simulation/session/lifecycle.ts",
+        "@/src/game/simulation/session/sprite_animations.ts",
+        "@/src/game/simulation/session/story_actions.ts",
+        "@/src/game/simulation/sound_cues.ts",
+        "@/src/game/simulation/sounds.ts",
+        "@/src/game/simulation/turn/actions.ts",
+        "@/src/game/simulation/turn/transaction.ts",
+      ]
+    ) {
+      if (imports.has(forbidden)) violations.push(`game/simulation/session.ts imports ${forbidden}`);
+    }
+    for (
+      const displaced of [
+        "capturePlayerProgressionCheckpoint",
+        "commitTurnTransaction",
+        "copyMetadata",
+        "createDrawableReaders",
+        "createSoundReaders",
+        "levelMoves",
+        "pendingDialogueStoryEvent",
+        "runTurnTransaction",
+        "soundCuesForEvents",
+        "this.now",
+        "this.random",
+      ]
+    ) {
+      if (source.includes(displaced)) violations.push(`game/simulation/session.ts still owns ${displaced}`);
+    }
+
     assertEquals(violations.sort(), []);
   },
 });

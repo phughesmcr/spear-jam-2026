@@ -1,13 +1,12 @@
 import { dialogueTreeCode, DialogueTreeId } from "@/src/game/content/dialogue/trees.ts";
-import {
-  SPRITE_ATTACK_MS,
-  SPRITE_DEATH_MS,
-  SPRITE_WALK_MS,
-  SpriteAnimationKind,
-} from "@/src/game/simulation/components.ts";
-import type { ActorDrawableEntity, DrawableEntity } from "@/src/game/simulation/drawables.ts";
+import { SPRITE_ATTACK_MS, SPRITE_DEATH_MS, SPRITE_WALK_MS } from "@/src/game/simulation/components.ts";
 import { SpriteId } from "@/src/game/content/sprite_ids.ts";
-import { DrawableKind } from "@/src/game/simulation/drawable_kind.ts";
+import {
+  type ActorDrawableEntity,
+  type DrawableEntity,
+  DrawableKind,
+  SpriteAnimationKind,
+} from "@/src/game/model/render_snapshot.ts";
 import { createDeathEffect } from "@/src/game/simulation/prefabs.ts";
 import { createRuntime } from "@/src/game/simulation/runtime.ts";
 import { createGameSession } from "@/src/game/simulation/session.ts";
@@ -23,7 +22,7 @@ import { createGameMap, type GameMap } from "@/src/game/world/map.ts";
 import { terminalDestinationCode } from "@/src/game/world/campaign.ts";
 import { DEFAULT_BARS_TERRAIN_ID, DEFAULT_WALL_TERRAIN_ID } from "@/src/game/world/terrain_palette.ts";
 import { flatTestMap } from "@/tests/game/simulation/helpers.ts";
-import { assert, assertEquals, assertRejects } from "@std/assert";
+import { assert, assertEquals, assertRejects, assertStrictEquals } from "@std/assert";
 
 Deno.test("createGameSession initializes default player progression and requires a player spawn", async () => {
   const session = await createGameSession(testMap([]), () => 0);
@@ -685,6 +684,21 @@ Deno.test("normal map loads keep durable progression and use the destination spa
       hasSpear: false,
       progress: { credits: 0, score: 0, xp: 0, levelCredits: 0 },
     });
+  } finally {
+    session[Symbol.dispose]();
+  }
+});
+
+Deno.test("map replacement keeps the visibility reader identity and retargets it to the next runtime", async () => {
+  const session = await createGameSession(testMap([]), () => 0);
+  try {
+    const visibility = session.getVisibility();
+    assertEquals(visibility.isVisible(6, 1), false);
+
+    session.loadMap(flatTestMap(8, 3, [{ prefab: "player", x: 6, y: 1, dir: Direction.West }]));
+
+    assertStrictEquals(session.getVisibility(), visibility);
+    assertEquals(visibility.isVisible(6, 1), true);
   } finally {
     session[Symbol.dispose]();
   }

@@ -1,4 +1,4 @@
-import type { LightEntity } from "@/src/game/simulation/drawables.ts";
+import type { LightEntity } from "@/src/game/model/render_snapshot.ts";
 import { GAME_MAPS } from "@/src/game/world/campaign.ts";
 import { createGameMap, TexturePack } from "@/src/game/world/map.ts";
 import {

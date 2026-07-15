@@ -1,18 +1,20 @@
 import type { AudioRuntime as EngineAudioRuntime } from "@/src/engine/audio/mod.ts";
-import type { TrackId } from "@/src/game/content/audio/music.ts";
-import type { VoiceId } from "@/src/game/content/dialogue/voices.ts";
-import type { AudioSettings } from "@/src/game/model/audio_settings.ts";
-import type { EnemyIdleSoundSource, SoundCue, SoundEmitterSnapshot } from "@/src/game/model/sound.ts";
 import {
   audioCuesFor,
   audioEmittersFor,
+  type AudioSettings,
   audioTrackFor,
   audioVoiceFor,
+  type AudioWorldSession,
+  type EnemyIdleSoundSource,
   idleAudioSourcesFor,
   listenerPoseFor,
-} from "@/src/game/presentation/audio.ts";
-import type { AudioWorldSession } from "@/src/game/presentation/session_view.ts";
-import { createWebAudioRuntime } from "@/src/platform/web/audio/runtime.ts";
+  type SoundCue,
+  type SoundEmitterSnapshot,
+  type TrackId,
+  type VoiceId,
+} from "@/src/game/audio/mod.ts";
+import { createWebAudioRuntime } from "@/src/platform/web/audio/mod.ts";
 
 export type AudioRuntimeSpec = {
   readonly host: Window;

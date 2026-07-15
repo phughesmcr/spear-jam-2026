@@ -1,4 +1,4 @@
-import { createGameSession, type GameSession, type GameSessionOptions } from "@/src/game/simulation/session.ts";
+import { createGameSession, type GameSession, type GameSessionOptions } from "@/src/game/simulation/mod.ts";
 import type { RandomSource } from "@/src/engine/random.ts";
 import { getMap } from "@/src/game/world/campaign.ts";
 

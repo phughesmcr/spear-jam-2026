@@ -1,4 +1,4 @@
-import type { LightEntityVisitor } from "@/src/game/simulation/drawables.ts";
+import type { LightEntityVisitor } from "@/src/game/model/render_snapshot.ts";
 import type { DoorSlide } from "@/src/game/content/map_entities.ts";
 import {
   type GameMap,

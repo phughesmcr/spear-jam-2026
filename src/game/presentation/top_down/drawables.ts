@@ -3,9 +3,9 @@ import { SpriteId } from "@/src/game/content/sprite_ids.ts";
 import {
   type ActorDrawableEntity,
   type DrawableEntity,
+  DrawableKind,
   type SpriteDrawableEntity,
-} from "@/src/game/simulation/drawables.ts";
-import { DrawableKind } from "@/src/game/simulation/drawable_kind.ts";
+} from "@/src/game/model/render_snapshot.ts";
 import type { FrameRenderSession } from "@/src/game/presentation/session_view.ts";
 import { directionDelta } from "@/src/game/world/direction.ts";
 import { KeyColor, type KeyColor as KeyColorType } from "@/src/game/content/map_entities.ts";

@@ -1,4 +1,5 @@
-import { readComponent, SpriteAnimationKind } from "@/src/game/simulation/components.ts";
+import { readComponent } from "@/src/game/simulation/components.ts";
+import { SpriteAnimationKind } from "@/src/game/model/render_snapshot.ts";
 import { playerHasStoryFlag } from "@/src/game/simulation/progression.ts";
 import type { GameRuntime } from "@/src/game/simulation/runtime.ts";
 import {

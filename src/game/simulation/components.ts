@@ -1,15 +1,14 @@
 import { type EnemyArchetypeCode, enemyArchetypeForCode } from "@/src/game/content/enemies.ts";
 import { type ItemKind as ItemKindType, ItemKind as ItemKindValues } from "@/src/game/content/items.ts";
 import type { SpriteId } from "@/src/game/content/sprite_ids.ts";
-import type { DrawableKind } from "@/src/game/simulation/drawable_kind.ts";
 import { type AttackDef, AttackPattern, AttackTargetMode } from "@/src/game/model/attack.ts";
+import type { DrawableKind, SpriteAnimationKind } from "@/src/game/model/render_snapshot.ts";
 import type { CrawlerGame } from "turn-based-engine/crawler";
 import type { ComponentMap, Entity } from "turn-based-engine/ecs";
 
 export { AttackPattern, AttackTargetMode };
 export const ItemKind = ItemKindValues;
 export type ItemKind = ItemKindType;
-export type { DrawableKind, SpriteId };
 
 export type PlayerInventorySchema = {
   keyMask: number;
@@ -33,12 +32,6 @@ export type DrawableLayer = (typeof DrawableLayer)[keyof typeof DrawableLayer];
 export type DrawableSchema = { kind: DrawableKind; layer: DrawableLayer };
 export type SpriteSchema = { id: SpriteId };
 
-export const SpriteAnimationKind = {
-  Walk: 1,
-  Attack: 2,
-  Death: 3,
-} as const;
-export type SpriteAnimationKind = (typeof SpriteAnimationKind)[keyof typeof SpriteAnimationKind];
 export const SPRITE_WALK_MS = 170;
 export const SPRITE_ATTACK_MS = 380;
 export const SPRITE_DEATH_MS = 560;

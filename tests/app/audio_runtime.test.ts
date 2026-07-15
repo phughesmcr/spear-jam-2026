@@ -8,19 +8,21 @@ import type {
   IdleAudioSource,
   ListenerPose,
 } from "@/src/engine/audio/mod.ts";
-import { TrackId } from "@/src/game/content/audio/music.ts";
-import { VoiceId } from "@/src/game/content/dialogue/voices.ts";
-import { type EnemyIdleSoundSource, type SoundEmitterSnapshot, SoundId } from "@/src/game/model/sound.ts";
-import { createGameModel } from "@/src/game/model/transition/mod.ts";
 import {
   audioCuesFor,
-  audioEmitterFor,
+  audioEmittersFor,
   audioTrackFor,
   audioVoiceFor,
-  idleAudioSourceFor,
-  listenerPoseFor,
-} from "@/src/game/presentation/audio.ts";
-import type { AudioWorldSession } from "@/src/game/presentation/session_view.ts";
+  type AudioWorldSession,
+  type EnemyIdleSoundSource,
+  idleAudioSourcesFor,
+  type SoundEmitterSnapshot,
+  TrackId,
+  VoiceId,
+} from "@/src/game/audio/mod.ts";
+import { SoundId } from "@/src/game/model/sound.ts";
+import { createGameModel } from "@/src/game/model/transition/mod.ts";
+import { listenerPoseFor } from "@/src/game/audio/mod.ts";
 import { Direction } from "@/src/game/world/direction.ts";
 import { assertEquals } from "@std/assert";
 import type { Entity } from "turn-based-engine/ecs";
@@ -37,8 +39,8 @@ Deno.test("audio runtime world sync clears stale emitters when the session disap
   });
 
   runtime.syncWorld();
-  assertEquals(audio.ambientEmitters, [audioEmitterFor(ambientEmitter())]);
-  assertEquals(audio.idleSources, [idleAudioSourceFor(enemyIdleSource())]);
+  assertEquals(audio.ambientEmitters, audioEmittersFor([ambientEmitter()]));
+  assertEquals(audio.idleSources, idleAudioSourcesFor([enemyIdleSource()]));
 
   session = undefined;
   runtime.syncWorld();

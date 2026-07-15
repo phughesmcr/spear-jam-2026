@@ -1,6 +1,3 @@
-import { MUSIC_TRACKS, type TrackId } from "@/src/game/content/audio/music.ts";
-import { soundCatalogEntry } from "@/src/game/content/audio/sounds.ts";
-import { type VoiceId, voiceSource } from "@/src/game/content/dialogue/voices.ts";
 import type {
   AudioClip,
   AudioCue,
@@ -10,6 +7,9 @@ import type {
   IdleAudioSource,
   ListenerPose,
 } from "@/src/engine/audio/mod.ts";
+import { MUSIC_TRACKS, type TrackId } from "@/src/game/content/audio/music.ts";
+import { soundCatalogEntry } from "@/src/game/content/audio/sounds.ts";
+import { type VoiceId, voiceSource } from "@/src/game/content/dialogue/voices.ts";
 import type { EnemyIdleSoundSource, SoundCue, SoundEmitterSnapshot } from "@/src/game/model/sound.ts";
 import type { CardinalDirection, GridPoint } from "@/src/game/world/direction.ts";
 

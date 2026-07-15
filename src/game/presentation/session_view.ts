@@ -1,5 +1,4 @@
-import type { DrawableEntityVisitor, LightEntityVisitor } from "@/src/game/simulation/drawables.ts";
-import type { EnemyIdleSoundSourceVisitor, SoundEmitterVisitor } from "@/src/game/simulation/sounds.ts";
+import type { DrawableEntityVisitor, LightEntityVisitor } from "@/src/game/model/render_snapshot.ts";
 import type { PlayerStatusSnapshot } from "@/src/game/model/state.ts";
 import type { CardinalDirection, GridPoint } from "@/src/game/world/direction.ts";
 import type { GameMap } from "@/src/game/world/map.ts";
@@ -12,11 +11,6 @@ export type FacingSnapshot = {
 export interface PlayerPoseSession {
   getPlayerPosition(): GridPoint;
   getPlayerFacing(): FacingSnapshot;
-}
-
-export interface AudioWorldSession extends PlayerPoseSession {
-  forEachSoundEmitter(visit: SoundEmitterVisitor): void;
-  forEachEnemyIdleSoundSource(visit: EnemyIdleSoundSourceVisitor): void;
 }
 
 export interface FrameRenderSession extends PlayerPoseSession {

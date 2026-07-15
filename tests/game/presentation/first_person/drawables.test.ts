@@ -1,13 +1,7 @@
 import { KeyColor } from "@/src/game/content/map_entities.ts";
 import { SpriteId } from "@/src/game/content/sprite_ids.ts";
-import {
-  SPRITE_ATTACK_MS,
-  SPRITE_DEATH_MS,
-  SPRITE_WALK_MS,
-  SpriteAnimationKind,
-} from "@/src/game/simulation/components.ts";
-import type { DrawableEntity } from "@/src/game/simulation/drawables.ts";
-import { DrawableKind } from "@/src/game/simulation/drawable_kind.ts";
+import { SPRITE_ATTACK_MS, SPRITE_DEATH_MS, SPRITE_WALK_MS } from "@/src/game/simulation/components.ts";
+import { type DrawableEntity, DrawableKind, SpriteAnimationKind } from "@/src/game/model/render_snapshot.ts";
 import { createFirstPersonAssets, type FirstPersonMaterials } from "@/src/game/presentation/first_person/assets/mod.ts";
 import { addDrawable, type FirstPersonDrawableState } from "@/src/game/presentation/first_person/drawables.ts";
 import { Direction } from "@/src/game/world/direction.ts";

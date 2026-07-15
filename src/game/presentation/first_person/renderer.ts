@@ -15,9 +15,9 @@ import type { SpriteId } from "@/src/game/content/sprite_ids.ts";
 import {
   type DrawableEntity,
   type DrawableEntityVisitor,
+  DrawableKind,
   type LightEntityVisitor,
-} from "@/src/game/simulation/drawables.ts";
-import { DrawableKind } from "@/src/game/simulation/drawable_kind.ts";
+} from "@/src/game/model/render_snapshot.ts";
 import { type CardinalDirection, Direction, directionDelta, normalizeDirection } from "@/src/game/world/direction.ts";
 import type { GameMap } from "@/src/game/world/map.ts";
 import { createFirstPersonAssets, type FirstPersonMaterials } from "@/src/game/presentation/first_person/assets/mod.ts";

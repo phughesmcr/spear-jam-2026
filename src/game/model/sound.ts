@@ -135,6 +135,9 @@ export type EnemyIdleSoundSource = SoundEmitterSnapshot & {
   readonly maxDelayMs: number;
 };
 
+export type SoundEmitterVisitor = (sound: SoundEmitterSnapshot) => void;
+export type EnemyIdleSoundSourceVisitor = (source: EnemyIdleSoundSource) => void;
+
 export function soundIdCode(soundId: SoundId): number {
   return SOUND_ID_REGISTRY.encode(soundId);
 }

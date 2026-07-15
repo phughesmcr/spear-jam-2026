@@ -1,44 +1,16 @@
 import { SpriteId, type SpriteId as SpriteIdType } from "@/src/game/content/sprite_ids.ts";
-import { type LightEmitterSchema, type SpriteAnimationSchema } from "@/src/game/simulation/components.ts";
-import { DrawableKind } from "@/src/game/simulation/drawable_kind.ts";
+import {
+  type DrawableEntity,
+  type DrawableEntityVisitor,
+  DrawableKind,
+  type LightEntityVisitor,
+  type SpriteAnimationSnapshot,
+} from "@/src/game/model/render_snapshot.ts";
 import type { GameRuntime } from "@/src/game/simulation/runtime.ts";
 import { Direction } from "@/src/game/world/direction.ts";
 import type { DoorSlide, KeyColor as KeyColorType } from "@/src/game/content/map_entities.ts";
 import { DEFAULT_DOOR_OPEN_MS, doorSlideForCode, keyColorForCode } from "@/src/game/world/map.ts";
 import type { Entity, SlotIndex } from "turn-based-engine/ecs";
-
-type DrawableBase = { readonly entity: Entity; readonly x: number; readonly y: number };
-export type PlayerDrawableEntity = DrawableBase & {
-  readonly kind: typeof DrawableKind.Player;
-  readonly dir: number;
-  readonly spriteId: SpriteIdType;
-};
-export type ActorDrawableEntity = DrawableBase & {
-  readonly kind: typeof DrawableKind.Actor;
-  readonly dir: number;
-  readonly spriteId: SpriteIdType;
-  readonly animation?: SpriteAnimationSchema;
-  readonly health?: { readonly current: number; readonly max: number };
-};
-export type DoorDrawableEntity = DrawableBase & {
-  readonly kind: typeof DrawableKind.Door;
-  readonly open: boolean;
-  readonly locked: boolean;
-  readonly secret: boolean;
-  readonly glass: boolean;
-  readonly color?: KeyColorType;
-  readonly slide?: DoorSlide;
-  readonly openMs: number;
-};
-export type SpriteDrawableEntity = DrawableBase & {
-  readonly kind: typeof DrawableKind.Sprite;
-  readonly spriteId: SpriteIdType;
-  readonly animation?: SpriteAnimationSchema;
-};
-export type DrawableEntity = ActorDrawableEntity | DoorDrawableEntity | PlayerDrawableEntity | SpriteDrawableEntity;
-export type LightEntity = DrawableBase & LightEmitterSchema;
-export type DrawableEntityVisitor = (drawable: DrawableEntity) => void;
-export type LightEntityVisitor = (light: LightEntity) => void;
 
 type DrawableScratch = {
   entity: Entity;
@@ -47,7 +19,7 @@ type DrawableScratch = {
   kind: DrawableKind;
   dir: number;
   spriteId: SpriteIdType;
-  animation: { kind: SpriteAnimationSchema["kind"]; startedAtMs: number; durationMs: number } | undefined;
+  animation: { kind: SpriteAnimationSnapshot["kind"]; startedAtMs: number; durationMs: number } | undefined;
   health: { current: number; max: number } | undefined;
   open: boolean;
   locked: boolean;
@@ -79,7 +51,7 @@ export function createDrawableReaders(runtime: GameRuntime): RuntimeReaders {
   let entities = new Uint32Array(64);
   let slots = new Array<SlotIndex>(64);
   const drawable = createDrawableScratch();
-  const animation = { kind: 0 as SpriteAnimationSchema["kind"], startedAtMs: 0, durationMs: 0 };
+  const animation = { kind: 0 as SpriteAnimationSnapshot["kind"], startedAtMs: 0, durationMs: 0 };
   const health = { current: 0, max: 0 };
   const light = createLightScratch();
   let drawableCount = 0;
@@ -176,7 +148,7 @@ function writeDrawable(
     drawable.spriteId = runtime.game.storage.Sprite.getAt(slot, "id") as SpriteIdType;
     if (kind === DrawableKind.Actor) {
       if (has(runtime, entity, "SpriteAnimation")) {
-        animation.kind = runtime.game.storage.SpriteAnimation.getAt(slot, "kind") as SpriteAnimationSchema["kind"];
+        animation.kind = runtime.game.storage.SpriteAnimation.getAt(slot, "kind") as SpriteAnimationSnapshot["kind"];
         animation.startedAtMs = runtime.game.storage.SpriteAnimation.getAt(slot, "startedAtMs");
         animation.durationMs = runtime.game.storage.SpriteAnimation.getAt(slot, "durationMs");
         drawable.animation = animation;
@@ -205,7 +177,7 @@ function writeDrawable(
   if (kind === DrawableKind.Sprite && has(runtime, entity, "Sprite")) {
     drawable.spriteId = runtime.game.storage.Sprite.getAt(slot, "id") as SpriteIdType;
     if (has(runtime, entity, "SpriteAnimation")) {
-      animation.kind = runtime.game.storage.SpriteAnimation.getAt(slot, "kind") as SpriteAnimationSchema["kind"];
+      animation.kind = runtime.game.storage.SpriteAnimation.getAt(slot, "kind") as SpriteAnimationSnapshot["kind"];
       animation.startedAtMs = runtime.game.storage.SpriteAnimation.getAt(slot, "startedAtMs");
       animation.durationMs = runtime.game.storage.SpriteAnimation.getAt(slot, "durationMs");
       drawable.animation = animation;

@@ -1,6 +1,5 @@
 import { SpriteId } from "@/src/game/content/sprite_ids.ts";
-import type { DrawableEntity, LightEntity } from "@/src/game/simulation/drawables.ts";
-import { DrawableKind } from "@/src/game/simulation/drawable_kind.ts";
+import { type DrawableEntity, DrawableKind, type LightEntity } from "@/src/game/model/render_snapshot.ts";
 import type { CardinalDirection } from "@/src/game/world/direction.ts";
 import { Direction } from "@/src/game/world/direction.ts";
 import { type CeilingTexture, createGameMap } from "@/src/game/world/map.ts";

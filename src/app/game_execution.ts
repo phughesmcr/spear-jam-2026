@@ -10,7 +10,7 @@ import { SplitMix32 } from "@/src/engine/random.ts";
 import { musicTrackForMap } from "@/src/game/content/audio/music.ts";
 import { relativeMoveDirectionOffset } from "@/src/game/model/commands.ts";
 import type { GameEffect, GameModel, GameTransitionEvent } from "@/src/game/model/transition/mod.ts";
-import type { GameSession } from "@/src/game/simulation/session.ts";
+import type { GameSession } from "@/src/game/simulation/mod.ts";
 import { directionDelta, normalizeDirection } from "@/src/game/world/direction.ts";
 
 const NO_FRAME = { needsFrame: false } as const;

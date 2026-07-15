@@ -2,14 +2,14 @@ import { enemyArchetypeForCode, enemyCatalogEntry } from "@/src/game/content/ene
 import type { GameRuntime } from "@/src/game/simulation/runtime.ts";
 import {
   type EnemyIdleSoundSource,
+  type EnemyIdleSoundSourceVisitor,
   type SoundEmitterSnapshot,
+  type SoundEmitterVisitor,
   SoundId,
   soundIdForCode,
 } from "@/src/game/model/sound.ts";
 import type { Entity, SlotIndex } from "turn-based-engine/ecs";
 
-export type SoundEmitterVisitor = (sound: SoundEmitterSnapshot) => void;
-export type EnemyIdleSoundSourceVisitor = (source: EnemyIdleSoundSource) => void;
 export type SoundReaders = {
   readonly forEachSoundEmitter: (visit: SoundEmitterVisitor) => void;
   readonly forEachEnemyIdleSoundSource: (visit: EnemyIdleSoundSourceVisitor) => void;

@@ -15,9 +15,8 @@ import {
   IDLE_AWARENESS,
   PENDING_SPRITE_ANIMATION_START_MS,
   SPRITE_DEATH_MS,
-  SpriteAnimationKind,
 } from "@/src/game/simulation/components.ts";
-import { DrawableKind } from "@/src/game/simulation/drawable_kind.ts";
+import { DrawableKind, SpriteAnimationKind } from "@/src/game/model/render_snapshot.ts";
 import {
   DEFAULT_PLAYER_EQUIPMENT,
   DEFAULT_PLAYER_HEALTH,

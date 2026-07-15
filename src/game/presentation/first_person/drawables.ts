@@ -1,7 +1,10 @@
-import { type DrawableEntity } from "@/src/game/simulation/drawables.ts";
 import type { SpriteId } from "@/src/game/content/sprite_ids.ts";
-import { SpriteAnimationKind, type SpriteAnimationSchema } from "@/src/game/simulation/components.ts";
-import { DrawableKind } from "@/src/game/simulation/drawable_kind.ts";
+import {
+  type DrawableEntity,
+  DrawableKind,
+  SpriteAnimationKind,
+  type SpriteAnimationSnapshot,
+} from "@/src/game/model/render_snapshot.ts";
 import { type CardinalDirection, normalizeDirection } from "@/src/game/world/direction.ts";
 import type { GameMap } from "@/src/game/world/map.ts";
 import {
@@ -135,11 +138,11 @@ function relativeSpriteFacing(dir: number, cameraDir: CardinalDirection): FirstP
   return RELATIVE_FACING[relative]!;
 }
 
-function animationIsActive(animation: SpriteAnimationSchema | undefined, nowMs: number): boolean {
+function animationIsActive(animation: SpriteAnimationSnapshot | undefined, nowMs: number): boolean {
   return animation !== undefined && nowMs < animation.startedAtMs + animation.durationMs;
 }
 
-function animationFrame(animation: SpriteAnimationSchema, nowMs: number, frameCount: number): number {
+function animationFrame(animation: SpriteAnimationSnapshot, nowMs: number, frameCount: number): number {
   if (animation.durationMs <= 0) return frameCount - 1;
   const elapsed = Math.max(0, nowMs - animation.startedAtMs);
   const progress = Math.min(1, elapsed / animation.durationMs);
@@ -148,7 +151,7 @@ function animationFrame(animation: SpriteAnimationSchema, nowMs: number, frameCo
 
 /** Pick the sheet row for an enemy: ECS presentation state or default idle. */
 function enemySpriteAnimation(
-  animation: SpriteAnimationSchema | undefined,
+  animation: SpriteAnimationSnapshot | undefined,
   nowMs: number,
 ): FirstPersonSpriteAnimation {
   if (animation === undefined || !animationIsActive(animation, nowMs)) return "idle";
@@ -159,7 +162,7 @@ function enemySpriteAnimation(
   return "idle";
 }
 
-function deathSpriteFrame(animation: SpriteAnimationSchema, nowMs: number): FirstPersonDeathFrame {
+function deathSpriteFrame(animation: SpriteAnimationSnapshot, nowMs: number): FirstPersonDeathFrame {
   const frame = animationFrame(animation, nowMs, 4);
   return frame === 0 || frame === 1 || frame === 2 ? frame : 3;
 }

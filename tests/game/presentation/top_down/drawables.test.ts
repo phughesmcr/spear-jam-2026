@@ -1,6 +1,5 @@
 import { SpriteId } from "@/src/game/content/sprite_ids.ts";
-import type { DrawableEntity } from "@/src/game/simulation/drawables.ts";
-import { DrawableKind } from "@/src/game/simulation/drawable_kind.ts";
+import { type DrawableEntity, DrawableKind } from "@/src/game/model/render_snapshot.ts";
 import type { FrameRenderSession } from "@/src/game/presentation/session_view.ts";
 import type { PlayerStatusSnapshot } from "@/src/game/model/state.ts";
 import { Direction } from "@/src/game/world/direction.ts";
