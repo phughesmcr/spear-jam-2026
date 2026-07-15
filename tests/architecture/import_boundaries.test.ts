@@ -39,6 +39,19 @@ const SIMULATION_PUBLIC_MODULE = resolve(SIMULATION_ROOT, "mod.ts");
 const LEGACY_SIMULATION_OUTPUT_MODULES = new Set([
   resolve(SIMULATION_ROOT, "drawable_kind.ts"),
 ]);
+const SPAWN_ROOT = resolve(SIMULATION_ROOT, "spawn");
+const SPAWN_PUBLIC_MODULE = resolve(SPAWN_ROOT, "mod.ts");
+const SPAWN_MODULES = [
+  "actors.ts",
+  "ambient.ts",
+  "effects.ts",
+  "map_entities.ts",
+  "pickups.ts",
+  "structures.ts",
+].map((name) => resolve(SPAWN_ROOT, name));
+const LEGACY_PREFAB_MODULES = new Set([
+  resolve(SIMULATION_ROOT, "prefabs.ts"),
+]);
 const PRESENTATION_ROOT = resolve(SOURCE_ROOT, "game/presentation");
 const GAME_SESSION = resolve(SOURCE_ROOT, "game/simulation/session.ts");
 const GAME_SESSION_MODULES = [
@@ -456,6 +469,45 @@ Deno.test({
       ]
     ) {
       if (source.includes(displaced)) violations.push(`game/simulation/session.ts still owns ${displaced}`);
+    }
+
+    assertEquals(violations.sort(), []);
+  },
+});
+
+Deno.test({
+  name: "simulation spawn vertical exposes one sealed public boundary",
+  permissions: { read: [SOURCE_ROOT, resolve(Deno.cwd(), "tests")] },
+  fn: async () => {
+    const violations = await sealedModuleViolations(SPAWN_ROOT, SPAWN_PUBLIC_MODULE, LEGACY_PREFAB_MODULES);
+    const sourceFilesSet = new Set(await sourceFiles(SOURCE_ROOT));
+    if (!sourceFilesSet.has(SPAWN_PUBLIC_MODULE)) violations.push("game/simulation/spawn/mod.ts is missing");
+    for (const modulePath of SPAWN_MODULES) {
+      if (!sourceFilesSet.has(modulePath)) violations.push(`${relative(SOURCE_ROOT, modulePath)} is missing`);
+    }
+
+    const integrationModules = [
+      resolve(SIMULATION_ROOT, "session/map_lifecycle.ts"),
+      resolve(SIMULATION_ROOT, "session/sprite_animations.ts"),
+    ];
+    for (const modulePath of integrationModules) {
+      const imports = importSpecifiers(await Deno.readTextFile(modulePath));
+      if (!imports.includes("@/src/game/simulation/spawn/mod.ts")) {
+        violations.push(`${relative(SOURCE_ROOT, modulePath)} does not import the spawn public module`);
+      }
+    }
+
+    const testRoot = resolve(Deno.cwd(), "tests");
+    for (const testPath of await sourceFiles(testRoot)) {
+      for (const specifier of importSpecifiers(await Deno.readTextFile(testPath))) {
+        const importedPath = importedSourcePath(testPath, specifier);
+        if (importedPath === undefined) continue;
+        if (LEGACY_PREFAB_MODULES.has(importedPath)) {
+          violations.push(`${relative(testRoot, testPath)} imports legacy ${specifier}`);
+        } else if (importedPath.startsWith(`${SPAWN_ROOT}/`) && importedPath !== SPAWN_PUBLIC_MODULE) {
+          violations.push(`${relative(testRoot, testPath)} bypasses game/simulation/spawn/mod.ts via ${specifier}`);
+        }
+      }
     }
 
     assertEquals(violations.sort(), []);

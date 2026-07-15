@@ -1,5 +1,5 @@
 import { hasComponent } from "@/src/game/simulation/components.ts";
-import { createNpc, createPlayer } from "@/src/game/simulation/prefabs.ts";
+import { createNpc, createPlayer } from "@/src/game/simulation/spawn/mod.ts";
 import { playerHasStoryFlag } from "@/src/game/simulation/progression.ts";
 import { createRuntime } from "@/src/game/simulation/runtime.ts";
 import { applyEvent } from "@/src/game/simulation/session/story_actions.ts";

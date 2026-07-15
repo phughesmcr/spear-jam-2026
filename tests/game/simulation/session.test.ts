@@ -7,7 +7,7 @@ import {
   DrawableKind,
   SpriteAnimationKind,
 } from "@/src/game/model/render_snapshot.ts";
-import { createDeathEffect } from "@/src/game/simulation/prefabs.ts";
+import { createDeathEffect } from "@/src/game/simulation/spawn/mod.ts";
 import { createRuntime } from "@/src/game/simulation/runtime.ts";
 import { createGameSession } from "@/src/game/simulation/session.ts";
 import { createAnimationController } from "@/src/game/simulation/session/sprite_animations.ts";

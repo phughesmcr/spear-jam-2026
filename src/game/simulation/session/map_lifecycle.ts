@@ -1,4 +1,4 @@
-import { createMapEntity, createPlayer, type PlayerPrefab } from "@/src/game/simulation/prefabs.ts";
+import { createMapEntity, createPlayer, type PlayerPrefab } from "@/src/game/simulation/spawn/mod.ts";
 import {
   type PlayerProgressionCheckpoint,
   restorePlayerProgressionCheckpoint,

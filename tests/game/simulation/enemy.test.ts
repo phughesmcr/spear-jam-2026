@@ -1,6 +1,6 @@
 import { EnemyArchetypeCode, enemyArchetypeKey } from "@/src/game/content/enemies.ts";
 import { readComponent, writeComponent } from "@/src/game/simulation/components.ts";
-import { createEnemy, createPlayer } from "@/src/game/simulation/prefabs.ts";
+import { createEnemy, createPlayer } from "@/src/game/simulation/spawn/mod.ts";
 import { createRuntime } from "@/src/game/simulation/runtime.ts";
 import { isPlayerDefeated, prepareEnemyHearing, runEnemyActorTurn } from "@/src/game/simulation/turn/enemy.ts";
 import { DisplayName } from "@/src/game/content/names.ts";

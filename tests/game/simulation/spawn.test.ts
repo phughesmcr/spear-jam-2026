@@ -12,7 +12,7 @@ import {
   createSound,
   createSpearTurret,
   createUplinkTerminal,
-} from "@/src/game/simulation/prefabs.ts";
+} from "@/src/game/simulation/spawn/mod.ts";
 import { createRuntime } from "@/src/game/simulation/runtime.ts";
 import { ExamineTextId } from "@/src/game/content/examine_text.ts";
 import { DisplayName } from "@/src/game/content/names.ts";
@@ -24,7 +24,7 @@ import { flatTestMap } from "@/tests/game/simulation/helpers.ts";
 import { assertEquals, assertThrows } from "@std/assert";
 import { TerrainBlock } from "turn-based-engine/crawler";
 
-Deno.test("prefabs attach custom components and exact crawler masks", () => {
+Deno.test("spawn functions attach custom components and exact crawler masks", () => {
   const runtime = createRuntime(flatTestMap(8, 3));
   const player = createPlayer(runtime, { x: 1, y: 1, dir: Direction.East }, 42);
   const enemy = createEnemy(runtime, {
@@ -60,7 +60,7 @@ Deno.test("locked door requires a key color", () => {
   assertThrows(() => createDoor(runtime, { x: 1, y: 0, locked: true }), Error, "missing a key color");
 });
 
-Deno.test("prefabs retain optional metadata, sound, and nonblocking decoration contracts", () => {
+Deno.test("spawn functions retain optional metadata, sound, and nonblocking decoration contracts", () => {
   const runtime = createRuntime(flatTestMap(7, 3));
   const npc = createNpc(runtime, {
     x: 1,
@@ -84,7 +84,7 @@ Deno.test("prefabs retain optional metadata, sound, and nonblocking decoration c
   assertEquals(runtime.crawler.entityBlockMask(decoration), 0);
 });
 
-Deno.test("final chamber set-piece prefabs use their initial sprites and collision contracts", () => {
+Deno.test("final chamber set-piece spawns use their initial sprites and collision contracts", () => {
   const runtime = createRuntime(flatTestMap(4, 3));
   const mainframe = createDecoration(runtime, { x: 1, y: 1, decoration: "mainframeCore" });
   const turret = createSpearTurret(runtime, { x: 2, y: 1 });

@@ -2,7 +2,7 @@ import { EnemyArchetypeCode, enemyArchetypeKey } from "@/src/game/content/enemie
 import { AttackPattern, AttackTargetMode } from "@/src/game/simulation/components.ts";
 import type { AttackSchema } from "@/src/game/simulation/components.ts";
 import { attackEntity, attackTargets, resolveAttack } from "@/src/game/simulation/combat.ts";
-import { createDoor, createEnemy, createPlayer } from "@/src/game/simulation/prefabs.ts";
+import { createDoor, createEnemy, createPlayer } from "@/src/game/simulation/spawn/mod.ts";
 import { createRuntime } from "@/src/game/simulation/runtime.ts";
 import { DisplayName } from "@/src/game/content/names.ts";
 import { Direction } from "@/src/game/world/direction.ts";

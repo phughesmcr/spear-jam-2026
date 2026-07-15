@@ -8,7 +8,7 @@ import {
   writeComponent,
 } from "@/src/game/simulation/components.ts";
 import { DrawableKind, SpriteAnimationKind } from "@/src/game/model/render_snapshot.ts";
-import { createCorpse, createDeathEffect } from "@/src/game/simulation/prefabs.ts";
+import { createCorpse, createDeathEffect } from "@/src/game/simulation/spawn/mod.ts";
 import type { GameRuntime } from "@/src/game/simulation/runtime.ts";
 import type { GameEvent } from "@/src/game/model/events.ts";
 import { type Entity, QuerySnapshot, type SlotIndex } from "turn-based-engine/ecs";

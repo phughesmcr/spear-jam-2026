@@ -1,6 +1,6 @@
 import { EnemyArchetypeCode, enemyArchetypeKey } from "@/src/game/content/enemies.ts";
 import { IDLE_AWARENESS } from "@/src/game/simulation/components.ts";
-import { createEnemy, createNpc, createPlayer } from "@/src/game/simulation/prefabs.ts";
+import { createEnemy, createNpc, createPlayer } from "@/src/game/simulation/spawn/mod.ts";
 import { applyItemPickupToPlayer } from "@/src/game/simulation/progression.ts";
 import { createRuntime } from "@/src/game/simulation/runtime.ts";
 import { runTurnTransaction } from "@/src/game/simulation/turn/transaction.ts";

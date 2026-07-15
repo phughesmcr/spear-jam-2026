@@ -1,5 +1,5 @@
 import { writeComponent } from "@/src/game/simulation/components.ts";
-import { createPlayer } from "@/src/game/simulation/prefabs.ts";
+import { createPlayer } from "@/src/game/simulation/spawn/mod.ts";
 import {
   addPlayerStoryFlag,
   applyCheatPlayerLoadout,

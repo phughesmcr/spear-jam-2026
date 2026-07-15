@@ -2,7 +2,7 @@ import { createCodeRegistry } from "@/src/game/content/code_registry.ts";
 
 /**
  * Runtime item kind codes stored on the ECS `Item` component.
- * Map content pickup strings (`healthPatch`, …) map onto a subset of these codes in prefabs.
+ * Map content pickup strings (`healthPatch`, …) map onto a subset of these codes during spawning.
  */
 export const ItemKind = {
   HealthPatch: 1,
