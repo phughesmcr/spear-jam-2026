@@ -12,7 +12,7 @@ import {
   type GameTransitionEvent,
   transition,
 } from "@/src/game/model/transition/mod.ts";
-import { START_MAP_NAME } from "@/src/game/world/campaign.ts";
+import { CAMPAIGN } from "@/src/game/world/campaign.ts";
 import { canvasSizeController } from "@/src/platform/web/canvas.ts";
 
 const NO_FRAME = { needsFrame: false } as const;
@@ -51,7 +51,7 @@ class Game implements GameController {
     this.spec = spec;
     this.controller = controller;
     const fullBoot = spec.startMapName === undefined;
-    this.model = createGameModel(spec.startMapName ?? START_MAP_NAME, {
+    this.model = createGameModel(spec.startMapName ?? CAMPAIGN.startMap.name, {
       showTitle: fullBoot,
       showIntro: fullBoot,
     });

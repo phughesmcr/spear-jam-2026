@@ -5,7 +5,7 @@ import { musicTrackForMap } from "@/src/game/content/audio/music.ts";
 import { relativeMoveDirectionOffset } from "@/src/game/model/commands.ts";
 import type { GameEffect, GameModel, GameTransitionEvent } from "@/src/game/model/transition/mod.ts";
 import { createGameSession, type GameSession } from "@/src/game/simulation/mod.ts";
-import { getMap } from "@/src/game/world/campaign.ts";
+import { CAMPAIGN } from "@/src/game/world/campaign.ts";
 import { directionDelta, normalizeDirection } from "@/src/game/world/direction.ts";
 
 const NO_FRAME = { needsFrame: false } as const;
@@ -132,7 +132,7 @@ class Execution implements GameExecution {
     mapName: string,
     generation: number,
   ): Promise<void> {
-    const map = getMap(mapName);
+    const map = CAMPAIGN.map(mapName);
     await this.spec.presentation.preloadAssets(mapName);
     if (!this.isCurrentSessionGeneration(generation)) return;
 

@@ -7,7 +7,7 @@ import { ITEM_KIND_BY_CONTENT_KEY, ItemKind } from "@/src/game/content/items.ts"
 import { SpriteId, type SpriteId as SpriteIdType } from "@/src/game/content/sprite_ids.ts";
 import { spriteIdForDecoration, spriteIdForDisplayName, spriteIdForItem } from "@/src/game/content/sprites.ts";
 import type { EntityDef } from "@/src/game/content/map_entities.ts";
-import { getMap } from "@/src/game/world/campaign.ts";
+import { CAMPAIGN } from "@/src/game/world/campaign.ts";
 import { type GameMap, keyColorCode } from "@/src/game/world/map.ts";
 import type { FirstPersonRenderer } from "@/src/game/presentation/first_person/renderer.ts";
 import { preloadCombatFeedbackAssets } from "@/src/game/presentation/ui/combat_feedback.ts";
@@ -97,7 +97,7 @@ export async function preloadGameAssets(
   firstPersonRenderer: FirstPersonRenderer,
   options: PreloadGameAssetsOptions,
 ): Promise<void> {
-  const map = getMap(options.mapName);
+  const map = CAMPAIGN.map(options.mapName);
   const spriteIds = criticalSpriteIdsForMap(map);
   const jobs: Array<(onAssetLoad?: () => void) => Promise<void>> = [
     (onAssetLoad) => firstPersonRenderer.preloadMapAssets(document, map, spriteIds, onAssetLoad),
@@ -171,7 +171,7 @@ export function warmDeferredAssets(
 ): void {
   scheduleIdle(
     async () => {
-      const map = getMap(mapName);
+      const map = CAMPAIGN.map(mapName);
       const jobs = [
         firstPersonRenderer.warmRemainingAssets(document, onAssetLoad),
         preloadIntermissionAssets(document, onAssetLoad),

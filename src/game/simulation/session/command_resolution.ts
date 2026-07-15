@@ -26,8 +26,7 @@ import { applyEvent, queueTalkEvent } from "@/src/game/simulation/session/story_
 import { soundCuesForEvents } from "@/src/game/simulation/sound_cues.ts";
 import type { TurnContext } from "@/src/game/simulation/turn/actions.ts";
 import { runTurnTransaction, type TurnTransactionResult } from "@/src/game/simulation/turn/transaction.ts";
-import { terminalDestinationForCode } from "@/src/game/world/campaign.ts";
-import { VICTORY_GOTO } from "@/src/game/world/destinations.ts";
+import { CAMPAIGN } from "@/src/game/world/campaign.ts";
 import type { GridPoint } from "@/src/game/world/direction.ts";
 import type { Entity } from "turn-based-engine/ecs";
 
@@ -146,8 +145,10 @@ function commitUplinkTerminalActivation(
 ): PlayerCommandResult {
   const destinationCode = readComponent(state.map.runtime.game, terminal, "TerminalDestination")?.destination;
   if (destinationCode === undefined) throw new Error(`Uplink terminal ${terminal} is missing a map destination.`);
-  const goto = terminalDestinationForCode(destinationCode);
-  return goto === VICTORY_GOTO ? commitVictory(state, events) : commitMapChange(state, goto, events);
+  const destination = CAMPAIGN.destinationForCode(destinationCode);
+  return destination.kind === "victory" ?
+    commitVictory(state, events) :
+    commitMapChange(state, destination.map.name, events);
 }
 
 function commitVictory(state: CommandResolutionState, events: readonly GameEvent[]): PlayerCommandResult {

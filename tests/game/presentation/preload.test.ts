@@ -1,5 +1,5 @@
 import { SpriteId } from "@/src/game/content/sprite_ids.ts";
-import { GAME_MAPS, getMap, START_MAP_NAME } from "@/src/game/world/campaign.ts";
+import { CAMPAIGN } from "@/src/game/world/campaign.ts";
 import type { FirstPersonRenderer } from "@/src/game/presentation/first_person/renderer.ts";
 import {
   criticalSpriteIdsForMap,
@@ -38,7 +38,7 @@ Deno.test("asset warm lifecycle separates shell, map-critical, and deferred pres
     warmMapAssets(
       document as unknown as Document,
       renderer,
-      START_MAP_NAME,
+      CAMPAIGN.startMap.name,
       (error) => errors.push(error),
     );
     await flushWarmWork();
@@ -54,7 +54,7 @@ Deno.test("asset warm lifecycle separates shell, map-critical, and deferred pres
     warmDeferredAssets(
       document as unknown as Document,
       renderer,
-      START_MAP_NAME,
+      CAMPAIGN.startMap.name,
       (error) => errors.push(error),
     );
     await flushWarmWork();
@@ -102,12 +102,12 @@ Deno.test("spriteIdsForEntity maps authored prefabs to sprite ids", () => {
 });
 
 Deno.test("criticalSpriteIdsForMap always includes corpse", () => {
-  const ids = criticalSpriteIdsForMap(getMap(START_MAP_NAME));
+  const ids = criticalSpriteIdsForMap(CAMPAIGN.map(CAMPAIGN.startMap.name));
   assertEquals(ids.has(SpriteId.Corpse), true);
 });
 
 Deno.test("criticalSpriteIdsForMap covers every campaign map entity sprite", () => {
-  for (const map of GAME_MAPS) {
+  for (const map of CAMPAIGN.maps) {
     const ids = criticalSpriteIdsForMap(map);
     for (const entity of map.entities) {
       for (const spriteId of spriteIdsForEntity(entity)) {
@@ -122,13 +122,13 @@ Deno.test("criticalSpriteIdsForMap covers every campaign map entity sprite", () 
 });
 
 Deno.test("mapNeedsDialogueAssets matches NPC presence", () => {
-  assertEquals(mapNeedsDialogueAssets(getMap("Boot Sector")), true);
-  assertEquals(mapNeedsDialogueAssets(getMap("Data Conduit")), false);
+  assertEquals(mapNeedsDialogueAssets(CAMPAIGN.map("Boot Sector")), true);
+  assertEquals(mapNeedsDialogueAssets(CAMPAIGN.map("Data Conduit")), false);
 });
 
 Deno.test("mapNeedsSpearRevealAsset matches spear pickup presence", () => {
-  assertEquals(mapNeedsSpearRevealAsset(getMap("The Nexus")), true);
-  assertEquals(mapNeedsSpearRevealAsset(getMap("Data Conduit")), false);
+  assertEquals(mapNeedsSpearRevealAsset(CAMPAIGN.map("The Nexus")), true);
+  assertEquals(mapNeedsSpearRevealAsset(CAMPAIGN.map("Data Conduit")), false);
 });
 
 async function withImmediateIdleCallback(run: () => Promise<void>): Promise<void> {

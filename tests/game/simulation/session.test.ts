@@ -17,9 +17,8 @@ import { type EnemyIdleSoundSource, type SoundEmitterSnapshot, SoundId } from "@
 import { storyEventCode, StoryEventId, StoryFlag, storyTargetCode, StoryTargetId } from "@/src/game/content/story.ts";
 import { Direction } from "@/src/game/world/direction.ts";
 import { type EntityDef, KeyColor } from "@/src/game/content/map_entities.ts";
-import { VICTORY_GOTO } from "@/src/game/world/destinations.ts";
 import { createGameMap, type GameMap } from "@/src/game/world/map.ts";
-import { terminalDestinationCode } from "@/src/game/world/campaign.ts";
+import { CAMPAIGN } from "@/src/game/world/campaign.ts";
 import { DEFAULT_BARS_TERRAIN_ID, DEFAULT_WALL_TERRAIN_ID } from "@/src/game/world/terrain_palette.ts";
 import { flatTestMap } from "@/tests/game/simulation/helpers.ts";
 import { assert, assertEquals, assertRejects, assertStrictEquals } from "@std/assert";
@@ -570,7 +569,7 @@ Deno.test("activating a victory uplink terminal reports the victory outcome", as
   const session = await createGameSession(
     testMap([
       { prefab: "uplinkCode", x: 2, y: 1 },
-      { prefab: "uplinkTerminal", x: 3, y: 1, goto: VICTORY_GOTO },
+      { prefab: "uplinkTerminal", x: 3, y: 1, goto: "victory" },
     ]),
     () => 0,
     { now: () => nowMs },
@@ -732,7 +731,7 @@ Deno.test("normal map loads clear old metadata components and write new map meta
     session.loadMap(testMap([{ prefab: "uplinkTerminal", x: 2, y: 1, goto: "Data Conduit" }]));
 
     assertEquals(session.getMapScopedMetadata(), [{
-      terminalDestination: terminalDestinationCode("Data Conduit"),
+      terminalDestination: CAMPAIGN.codeForDestination("Data Conduit"),
     }]);
   } finally {
     session[Symbol.dispose]();

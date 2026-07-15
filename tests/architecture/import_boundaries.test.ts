@@ -64,6 +64,20 @@ const GAME_SESSION_MODULES = [
 const LEGACY_GAME_SESSION_LIFECYCLE = resolve(SIMULATION_ROOT, "session/lifecycle.ts");
 const GAME_EXECUTION = resolve(SOURCE_ROOT, "app/game_execution.ts");
 const APPLICATION_START = resolve(SOURCE_ROOT, "app/start.ts");
+const CAMPAIGN_MODULE = resolve(SOURCE_ROOT, "game/world/campaign.ts");
+const CAMPAIGN_MAP_ROOT = resolve(SOURCE_ROOT, "game/content/maps");
+const LEGACY_CAMPAIGN_MODULES = new Set([
+  resolve(SOURCE_ROOT, "game/content/map_schema.ts"),
+  resolve(SOURCE_ROOT, "game/content/maps/mod.ts"),
+  resolve(SOURCE_ROOT, "game/world/destinations.ts"),
+  resolve(SOURCE_ROOT, "game/world/validation.ts"),
+]);
+const CAMPAIGN_INDEPENDENT_WORLD_MODULES = [
+  "grid.ts",
+  "map.ts",
+  "terrain_flags.ts",
+  "terrain_palette.ts",
+].map((name) => resolve(SOURCE_ROOT, `game/world/${name}`));
 const PRESENTATION_RUNTIME_IMPORTS = new Set([
   "@/src/game/model/presentation_state.ts",
   "@/src/game/model/render_settings.ts",
@@ -220,6 +234,57 @@ Deno.test({
         const dependency = importedLayer(sourcePath, specifier);
         if (dependency === undefined || ALLOWED_DEPENDENCIES[importer].has(dependency)) continue;
         violations.push(`${relative(SOURCE_ROOT, sourcePath)} imports ${specifier}`);
+      }
+    }
+
+    assertEquals(violations.sort(), []);
+  },
+});
+
+Deno.test({
+  name: "campaign compilation exposes one boundary and owns shipped content",
+  permissions: { read: [SOURCE_ROOT] },
+  fn: async () => {
+    const files = new Set(await sourceFiles(SOURCE_ROOT));
+    const violations: string[] = [];
+
+    if (!files.has(CAMPAIGN_MODULE)) {
+      violations.push("game/world/campaign.ts is missing");
+    } else {
+      const source = await Deno.readTextFile(CAMPAIGN_MODULE);
+      const exportedNames = [...source.matchAll(
+        /^export\s+(?:type|interface|class|function|const)\s+([A-Za-z_$][\w$]*)/gm,
+      )].map((match) => match[1]!).sort();
+      const expectedExports = ["CAMPAIGN", "Campaign", "CampaignDestination", "compileCampaign"].sort();
+      if (exportedNames.join(",") !== expectedExports.join(",")) {
+        violations.push(`game/world/campaign.ts exports ${exportedNames.join(", ")}`);
+      }
+    }
+    for (const legacyPath of LEGACY_CAMPAIGN_MODULES) {
+      if (files.has(legacyPath)) violations.push(`${relative(SOURCE_ROOT, legacyPath)} still exists`);
+    }
+
+    for (const sourcePath of files) {
+      for (const specifier of importSpecifiers(await Deno.readTextFile(sourcePath))) {
+        const importedPath = importedSourcePath(sourcePath, specifier);
+        if (importedPath === undefined) continue;
+        if (LEGACY_CAMPAIGN_MODULES.has(importedPath)) {
+          violations.push(`${relative(SOURCE_ROOT, sourcePath)} imports legacy ${specifier}`);
+        }
+        if (
+          importedPath.startsWith(`${CAMPAIGN_MAP_ROOT}/`) &&
+          importedPath.endsWith(".json") &&
+          sourcePath !== CAMPAIGN_MODULE
+        ) {
+          violations.push(`${relative(SOURCE_ROOT, sourcePath)} imports shipped map ${specifier}`);
+        }
+      }
+    }
+
+    for (const modulePath of CAMPAIGN_INDEPENDENT_WORLD_MODULES) {
+      const imports = importSpecifiers(await Deno.readTextFile(modulePath));
+      if (imports.includes("@/src/game/world/campaign.ts")) {
+        violations.push(`${relative(SOURCE_ROOT, modulePath)} imports the campaign boundary`);
       }
     }
 

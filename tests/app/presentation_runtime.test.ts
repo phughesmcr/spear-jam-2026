@@ -3,7 +3,7 @@ import type { FrameRenderSession } from "@/src/game/presentation/session_view.ts
 import type { PlayerStatusSnapshot } from "@/src/game/model/state.ts";
 import { createGameModel, type GameModel } from "@/src/game/model/transition/mod.ts";
 import { Direction } from "@/src/game/world/direction.ts";
-import { START_MAP_NAME } from "@/src/game/world/campaign.ts";
+import { CAMPAIGN } from "@/src/game/world/campaign.ts";
 import { createGameMap } from "@/src/game/world/map.ts";
 import type { FirstPersonRenderer } from "@/src/game/presentation/first_person/renderer.ts";
 import { assertEquals } from "@std/assert";
@@ -256,7 +256,7 @@ Deno.test("presentation runtime forwards a rejected background asset warm to onE
       firstPersonRenderer: fakeFirstPersonRenderer({ needsFrame: false }, failure),
     });
 
-    runtime.warmDeferredAssets(START_MAP_NAME);
+    runtime.warmDeferredAssets(CAMPAIGN.startMap.name);
     await new Promise((resolve) => setTimeout(resolve, 0));
 
     assertEquals(errors.length, 1);

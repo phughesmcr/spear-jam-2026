@@ -4,7 +4,7 @@ import { SpriteId } from "@/src/game/content/sprite_ids.ts";
 import { DrawableKind } from "@/src/game/model/render_snapshot.ts";
 import { DrawableLayer } from "@/src/game/simulation/components.ts";
 import type { GameRuntime } from "@/src/game/simulation/runtime.ts";
-import { terminalDestinationCode } from "@/src/game/world/campaign.ts";
+import { CAMPAIGN } from "@/src/game/world/campaign.ts";
 import { doorSlideCode, keyColorCode } from "@/src/game/world/map.ts";
 import { TerrainBlock } from "turn-based-engine/crawler";
 import type { Entity } from "turn-based-engine/ecs";
@@ -46,7 +46,7 @@ export function createUplinkTerminal(runtime: GameRuntime, prefab: Omit<UplinkTe
       Sprite: { id: SpriteId.UplinkTerminal },
       UplinkTerminal: { requiresSpear: prefab.requiresSpear === true ? 1 : 0 },
       Interactable: {},
-      TerminalDestination: { destination: terminalDestinationCode(prefab.goto) },
+      TerminalDestination: { destination: CAMPAIGN.codeForDestination(prefab.goto) },
       ...(prefab.examineTextId === undefined ? {} : {
         ExamineTextRef: { examineTextId: examineTextCode(prefab.examineTextId) },
       }),

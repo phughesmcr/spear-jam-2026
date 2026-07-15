@@ -1,5 +1,5 @@
 import type { LightEntity } from "@/src/game/model/render_snapshot.ts";
-import { GAME_MAPS } from "@/src/game/world/campaign.ts";
+import { CAMPAIGN } from "@/src/game/world/campaign.ts";
 import { createGameMap, TexturePack } from "@/src/game/world/map.ts";
 import {
   DEFAULT_BARS_TERRAIN_ID,
@@ -139,7 +139,7 @@ Deno.test("scene builds static geometry for every campaign map", () => {
   const assets = createFirstPersonAssets();
   const state = createSceneState();
 
-  for (const map of GAME_MAPS) {
+  for (const map of CAMPAIGN.maps) {
     const scene = sceneForMap(state, assets.materials, map);
     assert(scene.floors.some((texture) => texture > 0), `${map.name} should have floor textures.`);
     assert(scene.ceilings.some((texture) => texture > 0), `${map.name} should have ceiling textures.`);
