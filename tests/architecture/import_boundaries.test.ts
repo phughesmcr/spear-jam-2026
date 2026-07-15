@@ -25,6 +25,7 @@ const PRESENTATION_RENDER_PASSES = [
   "@/src/game/presentation/shell_pass.ts",
 ];
 const LEGACY_APPLICATION_RUNTIME = resolve(SOURCE_ROOT, "app/runtime.ts");
+const LEGACY_SESSION_LIFECYCLE = resolve(SOURCE_ROOT, "app/session_lifecycle.ts");
 const PRESENTATION_RUNTIME = resolve(SOURCE_ROOT, "app/presentation_runtime.ts");
 const AUDIO_RUNTIME = resolve(SOURCE_ROOT, "app/audio_runtime.ts");
 const GAME_AUDIO_ROOT = resolve(SOURCE_ROOT, "game/audio");
@@ -233,6 +234,7 @@ Deno.test({
     const files = new Set(await sourceFiles(SOURCE_ROOT));
     const violations: string[] = [];
     if (files.has(LEGACY_APPLICATION_RUNTIME)) violations.push("app/runtime.ts still exists");
+    if (files.has(LEGACY_SESSION_LIFECYCLE)) violations.push("app/session_lifecycle.ts still exists");
     if (!files.has(PRESENTATION_RUNTIME)) violations.push("app/presentation_runtime.ts is missing");
     if (!files.has(AUDIO_RUNTIME)) violations.push("app/audio_runtime.ts is missing");
     if (!files.has(GAME_EXECUTION)) violations.push("app/game_execution.ts is missing");
@@ -309,8 +311,8 @@ Deno.test({
     if (files.has(GAME_EXECUTION)) {
       const executionSource = await Deno.readTextFile(GAME_EXECUTION);
       const executionImports = importSpecifiers(executionSource);
-      if (!executionImports.includes("@/src/app/session_lifecycle.ts")) {
-        violations.push("app/game_execution.ts does not own session lifecycle dispatch");
+      if (executionImports.includes("@/src/app/session_lifecycle.ts")) {
+        violations.push("app/game_execution.ts imports displaced session lifecycle");
       }
       if (!/\bswitch\s*\(\s*effect\.type\s*\)/.test(executionSource)) {
         violations.push("app/game_execution.ts does not interpret game effects");
@@ -324,6 +326,17 @@ Deno.test({
       ) {
         if (executionImports.includes(forbidden)) {
           violations.push(`app/game_execution.ts imports ${forbidden}`);
+        }
+      }
+    }
+
+    const applicationRoot = resolve(SOURCE_ROOT, "app");
+    for (const sourcePath of files) {
+      if (!sourcePath.startsWith(`${applicationRoot}/`) || sourcePath === GAME_EXECUTION) continue;
+      const source = await Deno.readTextFile(sourcePath);
+      for (const primitive of ["createGameSession", ".loadMap(", ".retryMap("]) {
+        if (source.includes(primitive)) {
+          violations.push(`${relative(SOURCE_ROOT, sourcePath)} owns session lifecycle primitive ${primitive}`);
         }
       }
     }

@@ -1,13 +1,13 @@
 import { createGameExecution, type GameExecutionSpec } from "@/src/app/game_execution.ts";
 import type { AudioRuntime } from "@/src/app/audio_runtime.ts";
 import type { PresentationRuntime } from "@/src/app/presentation_runtime.ts";
-import { TrackId } from "@/src/game/content/audio/music.ts";
+import { musicTrackForMap, TrackId } from "@/src/game/content/audio/music.ts";
 import { VoiceId } from "@/src/game/content/dialogue/voices.ts";
 import type { AudioSettings } from "@/src/game/model/audio_settings.ts";
 import type { SoundCue } from "@/src/game/model/sound.ts";
 import { createGameModel, type GameModel, type GameTransitionEvent } from "@/src/game/model/transition/mod.ts";
 import { DEFAULT_GAME_CANVAS_SIZE, type GameCanvasSize } from "@/src/game/presentation/canvas_size.ts";
-import { START_MAP_NAME } from "@/src/game/world/campaign.ts";
+import { GAME_MAPS, START_MAP_NAME } from "@/src/game/world/campaign.ts";
 import { assert, assertEquals } from "@std/assert";
 
 Deno.test("game execution routes synchronous effects to their concrete owners", () => {
@@ -70,6 +70,23 @@ Deno.test("game execution commits a loaded session before finalizing its output 
   execution[Symbol.dispose]();
 });
 
+Deno.test("game execution reuses the existing session when loading another map", async () => {
+  const execution = createGameExecution(executionSpec());
+  execution.execute([{ type: "loadMap", mapName: START_MAP_NAME }]);
+  await nextTask();
+  const session = execution.getSession();
+  assert(session !== undefined);
+  const destination = GAME_MAPS.find((map) => map.name !== START_MAP_NAME);
+  assert(destination !== undefined);
+
+  execution.execute([{ type: "loadMap", mapName: destination.name }]);
+  await nextTask();
+
+  assert(execution.getSession() === session);
+  assertEquals(session.getMap().name, destination.name);
+  execution[Symbol.dispose]();
+});
+
 Deno.test("game execution does not commit or finalize an aborted map load", async () => {
   const controller = new AbortController();
   controller.abort();
@@ -81,6 +98,41 @@ Deno.test("game execution does not commit or finalize an aborted map load", asyn
 
   assertEquals(execution.getSession(), undefined);
   assertEquals(log, [`preload:${START_MAP_NAME}`]);
+  execution[Symbol.dispose]();
+});
+
+Deno.test("game execution does not mutate an existing session when preload is aborted", async () => {
+  const controller = new AbortController();
+  const presentation = new ControllablePreloadPresentation([]);
+  const execution = createGameExecution(executionSpec({ controller, presentation }));
+  execution.execute([{ type: "loadMap", mapName: START_MAP_NAME }]);
+  presentation.resolveNext(START_MAP_NAME);
+  await nextTask();
+  const session = execution.getSession();
+  assert(session !== undefined);
+  const destination = GAME_MAPS.find((map) => map.name !== START_MAP_NAME);
+  assert(destination !== undefined);
+
+  execution.execute([{ type: "loadMap", mapName: destination.name }]);
+  controller.abort();
+  presentation.resolveNext(destination.name);
+  await nextTask();
+
+  assert(execution.getSession() === session);
+  assertEquals(session.getMap().name, START_MAP_NAME);
+  execution[Symbol.dispose]();
+});
+
+Deno.test("game execution reports an active retry without a session", async () => {
+  const errors: unknown[] = [];
+  const execution = createGameExecution(executionSpec({ onError: (error) => errors.push(error) }));
+
+  execution.execute([{ type: "retryMap", mapName: START_MAP_NAME }]);
+  await nextTask();
+
+  assertEquals(errors.length, 1);
+  assert(errors[0] instanceof Error);
+  assertEquals(errors[0].message, "Cannot retry before the game session exists.");
   execution[Symbol.dispose]();
 });
 
@@ -98,6 +150,10 @@ Deno.test("game execution retries the current session through the same finalizat
   execution.execute([{ type: "loadMap", mapName: START_MAP_NAME }]);
   await transitioned;
   const session = execution.getSession();
+  assert(session !== undefined);
+  const checkpointPosition = session.getPlayerPosition();
+  execution.execute([{ type: "runPlayerCommand", command: { type: "move", direction: "backward" } }]);
+  assertEquals(session.getPlayerPosition(), { x: checkpointPosition.x, y: checkpointPosition.y - 1 });
   log.length = 0;
 
   transitioned = new Promise<void>((resolve) => resolveTransition = resolve);
@@ -105,6 +161,7 @@ Deno.test("game execution retries the current session through the same finalizat
   await transitioned;
 
   assert(execution.getSession() === session);
+  assertEquals(session.getPlayerPosition(), checkpointPosition);
   assertEquals(log, [
     `preload:${START_MAP_NAME}`,
     "reset",
@@ -114,6 +171,78 @@ Deno.test("game execution retries the current session through the same finalizat
     "apply:mapLoaded",
     `warm:${START_MAP_NAME}`,
   ]);
+  execution[Symbol.dispose]();
+});
+
+Deno.test("game execution lets the latest overlapping existing-session load win", async () => {
+  const log: string[] = [];
+  const presentation = new ControllablePreloadPresentation(log);
+  const execution = createGameExecution(executionSpec({ log, presentation }));
+
+  execution.execute([{ type: "loadMap", mapName: START_MAP_NAME }]);
+  presentation.resolveNext(START_MAP_NAME);
+  await nextTask();
+  assert(execution.getSession() !== undefined);
+  log.length = 0;
+
+  const destinations = GAME_MAPS.filter((map) => map.name !== START_MAP_NAME).slice(0, 2);
+  assertEquals(destinations.length, 2);
+  const [staleMap, winningMap] = destinations;
+  execution.execute([{ type: "loadMap", mapName: staleMap!.name }]);
+  execution.execute([{ type: "loadMap", mapName: winningMap!.name }]);
+  presentation.resolveNext(winningMap!.name);
+  await nextTask();
+  const winningFinalization = [
+    "reset",
+    "listener",
+    "world",
+    `music:${musicTrackForMap(winningMap!.name)}`,
+    "apply:mapLoaded",
+    `warm:${winningMap!.name}`,
+  ];
+  assertEquals(log, winningFinalization);
+  presentation.resolveNext(staleMap!.name);
+  await nextTask();
+
+  assertEquals(execution.getSession()?.getMap().name, winningMap!.name);
+  assertEquals(log, winningFinalization);
+  execution[Symbol.dispose]();
+});
+
+Deno.test("game execution suppresses a stale preload rejection", async () => {
+  const errors: unknown[] = [];
+  const presentation = new ControllablePreloadPresentation([]);
+  const execution = createGameExecution(executionSpec({ presentation, onError: (error) => errors.push(error) }));
+  execution.execute([{ type: "loadMap", mapName: START_MAP_NAME }]);
+  presentation.resolveNext(START_MAP_NAME);
+  await nextTask();
+  const destinations = GAME_MAPS.filter((map) => map.name !== START_MAP_NAME).slice(0, 2);
+  assertEquals(destinations.length, 2);
+  const [staleMap, winningMap] = destinations;
+
+  execution.execute([{ type: "loadMap", mapName: staleMap!.name }]);
+  execution.execute([{ type: "loadMap", mapName: winningMap!.name }]);
+  presentation.resolveNext(winningMap!.name);
+  presentation.rejectNext(staleMap!.name, new Error("stale preload failed"));
+  await nextTask();
+
+  assertEquals(errors, []);
+  assertEquals(execution.getSession()?.getMap().name, winningMap!.name);
+  execution[Symbol.dispose]();
+});
+
+Deno.test("game execution reports an active preload rejection", async () => {
+  const errors: unknown[] = [];
+  const presentation = new ControllablePreloadPresentation([]);
+  const execution = createGameExecution(executionSpec({ presentation, onError: (error) => errors.push(error) }));
+  const failure = new Error("active preload failed");
+
+  execution.execute([{ type: "loadMap", mapName: START_MAP_NAME }]);
+  presentation.rejectNext(START_MAP_NAME, failure);
+  await nextTask();
+
+  assertEquals(errors, [failure]);
+  assertEquals(execution.getSession(), undefined);
   execution[Symbol.dispose]();
 });
 
@@ -216,6 +345,46 @@ Deno.test("game execution disposes an ended session exactly once", async () => {
   assertEquals(disposeCount, 1);
 });
 
+Deno.test("game execution invalidates pending work on endRun and permits a later load", async () => {
+  const log: string[] = [];
+  const presentation = new ControllablePreloadPresentation(log);
+  const execution = createGameExecution(executionSpec({ log, presentation }));
+  execution.execute([{ type: "loadMap", mapName: START_MAP_NAME }]);
+  presentation.resolveNext(START_MAP_NAME);
+  await nextTask();
+  assert(execution.getSession() !== undefined);
+  log.length = 0;
+  const destination = GAME_MAPS.find((map) => map.name !== START_MAP_NAME);
+  assert(destination !== undefined);
+
+  execution.execute([{ type: "loadMap", mapName: destination.name }]);
+  execution.execute([{ type: "endRun" }]);
+  presentation.resolveNext(destination.name);
+  await nextTask();
+  assertEquals(execution.getSession(), undefined);
+  assertEquals(log, []);
+
+  execution.execute([{ type: "loadMap", mapName: destination.name }]);
+  presentation.resolveNext(destination.name);
+  await nextTask();
+  assertEquals(execution.getSession()?.getMap().name, destination.name);
+  execution[Symbol.dispose]();
+});
+
+Deno.test("game execution disposal prevents a pending load from resurrecting a session", async () => {
+  const log: string[] = [];
+  const presentation = new ControllablePreloadPresentation(log);
+  const execution = createGameExecution(executionSpec({ log, presentation }));
+
+  execution.execute([{ type: "loadMap", mapName: START_MAP_NAME }]);
+  execution[Symbol.dispose]();
+  presentation.resolveNext(START_MAP_NAME);
+  await nextTask();
+
+  assertEquals(execution.getSession(), undefined);
+  assertEquals(log, []);
+});
+
 Deno.test("game execution replaces, suppresses, and disposes victory timers", () => {
   const controller = new AbortController();
   const host = new FakeWindow();
@@ -248,6 +417,8 @@ function executionSpec(options: {
   readonly controller?: AbortController;
   readonly host?: FakeWindow;
   readonly apply?: (event: GameTransitionEvent) => void;
+  readonly presentation?: PresentationRuntime;
+  readonly onError?: (error: unknown) => void;
 } = {}): GameExecutionSpec {
   const log = options.log ?? [];
   const controller = options.controller ?? new AbortController();
@@ -255,14 +426,14 @@ function executionSpec(options: {
     host: (options.host ?? new FakeWindow()) as unknown as Window,
     signal: controller.signal,
     seed: 1,
-    presentation: new FakePresentationRuntime(log),
+    presentation: options.presentation ?? new FakePresentationRuntime(log),
     audio: new FakeAudioRuntime(log),
     getModel: () => options.model ?? createGameModel(START_MAP_NAME),
     apply: options.apply ?? ((event) => log.push(`apply:${event.type}`)),
     ensureInput: () => log.push("input"),
-    onError: (error) => {
+    onError: options.onError ?? ((error) => {
       throw error;
-    },
+    }),
   };
 }
 
@@ -301,6 +472,30 @@ class FakePresentationRuntime implements PresentationRuntime {
     this.log.push("bump");
   }
   [Symbol.dispose](): void {}
+}
+
+class ControllablePreloadPresentation extends FakePresentationRuntime {
+  private readonly pending: {
+    readonly mapName: string;
+    readonly resolve: () => void;
+    readonly reject: (error: unknown) => void;
+  }[] = [];
+
+  override preloadAssets(mapName: string): Promise<void> {
+    return new Promise((resolve, reject) => this.pending.push({ mapName, resolve, reject }));
+  }
+
+  resolveNext(mapName: string): void {
+    const index = this.pending.findIndex((entry) => entry.mapName === mapName);
+    assert(index >= 0);
+    this.pending.splice(index, 1)[0]!.resolve();
+  }
+
+  rejectNext(mapName: string, error: unknown): void {
+    const index = this.pending.findIndex((entry) => entry.mapName === mapName);
+    assert(index >= 0);
+    this.pending.splice(index, 1)[0]!.reject(error);
+  }
 }
 
 class FakeAudioRuntime implements AudioRuntime {

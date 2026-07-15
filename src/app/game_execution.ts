@@ -1,29 +1,16 @@
 import type { AudioRuntime } from "@/src/app/audio_runtime.ts";
-import {
-  loadMapSession,
-  type LoadMapSessionSpec,
-  retryMapSession,
-  type SessionLifecycleResult,
-} from "@/src/app/session_lifecycle.ts";
 import type { PresentationRuntime } from "@/src/app/presentation_runtime.ts";
 import { SplitMix32 } from "@/src/engine/random.ts";
 import { musicTrackForMap } from "@/src/game/content/audio/music.ts";
 import { relativeMoveDirectionOffset } from "@/src/game/model/commands.ts";
 import type { GameEffect, GameModel, GameTransitionEvent } from "@/src/game/model/transition/mod.ts";
-import type { GameSession } from "@/src/game/simulation/mod.ts";
+import { createGameSession, type GameSession } from "@/src/game/simulation/mod.ts";
+import { getMap } from "@/src/game/world/campaign.ts";
 import { directionDelta, normalizeDirection } from "@/src/game/world/direction.ts";
 
 const NO_FRAME = { needsFrame: false } as const;
 
 type SessionTransitionKind = Extract<GameEffect, { readonly type: "loadMap" | "retryMap" }>["type"];
-
-const SESSION_TRANSITIONS: Record<
-  SessionTransitionKind,
-  (spec: LoadMapSessionSpec) => Promise<SessionLifecycleResult | undefined>
-> = {
-  loadMap: loadMapSession,
-  retryMap: retryMapSession,
-};
 
 export type GameExecutionSpec = {
   readonly host: Window;
@@ -52,6 +39,8 @@ class Execution implements GameExecution {
   private readonly spec: GameExecutionSpec;
   private readonly rng: SplitMix32;
   private session?: GameSession;
+  private disposed = false;
+  private sessionGeneration = 0;
   private victoryTimeoutId?: number;
 
   constructor(spec: GameExecutionSpec) {
@@ -100,6 +89,7 @@ class Execution implements GameExecution {
           this.spec.audio.stopSounds();
           break;
         case "endRun":
+          this.sessionGeneration++;
           this.disposeSession();
           break;
         case "scheduleVictory":
@@ -121,6 +111,8 @@ class Execution implements GameExecution {
   }
 
   [Symbol.dispose](): void {
+    this.disposed = true;
+    this.sessionGeneration++;
     if (this.victoryTimeoutId !== undefined) {
       this.spec.host.clearTimeout(this.victoryTimeoutId);
       this.victoryTimeoutId = undefined;
@@ -129,22 +121,40 @@ class Execution implements GameExecution {
   }
 
   private startSessionTransition(kind: SessionTransitionKind, mapName: string): void {
-    void this.runSessionTransition(kind, mapName).catch(this.spec.onError);
+    const generation = ++this.sessionGeneration;
+    void this.runSessionTransition(kind, mapName, generation).catch((error) => {
+      if (this.isCurrentSessionGeneration(generation)) this.spec.onError(error);
+    });
   }
 
-  private async runSessionTransition(kind: SessionTransitionKind, mapName: string): Promise<void> {
-    const result = await SESSION_TRANSITIONS[kind]({
-      signal: this.spec.signal,
-      preloadAssets: (mapName) => this.spec.presentation.preloadAssets(mapName),
-      mapName,
-      currentSession: this.session,
-      random: () => this.rng.nextFloat(),
-      cheat: this.spec.cheat,
-    });
-    if (result === undefined) return;
+  private async runSessionTransition(
+    kind: SessionTransitionKind,
+    mapName: string,
+    generation: number,
+  ): Promise<void> {
+    const map = getMap(mapName);
+    await this.spec.presentation.preloadAssets(mapName);
+    if (!this.isCurrentSessionGeneration(generation)) return;
 
-    this.session = result.session;
-    this.finishMapLoad(result.mapName);
+    const currentSession = this.session;
+    if (kind === "retryMap") {
+      if (currentSession === undefined) throw new Error("Cannot retry before the game session exists.");
+      currentSession.retryMap(map);
+    } else if (currentSession !== undefined) {
+      currentSession.loadMap(map);
+    } else {
+      const createdSession = await createGameSession(map, () => this.rng.nextFloat(), { cheat: this.spec.cheat });
+      if (!this.isCurrentSessionGeneration(generation)) {
+        createdSession[Symbol.dispose]();
+        return;
+      }
+      this.session = createdSession;
+    }
+    this.finishMapLoad(mapName);
+  }
+
+  private isCurrentSessionGeneration(generation: number): boolean {
+    return generation === this.sessionGeneration && !this.disposed && !this.spec.signal.aborted;
   }
 
   private finishMapLoad(mapName: string): void {
