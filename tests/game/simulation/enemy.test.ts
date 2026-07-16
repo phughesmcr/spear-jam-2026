@@ -1,7 +1,6 @@
 import type { EnemyArchetypeKey } from "@/src/game/content/enemies.ts";
 import { readComponent, writeComponent } from "@/src/game/simulation/components.ts";
-import { createEnemy, createPlayer } from "@/src/game/simulation/spawn/mod.ts";
-import { createRuntime } from "@/tests/game/simulation/helpers.ts";
+import { createEnemy, createPlayer, createRuntime } from "@/tests/game/simulation/helpers.ts";
 import { isPlayerDefeated, prepareEnemyHearing, runEnemyActorTurn } from "@/src/game/simulation/turn/enemy.ts";
 import { DisplayName } from "@/src/game/content/names.ts";
 import { type CardinalDirection, Direction } from "@/src/game/world/direction.ts";

@@ -14,7 +14,6 @@ import {
   type AmmoKind,
   type CommandSlot,
   commandSlotForCode,
-  type PlayerHealthState,
   type PlayerStatusSnapshot,
 } from "@/src/game/model/state.ts";
 import {
@@ -28,24 +27,18 @@ import type { GameRuntime } from "@/src/game/simulation/runtime.ts";
 import { KeyColor, type KeyColor as KeyColorType } from "@/src/game/content/map_entities.ts";
 import { keyColorCode } from "@/src/game/world/map.ts";
 import type { Entity } from "turn-based-engine/ecs";
+import {
+  DEFAULT_PLAYER_EQUIPMENT,
+  DEFAULT_PLAYER_HEALTH,
+  DEFAULT_PLAYER_INVENTORY,
+  DEFAULT_PLAYER_PROGRESS,
+  DEFAULT_PLAYER_WEAPON,
+} from "@/src/game/simulation/player_defaults.ts";
 
 const ENEMY_DEFEAT_CREDITS = 10;
-const DEFAULT_PLAYER_WEAPON: CommandSlot = 1;
 const KEY_COLOR_ORDER: readonly KeyColorType[] = [KeyColor.Red, KeyColor.Blue, KeyColor.Yellow];
 const WEAPON_SLOT_ORDER: readonly CommandSlot[] = [1, 2, 3];
 
-export const DEFAULT_PLAYER_HEALTH: PlayerHealthState = { current: 10, max: 10 };
-export const DEFAULT_PLAYER_INVENTORY: PlayerInventorySchema = {
-  keyMask: 0,
-  hasUplinkCode: 0,
-  hasSpear: 0,
-  pistolAmmo: 0,
-  cannonAmmo: 0,
-};
-export const DEFAULT_PLAYER_EQUIPMENT: PlayerEquipmentSchema = {
-  selectedWeapon: DEFAULT_PLAYER_WEAPON,
-  unlockedWeaponMask: weaponBit(DEFAULT_PLAYER_WEAPON),
-};
 export const CHEAT_PLAYER_AMMO = 99;
 export const CHEAT_PLAYER_INVENTORY: PlayerInventorySchema = {
   ...DEFAULT_PLAYER_INVENTORY,
@@ -57,8 +50,6 @@ export const CHEAT_PLAYER_EQUIPMENT: PlayerEquipmentSchema = {
   selectedWeapon: DEFAULT_PLAYER_WEAPON,
   unlockedWeaponMask: WEAPON_SLOT_ORDER.reduce((mask, slot) => mask | weaponBit(slot), 0),
 };
-export const DEFAULT_PLAYER_PROGRESS: PlayerProgressSchema = { credits: 0, score: 0, xp: 0, levelCredits: 0 };
-
 export type PlayerProgressionCheckpoint = {
   readonly health: HealthSchema;
   readonly inventory: PlayerInventorySchema;

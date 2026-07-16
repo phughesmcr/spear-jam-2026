@@ -6,8 +6,13 @@ import {
   openDoor,
   spearPickupDialogue,
 } from "@/src/game/simulation/interactions.ts";
-import { createDoor, createKey, createPlayer, createSpearTurret } from "@/src/game/simulation/spawn/mod.ts";
-import { createRuntime } from "@/tests/game/simulation/helpers.ts";
+import {
+  createDoor,
+  createKey,
+  createPlayer,
+  createRuntime,
+  createSpearTurret,
+} from "@/tests/game/simulation/helpers.ts";
 import { Direction } from "@/src/game/world/direction.ts";
 import { KeyColor } from "@/src/game/content/map_entities.ts";
 import { flatTestMap } from "@/tests/game/simulation/helpers.ts";

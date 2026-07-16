@@ -1,5 +1,4 @@
 import { writeComponent } from "@/src/game/simulation/components.ts";
-import { createPlayer } from "@/src/game/simulation/spawn/mod.ts";
 import {
   addPlayerStoryFlag,
   applyCheatPlayerLoadout,
@@ -12,7 +11,7 @@ import {
   restorePlayerProgressionCheckpoint,
   selectPlayerWeapon,
 } from "@/src/game/simulation/progression.ts";
-import { createRuntime } from "@/tests/game/simulation/helpers.ts";
+import { createPlayer, createRuntime } from "@/tests/game/simulation/helpers.ts";
 import { StoryFlag } from "@/src/game/content/story.ts";
 import { Direction } from "@/src/game/world/direction.ts";
 import { KeyColor } from "@/src/game/content/map_entities.ts";

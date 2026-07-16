@@ -1,4 +1,4 @@
-import { assertEquals, assertThrows } from "@std/assert";
+import { assertEquals } from "@std/assert";
 import { mapBlocks, TerrainBlock } from "turn-based-engine/crawler";
 import { createCrawlerMap } from "@/src/game/simulation/crawler_map.ts";
 import { BarrierTexture, createGameMap } from "@/src/game/world/map.ts";
@@ -38,19 +38,5 @@ Deno.test("createCrawlerMap derives channels from tile flags rather than terrain
   assertEquals(
     createCrawlerMap(source).terrain,
     [TerrainBlock.Movement | TerrainBlock.EffectLine],
-  );
-});
-
-Deno.test("createCrawlerMap requires authored doors to occupy open terrain", () => {
-  const open = createGameMap("Open Door", [[0]], [{ prefab: "door", x: 0, y: 0 }]);
-  assertEquals(createCrawlerMap(open).terrain, [0]);
-
-  const blocked = createGameMap("Blocked Door", [[DEFAULT_WALL_TERRAIN_ID]], [
-    { prefab: "door", x: 0, y: 0 },
-  ]);
-  assertThrows(
-    () => createCrawlerMap(blocked),
-    Error,
-    'Door at (0,0) in map "Blocked Door" must be authored on open terrain.',
   );
 });

@@ -37,9 +37,11 @@ export function createOutputReaders(map: MapSessionState): OutputReaderState {
 }
 
 export function replaceOutputMap(state: OutputReaderState, map: MapSessionState): void {
+  const drawables = createDrawableReaders(map.runtime);
+  const sounds = createSoundReaders(map.runtime);
   state.map = map;
-  state.drawables = createDrawableReaders(map.runtime);
-  state.sounds = createSoundReaders(map.runtime);
+  state.drawables = drawables;
+  state.sounds = sounds;
 }
 
 export function playerPosition(state: OutputReaderState): GridPoint {

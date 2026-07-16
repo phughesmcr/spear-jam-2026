@@ -1,23 +1,26 @@
 import type { DecorationDef, LightDef, SoundDef } from "@/src/game/content/map_entities.ts";
 import { DrawableKind } from "@/src/game/model/render_snapshot.ts";
-import { DrawableLayer } from "@/src/game/simulation/components.ts";
-import type { GameRuntime } from "@/src/game/simulation/runtime.ts";
-import type { Entity } from "turn-based-engine/ecs";
+import { DrawableLayer, type GameComponentMap } from "@/src/game/simulation/components.ts";
+import type { GameSessionContent } from "@/src/game/simulation/content.ts";
+import type { CrawlerSpawnSpec } from "turn-based-engine/crawler";
 
-export function createDecoration(runtime: GameRuntime, prefab: Omit<DecorationDef, "prefab">): Entity {
-  return runtime.crawler.spawnCrawler({
+export function decorationSpec(
+  prefab: DecorationDef,
+  content: GameSessionContent,
+): CrawlerSpawnSpec<GameComponentMap> {
+  return {
     x: prefab.x,
     y: prefab.y,
     components: {
       Drawable: { kind: DrawableKind.Sprite, layer: DrawableLayer.Structure },
-      Sprite: { id: runtime.content.presentation.spriteForDecoration(prefab.decoration) },
+      Sprite: { id: content.presentation.spriteForDecoration(prefab.decoration) },
     },
-  });
+  };
 }
 
-export function createLight(runtime: GameRuntime, prefab: Omit<LightDef, "prefab">): Entity {
+export function lightSpec(prefab: LightDef): CrawlerSpawnSpec<GameComponentMap> {
   const [red, green, blue] = colorChannels(prefab.color);
-  return runtime.crawler.spawnCrawler({
+  return {
     x: prefab.x,
     y: prefab.y,
     components: {
@@ -30,21 +33,21 @@ export function createLight(runtime: GameRuntime, prefab: Omit<LightDef, "prefab
         flickerSpeed: prefab.flickerSpeed ?? 0,
       },
     },
-  });
+  };
 }
 
-export function createSound(runtime: GameRuntime, prefab: Omit<SoundDef, "prefab">): Entity {
-  return runtime.crawler.spawnCrawler({
+export function soundSpec(prefab: SoundDef, content: GameSessionContent): CrawlerSpawnSpec<GameComponentMap> {
+  return {
     x: prefab.x,
     y: prefab.y,
     components: {
       SoundEmitter: {
-        soundId: runtime.content.audio.soundCode(prefab.soundId),
+        soundId: content.audio.soundCode(prefab.soundId),
         radius: prefab.radius,
         volume: prefab.volume ?? 1,
       },
     },
-  });
+  };
 }
 
 function colorChannels(color: string): readonly [number, number, number] {

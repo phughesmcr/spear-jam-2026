@@ -1,7 +1,6 @@
 import { hasComponent } from "@/src/game/simulation/components.ts";
-import { createNpc, createPlayer } from "@/src/game/simulation/spawn/mod.ts";
 import { playerHasStoryFlag } from "@/src/game/simulation/progression.ts";
-import { createRuntime } from "@/tests/game/simulation/helpers.ts";
+import { createNpc, createPlayer, createRuntime } from "@/tests/game/simulation/helpers.ts";
 import { applyEvent } from "@/src/game/simulation/session/story_actions.ts";
 import { DisplayName } from "@/src/game/content/names.ts";
 import { StoryEventId, StoryFlag, StoryTargetId } from "@/src/game/content/story.ts";

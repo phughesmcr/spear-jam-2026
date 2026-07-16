@@ -155,7 +155,6 @@ export class GameSession implements Disposable {
       this.progression.now,
       levelEntryCheckpoint,
     );
-    replaceOutputMap(this.outputs, nextMapState);
     const nextCommands = createCommandResolution(
       nextMapState,
       nextProgression,
@@ -163,6 +162,7 @@ export class GameSession implements Disposable {
       this.commands.random,
     );
     startLevelStatistics(nextProgression, nextMapState);
+    replaceOutputMap(this.outputs, nextMapState);
     this.mapState = nextMapState;
     this.progression = nextProgression;
     this.commands = nextCommands;

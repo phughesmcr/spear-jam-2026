@@ -1,20 +1,17 @@
 import type { DoorDef, SpearTurretDef, UplinkTerminalDef } from "@/src/game/content/map_entities.ts";
 import { SpriteId } from "@/src/game/content/sprite_ids.ts";
 import { DrawableKind } from "@/src/game/model/render_snapshot.ts";
-import { DrawableLayer } from "@/src/game/simulation/components.ts";
-import type { GameRuntime } from "@/src/game/simulation/runtime.ts";
+import { DrawableLayer, type GameComponentMap } from "@/src/game/simulation/components.ts";
+import type { GameSessionContent } from "@/src/game/simulation/content.ts";
 import { doorSlideCode, keyColorCode } from "@/src/game/world/map.ts";
-import { TerrainBlock } from "turn-based-engine/crawler";
-import type { Entity } from "turn-based-engine/ecs";
+import { type CrawlerSpawnSpec, TerrainBlock } from "turn-based-engine/crawler";
 
-type DoorPrefab = Omit<DoorDef, "prefab">;
-
-export function createDoor(runtime: GameRuntime, prefab: DoorPrefab): Entity {
+export function doorSpec(prefab: DoorDef, content: GameSessionContent): CrawlerSpawnSpec<GameComponentMap> {
   if (prefab.locked === true && prefab.color === undefined) {
     throw new Error("Locked door prefab is missing a key color");
   }
   const mask = TerrainBlock.Movement | TerrainBlock.EffectLine | (prefab.glass === true ? 0 : TerrainBlock.Sight);
-  return runtime.crawler.spawnCrawler({
+  return {
     x: prefab.x,
     y: prefab.y,
     blockMask: mask,
@@ -23,7 +20,7 @@ export function createDoor(runtime: GameRuntime, prefab: DoorPrefab): Entity {
       Door: { open: 0, slide: doorSlideCode(prefab.slide), openMs: prefab.openMs ?? 0 },
       Interactable: {},
       ...(prefab.examineTextId === undefined ? {} : {
-        ExamineTextRef: { examineTextId: runtime.content.simulation.examineTextCode(prefab.examineTextId) },
+        ExamineTextRef: { examineTextId: content.simulation.examineTextCode(prefab.examineTextId) },
       }),
       ...(prefab.locked === true && prefab.color !== undefined ?
         { Locked: { color: keyColorCode(prefab.color) } } :
@@ -31,11 +28,14 @@ export function createDoor(runtime: GameRuntime, prefab: DoorPrefab): Entity {
       ...(prefab.secret === true ? { Secret: {} } : {}),
       ...(prefab.glass === true ? { Glass: {} } : {}),
     },
-  });
+  };
 }
 
-export function createUplinkTerminal(runtime: GameRuntime, prefab: Omit<UplinkTerminalDef, "prefab">): Entity {
-  return runtime.crawler.spawnCrawler({
+export function uplinkTerminalSpec(
+  prefab: UplinkTerminalDef,
+  content: GameSessionContent,
+): CrawlerSpawnSpec<GameComponentMap> {
+  return {
     x: prefab.x,
     y: prefab.y,
     blockMask: TerrainBlock.Movement,
@@ -44,16 +44,16 @@ export function createUplinkTerminal(runtime: GameRuntime, prefab: Omit<UplinkTe
       Sprite: { id: SpriteId.UplinkTerminal },
       UplinkTerminal: { requiresSpear: prefab.requiresSpear === true ? 1 : 0 },
       Interactable: {},
-      TerminalDestination: { destination: runtime.content.levels.codeForDestination(prefab.goto) },
+      TerminalDestination: { destination: content.levels.codeForDestination(prefab.goto) },
       ...(prefab.examineTextId === undefined ? {} : {
-        ExamineTextRef: { examineTextId: runtime.content.simulation.examineTextCode(prefab.examineTextId) },
+        ExamineTextRef: { examineTextId: content.simulation.examineTextCode(prefab.examineTextId) },
       }),
     },
-  });
+  };
 }
 
-export function createSpearTurret(runtime: GameRuntime, prefab: Omit<SpearTurretDef, "prefab">): Entity {
-  return runtime.crawler.spawnCrawler({
+export function spearTurretSpec(prefab: SpearTurretDef): CrawlerSpawnSpec<GameComponentMap> {
+  return {
     x: prefab.x,
     y: prefab.y,
     blockMask: TerrainBlock.Movement,
@@ -63,5 +63,5 @@ export function createSpearTurret(runtime: GameRuntime, prefab: Omit<SpearTurret
       SpearTurret: {},
       Interactable: {},
     },
-  });
+  };
 }

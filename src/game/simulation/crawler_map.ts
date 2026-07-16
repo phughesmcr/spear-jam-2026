@@ -17,13 +17,5 @@ export function createCrawlerMap(map: GameMap): GridMap {
     terrain[index] = mask;
   }
 
-  for (const entity of map.entities) {
-    if (entity.prefab !== "door") continue;
-    const index = entity.y * width + entity.x;
-    if (terrain[index] !== 0) {
-      throw new Error(`Door at (${entity.x},${entity.y}) in map "${map.name}" must be authored on open terrain.`);
-    }
-  }
-
   return createGridMap({ width, height, terrain });
 }

@@ -3,29 +3,29 @@ import type { EnemyDef, NpcDef, PlayerDef } from "@/src/game/content/map_entitie
 import { SpriteId } from "@/src/game/content/sprite_ids.ts";
 import { attackOverridesFromContent } from "@/src/game/model/attack.ts";
 import { DrawableKind } from "@/src/game/model/render_snapshot.ts";
-import { type AttackSchema, DrawableLayer, IDLE_AWARENESS } from "@/src/game/simulation/components.ts";
+import {
+  type AttackSchema,
+  DrawableLayer,
+  type GameComponentMap,
+  IDLE_AWARENESS,
+} from "@/src/game/simulation/components.ts";
+import type { GameSessionContent } from "@/src/game/simulation/content.ts";
 import {
   DEFAULT_PLAYER_EQUIPMENT,
   DEFAULT_PLAYER_HEALTH,
   DEFAULT_PLAYER_INVENTORY,
   DEFAULT_PLAYER_PROGRESS,
-} from "@/src/game/simulation/progression.ts";
-import type { GameRuntime } from "@/src/game/simulation/runtime.ts";
+} from "@/src/game/simulation/player_defaults.ts";
 import { normalizeDirection } from "@/src/game/world/direction.ts";
-import { TerrainBlock } from "turn-based-engine/crawler";
-import type { Entity } from "turn-based-engine/ecs";
+import { type CrawlerSpawnSpec, TerrainBlock } from "turn-based-engine/crawler";
 
 const DEFAULT_PLAYER_HIT_DC = 10;
 const PLAYER_VISION_RADIUS = 6;
 
-type GridActorPrefab = { readonly x: number; readonly y: number; readonly dir: number };
+type GridActorDef = { readonly x: number; readonly y: number; readonly dir: number };
 
-export type PlayerPrefab = Omit<PlayerDef, "prefab">;
-type NpcPrefab = Omit<NpcDef, "prefab">;
-type EnemyPrefab = Omit<EnemyDef, "prefab">;
-
-export function createPlayer(runtime: GameRuntime, prefab: PlayerPrefab, stableId?: number): Entity {
-  return runtime.crawler.spawnCrawler({
+export function playerSpec(prefab: PlayerDef, stableId: number): CrawlerSpawnSpec<GameComponentMap> {
+  return {
     x: prefab.x,
     y: prefab.y,
     facing: normalizeDirection(prefab.dir),
@@ -37,70 +37,70 @@ export function createPlayer(runtime: GameRuntime, prefab: PlayerPrefab, stableI
       TurnTaker: {},
       Drawable: { kind: DrawableKind.Player, layer: DrawableLayer.Player },
       Sprite: { id: SpriteId.Player },
-      Health: DEFAULT_PLAYER_HEALTH,
-      PlayerInventory: DEFAULT_PLAYER_INVENTORY,
-      PlayerEquipment: DEFAULT_PLAYER_EQUIPMENT,
-      PlayerProgress: DEFAULT_PLAYER_PROGRESS,
+      Health: { ...DEFAULT_PLAYER_HEALTH },
+      PlayerInventory: { ...DEFAULT_PLAYER_INVENTORY },
+      PlayerEquipment: { ...DEFAULT_PLAYER_EQUIPMENT },
+      PlayerProgress: { ...DEFAULT_PLAYER_PROGRESS },
       StoryFlags: { mask: 0 },
       Defense: { hitDc: DEFAULT_PLAYER_HIT_DC },
     },
-  });
+  };
 }
 
-export function createNpc(runtime: GameRuntime, prefab: NpcPrefab): Entity {
-  return runtime.crawler.spawnCrawler({
+export function npcSpec(prefab: NpcDef, content: GameSessionContent): CrawlerSpawnSpec<GameComponentMap> {
+  return {
     ...actorSpec(prefab),
     components: {
       Npc: {},
       Interactable: {},
       Drawable: { kind: DrawableKind.Actor, layer: DrawableLayer.Npc },
-      Sprite: { id: runtime.content.presentation.spriteForDisplayName(prefab.displayName) },
-      DisplayName: { displayName: runtime.content.simulation.displayNameCode(prefab.displayName) },
+      Sprite: { id: content.presentation.spriteForDisplayName(prefab.displayName) },
+      DisplayName: { displayName: content.simulation.displayNameCode(prefab.displayName) },
       ...(prefab.dialogueTreeId === undefined ? {} : {
-        DialogueTreeRef: { dialogueTreeId: runtime.content.dialogue.code(prefab.dialogueTreeId) },
+        DialogueTreeRef: { dialogueTreeId: content.dialogue.code(prefab.dialogueTreeId) },
       }),
       ...(prefab.examineTextId === undefined ? {} : {
-        ExamineTextRef: { examineTextId: runtime.content.simulation.examineTextCode(prefab.examineTextId) },
+        ExamineTextRef: { examineTextId: content.simulation.examineTextCode(prefab.examineTextId) },
       }),
       ...(prefab.storyId === undefined ? {} : {
-        StoryTarget: { storyId: runtime.content.simulation.storyTargetCode(prefab.storyId) },
+        StoryTarget: { storyId: content.simulation.storyTargetCode(prefab.storyId) },
       }),
       ...(prefab.onTalkEvent === undefined ? {} : {
-        OnTalkEvent: { onTalkEvent: runtime.content.simulation.storyEventCode(prefab.onTalkEvent) },
+        OnTalkEvent: { onTalkEvent: content.simulation.storyEventCode(prefab.onTalkEvent) },
       }),
     },
-  });
+  };
 }
 
-export function createEnemy(runtime: GameRuntime, prefab: EnemyPrefab): Entity {
+export function enemySpec(prefab: EnemyDef, content: GameSessionContent): CrawlerSpawnSpec<GameComponentMap> {
   const enemy = prefab.archetype === undefined ?
-    runtime.content.simulation.enemyForCode(runtime.content.simulation.defaultEnemy) :
-    runtime.content.simulation.enemyForKey(prefab.archetype);
+    content.simulation.enemyForCode(content.simulation.defaultEnemy) :
+    content.simulation.enemyForKey(prefab.archetype);
   const archetype = enemy.code;
   const catalog = enemy.definition;
   const health = prefab.health ?? catalog.health;
   const displayName = prefab.displayName ?? catalog.displayName;
-  return runtime.crawler.spawnCrawler({
+  return {
     ...actorSpec(prefab),
     components: {
       Enemy: {},
       TurnTaker: {},
-      EnemyAwareness: IDLE_AWARENESS,
+      EnemyAwareness: { ...IDLE_AWARENESS },
       EnemyArchetype: { archetype },
       Health: { current: health, max: health },
       Defense: { hitDc: prefab.hitDc ?? catalog.hitDc },
-      Attack: createAttackSpec(prefab, catalog),
+      Attack: attackSpec(prefab, catalog),
       Drawable: { kind: DrawableKind.Actor, layer: DrawableLayer.Enemy },
       Sprite: { id: enemy.sprite },
-      DisplayName: { displayName: runtime.content.simulation.displayNameCode(displayName) },
+      DisplayName: { displayName: content.simulation.displayNameCode(displayName) },
       ...(prefab.examineTextId === undefined ? {} : {
-        ExamineTextRef: { examineTextId: runtime.content.simulation.examineTextCode(prefab.examineTextId) },
+        ExamineTextRef: { examineTextId: content.simulation.examineTextCode(prefab.examineTextId) },
       }),
     },
-  });
+  };
 }
 
-function createAttackSpec(prefab: EnemyPrefab, catalog: EnemyCatalogEntry): AttackSchema {
+function attackSpec(prefab: EnemyDef, catalog: EnemyCatalogEntry): AttackSchema {
   const damage = prefab.damage ?? catalog.damage;
   return {
     ...catalog.attack,
@@ -110,7 +110,7 @@ function createAttackSpec(prefab: EnemyPrefab, catalog: EnemyCatalogEntry): Atta
   };
 }
 
-function actorSpec(prefab: GridActorPrefab) {
+function actorSpec(prefab: GridActorDef) {
   return {
     x: prefab.x,
     y: prefab.y,

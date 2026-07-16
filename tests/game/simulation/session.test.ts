@@ -7,7 +7,7 @@ import {
   DrawableKind,
   SpriteAnimationKind,
 } from "@/src/game/model/render_snapshot.ts";
-import { createDeathEffect } from "@/src/game/simulation/spawn/mod.ts";
+import { createDeathEffect } from "@/src/game/simulation/dynamic_effects.ts";
 import { createRuntime } from "@/tests/game/simulation/helpers.ts";
 import { createGameSession } from "@/tests/game/simulation/helpers.ts";
 import { createAnimationController } from "@/src/game/simulation/session/sprite_animations.ts";
@@ -20,7 +20,7 @@ import { type EntityDef, KeyColor } from "@/src/game/content/map_entities.ts";
 import { createGameMap, type GameMap } from "@/src/game/world/map.ts";
 import { DEFAULT_BARS_TERRAIN_ID, DEFAULT_WALL_TERRAIN_ID } from "@/src/game/world/terrain_palette.ts";
 import { flatTestMap, TEST_SESSION_CONTENT } from "@/tests/game/simulation/helpers.ts";
-import { assert, assertEquals, assertRejects, assertStrictEquals } from "@std/assert";
+import { assert, assertEquals, assertRejects, assertStrictEquals, assertThrows } from "@std/assert";
 
 Deno.test("createGameSession initializes default player progression and requires a player spawn", async () => {
   const session = await createGameSession(testMap([]), () => 0);
@@ -34,7 +34,7 @@ Deno.test("createGameSession initializes default player progression and requires
   await assertRejects(
     () => createGameSession(flatTestMap(3, 2), () => 0),
     Error,
-    "player spawn",
+    "exactly one player",
   );
 });
 
@@ -130,11 +130,13 @@ Deno.test("opening a door consumes a turn and refreshes visibility through it", 
   );
   try {
     assertEquals(session.getVisibility().isVisible(3, 1), false);
+    assertEquals(session.getVisibility().isExplored(3, 1), false);
 
     const result = session.handlePlayerCommand({ type: "interact" });
 
     assertEquals(eventTypes(result), ["doorOpened"]);
     assertEquals(session.getVisibility().isVisible(3, 1), true);
+    assertEquals(session.getVisibility().isExplored(3, 1), true);
     assertEquals(eventTypes(session.handlePlayerCommand({ type: "interact", verb: "open" })), ["doorAlreadyOpen"]);
   } finally {
     session[Symbol.dispose]();
@@ -697,6 +699,68 @@ Deno.test("map replacement keeps the visibility reader identity and retargets it
 
     assertStrictEquals(session.getVisibility(), visibility);
     assertEquals(visibility.isVisible(6, 1), true);
+  } finally {
+    session[Symbol.dispose]();
+  }
+});
+
+Deno.test("failed map replacement leaves the current session state untouched", async () => {
+  const currentMap = testMap([]);
+  const session = await createGameSession(currentMap, () => 0);
+  try {
+    const visibility = session.getVisibility();
+    const player = session.getPlayerEntity();
+
+    assertThrows(
+      () =>
+        session.loadMap(storyTestMap([{
+          prefab: "npc",
+          x: 3,
+          y: 1,
+          dir: Direction.South,
+          displayName: DisplayName.John,
+          storyId: StoryTargetId.John,
+        }])),
+      Error,
+      'Duplicate story target "john".',
+    );
+
+    assertStrictEquals(session.getMap(), currentMap);
+    assertStrictEquals(session.getVisibility(), visibility);
+    assertStrictEquals(session.getPlayerEntity(), player);
+    assertEquals(playerPosition(session), { x: 1, y: 1 });
+  } finally {
+    session[Symbol.dispose]();
+  }
+});
+
+Deno.test("map replacement remains atomic when destination statistics fail to start", async () => {
+  const currentMap = testMap([]);
+  let clockCalls = 0;
+  const session = await createGameSession(currentMap, () => 0, {
+    now: () => {
+      clockCalls++;
+      if (clockCalls === 2) throw new Error("clock failed");
+      return 0;
+    },
+  });
+  try {
+    const visibility = session.getVisibility();
+    const player = session.getPlayerEntity();
+    const position = session.getPlayerPosition();
+    const facing = session.getPlayerFacing();
+
+    assertThrows(
+      () => session.loadMap(flatTestMap(8, 3, [{ prefab: "player", x: 6, y: 1, dir: Direction.West }])),
+      Error,
+      "clock failed",
+    );
+
+    assertStrictEquals(session.getMap(), currentMap);
+    assertStrictEquals(session.getVisibility(), visibility);
+    assertStrictEquals(session.getPlayerEntity(), player);
+    assertEquals(session.getPlayerPosition(), position);
+    assertEquals(session.getPlayerFacing(), facing);
   } finally {
     session[Symbol.dispose]();
   }

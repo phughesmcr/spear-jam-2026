@@ -1,8 +1,13 @@
 import type { EnemyArchetypeKey } from "@/src/game/content/enemies.ts";
 import { IDLE_AWARENESS } from "@/src/game/simulation/components.ts";
-import { createEnemy, createNpc, createPlayer } from "@/src/game/simulation/spawn/mod.ts";
 import { applyItemPickupToPlayer } from "@/src/game/simulation/progression.ts";
-import { createRuntime, TEST_SESSION_CONTENT } from "@/tests/game/simulation/helpers.ts";
+import {
+  createEnemy,
+  createNpc,
+  createPlayer,
+  createRuntime,
+  TEST_SESSION_CONTENT,
+} from "@/tests/game/simulation/helpers.ts";
 import { runTurnTransaction } from "@/src/game/simulation/turn/transaction.ts";
 import { DisplayName } from "@/src/game/content/names.ts";
 import { Direction } from "@/src/game/world/direction.ts";

@@ -1,7 +1,6 @@
 import { GAME_COMPONENTS, type GameComponentMap } from "@/src/game/simulation/components.ts";
-import { createCrawlerMap } from "@/src/game/simulation/crawler_map.ts";
-import type { GameMap } from "@/src/game/world/map.ts";
 import type { GameSessionContent } from "@/src/game/simulation/content.ts";
+import type { MapMaterialization } from "@/src/game/simulation/map_materialization.ts";
 import {
   type CrawlerGame,
   type CrawlerSession,
@@ -22,20 +21,20 @@ export type GameRuntime = {
   readonly pathfinder: GridPathfinder;
 };
 
-export function createRuntime(map: GameMap, content: GameSessionContent): GameRuntime {
-  const crawlerMap = createCrawlerMap(map);
+export function createRuntime(materialization: MapMaterialization, content: GameSessionContent): GameRuntime {
   const { game, session: crawler } = createCrawlerGame({
     capacity: RUNTIME_CAPACITY,
-    map: crawlerMap,
-    mapId: map.name,
+    map: materialization.map,
+    mapId: materialization.mapId,
     components: GAME_COMPONENTS,
     distanceMetric: "euclidean",
+    entities: materialization.entities,
   });
   return {
     content,
     game,
     crawler,
-    hearingField: createGridInfluenceField(crawlerMap),
+    hearingField: createGridInfluenceField(materialization.map),
     pathfinder: createGridPathfinder(crawler),
   };
 }

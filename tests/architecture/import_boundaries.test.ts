@@ -42,16 +42,16 @@ const SIMULATION_PUBLIC_MODULE = resolve(SIMULATION_ROOT, "mod.ts");
 const LEGACY_SIMULATION_OUTPUT_MODULES = new Set([
   resolve(SIMULATION_ROOT, "drawable_kind.ts"),
 ]);
-const SPAWN_ROOT = resolve(SIMULATION_ROOT, "spawn");
-const SPAWN_PUBLIC_MODULE = resolve(SPAWN_ROOT, "mod.ts");
-const SPAWN_MODULES = [
+const DISPLACED_SPAWN_ROOT = resolve(SIMULATION_ROOT, "spawn");
+const MAP_MATERIALIZATION = resolve(SIMULATION_ROOT, "map_materialization.ts");
+const MATERIALIZATION_ROOT = resolve(SIMULATION_ROOT, "materialization");
+const MATERIALIZATION_MODULES = [
   "actors.ts",
   "ambient.ts",
-  "effects.ts",
-  "map_entities.ts",
   "pickups.ts",
   "structures.ts",
-].map((name) => resolve(SPAWN_ROOT, name));
+].map((name) => resolve(MATERIALIZATION_ROOT, name));
+const DYNAMIC_EFFECTS = resolve(SIMULATION_ROOT, "dynamic_effects.ts");
 const LEGACY_PREFAB_MODULES = new Set([
   resolve(SIMULATION_ROOT, "prefabs.ts"),
 ]);
@@ -639,24 +639,51 @@ Deno.test({
 });
 
 Deno.test({
-  name: "simulation spawn vertical exposes one sealed public boundary",
+  name: "simulation materialization owns static bootstrap and leaves one explicit dynamic path",
   permissions: { read: [SOURCE_ROOT, resolve(Deno.cwd(), "tests")] },
   fn: async () => {
-    const violations = await sealedModuleViolations(SPAWN_ROOT, SPAWN_PUBLIC_MODULE, LEGACY_PREFAB_MODULES);
+    const violations: string[] = [];
     const sourceFilesSet = new Set(await sourceFiles(SOURCE_ROOT));
-    if (!sourceFilesSet.has(SPAWN_PUBLIC_MODULE)) violations.push("game/simulation/spawn/mod.ts is missing");
-    for (const modulePath of SPAWN_MODULES) {
+    if (!sourceFilesSet.has(MAP_MATERIALIZATION)) violations.push("game/simulation/map_materialization.ts is missing");
+    if (!sourceFilesSet.has(DYNAMIC_EFFECTS)) violations.push("game/simulation/dynamic_effects.ts is missing");
+    for (const modulePath of MATERIALIZATION_MODULES) {
       if (!sourceFilesSet.has(modulePath)) violations.push(`${relative(SOURCE_ROOT, modulePath)} is missing`);
     }
+    for (const sourcePath of sourceFilesSet) {
+      if (sourcePath.startsWith(`${DISPLACED_SPAWN_ROOT}/`)) {
+        violations.push(`${relative(SOURCE_ROOT, sourcePath)} preserves the displaced spawn path`);
+      }
+    }
 
-    const integrationModules = [
-      resolve(SIMULATION_ROOT, "session/map_lifecycle.ts"),
-      resolve(SIMULATION_ROOT, "session/sprite_animations.ts"),
-    ];
-    for (const modulePath of integrationModules) {
-      const imports = importSpecifiers(await Deno.readTextFile(modulePath));
-      if (!imports.includes("@/src/game/simulation/spawn/mod.ts")) {
-        violations.push(`${relative(SOURCE_ROOT, modulePath)} does not import the spawn public module`);
+    for (const sourcePath of sourceFilesSet) {
+      const source = await Deno.readTextFile(sourcePath);
+      const imports = importSpecifiers(source);
+      for (const specifier of imports) {
+        const importedPath = importedSourcePath(sourcePath, specifier);
+        if (importedPath === undefined) continue;
+        if (LEGACY_PREFAB_MODULES.has(importedPath) || importedPath.startsWith(`${DISPLACED_SPAWN_ROOT}/`)) {
+          violations.push(`${relative(SOURCE_ROOT, sourcePath)} imports displaced ${specifier}`);
+        }
+        if (importedPath.startsWith(`${MATERIALIZATION_ROOT}/`) && sourcePath !== MAP_MATERIALIZATION) {
+          violations.push(`${relative(SOURCE_ROOT, sourcePath)} bypasses map_materialization.ts via ${specifier}`);
+        }
+      }
+      if (sourcePath.startsWith(`${MATERIALIZATION_ROOT}/`) && /GameRuntime|spawnCrawler/.test(source)) {
+        violations.push(`${relative(SOURCE_ROOT, sourcePath)} performs runtime-bound spawning`);
+      }
+      if (
+        sourcePath.startsWith(`${SIMULATION_ROOT}/`) && sourcePath !== DYNAMIC_EFFECTS &&
+        /(?:^|[^A-Za-z])spawnCrawler\(/m.test(source)
+      ) {
+        violations.push(`${relative(SOURCE_ROOT, sourcePath)} bypasses the explicit dynamic spawn path`);
+      }
+      if (
+        sourcePath.startsWith(`${SIMULATION_ROOT}/`) && sourcePath !== MAP_MATERIALIZATION &&
+        source.includes("map.entities")
+      ) {
+        violations.push(
+          `${relative(SOURCE_ROOT, sourcePath)} interprets authored map entities outside materialization`,
+        );
       }
     }
 
@@ -665,10 +692,10 @@ Deno.test({
       for (const specifier of importSpecifiers(await Deno.readTextFile(testPath))) {
         const importedPath = importedSourcePath(testPath, specifier);
         if (importedPath === undefined) continue;
-        if (LEGACY_PREFAB_MODULES.has(importedPath)) {
-          violations.push(`${relative(testRoot, testPath)} imports legacy ${specifier}`);
-        } else if (importedPath.startsWith(`${SPAWN_ROOT}/`) && importedPath !== SPAWN_PUBLIC_MODULE) {
-          violations.push(`${relative(testRoot, testPath)} bypasses game/simulation/spawn/mod.ts via ${specifier}`);
+        if (LEGACY_PREFAB_MODULES.has(importedPath) || importedPath.startsWith(`${DISPLACED_SPAWN_ROOT}/`)) {
+          violations.push(`${relative(testRoot, testPath)} imports displaced ${specifier}`);
+        } else if (importedPath.startsWith(`${MATERIALIZATION_ROOT}/`)) {
+          violations.push(`${relative(testRoot, testPath)} bypasses map_materialization.ts via ${specifier}`);
         }
       }
     }

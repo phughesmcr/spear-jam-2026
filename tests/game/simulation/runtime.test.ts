@@ -1,12 +1,13 @@
-import { GAME_COMPONENTS } from "@/src/game/simulation/components.ts";
-import { createRuntime } from "@/tests/game/simulation/helpers.ts";
-import { Direction } from "turn-based-engine/crawler";
+import { GAME_COMPONENTS, type GameComponentMap } from "@/src/game/simulation/components.ts";
+import { createCrawlerMap } from "@/src/game/simulation/crawler_map.ts";
+import type { MapMaterialization } from "@/src/game/simulation/map_materialization.ts";
+import { createRuntime } from "@/src/game/simulation/runtime.ts";
+import { flatTestMap, TEST_SESSION_CONTENT } from "@/tests/game/simulation/helpers.ts";
 import { assertEquals } from "@std/assert";
-import { flatTestMap } from "@/tests/game/simulation/helpers.ts";
+import { type CrawlerSpawnSpec, Direction } from "turn-based-engine/crawler";
 
-Deno.test("createRuntime registers custom components and crawler-owned pose, visibility, and identity", () => {
-  const runtime = createRuntime(flatTestMap(7, 7));
-  const player = runtime.crawler.spawnCrawler({
+Deno.test("createRuntime initializes the full batch with crawler-owned pose, visibility, and identity", () => {
+  const playerSpec: CrawlerSpawnSpec<GameComponentMap> = {
     x: 3,
     y: 3,
     stableId: 42,
@@ -16,10 +17,30 @@ Deno.test("createRuntime registers custom components and crawler-owned pose, vis
       Player: {},
       Health: { current: 10, max: 10 },
     },
-  });
+  };
+  const interactableSpec: CrawlerSpawnSpec<GameComponentMap> = {
+    x: 4,
+    y: 3,
+    stableId: 77,
+    components: { Interactable: {} },
+  };
+  const map = flatTestMap(7, 7);
+  const materialization: MapMaterialization = {
+    mapId: map.name,
+    map: createCrawlerMap(map),
+    entities: [playerSpec, interactableSpec],
+    playerStableId: 42,
+  };
+  const runtime = createRuntime(materialization, TEST_SESSION_CONTENT);
+  const player = runtime.crawler.entityForStableId(materialization.playerStableId);
+  const interactable = runtime.crawler.entityForStableId(77);
+
+  if (player === undefined) throw new Error("Expected the initial player batch entity.");
+  if (interactable === undefined) throw new Error("Expected the complete initial entity batch.");
 
   assertEquals(runtime.crawler.entityPosition(player), { x: 3, y: 3 });
   assertEquals(runtime.crawler.entityFacing(player), Direction.North);
+  assertEquals(runtime.crawler.entityPosition(interactable), { x: 4, y: 3 });
   assertEquals(runtime.crawler.entityForStableId(42), player);
   assertEquals(runtime.crawler.isVisibleTo(player, 5, 1), true);
   assertEquals(runtime.crawler.isVisibleTo(player, 1, 5), false);
