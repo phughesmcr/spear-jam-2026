@@ -3,7 +3,7 @@ import { createNpc, createPlayer, createRuntime } from "@/tests/game/simulation/
 import { applyEvent } from "@/src/game/simulation/session/story_actions.ts";
 import { DisplayName } from "@/src/game/content/names.ts";
 import { StoryEventId, StoryFlag, StoryTargetId } from "@/src/game/content/story.ts";
-import { Direction } from "@/src/game/world/direction.ts";
+import { Direction } from "turn-based-engine/crawler";
 import { flatTestMap } from "@/tests/game/simulation/helpers.ts";
 import { assertEquals, assertThrows } from "@std/assert";
 

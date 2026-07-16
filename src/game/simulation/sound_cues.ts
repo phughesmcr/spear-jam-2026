@@ -2,7 +2,7 @@ import type { EnemySoundProfile } from "@/src/game/content/enemies.ts";
 import type { GameEvent } from "@/src/game/model/events.ts";
 import { type SoundCue, SoundId, weaponSoundId } from "@/src/game/model/sound.ts";
 import type { CommandSlot } from "@/src/game/model/state.ts";
-import type { GridPoint } from "@/src/game/world/direction.ts";
+import type { GridPoint } from "turn-based-engine/crawler";
 import type { Entity } from "turn-based-engine/ecs";
 
 export type SoundCueContext = {

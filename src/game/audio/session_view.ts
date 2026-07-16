@@ -1,5 +1,5 @@
 import type { EnemyIdleSoundSourceVisitor, SoundEmitterVisitor } from "@/src/game/model/sound.ts";
-import type { CardinalDirection, GridPoint } from "@/src/game/world/direction.ts";
+import type { CardinalDirection, GridPoint } from "turn-based-engine/crawler";
 
 export interface AudioWorldSession {
   getPlayerPosition(): GridPoint;

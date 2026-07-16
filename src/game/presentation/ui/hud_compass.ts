@@ -1,4 +1,4 @@
-import { type CardinalDirection, Direction, directionDelta, normalizeDirection } from "@/src/game/world/direction.ts";
+import { type CardinalDirection, Direction, directionDelta, normalizeDirection } from "turn-based-engine/crawler";
 import type { GameCanvasSize } from "@/src/game/presentation/canvas_size.ts";
 import { shortestAngleDelta } from "@/src/game/presentation/first_person/tween.ts";
 import { monoFont } from "@/src/game/presentation/ui/text.ts";

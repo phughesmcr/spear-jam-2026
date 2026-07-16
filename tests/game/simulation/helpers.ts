@@ -9,7 +9,7 @@ import type {
 } from "@/src/game/content/map_entities.ts";
 import { createCrawlerMap } from "@/src/game/simulation/crawler_map.ts";
 import { type MapMaterialization, materializeMap } from "@/src/game/simulation/map_materialization.ts";
-import { Direction } from "@/src/game/world/direction.ts";
+import { Direction } from "turn-based-engine/crawler";
 import type { GameMap } from "@/src/game/world/map.ts";
 import { SHIPPED_GAME } from "@/src/game/content/shipped.ts";
 import {

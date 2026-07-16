@@ -2,7 +2,7 @@ import { SpriteId } from "@/src/game/content/sprite_ids.ts";
 import { type DrawableEntity, DrawableKind } from "@/src/game/model/render_snapshot.ts";
 import type { FrameRenderSession } from "@/src/game/presentation/session_view.ts";
 import type { PlayerStatusSnapshot } from "@/src/game/model/state.ts";
-import { Direction } from "@/src/game/world/direction.ts";
+import { Direction } from "turn-based-engine/crawler";
 import { createGameMap } from "@/src/game/world/map.ts";
 import { renderDrawableEntities } from "@/src/game/presentation/top_down/drawables.ts";
 import { SHIPPED_GAME } from "@/src/game/content/shipped.ts";

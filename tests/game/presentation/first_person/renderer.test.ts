@@ -1,7 +1,6 @@
 import { SpriteId } from "@/src/game/content/sprite_ids.ts";
 import { type DrawableEntity, DrawableKind, type LightEntity } from "@/src/game/model/render_snapshot.ts";
-import type { CardinalDirection } from "@/src/game/world/direction.ts";
-import { Direction } from "@/src/game/world/direction.ts";
+import { type CardinalDirection, Direction } from "turn-based-engine/crawler";
 import { type CeilingTexture, createGameMap } from "@/src/game/world/map.ts";
 import { SKY_CEILING_TEXTURE } from "@/src/game/world/terrain_palette.ts";
 import {

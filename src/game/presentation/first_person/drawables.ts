@@ -5,7 +5,7 @@ import {
   SpriteAnimationKind,
   type SpriteAnimationSnapshot,
 } from "@/src/game/model/render_snapshot.ts";
-import { type CardinalDirection, normalizeDirection } from "@/src/game/world/direction.ts";
+import { type CardinalDirection, normalizeDirection } from "turn-based-engine/crawler";
 import type { GameMap } from "@/src/game/world/map.ts";
 import {
   type FirstPersonDeathFrame,

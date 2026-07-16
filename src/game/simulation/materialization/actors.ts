@@ -16,7 +16,7 @@ import {
   DEFAULT_PLAYER_INVENTORY,
   DEFAULT_PLAYER_PROGRESS,
 } from "@/src/game/simulation/player_defaults.ts";
-import { normalizeDirection } from "@/src/game/world/direction.ts";
+import { normalizeDirection } from "turn-based-engine/crawler";
 import { type CrawlerSpawnSpec, TerrainBlock } from "turn-based-engine/crawler";
 
 const DEFAULT_PLAYER_HIT_DC = 10;

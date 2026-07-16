@@ -13,7 +13,7 @@ import type { PlayerCommandResult } from "@/src/game/model/commands.ts";
 import { DisplayName } from "@/src/game/content/names.ts";
 import { type EnemyIdleSoundSource, type SoundEmitterSnapshot, SoundId } from "@/src/game/model/sound.ts";
 import { StoryEventId, StoryFlag, StoryTargetId } from "@/src/game/content/story.ts";
-import { Direction } from "@/src/game/world/direction.ts";
+import { Direction } from "turn-based-engine/crawler";
 import { type EntityDef, KeyColor } from "@/src/game/content/map_entities.ts";
 import { createGameMap, type GameMap } from "@/src/game/world/map.ts";
 import { DEFAULT_BARS_TERRAIN_ID, DEFAULT_WALL_TERRAIN_ID } from "@/src/game/world/terrain_palette.ts";

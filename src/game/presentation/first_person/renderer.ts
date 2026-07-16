@@ -17,7 +17,7 @@ import {
   DrawableKind,
   type LightEntityVisitor,
 } from "@/src/game/model/render_snapshot.ts";
-import { type CardinalDirection, Direction, directionDelta, normalizeDirection } from "@/src/game/world/direction.ts";
+import { type CardinalDirection, Direction, directionDelta, normalizeDirection } from "turn-based-engine/crawler";
 import type { GameMap } from "@/src/game/world/map.ts";
 import {
   type FirstPersonAssetView,

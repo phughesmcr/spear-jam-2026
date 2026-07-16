@@ -1,6 +1,6 @@
 import type { DrawableEntityVisitor, LightEntityVisitor } from "@/src/game/model/render_snapshot.ts";
 import type { PlayerStatusSnapshot } from "@/src/game/model/state.ts";
-import type { CardinalDirection, GridPoint } from "@/src/game/world/direction.ts";
+import type { CardinalDirection, GridPoint } from "turn-based-engine/crawler";
 import type { GameMap } from "@/src/game/world/map.ts";
 import type { TileVisibility } from "@/src/game/world/visibility.ts";
 

@@ -2,7 +2,7 @@ import { DisplayName } from "@/src/game/content/names.ts";
 import type { PlayerCommand } from "@/src/game/model/commands.ts";
 import { SPRITE_WALK_MS, writeComponent } from "@/src/game/simulation/components.ts";
 import { createSessionProjection } from "@/src/game/presentation/session_projection.ts";
-import { Direction } from "@/src/game/world/direction.ts";
+import { Direction } from "turn-based-engine/crawler";
 import {
   createGameSession,
   createPlayer,

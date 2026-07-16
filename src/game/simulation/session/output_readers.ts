@@ -3,7 +3,7 @@ import type { DrawableEntityVisitor, LightEntityVisitor } from "@/src/game/model
 import type { EnemyIdleSoundSourceVisitor, SoundEmitterVisitor } from "@/src/game/model/sound.ts";
 import { createSoundReaders, type SoundReaders } from "@/src/game/simulation/sounds.ts";
 import type { MapSessionState } from "@/src/game/simulation/session/map_lifecycle.ts";
-import type { CardinalDirection, GridPoint } from "@/src/game/world/direction.ts";
+import type { CardinalDirection, GridPoint } from "turn-based-engine/crawler";
 import type { TileVisibility } from "@/src/game/world/visibility.ts";
 import type { Entity } from "turn-based-engine/ecs";
 import { createSessionProjection, type SessionProjection } from "@/src/game/presentation/session_projection.ts";

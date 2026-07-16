@@ -11,7 +11,7 @@ import {
 import type { GameRuntime } from "@/src/game/simulation/runtime.ts";
 import type { GameEvent } from "@/src/game/model/events.ts";
 import type { CommandSlot } from "@/src/game/model/state.ts";
-import { Direction } from "@/src/game/world/direction.ts";
+import { Direction } from "turn-based-engine/crawler";
 import { type CrawlerMutation, TerrainBlock } from "turn-based-engine/crawler";
 import type { Entity } from "turn-based-engine/ecs";
 import type { SimulationRandom } from "turn-based-engine/simulation";

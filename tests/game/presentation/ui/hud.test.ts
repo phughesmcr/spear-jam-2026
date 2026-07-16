@@ -1,5 +1,5 @@
 import type { PlayerStatusSnapshot } from "@/src/game/model/state.ts";
-import { Direction } from "@/src/game/world/direction.ts";
+import { Direction } from "turn-based-engine/crawler";
 import { KeyColor } from "@/src/game/content/map_entities.ts";
 import { createPresentationUiAssets } from "@/src/game/presentation/asset_view.ts";
 import { renderFirstPersonHud } from "@/src/game/presentation/ui/hud.ts";

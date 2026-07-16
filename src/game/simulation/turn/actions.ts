@@ -30,7 +30,7 @@ import {
   type GridDelta,
   type GridPoint,
   manhattanDistance,
-} from "@/src/game/world/direction.ts";
+} from "turn-based-engine/crawler";
 import {
   type CrawlerTurnExecution,
   type RelativeMoveDirection,

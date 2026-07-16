@@ -157,8 +157,7 @@ export function readComponent<Name extends GameComponentName>(
   entity: Entity,
   name: Name,
 ): GameComponentValue<Name> | undefined {
-  if (!hasComponent(game, entity, name)) return undefined;
-  return requireComponent(game, entity, name);
+  return game.read(entity, game.components[name]) as GameComponentValue<Name> | undefined;
 }
 
 export function requireComponent<Name extends GameComponentName>(
@@ -166,12 +165,7 @@ export function requireComponent<Name extends GameComponentName>(
   entity: Entity,
   name: Name,
 ): GameComponentValue<Name> {
-  const value: Record<string, number> = {};
-  const storage = game.storage[name];
-  for (const key of Object.keys(GAME_COMPONENTS[name])) {
-    value[key] = storage.get(entity, key as never);
-  }
-  return value as GameComponentValue<Name>;
+  return game.require(entity, game.components[name]) as GameComponentValue<Name>;
 }
 
 export function writeComponent<Name extends GameComponentName>(

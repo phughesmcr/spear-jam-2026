@@ -11,7 +11,7 @@ import {
   playerStoryFlags,
 } from "@/src/game/simulation/progression.ts";
 import type { MapSessionState } from "@/src/game/simulation/session/map_lifecycle.ts";
-import type { GridPoint } from "@/src/game/world/direction.ts";
+import { type GridPoint, samePoint } from "turn-based-engine/crawler";
 
 export type ProgressionStatisticsState = {
   readonly now: () => number;
@@ -72,7 +72,7 @@ export function recordCommandStatistics(
   playerPositionBefore: GridPoint,
   playerPositionAfter: GridPoint,
 ): void {
-  if (command.type === "move" && !samePosition(playerPositionBefore, playerPositionAfter)) state.levelMoves++;
+  if (command.type === "move" && !samePoint(playerPositionBefore, playerPositionAfter)) state.levelMoves++;
   state.monstersKilled +=
     result.events.filter((event) =>
       event.type === "entityDefeated" && event.actor === map.player && event.entity !== map.player
@@ -93,8 +93,4 @@ function levelStatistics(state: ProgressionStatisticsState): LevelStats {
     monstersKilled: state.monstersKilled,
     totalMonsters: state.totalMonsters,
   };
-}
-
-function samePosition(a: GridPoint, b: GridPoint): boolean {
-  return a.x === b.x && a.y === b.y;
 }

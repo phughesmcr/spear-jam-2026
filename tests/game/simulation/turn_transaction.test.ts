@@ -11,7 +11,7 @@ import {
 } from "@/tests/game/simulation/helpers.ts";
 import { runTurnTransaction } from "@/src/game/simulation/turn/transaction.ts";
 import { DisplayName } from "@/src/game/content/names.ts";
-import { Direction } from "@/src/game/world/direction.ts";
+import { Direction } from "turn-based-engine/crawler";
 import { flatTestMap } from "@/tests/game/simulation/helpers.ts";
 import { assertEquals } from "@std/assert";
 import { TerrainBlock } from "turn-based-engine/crawler";

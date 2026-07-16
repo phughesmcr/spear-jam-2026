@@ -9,7 +9,7 @@ import {
 } from "@/tests/game/simulation/helpers.ts";
 import { isPlayerDefeated, prepareEnemyHearing, runEnemyActorTurn } from "@/src/game/simulation/turn/enemy.ts";
 import { DisplayName } from "@/src/game/content/names.ts";
-import { type CardinalDirection, Direction } from "@/src/game/world/direction.ts";
+import { type CardinalDirection, Direction } from "turn-based-engine/crawler";
 import { createGameMap } from "@/src/game/world/map.ts";
 import { DEFAULT_BARS_TERRAIN_ID } from "@/src/game/world/terrain_palette.ts";
 import { flatTestMap } from "@/tests/game/simulation/helpers.ts";

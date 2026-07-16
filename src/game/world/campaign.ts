@@ -7,7 +7,7 @@ import {
   prefabBlocksMovement,
   type UplinkTerminalDef,
 } from "@/src/game/content/map_entities.ts";
-import { CARDINAL_DELTAS } from "@/src/game/world/direction.ts";
+import { CARDINAL_DELTAS } from "turn-based-engine/crawler";
 import {
   createGameMap,
   type GameMap,

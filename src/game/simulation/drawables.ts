@@ -9,7 +9,7 @@ import {
 import type { GameRuntime } from "@/src/game/simulation/runtime.ts";
 import type { SessionProjection } from "@/src/game/presentation/session_projection.ts";
 import { DrawableLayer } from "@/src/game/simulation/components.ts";
-import { Direction } from "@/src/game/world/direction.ts";
+import { Direction } from "turn-based-engine/crawler";
 import type { DoorSlide, KeyColor as KeyColorType } from "@/src/game/content/map_entities.ts";
 import { DEFAULT_DOOR_OPEN_MS, doorSlideForCode, keyColorForCode } from "@/src/game/world/map.ts";
 import type { Entity, SlotIndex } from "turn-based-engine/ecs";

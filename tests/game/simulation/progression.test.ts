@@ -13,7 +13,7 @@ import {
 } from "@/src/game/simulation/progression.ts";
 import { createPlayer, createRuntime, mutateRuntime } from "@/tests/game/simulation/helpers.ts";
 import { StoryFlag } from "@/src/game/content/story.ts";
-import { Direction } from "@/src/game/world/direction.ts";
+import { Direction } from "turn-based-engine/crawler";
 import { KeyColor } from "@/src/game/content/map_entities.ts";
 import { flatTestMap } from "@/tests/game/simulation/helpers.ts";
 import { assertEquals, assertThrows } from "@std/assert";

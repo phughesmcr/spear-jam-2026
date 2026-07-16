@@ -11,7 +11,7 @@ import {
   mutateRuntime,
 } from "@/tests/game/simulation/helpers.ts";
 import { DisplayName } from "@/src/game/content/names.ts";
-import { Direction } from "@/src/game/world/direction.ts";
+import { Direction } from "turn-based-engine/crawler";
 import { flatTestMap } from "@/tests/game/simulation/helpers.ts";
 import { assertEquals } from "@std/assert";
 import type { SimulationRandom } from "turn-based-engine/simulation";

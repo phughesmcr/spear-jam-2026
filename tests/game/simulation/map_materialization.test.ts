@@ -17,7 +17,7 @@ import {
   type GameComponentMap,
 } from "@/src/game/simulation/components.ts";
 import { materializeMap } from "@/src/game/simulation/map_materialization.ts";
-import { Direction } from "@/src/game/world/direction.ts";
+import { Direction } from "turn-based-engine/crawler";
 import { createGameMap, doorSlideCode } from "@/src/game/world/map.ts";
 import { DEFAULT_WALL_TERRAIN_ID } from "@/src/game/world/terrain_palette.ts";
 import { flatTestMap } from "@/tests/game/simulation/helpers.ts";

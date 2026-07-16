@@ -20,7 +20,7 @@ import { applyEvent, queueTalkEvent } from "@/src/game/simulation/session/story_
 import { soundCuesForEvents } from "@/src/game/simulation/sound_cues.ts";
 import type { TurnContext } from "@/src/game/simulation/turn/actions.ts";
 import { runTurnTransaction, type TurnTransactionResult } from "@/src/game/simulation/turn/transaction.ts";
-import type { GridPoint } from "@/src/game/world/direction.ts";
+import { type GridPoint, samePoint } from "turn-based-engine/crawler";
 import type { Entity } from "turn-based-engine/ecs";
 import type { CrawlerCoreEvent } from "turn-based-engine/crawler";
 
@@ -76,7 +76,7 @@ export function handlePlayerCommand(
     playerPosition: playerPositionAfter,
     positionFor: positionResolver(state.map, transaction.coreEvents),
     enemySounds,
-    blockedMove: command.type === "move" && samePosition(playerPositionBefore, playerPositionAfter) &&
+    blockedMove: command.type === "move" && samePoint(playerPositionBefore, playerPositionAfter) &&
       result.events.length === 0,
     dialogueTarget,
     playerWeaponSlot,
@@ -201,8 +201,4 @@ function withSoundCues(result: PlayerCommandResult, soundCues: readonly SoundCue
         { type: "outcome", events: result.events, outcome: "victory", levelStats: result.levelStats, soundCues } :
         { type: "outcome", events: result.events, outcome: "defeat", soundCues };
   }
-}
-
-function samePosition(a: GridPoint, b: GridPoint): boolean {
-  return a.x === b.x && a.y === b.y;
 }

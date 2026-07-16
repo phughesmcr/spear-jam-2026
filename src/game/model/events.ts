@@ -1,7 +1,7 @@
 import type { InteractVerb } from "@/src/game/model/commands.ts";
 import type { AmmoKind, CommandSlot } from "@/src/game/model/state.ts";
 import type { Entity } from "turn-based-engine/ecs";
-import type { GridPoint } from "@/src/game/world/direction.ts";
+import type { GridPoint } from "turn-based-engine/crawler";
 import type { SpriteId } from "@/src/game/content/sprite_ids.ts";
 
 /**

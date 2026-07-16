@@ -2,7 +2,7 @@ import { createPresentationRuntime } from "@/src/app/presentation_runtime.ts";
 import type { FrameRenderSession } from "@/src/game/presentation/session_view.ts";
 import type { PlayerStatusSnapshot } from "@/src/game/model/state.ts";
 import { createGameModel, type GameModel } from "@/src/game/model/transition/mod.ts";
-import { Direction } from "@/src/game/world/direction.ts";
+import { Direction } from "turn-based-engine/crawler";
 import { SHIPPED_GAME } from "@/src/game/content/shipped.ts";
 import { createGameMap } from "@/src/game/world/map.ts";
 import type { FirstPersonRenderer } from "@/src/game/presentation/first_person/renderer.ts";

@@ -34,7 +34,7 @@ import {
   startLevelStatistics,
   storyFlags,
 } from "@/src/game/simulation/session/progression_statistics.ts";
-import type { CardinalDirection, GridPoint } from "@/src/game/world/direction.ts";
+import type { CardinalDirection, GridPoint } from "turn-based-engine/crawler";
 import type { GameMap } from "@/src/game/world/map.ts";
 import type { TileVisibility } from "@/src/game/world/visibility.ts";
 import type { Entity } from "turn-based-engine/ecs";

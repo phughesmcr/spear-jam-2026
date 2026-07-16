@@ -1,4 +1,4 @@
-import { type CardinalDirection, type GridPoint } from "@/src/game/world/direction.ts";
+import { type CardinalDirection, type GridPoint } from "turn-based-engine/crawler";
 import { canSeePoint as engineCanSeePoint } from "turn-based-engine/crawler";
 
 export type BlocksSight = (x: number, y: number) => boolean;

@@ -5,7 +5,7 @@ import type { CompiledLevel } from "@/src/game/content/catalog.ts";
 import { relativeMoveDirectionOffset } from "@/src/game/model/commands.ts";
 import type { GameEffect, GameModel, GameTransitionEvent } from "@/src/game/model/transition/mod.ts";
 import { createGameSession, type GameSession, type GameSessionContent } from "@/src/game/simulation/mod.ts";
-import { directionDelta, normalizeDirection } from "@/src/game/world/direction.ts";
+import { directionDelta, normalizeDirection } from "turn-based-engine/crawler";
 
 const NO_FRAME = { needsFrame: false } as const;
 

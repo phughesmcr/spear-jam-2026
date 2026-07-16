@@ -1,7 +1,7 @@
 import type { FrameRenderSession } from "@/src/game/presentation/session_view.ts";
 import type { GameMode, PlayerStatusSnapshot } from "@/src/game/model/state.ts";
 import { DisplayName } from "@/src/game/content/names.ts";
-import { Direction } from "@/src/game/world/direction.ts";
+import { Direction } from "turn-based-engine/crawler";
 import { createGameMap } from "@/src/game/world/map.ts";
 import type { FirstPersonRenderer } from "@/src/game/presentation/first_person/renderer.ts";
 import { renderGameFrame } from "@/src/game/presentation/render.ts";

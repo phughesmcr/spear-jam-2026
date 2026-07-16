@@ -20,7 +20,7 @@ import { SHIPPED_GAME } from "@/src/game/content/shipped.ts";
 import { SoundId } from "@/src/game/model/sound.ts";
 import { createGameModel } from "@/src/game/model/transition/mod.ts";
 import { listenerPoseFor } from "@/src/game/audio/mod.ts";
-import { Direction } from "@/src/game/world/direction.ts";
+import { Direction } from "turn-based-engine/crawler";
 import { assertEquals } from "@std/assert";
 import type { Entity } from "turn-based-engine/ecs";
 

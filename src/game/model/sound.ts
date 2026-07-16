@@ -1,5 +1,5 @@
 import type { CommandSlot } from "@/src/game/model/state.ts";
-import type { GridPoint } from "@/src/game/world/direction.ts";
+import type { GridPoint } from "turn-based-engine/crawler";
 import type { Entity } from "turn-based-engine/ecs";
 
 export const SoundId = {

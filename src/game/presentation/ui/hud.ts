@@ -1,5 +1,5 @@
 import type { PlayerStatusSnapshot } from "@/src/game/model/state.ts";
-import type { CardinalDirection } from "@/src/game/world/direction.ts";
+import type { CardinalDirection } from "turn-based-engine/crawler";
 import type { HudAssets } from "@/src/game/presentation/asset_view.ts";
 import type { GameCanvasSize } from "@/src/game/presentation/canvas_size.ts";
 import { renderFirstPersonCompass, renderFirstPersonCompassAtAngle } from "@/src/game/presentation/ui/hud_compass.ts";

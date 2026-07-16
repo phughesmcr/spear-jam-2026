@@ -16,7 +16,7 @@ import type { PlayerCommand } from "@/src/game/model/commands.ts";
 import type { GameEvent } from "@/src/game/model/events.ts";
 import type { NoiseStimulus } from "@/src/game/simulation/perception.ts";
 import type { DialogueState } from "@/src/game/model/state.ts";
-import type { GridPoint } from "@/src/game/world/direction.ts";
+import type { GridPoint } from "turn-based-engine/crawler";
 import { TerrainBlock } from "turn-based-engine/crawler";
 import type { CrawlerCoreEvent } from "turn-based-engine/crawler";
 import type { Entity } from "turn-based-engine/ecs";

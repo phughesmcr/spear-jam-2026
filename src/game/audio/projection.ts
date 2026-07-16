@@ -11,7 +11,7 @@ import type { AudioContent } from "@/src/game/content/catalog.ts";
 import type { TrackId } from "@/src/game/content/audio/music.ts";
 import type { VoiceId } from "@/src/game/content/dialogue/voices.ts";
 import type { EnemyIdleSoundSource, SoundCue, SoundEmitterSnapshot } from "@/src/game/model/sound.ts";
-import type { CardinalDirection, GridPoint } from "@/src/game/world/direction.ts";
+import type { CardinalDirection, GridPoint } from "turn-based-engine/crawler";
 
 export function createAudioProjection(content: AudioContent) {
   function track(trackId: TrackId): AudioTrack {

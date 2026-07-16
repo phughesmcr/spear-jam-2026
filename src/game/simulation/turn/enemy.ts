@@ -15,7 +15,7 @@ import {
 } from "@/src/game/simulation/turn/actions.ts";
 import type { GameEvent } from "@/src/game/model/events.ts";
 import { type BlocksSight, canSeePoint, type NoiseStimulus } from "@/src/game/simulation/perception.ts";
-import type { CardinalDirection, GridPoint } from "@/src/game/world/direction.ts";
+import { type CardinalDirection, type GridPoint, samePoint } from "turn-based-engine/crawler";
 import { createGridInfluenceField, type GridInfluenceField, TerrainBlock } from "turn-based-engine/crawler";
 import type { Entity } from "turn-based-engine/ecs";
 
@@ -184,7 +184,7 @@ function investigateIntentsFor(
 }
 
 function watchInvestigationTarget(context: EnemyTurnContext, enemy: Entity, target: GridPoint): readonly ActorIntent[] {
-  if (samePosition(entityPosition(context, enemy), target)) {
+  if (samePoint(entityPosition(context, enemy), target)) {
     setEnemyAwareness(context, enemy, IDLE_AWARENESS);
     return [];
   }
@@ -198,7 +198,7 @@ function investigateTarget(
   target: GridPoint,
   steps: number,
 ): readonly ActorIntent[] {
-  if (samePosition(entityPosition(context, enemy), target)) {
+  if (samePoint(entityPosition(context, enemy), target)) {
     setEnemyAwareness(context, enemy, IDLE_AWARENESS);
     return [];
   }
@@ -277,7 +277,7 @@ function updateEnemyAwareness(
   if (hasLastKnownPosition(current) && current.state !== AwarenessState.Idle) {
     const lastKnown = { x: current.lastKnownX, y: current.lastKnownY };
     const turnsSinceSeen = current.turnsSinceSeen + 1;
-    if (!samePosition(position, lastKnown) && turnsSinceSeen <= MAX_INVESTIGATION_TURNS) {
+    if (!samePoint(position, lastKnown) && turnsSinceSeen <= MAX_INVESTIGATION_TURNS) {
       return {
         awareness: { state: AwarenessState.Investigating, position: lastKnown },
         events: setEnemyAwareness(context, enemy, {
@@ -350,8 +350,4 @@ function setEnemyAwareness(
 function hasLastKnownPosition(awareness: { readonly lastKnownX: number; readonly lastKnownY: number }): boolean {
   return awareness.lastKnownX !== IDLE_AWARENESS.lastKnownX &&
     awareness.lastKnownY !== IDLE_AWARENESS.lastKnownY;
-}
-
-function samePosition(a: GridPoint, b: GridPoint): boolean {
-  return a.x === b.x && a.y === b.y;
 }
