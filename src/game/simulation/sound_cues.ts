@@ -8,8 +8,7 @@ import type { Entity } from "turn-based-engine/ecs";
 export type SoundCueContext = {
   readonly playerEntity: Entity;
   readonly playerPosition: GridPoint;
-  readonly positionsBefore: ReadonlyMap<Entity, GridPoint>;
-  readonly positionsAfter: ReadonlyMap<Entity, GridPoint>;
+  readonly positionFor: (entity: Entity) => GridPoint | undefined;
   readonly enemySounds: ReadonlyMap<Entity, EnemySoundProfile>;
   readonly blockedMove?: boolean;
   readonly dialogueTarget?: Entity;
@@ -160,5 +159,5 @@ function cue(soundId: SoundId, position: GridPoint, radius: number): SoundCue {
 }
 
 function positionFor(entity: Entity, context: SoundCueContext): GridPoint {
-  return context.positionsAfter.get(entity) ?? context.positionsBefore.get(entity) ?? context.playerPosition;
+  return context.positionFor(entity) ?? context.playerPosition;
 }

@@ -1,7 +1,6 @@
 import type { AudioRuntime } from "@/src/app/audio_runtime.ts";
 import type { PresentationRuntime } from "@/src/app/presentation_runtime.ts";
 import type { PresentationAssets } from "@/src/app/presentation_assets.ts";
-import { SplitMix32 } from "@/src/engine/random.ts";
 import type { CompiledLevel } from "@/src/game/content/catalog.ts";
 import { relativeMoveDirectionOffset } from "@/src/game/model/commands.ts";
 import type { GameEffect, GameModel, GameTransitionEvent } from "@/src/game/model/transition/mod.ts";
@@ -40,7 +39,6 @@ export function createGameExecution(spec: GameExecutionSpec): GameExecution {
 
 class Execution implements GameExecution {
   private readonly spec: GameExecutionSpec;
-  private readonly rng: SplitMix32;
   private session?: GameSession;
   private disposed = false;
   private sessionGeneration = 0;
@@ -49,7 +47,6 @@ class Execution implements GameExecution {
 
   constructor(spec: GameExecutionSpec) {
     this.spec = spec;
-    this.rng = new SplitMix32(spec.seed);
   }
 
   getSession(): GameSession | undefined {
@@ -171,7 +168,7 @@ class Execution implements GameExecution {
     } else {
       const createdSession = createGameSession(
         level.map,
-        () => this.rng.nextFloat(),
+        this.spec.seed,
         this.spec.sessionContent,
         { cheat: this.spec.cheat },
       );

@@ -32,7 +32,14 @@ Deno.test("combatFeedbackForEvents reports misses, hits, crits, and defeats", ()
         amount: 4,
         critical: true,
       },
-      { type: "entityDefeated", actor: PLAYER, entity: ENEMY, entityName: "Digital Dog" },
+      {
+        type: "entityDefeated",
+        actor: PLAYER,
+        entity: ENEMY,
+        entityName: "Digital Dog",
+        stableId: 27,
+        position: { x: 3, y: 4 },
+      },
     ]),
     [
       { text: "MISS", tone: "miss", side: "player", roll: 3, total: 5 },

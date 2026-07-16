@@ -14,13 +14,13 @@ export function examineEntity(runtime: GameRuntime, target: Entity | undefined):
 function resolvedExamineText(runtime: GameRuntime, target: Entity | undefined): string {
   if (target === undefined) return "Nothing of interest here.";
 
-  const examineTextCode = readComponent(runtime.game, target, "ExamineTextRef")?.examineTextId;
+  const examineTextCode = readComponent(runtime.simulation.ecs, target, "ExamineTextRef")?.examineTextId;
   const text = examineTextCode === undefined ?
     undefined :
     runtime.content.simulation.examineTextForCode(examineTextCode);
   if (text !== undefined) return text;
 
-  const displayNameCode = readComponent(runtime.game, target, "DisplayName")?.displayName;
+  const displayNameCode = readComponent(runtime.simulation.ecs, target, "DisplayName")?.displayName;
   if (displayNameCode !== undefined) {
     return `It's a ${runtime.content.simulation.displayNameForCode(displayNameCode).text}.`;
   }

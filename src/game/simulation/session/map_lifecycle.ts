@@ -8,6 +8,7 @@ import { assertUniqueTargets } from "@/src/game/simulation/session/story_actions
 import type { GameMap } from "@/src/game/world/map.ts";
 import type { Entity } from "turn-based-engine/ecs";
 import type { GameSessionContent } from "@/src/game/simulation/content.ts";
+import type { CrawlerRngInput } from "turn-based-engine/crawler";
 
 export type MapSessionState = {
   readonly map: GameMap;
@@ -18,18 +19,23 @@ export type MapSessionState = {
 export function createMapSessionState(
   map: GameMap,
   content: GameSessionContent,
+  rng: CrawlerRngInput,
   checkpoint?: PlayerProgressionCheckpoint,
 ): MapSessionState {
   const materialization = materializeMap(map, content);
-  const runtime = createRuntime(materialization, content);
-  const player = runtime.crawler.entityForStableId(materialization.playerStableId);
+  const runtime = createRuntime(materialization, content, rng);
+  const player = runtime.simulation.crawler.entityForStableId(materialization.playerStableId);
   if (player === undefined) {
     throw new Error(
       `Materialized map "${materialization.mapId}" is missing player stable ID ${materialization.playerStableId}.`,
     );
   }
-  if (checkpoint !== undefined) restorePlayerProgressionCheckpoint(runtime.game, player, checkpoint);
+  if (checkpoint !== undefined) {
+    runtime.simulation.mutateAtomically(({ mutation }) =>
+      restorePlayerProgressionCheckpoint(mutation, player, checkpoint)
+    );
+  }
   assertUniqueTargets(runtime);
-  runtime.crawler.assertInvariants();
+  runtime.simulation.crawler.assertInvariants();
   return { map, runtime, player };
 }

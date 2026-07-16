@@ -7,10 +7,8 @@ import {
   DrawableKind,
   SpriteAnimationKind,
 } from "@/src/game/model/render_snapshot.ts";
-import { createDeathEffect } from "@/src/game/simulation/dynamic_effects.ts";
-import { createRuntime } from "@/tests/game/simulation/helpers.ts";
 import { createGameSession } from "@/tests/game/simulation/helpers.ts";
-import { createAnimationController } from "@/src/game/simulation/session/sprite_animations.ts";
+import { createSessionProjection } from "@/src/game/presentation/session_projection.ts";
 import type { PlayerCommandResult } from "@/src/game/model/commands.ts";
 import { DisplayName } from "@/src/game/content/names.ts";
 import { type EnemyIdleSoundSource, type SoundEmitterSnapshot, SoundId } from "@/src/game/model/sound.ts";
@@ -20,7 +18,8 @@ import { type EntityDef, KeyColor } from "@/src/game/content/map_entities.ts";
 import { createGameMap, type GameMap } from "@/src/game/world/map.ts";
 import { DEFAULT_BARS_TERRAIN_ID, DEFAULT_WALL_TERRAIN_ID } from "@/src/game/world/terrain_palette.ts";
 import { flatTestMap, TEST_SESSION_CONTENT } from "@/tests/game/simulation/helpers.ts";
-import { assert, assertEquals, assertStrictEquals, assertThrows } from "@std/assert";
+import { assertEquals, assertStrictEquals, assertThrows } from "@std/assert";
+import type { Entity } from "turn-based-engine/ecs";
 
 Deno.test("createGameSession synchronously initializes default progression and validates the player spawn", () => {
   const session = createGameSession(testMap([]), () => 0);
@@ -156,7 +155,7 @@ Deno.test("talking to John once opens dialogue and moves him off the entrance", 
   assertEquals(john?.x, 1);
   assertEquals(john?.animation?.kind, SpriteAnimationKind.Walk);
   assertEquals(john?.animation?.startedAtMs, 100);
-  assert((john?.animation?.durationMs ?? 0) > SPRITE_WALK_MS);
+  assertEquals(john?.animation?.durationMs, SPRITE_WALK_MS);
 });
 
 Deno.test("John's talk story event is one-shot", () => {
@@ -688,7 +687,7 @@ Deno.test("normal map loads clear old metadata components and write new map meta
   }]);
 });
 
-Deno.test("map-scoped entities, death effects, and corpses do not survive map loads", () => {
+Deno.test("map-scoped entities and projected death overlays do not survive map loads", () => {
   const session = createGameSession(
     testMap([
       { prefab: "key", x: 4, y: 1, color: KeyColor.Red },
@@ -794,7 +793,7 @@ Deno.test("ranged attacks spend ammo before resolving combat and level credit", 
   });
 });
 
-Deno.test("enemy attacks expose short-lived ECS sprite animation state", () => {
+Deno.test("enemy attacks expose short-lived projected sprite animation state", () => {
   const session = createGameSession(
     testMap([{
       prefab: "enemy",
@@ -820,7 +819,7 @@ Deno.test("enemy attacks expose short-lived ECS sprite animation state", () => {
   assertEquals(actorAt(sessionDrawables(session), 2, 1)?.animation, undefined);
 });
 
-Deno.test("moving enemies expose short-lived ECS walk animation state", () => {
+Deno.test("moving enemies expose short-lived projected walk animation state", () => {
   const session = createGameSession(
     testMap([{
       prefab: "enemy",
@@ -846,7 +845,7 @@ Deno.test("moving enemies expose short-lived ECS walk animation state", () => {
   assertEquals(actorAt(sessionDrawables(session), 4, 1)?.animation, undefined);
 });
 
-Deno.test("defeated enemies render as ECS death effects before becoming corpses", () => {
+Deno.test("defeated enemies render as projected death effects before becoming projected corpses", () => {
   const session = createGameSession(
     testMap([{
       prefab: "enemy",
@@ -885,22 +884,46 @@ Deno.test("defeated enemies render as ECS death effects before becoming corpses"
   });
 });
 
-Deno.test("animation expiry processes every captured member when deaths replace entities", () => {
-  const runtime = createRuntime(flatTestMap(5, 3));
-  const animations = createAnimationController(runtime);
-  createDeathEffect(runtime, { x: 1, y: 1 }, SpriteId.DigitalDog);
-  createDeathEffect(runtime, { x: 2, y: 1 }, SpriteId.DigitalDog);
+Deno.test("projection expiry converts every simultaneous death overlay into a corpse", () => {
+  const projection = createSessionProjection();
+  const player = 1 as Entity;
+  const first = 2 as Entity;
+  const second = 3 as Entity;
+  projection.consume(player, [], [
+    {
+      type: "entityDefeated",
+      actor: player,
+      entity: first,
+      entityName: "First",
+      stableId: 2,
+      position: { x: 1, y: 1 },
+      sprite: SpriteId.DigitalDog,
+    },
+    {
+      type: "entityDefeated",
+      actor: player,
+      entity: second,
+      entityName: "Second",
+      stableId: 3,
+      position: { x: 2, y: 1 },
+      sprite: SpriteId.DigitalDog,
+    },
+  ], 100);
 
-  assertEquals(animations.advance(100), true);
-  assertEquals(animations.advance(100 + SPRITE_DEATH_MS), false);
-
-  assertEquals(runtime.game.query(runtime.game.components.SpriteAnimation).count(), 0);
-  let corpses = 0;
-  runtime.game.query(runtime.game.components.Sprite).forEach((_entity, slot) => {
-    if (runtime.game.storage.Sprite.getAt(slot, "id") === SpriteId.Corpse) corpses++;
-  });
-  assertEquals(corpses, 2);
-  runtime.crawler.assertInvariants();
+  assertEquals(projection.advance(100), true);
+  assertEquals(projection.advance(100 + SPRITE_DEATH_MS), false);
+  assertEquals(
+    projection.overlays().map((drawable) => ({
+      x: drawable.x,
+      y: drawable.y,
+      kind: drawable.kind,
+      spriteId: drawable.kind === DrawableKind.Sprite ? drawable.spriteId : undefined,
+    })),
+    [
+      { x: 1, y: 1, kind: DrawableKind.Sprite, spriteId: SpriteId.Corpse },
+      { x: 2, y: 1, kind: DrawableKind.Sprite, spriteId: SpriteId.Corpse },
+    ],
+  );
 });
 
 function testMap(entities: readonly EntityDef[], width = 5): GameMap {

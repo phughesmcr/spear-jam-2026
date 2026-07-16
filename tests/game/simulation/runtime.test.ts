@@ -31,27 +31,30 @@ Deno.test("createRuntime initializes the full batch with crawler-owned pose, vis
     entities: [playerSpec, interactableSpec],
     playerStableId: 42,
   };
-  const runtime = createRuntime(materialization, TEST_SESSION_CONTENT);
-  const player = runtime.crawler.entityForStableId(materialization.playerStableId);
-  const interactable = runtime.crawler.entityForStableId(77);
+  const runtime = createRuntime(materialization, TEST_SESSION_CONTENT, 0);
+  const player = runtime.simulation.crawler.entityForStableId(materialization.playerStableId);
+  const interactable = runtime.simulation.crawler.entityForStableId(77);
 
   if (player === undefined) throw new Error("Expected the initial player batch entity.");
   if (interactable === undefined) throw new Error("Expected the complete initial entity batch.");
 
-  assertEquals(runtime.crawler.entityPosition(player), { x: 3, y: 3 });
-  assertEquals(runtime.crawler.entityFacing(player), Direction.North);
-  assertEquals(runtime.crawler.entityPosition(interactable), { x: 4, y: 3 });
-  assertEquals(runtime.crawler.entityForStableId(42), player);
-  assertEquals(runtime.crawler.isVisibleTo(player, 5, 1), true);
-  assertEquals(runtime.crawler.isVisibleTo(player, 1, 5), false);
-  assertEquals(runtime.game.storage.Health.get(player, "current"), 10);
+  assertEquals(runtime.simulation.crawler.entityPosition(player), { x: 3, y: 3 });
+  assertEquals(runtime.simulation.crawler.entityFacing(player), Direction.North);
+  assertEquals(runtime.simulation.crawler.entityPosition(interactable), { x: 4, y: 3 });
+  assertEquals(runtime.simulation.crawler.entityForStableId(42), player);
+  assertEquals(runtime.simulation.crawler.isVisibleTo(player, 5, 1), true);
+  assertEquals(runtime.simulation.crawler.isVisibleTo(player, 1, 5), false);
+  assertEquals(runtime.simulation.ecs.storage.Health.get(player, "current"), 10);
 
-  const query = runtime.game.query(runtime.game.components.Player, runtime.game.components.Health);
+  const query = runtime.simulation.ecs.query(
+    runtime.simulation.ecs.components.Player,
+    runtime.simulation.ecs.components.Health,
+  );
   query.forEach((entity, slot) => {
     assertEquals(entity, player);
-    assertEquals(runtime.game.storage.Health.getAt(slot, "max"), 10);
+    assertEquals(runtime.simulation.ecs.storage.Health.getAt(slot, "max"), 10);
   });
   assertEquals(query.count(), 1);
   assertEquals(Object.keys(GAME_COMPONENTS).includes("Position"), false);
-  runtime.crawler.assertInvariants();
+  runtime.simulation.crawler.assertInvariants();
 });

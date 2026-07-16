@@ -18,8 +18,7 @@ function context(
   return {
     playerEntity: PLAYER,
     playerPosition: { x: 1, y: 1 },
-    positionsBefore: new Map(),
-    positionsAfter: new Map(),
+    positionFor: () => undefined,
     enemySounds: new Map([[ENEMY, DOG_SOUNDS]]),
     ...overrides,
   };
@@ -43,8 +42,7 @@ Deno.test("sound cues use entity positions for doors, pickups, and dialogue", ()
       { type: "keyPickedUp", entity: PICKUP },
     ],
     context({
-      positionsBefore: positions,
-      positionsAfter: positions,
+      positionFor: (entity) => positions.get(entity),
       dialogueTarget: NPC,
     }),
   );
@@ -93,8 +91,7 @@ Deno.test("sound cues map player and enemy attacks without duplicating attack so
       },
     ],
     context({
-      positionsBefore: new Map([[ENEMY, { x: 2, y: 1 }]]),
-      positionsAfter: new Map([[ENEMY, { x: 2, y: 1 }]]),
+      positionFor: (entity) => entity === ENEMY ? { x: 2, y: 1 } : undefined,
       playerWeaponSlot: 2,
       playerWeaponRadius: 8,
     }),
@@ -115,10 +112,11 @@ Deno.test("sound cues use pre-removal position for defeated enemies", () => {
       actor: PLAYER,
       entity: ENEMY,
       entityName: "Dog",
+      stableId: 23,
+      position: { x: 5, y: 6 },
     }],
     context({
-      positionsBefore: new Map([[ENEMY, { x: 5, y: 6 }]]),
-      positionsAfter: new Map(),
+      positionFor: (entity) => entity === ENEMY ? { x: 5, y: 6 } : undefined,
     }),
   );
 
@@ -132,8 +130,7 @@ Deno.test("sound cues play archetype alert and shared investigate sounds", () =>
       { type: "enemyInvestigating", entity: ENEMY },
     ],
     context({
-      positionsBefore: new Map([[ENEMY, { x: 3, y: 2 }]]),
-      positionsAfter: new Map([[ENEMY, { x: 3, y: 2 }]]),
+      positionFor: (entity) => entity === ENEMY ? { x: 3, y: 2 } : undefined,
     }),
   );
 

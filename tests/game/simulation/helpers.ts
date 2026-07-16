@@ -12,7 +12,6 @@ import { type MapMaterialization, materializeMap } from "@/src/game/simulation/m
 import { Direction } from "@/src/game/world/direction.ts";
 import type { GameMap } from "@/src/game/world/map.ts";
 import { SHIPPED_GAME } from "@/src/game/content/shipped.ts";
-import type { RandomSource } from "@/src/engine/random.ts";
 import {
   createGameSession as createBoundGameSession,
   type GameSession,
@@ -20,6 +19,8 @@ import {
 } from "@/src/game/simulation/session.ts";
 import { createRuntime as createBoundRuntime, type GameRuntime } from "@/src/game/simulation/runtime.ts";
 import type { Entity } from "turn-based-engine/ecs";
+import type { CrawlerMutation, CrawlerTurnExecution } from "turn-based-engine/crawler";
+import type { GameComponentMap } from "@/src/game/simulation/components.ts";
 
 export type { GameRuntime } from "@/src/game/simulation/runtime.ts";
 
@@ -32,15 +33,30 @@ export function createRuntime(map: GameMap): GameRuntime {
     entities: [],
     playerStableId: 1,
   };
-  return createBoundRuntime(materialization, TEST_SESSION_CONTENT);
+  return createBoundRuntime(materialization, TEST_SESSION_CONTENT, 0);
+}
+
+export function mutateRuntime<T>(
+  runtime: GameRuntime,
+  fn: (mutation: CrawlerMutation<GameComponentMap>) => T & (T extends PromiseLike<unknown> ? never : unknown),
+): T {
+  return runtime.simulation.mutateAtomically(({ mutation }) => fn(mutation));
+}
+
+export function executeRuntime<T>(
+  runtime: GameRuntime,
+  fn: (execution: CrawlerTurnExecution<GameComponentMap>) => T & (T extends PromiseLike<unknown> ? never : unknown),
+): T {
+  return runtime.simulation.executeTurn(fn).value;
 }
 
 export function createGameSession(
   map: GameMap,
-  random: RandomSource,
+  seed: number | (() => number),
   options: GameSessionOptions = {},
 ): GameSession {
-  return createBoundGameSession(map, random, TEST_SESSION_CONTENT, options);
+  const value = typeof seed === "number" ? seed : Math.floor(seed() * 0x1_0000_0000);
+  return createBoundGameSession(map, value, TEST_SESSION_CONTENT, options);
 }
 
 export function flatTestMap(
@@ -98,5 +114,7 @@ function spawnMaterialized(runtime: GameRuntime, entity: EntityDef, stableId?: n
   const materialization = materializeMap(map, TEST_SESSION_CONTENT);
   const spec = entity.prefab === "player" ? materialization.entities[0] : materialization.entities[1];
   if (spec === undefined) throw new Error(`Failed to materialize test entity "${entity.prefab}".`);
-  return runtime.crawler.spawnCrawler(stableId === undefined ? spec : { ...spec, stableId });
+  return runtime.simulation.mutateAtomically(({ mutation }) =>
+    mutation.spawnCrawler(stableId === undefined ? spec : { ...spec, stableId })
+  );
 }

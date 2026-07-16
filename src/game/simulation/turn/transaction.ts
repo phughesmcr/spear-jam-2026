@@ -1,4 +1,9 @@
-import { awardCreditsForDefeats } from "@/src/game/simulation/progression.ts";
+import {
+  awardCreditsForDefeats,
+  clearTransientPlayerState,
+  completePlayerLevel,
+} from "@/src/game/simulation/progression.ts";
+import { readComponent } from "@/src/game/simulation/components.ts";
 import { playerPosition, resolveIntent, type TurnContext } from "@/src/game/simulation/turn/actions.ts";
 import {
   type EnemyHearing,
@@ -13,26 +18,57 @@ import type { NoiseStimulus } from "@/src/game/simulation/perception.ts";
 import type { DialogueState } from "@/src/game/model/state.ts";
 import type { GridPoint } from "@/src/game/world/direction.ts";
 import { TerrainBlock } from "turn-based-engine/crawler";
-import { type Entity, QuerySnapshot } from "turn-based-engine/ecs";
+import type { CrawlerCoreEvent } from "turn-based-engine/crawler";
+import type { Entity } from "turn-based-engine/ecs";
 
 const DOOR_NOISE_RADIUS = 4;
-const enemyTurnSnapshots = new WeakMap<TurnContext["runtime"], QuerySnapshot>();
 
 export type TurnCost = "free" | "turn";
 
 export type TurnTransactionResult = {
+  readonly coreEvents: readonly CrawlerCoreEvent[];
   readonly events: readonly GameEvent[];
   readonly cost: TurnCost;
   readonly dialogue?: {
     readonly target?: Entity;
     readonly dialogue: DialogueState;
   };
-  readonly terminal?: Entity;
+  readonly transition?:
+    | { readonly kind: "victory" }
+    | { readonly kind: "map"; readonly goto: string };
   readonly outcome?: "victory" | "defeat";
   readonly noise?: readonly NoiseStimulus[];
 };
 
-export function runTurnTransaction(context: TurnContext, command: PlayerCommand): TurnTransactionResult {
+type TurnResolution = Omit<TurnTransactionResult, "coreEvents"> & {
+  readonly terminal?: Entity;
+};
+
+export function runTurnTransaction(
+  context: Omit<TurnContext, "execution">,
+  command: PlayerCommand,
+): TurnTransactionResult {
+  const result = context.runtime.simulation.executeTurn((execution) =>
+    resolveTurnAndComplete({ ...context, execution }, command)
+  );
+  return { ...result.value, coreEvents: result.coreEvents };
+}
+
+function resolveTurnAndComplete(context: TurnContext, command: PlayerCommand): TurnResolution {
+  const resolution = resolveTurn(context, command);
+  const transition = transitionFor(context, resolution);
+  if (transition === undefined) return resolution;
+  const events = completePlayerLevel(
+    context.runtime.simulation.ecs,
+    context.execution.mutation,
+    context.player,
+    resolution.events,
+  );
+  clearTransientPlayerState(context.execution.mutation, context.player);
+  return { ...resolution, events, transition, terminal: undefined };
+}
+
+function resolveTurn(context: TurnContext, command: PlayerCommand): TurnResolution {
   const playerEvents: GameEvent[] = [];
   let cost: TurnCost = "free";
   let actionNoise: NoiseStimulus | undefined;
@@ -73,13 +109,19 @@ export function runTurnTransaction(context: TurnContext, command: PlayerCommand)
     };
   }
 
-  const actionEvents = awardCreditsForDefeats(context.runtime.game, context.player, playerEvents);
+  const actionEvents = awardCreditsForDefeats(
+    context.runtime.simulation.ecs,
+    context.execution.mutation,
+    context.player,
+    playerEvents,
+  );
   const noises = noisesForPlayerAction(context, actionEvents, actionNoise);
   const hearing = prepareEnemyHearing(context.runtime, noises);
   const enemyContext = {
     ...context,
     hearing,
-    blocksSight: context.blocksSight ?? ((x, y) => context.runtime.crawler.blocksAt(x, y, TerrainBlock.Sight)),
+    blocksSight: context.blocksSight ??
+      ((x, y) => context.runtime.simulation.crawler.blocksAt(x, y, TerrainBlock.Sight)),
   };
   const enemyEvents = context.runtime.pathfinder.batch(() => runEnemyPhase(enemyContext));
   const events = [...actionEvents, ...enemyEvents];
@@ -97,29 +139,31 @@ function runEnemyPhase(
   },
 ): readonly GameEvent[] {
   const events: GameEvent[] = [];
-  const { game } = context.runtime;
+  const game = context.runtime.simulation.ecs;
   const enemyQuery = game.query(game.components.Enemy, game.components.TurnTaker);
-  const enemyTurnSnapshot = snapshotForEnemyPhase(context.runtime);
-  enemyQuery.snapshotInto(enemyTurnSnapshot);
-  enemyTurnSnapshot.forEach((enemy) => {
-    if (isPlayerDefeated(context)) return;
-    if (
-      !game.isEntityAlive(enemy) ||
-      !game.entityHasComponent(enemy, game.components.Enemy) ||
-      !game.entityHasComponent(enemy, game.components.TurnTaker)
-    ) return;
+  context.execution.phase(enemyQuery, (enemy) => {
+    if (isPlayerDefeated(context)) return "stop";
     events.push(...runEnemyActorTurn(context, enemy));
   });
   return events;
 }
 
-function snapshotForEnemyPhase(runtime: TurnContext["runtime"]): QuerySnapshot {
-  let snapshot = enemyTurnSnapshots.get(runtime);
-  if (snapshot === undefined) {
-    snapshot = new QuerySnapshot();
-    enemyTurnSnapshots.set(runtime, snapshot);
+function transitionFor(
+  context: TurnContext,
+  resolution: TurnResolution,
+): TurnResolution["transition"] {
+  if (resolution.outcome === "victory") return { kind: "victory" };
+  if (resolution.terminal === undefined) return undefined;
+  const destinationCode = readComponent(
+    context.runtime.simulation.ecs,
+    resolution.terminal,
+    "TerminalDestination",
+  )?.destination;
+  if (destinationCode === undefined) {
+    throw new Error(`Uplink terminal ${resolution.terminal} is missing a map destination.`);
   }
-  return snapshot;
+  const destination = context.runtime.content.levels.destinationForCode(destinationCode);
+  return destination.kind === "victory" ? { kind: "victory" } : { kind: "map", goto: destination.level.map.name };
 }
 
 function noisesForPlayerAction(

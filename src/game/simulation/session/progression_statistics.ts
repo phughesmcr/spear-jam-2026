@@ -6,8 +6,6 @@ import type { StoryFlag } from "@/src/game/content/story.ts";
 import {
   applyCheatPlayerLoadout,
   capturePlayerProgressionCheckpoint,
-  clearTransientPlayerState,
-  completePlayerLevel,
   type PlayerProgressionCheckpoint,
   playerStatusSnapshotFor,
   playerStoryFlags,
@@ -25,13 +23,13 @@ export type ProgressionStatisticsState = {
 };
 
 export function applyInitialCheatLoadout(map: MapSessionState): void {
-  applyCheatPlayerLoadout(map.runtime.game, map.player);
+  map.runtime.simulation.mutateAtomically(({ mutation }) => applyCheatPlayerLoadout(mutation, map.player));
 }
 
 export function createProgressionStatistics(
   map: MapSessionState,
   now: () => number,
-  levelEntryCheckpoint = capturePlayerProgressionCheckpoint(map.runtime.game, map.player),
+  levelEntryCheckpoint = capturePlayerProgressionCheckpoint(map.runtime.simulation.ecs, map.player),
 ): ProgressionStatisticsState {
   return {
     now,
@@ -47,11 +45,11 @@ export function startLevelStatistics(state: ProgressionStatisticsState, map: Map
   state.levelStartedAtMs = state.now();
   state.levelMoves = 0;
   state.monstersKilled = 0;
-  state.totalMonsters = map.runtime.game.query(map.runtime.game.components.Enemy).count();
+  state.totalMonsters = map.runtime.simulation.ecs.query(map.runtime.simulation.ecs.components.Enemy).count();
 }
 
 export function checkpointForMapLoad(map: MapSessionState): PlayerProgressionCheckpoint {
-  return capturePlayerProgressionCheckpoint(map.runtime.game, map.player);
+  return capturePlayerProgressionCheckpoint(map.runtime.simulation.ecs, map.player);
 }
 
 export function checkpointForRetry(state: ProgressionStatisticsState): PlayerProgressionCheckpoint {
@@ -59,11 +57,11 @@ export function checkpointForRetry(state: ProgressionStatisticsState): PlayerPro
 }
 
 export function playerStatus(map: MapSessionState): PlayerStatusSnapshot {
-  return playerStatusSnapshotFor(map.runtime.game, map.player);
+  return playerStatusSnapshotFor(map.runtime.simulation.ecs, map.player);
 }
 
 export function storyFlags(map: MapSessionState): readonly StoryFlag[] {
-  return playerStoryFlags(map.runtime.game, map.player);
+  return playerStoryFlags(map.runtime.simulation.ecs, map.player);
 }
 
 export function recordCommandStatistics(
@@ -83,12 +81,9 @@ export function recordCommandStatistics(
 
 export function completeCurrentLevel(
   state: ProgressionStatisticsState,
-  map: MapSessionState,
   events: readonly GameEvent[],
 ): { readonly events: readonly GameEvent[]; readonly stats: LevelStats } {
-  const levelCompleteEvents = completePlayerLevel(map.runtime.game, map.player, events);
-  clearTransientPlayerState(map.runtime.game, map.player);
-  return { events: levelCompleteEvents, stats: levelStatistics(state) };
+  return { events, stats: levelStatistics(state) };
 }
 
 function levelStatistics(state: ProgressionStatisticsState): LevelStats {

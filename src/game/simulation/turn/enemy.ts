@@ -16,7 +16,7 @@ import {
 import type { GameEvent } from "@/src/game/model/events.ts";
 import { type BlocksSight, canSeePoint, type NoiseStimulus } from "@/src/game/simulation/perception.ts";
 import type { CardinalDirection, GridPoint } from "@/src/game/world/direction.ts";
-import { TerrainBlock } from "turn-based-engine/crawler";
+import { createGridInfluenceField, type GridInfluenceField, TerrainBlock } from "turn-based-engine/crawler";
 import type { Entity } from "turn-based-engine/ecs";
 
 const MAX_INVESTIGATION_TURNS = 5;
@@ -27,18 +27,19 @@ export type EnemyTurnContext = TurnContext & {
 };
 
 export type EnemyHearing = {
-  readonly field: TurnContext["runtime"]["hearingField"];
+  readonly field: GridInfluenceField;
   readonly sources: readonly NoiseStimulus[];
 };
 
-/** Prepare phase-local hearing data. A later preparation on the same runtime invalidates earlier values. */
+/** Prepare hearing data owned only by the current turn. */
 export function prepareEnemyHearing(
   runtime: TurnContext["runtime"],
   noises: readonly NoiseStimulus[],
 ): EnemyHearing {
   const radii = noises.map((noise) => Math.max(0, Math.floor(noise.radius)));
   const sharedStrength = radii.reduce((maximum, radius) => Math.max(maximum, radius), 0);
-  runtime.hearingField.rebuild(
+  const field = createGridInfluenceField(runtime.simulation.crawler.map);
+  field.rebuild(
     noises.map((noise, index) => ({
       x: noise.x,
       y: noise.y,
@@ -47,7 +48,7 @@ export function prepareEnemyHearing(
     })),
     { distanceMetric: "manhattan" },
   );
-  return { field: runtime.hearingField, sources: noises };
+  return { field, sources: noises };
 }
 
 type AwarenessResult =
@@ -56,7 +57,7 @@ type AwarenessResult =
   | { readonly state: typeof AwarenessState.Investigating; readonly position: GridPoint };
 
 export function runEnemyActorTurn(context: EnemyTurnContext, enemy: Entity): readonly GameEvent[] {
-  if (!context.runtime.game.isEntityAlive(enemy)) return [];
+  if (!context.runtime.simulation.ecs.isEntityAlive(enemy)) return [];
 
   const { awareness, events: awarenessEvents } = updateEnemyAwareness(context, enemy);
   const events: GameEvent[] = [...awarenessEvents];
@@ -94,7 +95,7 @@ function enemyIntentsForAwareness(
 }
 
 export function isPlayerDefeated(context: Pick<TurnContext, "runtime" | "player">): boolean {
-  const health = readComponent(context.runtime.game, context.player, "Health");
+  const health = readComponent(context.runtime.simulation.ecs, context.player, "Health");
   return health !== undefined && health.current <= 0;
 }
 
@@ -212,13 +213,13 @@ function investigateTarget(
 
 function enemyBehaviorPolicyFor(context: EnemyTurnContext, enemy: Entity): EnemyBehaviorPolicy {
   const content = context.runtime.content.simulation;
-  const archetype = enemyArchetypeFor(context.runtime.game, enemy, content);
+  const archetype = enemyArchetypeFor(context.runtime.simulation.ecs, enemy, content);
   return content.enemyForCode(archetype ?? content.defaultEnemy).definition.behavior;
 }
 
 function enemySensesFor(context: EnemyTurnContext, enemy: Entity): EnemySenses {
   const content = context.runtime.content.simulation;
-  const archetype = enemyArchetypeFor(context.runtime.game, enemy, content);
+  const archetype = enemyArchetypeFor(context.runtime.simulation.ecs, enemy, content);
   return content.enemyForCode(archetype ?? content.defaultEnemy).definition.senses;
 }
 
@@ -234,8 +235,9 @@ function updateEnemyAwareness(
 ): { readonly awareness: AwarenessResult; readonly events: readonly GameEvent[] } {
   const position = entityPosition(context, enemy);
   const target = playerPosition(context);
-  const facing = context.runtime.crawler.entityFacing(enemy) as CardinalDirection;
-  const blocksSight = context.blocksSight ?? ((x, y) => context.runtime.crawler.blocksAt(x, y, TerrainBlock.Sight));
+  const facing = context.runtime.simulation.crawler.entityFacing(enemy) as CardinalDirection;
+  const blocksSight = context.blocksSight ??
+    ((x, y) => context.runtime.simulation.crawler.blocksAt(x, y, TerrainBlock.Sight));
   const senses = enemySensesFor(context, enemy);
 
   if (
@@ -271,7 +273,7 @@ function updateEnemyAwareness(
     };
   }
 
-  const current = requireComponent(context.runtime.game, enemy, "EnemyAwareness");
+  const current = requireComponent(context.runtime.simulation.ecs, enemy, "EnemyAwareness");
   if (hasLastKnownPosition(current) && current.state !== AwarenessState.Idle) {
     const lastKnown = { x: current.lastKnownX, y: current.lastKnownY };
     const turnsSinceSeen = current.turnsSinceSeen + 1;
@@ -295,7 +297,7 @@ function updateEnemyAwareness(
 }
 
 function entityPosition(context: EnemyTurnContext, enemy: Entity): GridPoint {
-  return context.runtime.crawler.entityPosition(enemy);
+  return context.runtime.simulation.crawler.entityPosition(enemy);
 }
 
 function nearestHeardNoise(
@@ -322,7 +324,7 @@ function setEnemyAwareness(
     readonly turnsSinceSeen: number;
   },
 ): readonly GameEvent[] {
-  const current = requireComponent(context.runtime.game, enemy, "EnemyAwareness");
+  const current = requireComponent(context.runtime.simulation.ecs, enemy, "EnemyAwareness");
   if (
     current.state === awareness.state &&
     current.lastKnownX === awareness.lastKnownX &&
@@ -341,7 +343,7 @@ function setEnemyAwareness(
     events.push({ type: "enemyInvestigating", entity: enemy });
   }
 
-  writeComponent(context.runtime.game, enemy, "EnemyAwareness", awareness);
+  writeComponent(context.execution.mutation, enemy, "EnemyAwareness", awareness);
   return events;
 }
 

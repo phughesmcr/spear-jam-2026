@@ -6,6 +6,7 @@ import type { MapSessionState } from "@/src/game/simulation/session/map_lifecycl
 import type { CardinalDirection, GridPoint } from "@/src/game/world/direction.ts";
 import type { TileVisibility } from "@/src/game/world/visibility.ts";
 import type { Entity } from "turn-based-engine/ecs";
+import { createSessionProjection, type SessionProjection } from "@/src/game/presentation/session_projection.ts";
 
 export type MapScopedMetadataSnapshot = Partial<{
   readonly displayName: number;
@@ -20,43 +21,48 @@ export type OutputReaderState = {
   map: MapSessionState;
   drawables: RuntimeReaders;
   sounds: SoundReaders;
+  projection: SessionProjection;
   readonly visibility: TileVisibility;
 };
 
 export function createOutputReaders(map: MapSessionState): OutputReaderState {
+  const projection = createSessionProjection();
   const state: OutputReaderState = {
     map,
-    drawables: createDrawableReaders(map.runtime),
+    drawables: createDrawableReaders(map.runtime, projection),
     sounds: createSoundReaders(map.runtime),
+    projection,
     visibility: {
-      isVisible: (x, y) => state.map.runtime.crawler.isVisibleTo(state.map.player, x, y),
-      isExplored: (x, y) => state.map.runtime.crawler.isDiscoveredBy(state.map.player, x, y),
+      isVisible: (x, y) => state.map.runtime.simulation.crawler.isVisibleTo(state.map.player, x, y),
+      isExplored: (x, y) => state.map.runtime.simulation.crawler.isDiscoveredBy(state.map.player, x, y),
     },
   };
   return state;
 }
 
 export function replaceOutputMap(state: OutputReaderState, map: MapSessionState): void {
-  const drawables = createDrawableReaders(map.runtime);
+  const projection = createSessionProjection();
+  const drawables = createDrawableReaders(map.runtime, projection);
   const sounds = createSoundReaders(map.runtime);
   state.map = map;
   state.drawables = drawables;
   state.sounds = sounds;
+  state.projection = projection;
 }
 
 export function playerPosition(state: OutputReaderState): GridPoint {
-  return state.map.runtime.crawler.entityPosition(state.map.player);
+  return state.map.runtime.simulation.crawler.entityPosition(state.map.player);
 }
 
 export function playerFacing(state: OutputReaderState): { readonly dir: CardinalDirection } {
-  const direction = state.map.runtime.crawler.entityFacing(state.map.player);
+  const direction = state.map.runtime.simulation.crawler.entityFacing(state.map.player);
   if (direction === undefined) throw new Error("Player is missing a facing direction.");
   return { dir: direction };
 }
 
 export function mapScopedMetadata(state: OutputReaderState): readonly MapScopedMetadataSnapshot[] {
   const metadata: MapScopedMetadataSnapshot[] = [];
-  for (const entity of state.map.runtime.crawler.entities()) {
+  for (const entity of state.map.runtime.simulation.crawler.entities()) {
     if (entity === state.map.player) continue;
     const entry: MapScopedMetadataSnapshot = {};
     copyMetadata(state.map, entity, entry);
@@ -82,7 +88,7 @@ export function forEachEnemyIdleSoundSource(state: OutputReaderState, visit: Ene
 }
 
 function copyMetadata(map: MapSessionState, entity: Entity, target: MapScopedMetadataSnapshot): void {
-  const game = map.runtime.game;
+  const game = map.runtime.simulation.ecs;
   const values = [
     ["displayName", "DisplayName", "displayName"],
     ["dialogueTreeId", "DialogueTreeRef", "dialogueTreeId"],

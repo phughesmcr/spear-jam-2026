@@ -1,4 +1,3 @@
-import type { RandomSource } from "@/src/engine/random.ts";
 import type { PlayerCommand, PlayerCommandResult } from "@/src/game/model/commands.ts";
 import type { EnemyIdleSoundSourceVisitor, SoundEmitterVisitor } from "@/src/game/model/sound.ts";
 import type { DrawableEntityVisitor, LightEntityVisitor } from "@/src/game/model/render_snapshot.ts";
@@ -40,6 +39,7 @@ import type { GameMap } from "@/src/game/world/map.ts";
 import type { TileVisibility } from "@/src/game/world/visibility.ts";
 import type { Entity } from "turn-based-engine/ecs";
 import type { GameSessionContent } from "@/src/game/simulation/content.ts";
+import type { RngSnapshot } from "turn-based-engine/crawler";
 
 export type GameSessionTickResult = { readonly needsFrame: boolean };
 export type GameSessionOptions = {
@@ -49,11 +49,11 @@ export type GameSessionOptions = {
 
 export function createGameSession(
   map: GameMap,
-  random: RandomSource,
+  seed: number,
   content: GameSessionContent,
   options: GameSessionOptions = {},
 ): GameSession {
-  return new GameSession(map, random, content, options);
+  return new GameSession(map, seed, content, options);
 }
 
 export class GameSession {
@@ -62,15 +62,17 @@ export class GameSession {
   private readonly outputs: OutputReaderState;
   private commands: CommandResolutionState;
   private readonly content: GameSessionContent;
+  private levelEntryRng: RngSnapshot;
 
-  constructor(map: GameMap, random: RandomSource, content: GameSessionContent, options: GameSessionOptions = {}) {
+  constructor(map: GameMap, seed: number, content: GameSessionContent, options: GameSessionOptions = {}) {
     this.content = content;
     const now = options.now ?? currentTimeMs;
-    this.mapState = createMapSessionState(map, content);
+    this.mapState = createMapSessionState(map, content, seed);
     if (options.cheat === true) applyInitialCheatLoadout(this.mapState);
     this.progression = createProgressionStatistics(this.mapState, now);
     this.outputs = createOutputReaders(this.mapState);
-    this.commands = createCommandResolution(this.mapState, this.progression, this.outputs, random, now);
+    this.commands = createCommandResolution(this.mapState, this.progression, this.outputs, now);
+    this.levelEntryRng = this.mapState.runtime.simulation.randomSnapshot();
     startLevelStatistics(this.progression, this.mapState);
   }
 
@@ -123,12 +125,12 @@ export class GameSession {
   }
 
   loadMap(map: GameMap): void {
-    this.replaceMap(map, checkpointForMapLoad(this.mapState));
+    this.replaceMap(map, checkpointForMapLoad(this.mapState), this.mapState.runtime.simulation.randomSnapshot());
   }
 
   retryMap(map: GameMap): void {
     const checkpoint = checkpointForRetry(this.progression);
-    this.replaceMap(map, checkpoint, checkpoint);
+    this.replaceMap(map, checkpoint, this.levelEntryRng, checkpoint);
   }
 
   tick(nowMs: number): GameSessionTickResult {
@@ -146,9 +148,10 @@ export class GameSession {
   private replaceMap(
     map: GameMap,
     checkpoint: ReturnType<typeof checkpointForMapLoad>,
+    rng: RngSnapshot,
     levelEntryCheckpoint?: ReturnType<typeof checkpointForRetry>,
   ): void {
-    const nextMapState = createMapSessionState(map, this.content, checkpoint);
+    const nextMapState = createMapSessionState(map, this.content, rng, checkpoint);
     const nextProgression = createProgressionStatistics(
       nextMapState,
       this.progression.now,
@@ -158,7 +161,6 @@ export class GameSession {
       nextMapState,
       nextProgression,
       this.outputs,
-      this.commands.random,
       this.commands.now,
     );
     startLevelStatistics(nextProgression, nextMapState);
@@ -166,6 +168,7 @@ export class GameSession {
     this.mapState = nextMapState;
     this.progression = nextProgression;
     this.commands = nextCommands;
+    this.levelEntryRng = nextMapState.runtime.simulation.randomSnapshot();
   }
 }
 

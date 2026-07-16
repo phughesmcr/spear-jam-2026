@@ -45,14 +45,14 @@ function smartActionIntents(context: TurnContext): readonly ActorIntent[] {
 
 function smartActionInteractionTarget(context: TurnContext): Entity | undefined {
   const target = facedEntity(context);
-  if (target === undefined || !hasComponent(context.runtime.game, target, "Interactable")) return undefined;
-  if (hasComponent(context.runtime.game, target, "Secret")) return undefined;
-  if (hasComponent(context.runtime.game, target, "Glass")) return undefined;
+  if (target === undefined || !hasComponent(context.runtime.simulation.ecs, target, "Interactable")) return undefined;
+  if (hasComponent(context.runtime.simulation.ecs, target, "Secret")) return undefined;
+  if (hasComponent(context.runtime.simulation.ecs, target, "Glass")) return undefined;
 
-  const door = readComponent(context.runtime.game, target, "Door");
+  const door = readComponent(context.runtime.simulation.ecs, target, "Door");
   if (door !== undefined) return door.open === 0 ? target : undefined;
 
-  if (hasComponent(context.runtime.game, target, "Npc")) return target;
-  if (hasComponent(context.runtime.game, target, "UplinkTerminal")) return target;
+  if (hasComponent(context.runtime.simulation.ecs, target, "Npc")) return target;
+  if (hasComponent(context.runtime.simulation.ecs, target, "UplinkTerminal")) return target;
   return undefined;
 }

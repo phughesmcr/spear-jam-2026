@@ -55,11 +55,25 @@ Deno.test("messageForEvent covers attack outcomes", () => {
 
 Deno.test("messageForEvent distinguishes player defeat from enemy defeat", () => {
   assertEquals(
-    messageForEvent(PLAYER, { type: "entityDefeated", actor: DIGITAL_DOG, entity: PLAYER, entityName: "You" }),
+    messageForEvent(PLAYER, {
+      type: "entityDefeated",
+      actor: DIGITAL_DOG,
+      entity: PLAYER,
+      entityName: "You",
+      stableId: 1,
+      position: { x: 1, y: 2 },
+    }),
     "You are defeated.",
   );
   assertEquals(
-    messageForEvent(PLAYER, { type: "entityDefeated", actor: PLAYER, entity: DIGITAL_DOG, entityName: "Digital Dog" }),
+    messageForEvent(PLAYER, {
+      type: "entityDefeated",
+      actor: PLAYER,
+      entity: DIGITAL_DOG,
+      entityName: "Digital Dog",
+      stableId: 42,
+      position: { x: 3, y: 4 },
+    }),
     "Digital Dog is defeated.",
   );
 });

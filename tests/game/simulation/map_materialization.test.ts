@@ -22,7 +22,7 @@ import { createGameMap, doorSlideCode } from "@/src/game/world/map.ts";
 import { DEFAULT_WALL_TERRAIN_ID } from "@/src/game/world/terrain_palette.ts";
 import { flatTestMap } from "@/tests/game/simulation/helpers.ts";
 import { assertEquals, assertNotStrictEquals, assertThrows } from "@std/assert";
-import { type CrawlerSpawnSpec, createCrawlerGame, TerrainBlock } from "turn-based-engine/crawler";
+import { type CrawlerSpawnSpec, createCrawlerSimulation, TerrainBlock } from "turn-based-engine/crawler";
 
 const MIXED_ENTITIES = [
   { prefab: "key", x: 1, y: 0, color: KeyColor.Red },
@@ -473,24 +473,26 @@ Deno.test("materializeMap preserves locked-door and terrain validation", () => {
 Deno.test("every shipped map materializes into a deterministic coherent crawler world", () => {
   for (const level of SHIPPED_GAME.levels.all) {
     const materialization = materializeMap(level.map, SHIPPED_GAME);
-    const { session } = createCrawlerGame({
+    const simulation = createCrawlerSimulation({
       capacity: 1000,
       map: materialization.map,
       mapId: materialization.mapId,
       entities: materialization.entities,
       components: GAME_COMPONENTS,
       distanceMetric: "euclidean",
+      rng: 0,
     });
+    const crawler = simulation.crawler;
 
     assertEquals(materialization.entities.length, level.map.entities.length, level.map.name);
-    assertEquals(session.entities().length, level.map.entities.length, level.map.name);
+    assertEquals(crawler.entities().length, level.map.entities.length, level.map.name);
     assertEquals(
-      session.entities().map((entity) => session.entityStableId(entity)),
+      crawler.entities().map((entity) => crawler.entityStableId(entity)),
       Array.from({ length: level.map.entities.length }, (_, index) => index + 1),
       level.map.name,
     );
-    assertEquals(session.entityForStableId(materialization.playerStableId), session.entities()[0], level.map.name);
-    session.assertInvariants();
+    assertEquals(crawler.entityForStableId(materialization.playerStableId), crawler.entities()[0], level.map.name);
+    crawler.assertInvariants();
   }
 });
 
@@ -500,13 +502,14 @@ Deno.test("batch bootstrap does not discover tiles hidden behind an initially cl
     { prefab: "door", x: 2, y: 1 },
   ]);
   const materialization = materializeMap(map, SHIPPED_GAME);
-  const { session } = createCrawlerGame({
+  const simulation = createCrawlerSimulation({
     map: materialization.map,
     entities: materialization.entities,
     components: GAME_COMPONENTS,
+    rng: 0,
   });
-  const player = session.entityForStableId(materialization.playerStableId)!;
+  const player = simulation.crawler.entityForStableId(materialization.playerStableId)!;
 
-  assertEquals(session.isVisibleTo(player, 3, 1), false);
-  assertEquals(session.isDiscoveredBy(player, 3, 1), false);
+  assertEquals(simulation.crawler.isVisibleTo(player, 3, 1), false);
+  assertEquals(simulation.crawler.isDiscoveredBy(player, 3, 1), false);
 });

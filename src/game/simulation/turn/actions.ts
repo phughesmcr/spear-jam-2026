@@ -1,11 +1,5 @@
 import { enemyAttackFacesTarget } from "@/src/game/content/enemies.ts";
-import {
-  attackEntity,
-  attackTargets,
-  attackWithSelectedWeapon,
-  type DefeatEffectWriter,
-  entityAttack,
-} from "@/src/game/simulation/combat.ts";
+import { attackEntity, attackTargets, attackWithSelectedWeapon, entityAttack } from "@/src/game/simulation/combat.ts";
 import { hasComponent, readComponent } from "@/src/game/simulation/components.ts";
 import {
   collectItemAt,
@@ -27,7 +21,6 @@ import type { InteractVerb } from "@/src/game/model/commands.ts";
 import type { GameEvent } from "@/src/game/model/events.ts";
 import { examineEntity } from "@/src/game/simulation/examine.ts";
 import type { BlocksSight, NoiseStimulus } from "@/src/game/simulation/perception.ts";
-import type { RandomSource } from "@/src/engine/random.ts";
 import type { CommandSlot, DialogueState } from "@/src/game/model/state.ts";
 import {
   CARDINAL_DELTAS,
@@ -38,7 +31,13 @@ import {
   type GridPoint,
   manhattanDistance,
 } from "@/src/game/world/direction.ts";
-import { type RelativeMoveDirection, TerrainBlock, type TurnDirection } from "turn-based-engine/crawler";
+import {
+  type CrawlerTurnExecution,
+  type RelativeMoveDirection,
+  TerrainBlock,
+  type TurnDirection,
+} from "turn-based-engine/crawler";
+import type { GameComponentMap } from "@/src/game/simulation/components.ts";
 import type { Entity } from "turn-based-engine/ecs";
 
 const MOVE_NOISE_RADIUS = 2;
@@ -46,9 +45,8 @@ const MOVE_NOISE_RADIUS = 2;
 export type TurnContext = {
   readonly runtime: GameRuntime;
   readonly player: Entity;
-  readonly random: RandomSource;
+  readonly execution: CrawlerTurnExecution<GameComponentMap>;
   readonly blocksSight?: BlocksSight;
-  readonly writeDefeatEffect?: DefeatEffectWriter;
 };
 
 export type ActorIntent =
@@ -107,7 +105,7 @@ export function resolveIntent(context: TurnContext, intent: ActorIntent): Intent
     case "interact":
       return resolveInteractionIntent(context, intent.target, intent.verb);
     case "wait":
-      context.runtime.crawler.dispatchVoid({ type: "wait", entity: intent.actor });
+      context.execution.dispatch({ type: "wait", entity: intent.actor });
       return { events: [], cost: "turn", acted: true };
     case "selectWeapon":
       return resolveSelectWeaponIntent(context, intent.actor, intent.slot);
@@ -121,32 +119,32 @@ export function facedEntity(context: TurnContext): Entity | undefined {
   const delta = directionDelta(playerFacing(context));
   const x = position.x + delta.dx;
   const y = position.y + delta.dy;
-  const occupant = context.runtime.crawler.entityAt(x, y, TerrainBlock.Movement);
+  const occupant = context.runtime.simulation.crawler.entityAt(x, y, TerrainBlock.Movement);
   if (occupant !== undefined) return occupant;
-  return context.runtime.crawler.findEntityAt(
+  return context.runtime.simulation.crawler.findEntityAt(
     x,
     y,
-    (entity) => hasComponent(context.runtime.game, entity, "Interactable"),
-  ) ?? context.runtime.crawler.findEntityAt(
+    (entity) => hasComponent(context.runtime.simulation.ecs, entity, "Interactable"),
+  ) ?? context.runtime.simulation.crawler.findEntityAt(
     x,
     y,
-    (entity) => hasComponent(context.runtime.game, entity, "Item"),
+    (entity) => hasComponent(context.runtime.simulation.ecs, entity, "Item"),
   );
 }
 
 export function playerPosition(context: TurnContext): GridPoint {
-  return context.runtime.crawler.entityPosition(context.player);
+  return context.runtime.simulation.crawler.entityPosition(context.player);
 }
 
 export function playerFacing(context: TurnContext): number {
-  const facing = context.runtime.crawler.entityFacing(context.player);
+  const facing = context.runtime.simulation.crawler.entityFacing(context.player);
   if (facing === undefined) throw new Error("Player is missing a facing direction.");
   return facing;
 }
 
 function resolvePlayerMoveIntent(context: TurnContext, actor: Entity, mode: PlayerMoveMode): IntentResolution {
-  const current = context.runtime.crawler.entityPosition(actor);
-  const facing = context.runtime.crawler.entityFacing(actor);
+  const current = context.runtime.simulation.crawler.entityPosition(actor);
+  const facing = context.runtime.simulation.crawler.entityFacing(actor);
   if (facing === undefined) return { events: [], cost: "free" };
   const relativeOffset = mode.direction === "forward" ?
     0 :
@@ -156,21 +154,25 @@ function resolvePlayerMoveIntent(context: TurnContext, actor: Entity, mode: Play
     2 :
     -1;
   const delta = directionDelta(facing + relativeOffset);
-  const faced = context.runtime.crawler.entityAt(current.x + delta.dx, current.y + delta.dy, TerrainBlock.Movement);
+  const faced = context.runtime.simulation.crawler.entityAt(
+    current.x + delta.dx,
+    current.y + delta.dy,
+    TerrainBlock.Movement,
+  );
   if (
-    faced !== undefined && hasComponent(context.runtime.game, faced, "Secret") &&
-    readComponent(context.runtime.game, faced, "Door")?.open === 0
+    faced !== undefined && hasComponent(context.runtime.simulation.ecs, faced, "Secret") &&
+    readComponent(context.runtime.simulation.ecs, faced, "Door")?.open === 0
   ) {
     return resolveInteractionIntent(context, faced, "open");
   }
-  const result = context.runtime.crawler.dispatch({ type: "move", entity: actor, direction: mode.direction });
+  const result = context.execution.dispatch({ type: "move", entity: actor, direction: mode.direction });
   if (result.events[0]?.type !== "entityMoved") return { events: [], cost: "free" };
-  const next = context.runtime.crawler.entityPosition(actor);
-  const pickup = collectItemAt(context.runtime, actor, next.x, next.y);
+  const next = context.runtime.simulation.crawler.entityPosition(actor);
+  const pickup = collectItemAt(context.runtime, context.execution.mutation, actor, next.x, next.y);
   if (pickup === undefined) {
     return { events: [], cost: "turn", noise: playerNoise(context, MOVE_NOISE_RADIUS), acted: true };
   }
-  const events = applyItemPickupToPlayer(context.runtime, actor, pickup);
+  const events = applyItemPickupToPlayer(context.runtime, context.execution.mutation, actor, pickup);
   if (pickup.type === "spear") {
     return {
       events,
@@ -196,7 +198,7 @@ function resolveEnemyMoveIntent(context: TurnContext, actor: Entity, mode: Enemy
 
 function resolveFaceIntent(context: TurnContext, actor: Entity, mode: FaceMode): void {
   if (mode.type === "turn") {
-    context.runtime.crawler.dispatchVoid({ type: "turn", entity: actor, direction: mode.direction });
+    context.execution.dispatch({ type: "turn", entity: actor, direction: mode.direction });
   } else faceEntityToward(context, actor, mode.target);
 }
 
@@ -207,10 +209,11 @@ function resolveInteractionIntent(
 ): IntentResolution {
   const interaction = interactWithEntity(
     context.runtime,
+    context.execution.mutation,
     target,
-    heldKeysForPlayer(context.runtime.game, context.player),
-    playerHasUplinkCode(context.runtime.game, context.player),
-    playerHasSpear(context.runtime.game, context.player),
+    heldKeysForPlayer(context.runtime.simulation.ecs, context.player),
+    playerHasUplinkCode(context.runtime.simulation.ecs, context.player),
+    playerHasSpear(context.runtime.simulation.ecs, context.player),
     verb,
   );
   switch (interaction.type) {
@@ -235,21 +238,30 @@ function resolveInteractionIntent(
 function resolvePlayerAttackIntent(context: TurnContext, actor: Entity): IntentResolution {
   const faced = facedEntity(context);
   if (
-    faced !== undefined && hasComponent(context.runtime.game, faced, "Glass") &&
-    readComponent(context.runtime.game, faced, "Door")?.open === 0
+    faced !== undefined && hasComponent(context.runtime.simulation.ecs, faced, "Glass") &&
+    readComponent(context.runtime.simulation.ecs, faced, "Door")?.open === 0
   ) {
-    openDoor(context.runtime, faced);
+    openDoor(context.runtime, context.execution.mutation, faced);
     return { events: [{ type: "doorShattered", entity: faced }], cost: "turn", acted: true };
   }
-  const selected = readComponent(context.runtime.game, actor, "PlayerEquipment")?.selectedWeapon as
+  const selected = readComponent(context.runtime.simulation.ecs, actor, "PlayerEquipment")?.selectedWeapon as
     | CommandSlot
     | undefined;
   if (selected === undefined) return { events: [], cost: "free" };
   const weapon = context.runtime.content.simulation.weapon(selected);
-  if (weapon.ammo !== undefined && !spendPlayerAmmo(context.runtime.game, actor, weapon.ammo)) {
+  if (
+    weapon.ammo !== undefined &&
+    !spendPlayerAmmo(context.runtime.simulation.ecs, context.execution.mutation, actor, weapon.ammo)
+  ) {
     return { events: [{ type: "noAmmo", ammo: weapon.ammo }], cost: "free", acted: true };
   }
-  const events = attackWithSelectedWeapon(context.runtime, actor, selected, context.random, context.writeDefeatEffect);
+  const events = attackWithSelectedWeapon(
+    context.runtime,
+    actor,
+    selected,
+    context.execution.mutation,
+    context.execution.random,
+  );
   return {
     events: weapon.ammo === undefined ? events : [{ type: "ammoSpent", ammo: weapon.ammo, amount: 1 }, ...events],
     cost: "turn",
@@ -265,14 +277,21 @@ function resolveEnemyAttackIntent(context: TurnContext, actor: Entity): IntentRe
   const targets = attackTargets(context.runtime, actor, attack, (candidate) => candidate === context.player);
   const events: GameEvent[] = [];
   for (const target of targets) {
-    events.push(...attackEntity(context.runtime, actor, target, attack, context.random, context.writeDefeatEffect));
+    events.push(...attackEntity(
+      context.runtime,
+      actor,
+      target,
+      attack,
+      context.execution.mutation,
+      context.execution.random,
+    ));
   }
   return { events, acted: events.length > 0 };
 }
 
 function resolveSelectWeaponIntent(context: TurnContext, actor: Entity, slot: CommandSlot): IntentResolution {
-  const available = playerHasWeapon(context.runtime.game, actor, slot);
-  if (available) selectPlayerWeapon(context.runtime.game, actor, slot);
+  const available = playerHasWeapon(context.runtime.simulation.ecs, actor, slot);
+  if (available) selectPlayerWeapon(context.execution.mutation, actor, slot);
   return {
     events: [{
       type: available ? "weaponSelected" : "weaponUnavailable",
@@ -285,19 +304,19 @@ function resolveSelectWeaponIntent(context: TurnContext, actor: Entity, slot: Co
 }
 
 function tryMoveEnemyTowardPosition(context: TurnContext, target: GridPoint, actor: Entity): boolean {
-  const current = context.runtime.crawler.entityPosition(actor);
+  const current = context.runtime.simulation.crawler.entityPosition(actor);
   const next = context.runtime.pathfinder.nextStepToward(current, target);
   if (next === undefined) {
     faceEntityToward(context, actor, target);
     return false;
   }
   const direction = directionForStep({ dx: next.x - current.x, dy: next.y - current.y });
-  const result = context.runtime.crawler.dispatch({ type: "step", entity: actor, direction });
+  const result = context.execution.dispatch({ type: "step", entity: actor, direction });
   return result.events[0]?.type === "entityMoved";
 }
 
 function tryMoveEnemyAwayFromPosition(context: TurnContext, actor: Entity, target: GridPoint): boolean {
-  const current = context.runtime.crawler.entityPosition(actor);
+  const current = context.runtime.simulation.crawler.entityPosition(actor);
   const currentDistance = manhattanDistance(current, target);
   const awayX = Math.sign(current.x - target.x);
   const awayY = Math.sign(current.y - target.y);
@@ -308,7 +327,7 @@ function tryMoveEnemyAwayFromPosition(context: TurnContext, actor: Entity, targe
     const delta = CARDINAL_DELTAS[index]!;
     const x = current.x + delta.dx;
     const y = current.y + delta.dy;
-    if (context.runtime.crawler.blocksAt(x, y, TerrainBlock.Movement)) continue;
+    if (context.runtime.simulation.crawler.blocksAt(x, y, TerrainBlock.Movement)) continue;
     const distance = manhattanDistance({ x, y }, target);
     if (distance <= currentDistance) continue;
     const priority = movePriority(delta, awayX, awayY, horizontalDistance, verticalDistance, index);
@@ -317,7 +336,7 @@ function tryMoveEnemyAwayFromPosition(context: TurnContext, actor: Entity, targe
     }
   }
   if (best === undefined) return false;
-  const result = context.runtime.crawler.dispatch({
+  const result = context.execution.dispatch({
     type: "step",
     entity: actor,
     direction: directionForStep(best.delta),
@@ -346,7 +365,7 @@ function movePriority(
 }
 
 function faceEntityToward(context: TurnContext, actor: Entity, target: GridPoint): void {
-  const position = context.runtime.crawler.entityPosition(actor);
+  const position = context.runtime.simulation.crawler.entityPosition(actor);
   const dx = target.x - position.x;
   const dy = target.y - position.y;
   if (Math.abs(dx) >= Math.abs(dy) && dx !== 0) {
@@ -357,7 +376,7 @@ function faceEntityToward(context: TurnContext, actor: Entity, target: GridPoint
 }
 
 function setFacingDirection(context: TurnContext, actor: Entity, direction: CardinalDirection): void {
-  context.runtime.crawler.setFacing(actor, direction);
+  context.execution.mutation.setFacing(actor, direction);
 }
 
 function directionForStep(delta: GridDelta): CardinalDirection {

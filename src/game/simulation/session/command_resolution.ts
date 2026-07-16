@@ -1,10 +1,9 @@
-import type { RandomSource } from "@/src/engine/random.ts";
 import type { EnemySoundProfile } from "@/src/game/content/enemies.ts";
 import type { StoryEventId } from "@/src/game/content/story.ts";
 import type { PlayerCommand, PlayerCommandResult } from "@/src/game/model/commands.ts";
 import type { GameEvent } from "@/src/game/model/events.ts";
 import type { SoundCue } from "@/src/game/model/sound.ts";
-import { enemyArchetypeFor, readComponent } from "@/src/game/simulation/components.ts";
+import { enemyArchetypeFor } from "@/src/game/simulation/components.ts";
 import { selectedPlayerWeapon } from "@/src/game/simulation/progression.ts";
 import type { MapSessionState } from "@/src/game/simulation/session/map_lifecycle.ts";
 import {
@@ -17,27 +16,21 @@ import {
   type ProgressionStatisticsState,
   recordCommandStatistics,
 } from "@/src/game/simulation/session/progression_statistics.ts";
-import {
-  type AnimationController,
-  createAnimationController,
-} from "@/src/game/simulation/session/sprite_animations.ts";
 import { applyEvent, queueTalkEvent } from "@/src/game/simulation/session/story_actions.ts";
 import { soundCuesForEvents } from "@/src/game/simulation/sound_cues.ts";
 import type { TurnContext } from "@/src/game/simulation/turn/actions.ts";
 import { runTurnTransaction, type TurnTransactionResult } from "@/src/game/simulation/turn/transaction.ts";
 import type { GridPoint } from "@/src/game/world/direction.ts";
 import type { Entity } from "turn-based-engine/ecs";
+import type { CrawlerCoreEvent } from "turn-based-engine/crawler";
 
 const UNCHANGED_PLAYER_COMMAND: PlayerCommandResult = Object.freeze({ type: "continue", events: [] });
-type EntityPositionSnapshot = ReadonlyMap<Entity, GridPoint>;
 
 export type CommandResolutionState = {
   readonly map: MapSessionState;
   readonly progression: ProgressionStatisticsState;
   readonly outputs: OutputReaderState;
-  readonly random: RandomSource;
   readonly now: () => number;
-  readonly animations: AnimationController;
   pendingDialogueStoryEvent?: StoryEventId;
 };
 
@@ -45,35 +38,30 @@ export function createCommandResolution(
   map: MapSessionState,
   progression: ProgressionStatisticsState,
   outputs: OutputReaderState,
-  random: RandomSource,
   now: () => number,
 ): CommandResolutionState {
   return {
     map,
     progression,
     outputs,
-    random,
     now,
-    animations: createAnimationController(map.runtime),
   };
 }
 
 export function tickCommandResolution(state: CommandResolutionState, nowMs: number): boolean {
-  return state.animations.advance(nowMs);
+  return state.outputs.projection.advance(nowMs);
 }
 
 export function handlePlayerCommand(
   state: CommandResolutionState,
   command: PlayerCommand,
 ): PlayerCommandResult {
-  const positionsBefore = entityPositionSnapshot(state.map);
   const enemySounds = enemySoundSnapshot(state);
   const playerPositionBefore = playerPosition(state.outputs);
-  const playerWeaponSlot = selectedPlayerWeapon(state.map.runtime.game, state.map.player);
-  const actorPositions = state.animations.actorPositions();
+  const playerWeaponSlot = selectedPlayerWeapon(state.map.runtime.simulation.ecs, state.map.player);
   const transaction = runTurnTransaction(turnContext(state), command);
   const dialogueTarget = transaction.dialogue?.target;
-  const result = commitTurnTransaction(state, transaction, actorPositions);
+  const result = commitTurnTransaction(state, transaction);
   const playerPositionAfter = playerPosition(state.outputs);
   recordCommandStatistics(
     state.progression,
@@ -86,8 +74,7 @@ export function handlePlayerCommand(
   const soundCues = soundCuesForEvents(result.events, {
     playerEntity: state.map.player,
     playerPosition: playerPositionAfter,
-    positionsBefore,
-    positionsAfter: entityPositionSnapshot(state.map),
+    positionFor: positionResolver(state.map, transaction.coreEvents),
     enemySounds,
     blockedMove: command.type === "move" && samePosition(playerPositionBefore, playerPositionAfter) &&
       result.events.length === 0,
@@ -100,38 +87,38 @@ export function handlePlayerCommand(
 
 export function closeDialogue(state: CommandResolutionState): void {
   const event = state.pendingDialogueStoryEvent;
+  if (event === undefined) return;
+  const application = applyEvent(state.map.runtime, state.map.player, event);
   state.pendingDialogueStoryEvent = undefined;
-  if (event !== undefined) applyEvent(state.map.runtime, state.map.player, event, state.now());
+  if (application.applied) {
+    const nowMs = state.now();
+    state.outputs.projection.consume(state.map.player, application.coreEvents, [], nowMs);
+    state.outputs.projection.advance(nowMs);
+  }
 }
 
-function turnContext(state: CommandResolutionState): TurnContext {
+function turnContext(state: CommandResolutionState): Omit<TurnContext, "execution"> {
   return {
     runtime: state.map.runtime,
     player: state.map.player,
-    random: state.random,
-    writeDefeatEffect: state.animations.writeDefeatEffect,
   };
 }
 
 function commitTurnTransaction(
   state: CommandResolutionState,
   transaction: TurnTransactionResult,
-  actorPositions: ReturnType<AnimationController["actorPositions"]>,
 ): PlayerCommandResult {
+  const nowMs = state.now();
+  state.outputs.projection.consume(state.map.player, transaction.coreEvents, transaction.events, nowMs);
+  state.outputs.projection.advance(nowMs);
   if (transaction.dialogue !== undefined) {
     const event = queueTalkEvent(state.map.runtime, state.map.player, transaction.dialogue.target);
     if (event !== undefined) state.pendingDialogueStoryEvent = event;
     return { type: "dialogue", events: transaction.events, dialogue: transaction.dialogue.dialogue };
   }
-  if (transaction.terminal !== undefined) {
-    return commitUplinkTerminalActivation(state, transaction.terminal, transaction.events);
-  }
-  if (transaction.outcome === "victory") return commitVictory(state, transaction.events);
-  if (transaction.cost === "turn") {
-    const nowMs = state.now();
-    state.animations.applyWalks(actorPositions, nowMs);
-    state.animations.applyEvents(state.map.player, transaction.events, nowMs);
-    state.animations.advance(nowMs);
+  if (transaction.transition?.kind === "victory") return commitVictory(state, transaction.events);
+  if (transaction.transition?.kind === "map") {
+    return commitMapChange(state, transaction.transition.goto, transaction.events);
   }
   if (transaction.outcome === "defeat") {
     return { type: "outcome", events: transaction.events, outcome: "defeat" };
@@ -139,21 +126,8 @@ function commitTurnTransaction(
   return transaction.events.length === 0 ? UNCHANGED_PLAYER_COMMAND : { type: "continue", events: transaction.events };
 }
 
-function commitUplinkTerminalActivation(
-  state: CommandResolutionState,
-  terminal: Entity,
-  events: readonly GameEvent[],
-): PlayerCommandResult {
-  const destinationCode = readComponent(state.map.runtime.game, terminal, "TerminalDestination")?.destination;
-  if (destinationCode === undefined) throw new Error(`Uplink terminal ${terminal} is missing a map destination.`);
-  const destination = state.map.runtime.content.levels.destinationForCode(destinationCode);
-  return destination.kind === "victory" ?
-    commitVictory(state, events) :
-    commitMapChange(state, destination.level.map.name, events);
-}
-
 function commitVictory(state: CommandResolutionState, events: readonly GameEvent[]): PlayerCommandResult {
-  const completion = completeCurrentLevel(state.progression, state.map, events);
+  const completion = completeCurrentLevel(state.progression, events);
   return { type: "outcome", events: completion.events, outcome: "victory", levelStats: completion.stats };
 }
 
@@ -162,23 +136,41 @@ function commitMapChange(
   goto: string,
   events: readonly GameEvent[],
 ): PlayerCommandResult {
-  const completion = completeCurrentLevel(state.progression, state.map, events);
+  const completion = completeCurrentLevel(state.progression, events);
   return { type: "mapChange", events: completion.events, mapChange: { goto }, levelStats: completion.stats };
 }
 
-function entityPositionSnapshot(map: MapSessionState): EntityPositionSnapshot {
-  const positions = new Map<Entity, GridPoint>();
-  for (const entity of map.runtime.crawler.entities()) {
-    positions.set(entity, map.runtime.crawler.entityPosition(entity));
+function positionResolver(
+  map: MapSessionState,
+  coreEvents: readonly CrawlerCoreEvent[],
+): (entity: Entity) => GridPoint | undefined {
+  const changed = new Map<Entity, GridPoint>();
+  for (const event of coreEvents) {
+    switch (event.type) {
+      case "moved":
+      case "teleported":
+        changed.set(event.entity.entity, event.to);
+        break;
+      case "spawned":
+      case "despawned":
+        changed.set(event.entity.entity, event.at);
+        break;
+    }
   }
-  return positions;
+  return (entity) => {
+    const position = changed.get(entity);
+    if (position !== undefined) return position;
+    return map.runtime.simulation.ecs.isEntityAlive(entity) ?
+      map.runtime.simulation.crawler.entityPosition(entity) :
+      undefined;
+  };
 }
 
 function enemySoundSnapshot(state: CommandResolutionState): ReadonlyMap<Entity, EnemySoundProfile> {
   const sounds = new Map<Entity, EnemySoundProfile>();
   forEachEnemyIdleSoundSource(state.outputs, (source) => {
     const archetype = enemyArchetypeFor(
-      state.map.runtime.game,
+      state.map.runtime.simulation.ecs,
       source.entity,
       state.map.runtime.content.simulation,
     );

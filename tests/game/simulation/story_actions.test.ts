@@ -1,4 +1,3 @@
-import { hasComponent } from "@/src/game/simulation/components.ts";
 import { playerHasStoryFlag } from "@/src/game/simulation/progression.ts";
 import { createNpc, createPlayer, createRuntime } from "@/tests/game/simulation/helpers.ts";
 import { applyEvent } from "@/src/game/simulation/session/story_actions.ts";
@@ -18,12 +17,13 @@ Deno.test("a rejected story flag update rolls back story movement", () => {
     displayName: DisplayName.John,
     storyId: StoryTargetId.John,
   });
-  runtime.game.removeComponentFromEntity(player, runtime.game.components.StoryFlags);
+  runtime.simulation.mutateAtomically(({ mutation }) => {
+    mutation.removeComponent(player, runtime.simulation.ecs.components.StoryFlags);
+  });
 
-  assertThrows(() => applyEvent(runtime, player, StoryEventId.JohnSpoken, 100));
+  assertThrows(() => applyEvent(runtime, player, StoryEventId.JohnSpoken));
 
-  assertEquals(runtime.crawler.entityPosition(john), { x: 2, y: 1 });
-  assertEquals(playerHasStoryFlag(runtime.game, player, StoryFlag.JohnSpoken), false);
-  assertEquals(hasComponent(runtime.game, john, "SpriteAnimation"), false);
-  runtime.crawler.assertInvariants();
+  assertEquals(runtime.simulation.crawler.entityPosition(john), { x: 2, y: 1 });
+  assertEquals(playerHasStoryFlag(runtime.simulation.ecs, player, StoryFlag.JohnSpoken), false);
+  runtime.simulation.crawler.assertInvariants();
 });

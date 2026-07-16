@@ -3,9 +3,9 @@ import type { EnemyArchetypeCode } from "@/src/game/content/enemies.ts";
 import { type ItemKind as ItemKindType, ItemKind as ItemKindValues } from "@/src/game/content/items.ts";
 import type { SpriteId } from "@/src/game/content/sprite_ids.ts";
 import { type AttackDef, AttackPattern, AttackTargetMode } from "@/src/game/model/attack.ts";
-import type { DrawableKind, SpriteAnimationKind } from "@/src/game/model/render_snapshot.ts";
-import type { CrawlerGame } from "turn-based-engine/crawler";
-import type { ComponentMap, Entity } from "turn-based-engine/ecs";
+import type { DrawableKind } from "@/src/game/model/render_snapshot.ts";
+import type { CrawlerEcs, CrawlerMutation } from "turn-based-engine/crawler";
+import type { ComponentMap, Entity, PropertyValues } from "turn-based-engine/ecs";
 
 export { AttackPattern, AttackTargetMode };
 export const ItemKind = ItemKindValues;
@@ -36,8 +36,6 @@ export type SpriteSchema = { id: SpriteId };
 export const SPRITE_WALK_MS = 170;
 export const SPRITE_ATTACK_MS = 380;
 export const SPRITE_DEATH_MS = 560;
-export const PENDING_SPRITE_ANIMATION_START_MS = -1;
-export type SpriteAnimationSchema = { kind: SpriteAnimationKind; startedAtMs: number; durationMs: number };
 
 export type DoorSchema = { open: number; slide: number; openMs: number };
 export type LockedSchema = { color: number };
@@ -97,7 +95,6 @@ export const GAME_COMPONENTS = {
   Interactable: {},
   Drawable: { kind: Uint8Array, layer: Uint8Array },
   Sprite: { id: Uint8Array },
-  SpriteAnimation: { kind: Uint8Array, startedAtMs: Float64Array, durationMs: Uint16Array },
   Door: { open: Uint8Array, slide: Uint8Array, openMs: Uint16Array },
   Locked: { color: Uint8Array },
   Secret: {},
@@ -145,10 +142,11 @@ export const GAME_COMPONENTS = {
 
 export type GameComponentMap = typeof GAME_COMPONENTS;
 export type GameComponentName = keyof GameComponentMap;
-export type GameComponentValue<Name extends GameComponentName> = {
-  [Key in keyof GameComponentMap[Name]]: number;
-};
-export type GameEcs = CrawlerGame<GameComponentMap>;
+export type GameComponentValue<Name extends GameComponentName> = PropertyValues<
+  CrawlerEcs<GameComponentMap>["components"][Name]
+>;
+export type GameEcs = CrawlerEcs<GameComponentMap>;
+export type GameMutation = CrawlerMutation<GameComponentMap>;
 
 export function hasComponent<Name extends GameComponentName>(game: GameEcs, entity: Entity, name: Name): boolean {
   return game.entityHasComponent(entity, game.components[name]);
@@ -177,12 +175,12 @@ export function requireComponent<Name extends GameComponentName>(
 }
 
 export function writeComponent<Name extends GameComponentName>(
-  game: GameEcs,
+  mutation: GameMutation,
   entity: Entity,
   name: Name,
   value: Partial<GameComponentValue<Name>>,
 ): void {
-  game.storage[name].patch(entity, value);
+  mutation.patchComponent(entity, mutation.components[name], value);
 }
 
 export function enemyArchetypeFor(

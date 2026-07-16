@@ -14,11 +14,14 @@ export type SoundReaders = {
 };
 
 export function createSoundReaders(runtime: GameRuntime): SoundReaders {
-  const soundQuery = runtime.game.query(runtime.crawler.components.GridPosition, runtime.game.components.SoundEmitter);
-  const enemyQuery = runtime.game.query(
-    runtime.crawler.components.GridPosition,
-    runtime.game.components.Enemy,
-    runtime.game.components.EnemyArchetype,
+  const soundQuery = runtime.simulation.ecs.query(
+    runtime.simulation.crawler.components.GridPosition,
+    runtime.simulation.ecs.components.SoundEmitter,
+  );
+  const enemyQuery = runtime.simulation.ecs.query(
+    runtime.simulation.crawler.components.GridPosition,
+    runtime.simulation.ecs.components.Enemy,
+    runtime.simulation.ecs.components.EnemyArchetype,
   );
   const sound: Mutable<SoundEmitterSnapshot> = {
     entity: 0 as Entity,
@@ -43,22 +46,24 @@ export function createSoundReaders(runtime: GameRuntime): SoundReaders {
 
   function visitSoundEmitter(entity: Entity, slot: SlotIndex): void {
     sound.entity = entity;
-    sound.soundId = runtime.content.audio.soundIdForCode(runtime.game.storage.SoundEmitter.getAt(slot, "soundId"));
-    sound.x = runtime.crawler.storage.GridPosition.getAt(slot, "x");
-    sound.y = runtime.crawler.storage.GridPosition.getAt(slot, "y");
-    sound.radius = runtime.game.storage.SoundEmitter.getAt(slot, "radius");
-    sound.volume = runtime.game.storage.SoundEmitter.getAt(slot, "volume");
+    sound.soundId = runtime.content.audio.soundIdForCode(
+      runtime.simulation.ecs.storage.SoundEmitter.getAt(slot, "soundId"),
+    );
+    sound.x = runtime.simulation.crawler.storage.GridPosition.getAt(slot, "x");
+    sound.y = runtime.simulation.crawler.storage.GridPosition.getAt(slot, "y");
+    sound.radius = runtime.simulation.ecs.storage.SoundEmitter.getAt(slot, "radius");
+    sound.volume = runtime.simulation.ecs.storage.SoundEmitter.getAt(slot, "volume");
     soundVisitor(sound);
   }
 
   function visitEnemyIdleSoundSource(entity: Entity, slot: SlotIndex): void {
     const idle = runtime.content.simulation.enemyForCode(
-      runtime.game.storage.EnemyArchetype.getAt(slot, "archetype"),
+      runtime.simulation.ecs.storage.EnemyArchetype.getAt(slot, "archetype"),
     ).definition.sounds.idle;
     enemy.entity = entity;
     enemy.soundId = idle.soundId;
-    enemy.x = runtime.crawler.storage.GridPosition.getAt(slot, "x");
-    enemy.y = runtime.crawler.storage.GridPosition.getAt(slot, "y");
+    enemy.x = runtime.simulation.crawler.storage.GridPosition.getAt(slot, "x");
+    enemy.y = runtime.simulation.crawler.storage.GridPosition.getAt(slot, "y");
     enemy.radius = idle.radius;
     enemy.volume = idle.volume;
     enemy.minDelayMs = idle.minDelayMs;

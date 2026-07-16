@@ -10,7 +10,7 @@ export function bootQueryFromSearch(search: string): BootQuery {
   const seedParam = Number.parseInt(params.get("seed") ?? "42", 10);
   const map = params.get("map");
   return {
-    seed: Number.isFinite(seedParam) ? seedParam : 42,
+    seed: Number.isSafeInteger(seedParam) ? seedParam >>> 0 : 42,
     startMapName: map === null || map === "" ? undefined : map,
     cheat: params.has("cheat"),
   };

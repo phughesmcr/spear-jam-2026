@@ -1,5 +1,6 @@
 import {
   type GameEcs,
+  type GameMutation,
   type HealthSchema,
   type PlayerEquipmentSchema,
   type PlayerInventorySchema,
@@ -58,18 +59,18 @@ export type PlayerProgressionCheckpoint = {
   readonly storyFlags: readonly StoryFlag[];
 };
 
-export function resetPlayerProgression(game: GameEcs, player: Entity): void {
-  writeComponent(game, player, "Health", DEFAULT_PLAYER_HEALTH);
-  writeComponent(game, player, "PlayerInventory", DEFAULT_PLAYER_INVENTORY);
-  writeComponent(game, player, "PlayerEquipment", DEFAULT_PLAYER_EQUIPMENT);
-  writeComponent(game, player, "PlayerProgress", DEFAULT_PLAYER_PROGRESS);
-  writeComponent(game, player, "StoryFlags", { mask: 0 });
+export function resetPlayerProgression(mutation: GameMutation, player: Entity): void {
+  writeComponent(mutation, player, "Health", DEFAULT_PLAYER_HEALTH);
+  writeComponent(mutation, player, "PlayerInventory", DEFAULT_PLAYER_INVENTORY);
+  writeComponent(mutation, player, "PlayerEquipment", DEFAULT_PLAYER_EQUIPMENT);
+  writeComponent(mutation, player, "PlayerProgress", DEFAULT_PLAYER_PROGRESS);
+  writeComponent(mutation, player, "StoryFlags", { mask: 0 });
 }
 
-export function applyCheatPlayerLoadout(game: GameEcs, player: Entity): void {
-  writeComponent(game, player, "Health", DEFAULT_PLAYER_HEALTH);
-  writeComponent(game, player, "PlayerInventory", CHEAT_PLAYER_INVENTORY);
-  writeComponent(game, player, "PlayerEquipment", CHEAT_PLAYER_EQUIPMENT);
+export function applyCheatPlayerLoadout(mutation: GameMutation, player: Entity): void {
+  writeComponent(mutation, player, "Health", DEFAULT_PLAYER_HEALTH);
+  writeComponent(mutation, player, "PlayerInventory", CHEAT_PLAYER_INVENTORY);
+  writeComponent(mutation, player, "PlayerEquipment", CHEAT_PLAYER_EQUIPMENT);
 }
 
 export function playerStoryFlags(game: GameEcs, player: Entity): readonly StoryFlag[] {
@@ -80,8 +81,8 @@ export function playerHasStoryFlag(game: GameEcs, player: Entity, flag: StoryFla
   return maskHasStoryFlag(playerStoryFlagMask(game, player), flag);
 }
 
-export function addPlayerStoryFlag(game: GameEcs, player: Entity, flag: StoryFlag): void {
-  writeComponent(game, player, "StoryFlags", { mask: maskWithStoryFlag(playerStoryFlagMask(game, player), flag) });
+export function addPlayerStoryFlag(game: GameEcs, mutation: GameMutation, player: Entity, flag: StoryFlag): void {
+  writeComponent(mutation, player, "StoryFlags", { mask: maskWithStoryFlag(playerStoryFlagMask(game, player), flag) });
 }
 
 function playerStoryFlagMask(game: GameEcs, player: Entity): number {
@@ -99,15 +100,15 @@ export function capturePlayerProgressionCheckpoint(game: GameEcs, player: Entity
 }
 
 export function restorePlayerProgressionCheckpoint(
-  game: GameEcs,
+  mutation: GameMutation,
   player: Entity,
   checkpoint: PlayerProgressionCheckpoint,
 ): void {
-  writeComponent(game, player, "Health", checkpoint.health);
-  writeComponent(game, player, "PlayerInventory", checkpoint.inventory);
-  writeComponent(game, player, "PlayerEquipment", checkpoint.equipment);
-  writeComponent(game, player, "PlayerProgress", checkpoint.progress);
-  writeComponent(game, player, "StoryFlags", { mask: storyFlagsToMask(checkpoint.storyFlags) });
+  writeComponent(mutation, player, "Health", checkpoint.health);
+  writeComponent(mutation, player, "PlayerInventory", checkpoint.inventory);
+  writeComponent(mutation, player, "PlayerEquipment", checkpoint.equipment);
+  writeComponent(mutation, player, "PlayerProgress", checkpoint.progress);
+  writeComponent(mutation, player, "StoryFlags", { mask: storyFlagsToMask(checkpoint.storyFlags) });
 }
 
 export function playerStatusSnapshotFor(game: GameEcs, player: Entity): PlayerStatusSnapshot {
@@ -146,16 +147,16 @@ export function playerHasWeapon(game: GameEcs, player: Entity, slot: CommandSlot
   return (playerEquipmentFor(game, player).unlockedWeaponMask & weaponBit(slot)) !== 0;
 }
 
-export function selectPlayerWeapon(game: GameEcs, player: Entity, slot: CommandSlot): void {
-  writeComponent(game, player, "PlayerEquipment", { selectedWeapon: slot });
+export function selectPlayerWeapon(mutation: GameMutation, player: Entity, slot: CommandSlot): void {
+  writeComponent(mutation, player, "PlayerEquipment", { selectedWeapon: slot });
 }
 
-export function spendPlayerAmmo(game: GameEcs, player: Entity, ammo: AmmoKind): boolean {
+export function spendPlayerAmmo(game: GameEcs, mutation: GameMutation, player: Entity, ammo: AmmoKind): boolean {
   const inventory = playerInventoryFor(game, player);
   const amount = ammo === "pistol" ? inventory.pistolAmmo : inventory.cannonAmmo;
   if (amount <= 0) return false;
   writeComponent(
-    game,
+    mutation,
     player,
     "PlayerInventory",
     ammo === "pistol" ? { pistolAmmo: amount - 1 } : { cannonAmmo: amount - 1 },
@@ -165,24 +166,25 @@ export function spendPlayerAmmo(game: GameEcs, player: Entity, ammo: AmmoKind): 
 
 export function applyItemPickupToPlayer(
   runtime: GameRuntime,
+  mutation: GameMutation,
   player: Entity,
   pickup: ItemPickup,
 ): readonly GameEvent[] {
-  const game = runtime.game;
+  const game = runtime.simulation.ecs;
   switch (pickup.type) {
     case "key":
-      addPlayerKey(game, player, pickup.color);
+      addPlayerKey(game, mutation, player, pickup.color);
       return [{ type: "keyPickedUp", entity: pickup.entity }];
     case "uplinkCode":
-      writeComponent(game, player, "PlayerInventory", { hasUplinkCode: 1 });
+      writeComponent(mutation, player, "PlayerInventory", { hasUplinkCode: 1 });
       return [{ type: "uplinkCodePickedUp", entity: pickup.entity }];
     case "spear":
-      writeComponent(game, player, "PlayerInventory", { hasSpear: 1 });
+      writeComponent(mutation, player, "PlayerInventory", { hasSpear: 1 });
       return [{ type: "spearPickedUp", entity: pickup.entity }];
     case "weapon": {
       const isNewWeapon = !playerHasWeapon(game, player, pickup.slot);
-      unlockPlayerWeapon(game, player, pickup.slot);
-      if (isNewWeapon) selectPlayerWeapon(game, player, pickup.slot);
+      unlockPlayerWeapon(game, mutation, player, pickup.slot);
+      if (isNewWeapon) selectPlayerWeapon(mutation, player, pickup.slot);
       return [{
         type: "weaponPickedUp",
         entity: pickup.entity,
@@ -191,15 +193,16 @@ export function applyItemPickupToPlayer(
       }];
     }
     case "health":
-      return applyHealthPatch(game, player, pickup.entity, pickup.amount);
+      return applyHealthPatch(game, mutation, player, pickup.entity, pickup.amount);
     case "ammo":
-      addPlayerAmmo(game, player, pickup.ammo, pickup.amount);
+      addPlayerAmmo(game, mutation, player, pickup.ammo, pickup.amount);
       return [{ type: "ammoPickedUp", entity: pickup.entity, ammo: pickup.ammo, amount: pickup.amount }];
   }
 }
 
 export function awardCreditsForDefeats(
   game: GameEcs,
+  mutation: GameMutation,
   player: Entity,
   events: readonly GameEvent[],
 ): readonly GameEvent[] {
@@ -218,50 +221,61 @@ export function awardCreditsForDefeats(
     });
   }
   if (rewards.length === 0) return events;
-  writeComponent(game, player, "PlayerProgress", progress);
+  writeComponent(mutation, player, "PlayerProgress", progress);
   return [...events, ...rewards];
 }
 
-export function completePlayerLevel(game: GameEcs, player: Entity, events: readonly GameEvent[]): readonly GameEvent[] {
+export function completePlayerLevel(
+  game: GameEcs,
+  mutation: GameMutation,
+  player: Entity,
+  events: readonly GameEvent[],
+): readonly GameEvent[] {
   const progress = playerProgressFor(game, player);
   if (progress.levelCredits <= 0) return events;
   const amount = progress.levelCredits;
   progress.xp += amount;
   progress.levelCredits = 0;
-  writeComponent(game, player, "PlayerProgress", progress);
+  writeComponent(mutation, player, "PlayerProgress", progress);
   return [...events, { type: "xpGained", amount, xp: progress.xp }];
 }
 
-export function clearTransientPlayerState(game: GameEcs, player: Entity): void {
-  writeComponent(game, player, "PlayerInventory", { keyMask: 0, hasUplinkCode: 0 });
+export function clearTransientPlayerState(mutation: GameMutation, player: Entity): void {
+  writeComponent(mutation, player, "PlayerInventory", { keyMask: 0, hasUplinkCode: 0 });
 }
 
-function addPlayerKey(game: GameEcs, player: Entity, color: KeyColorType): void {
+function addPlayerKey(game: GameEcs, mutation: GameMutation, player: Entity, color: KeyColorType): void {
   const inventory = playerInventoryFor(game, player);
-  writeComponent(game, player, "PlayerInventory", { keyMask: inventory.keyMask | keyBit(color) });
+  writeComponent(mutation, player, "PlayerInventory", { keyMask: inventory.keyMask | keyBit(color) });
 }
 
-function unlockPlayerWeapon(game: GameEcs, player: Entity, slot: CommandSlot): void {
+function unlockPlayerWeapon(game: GameEcs, mutation: GameMutation, player: Entity, slot: CommandSlot): void {
   const equipment = playerEquipmentFor(game, player);
-  writeComponent(game, player, "PlayerEquipment", {
+  writeComponent(mutation, player, "PlayerEquipment", {
     unlockedWeaponMask: equipment.unlockedWeaponMask | weaponBit(slot),
   });
 }
 
-function addPlayerAmmo(game: GameEcs, player: Entity, ammo: AmmoKind, amount: number): void {
+function addPlayerAmmo(game: GameEcs, mutation: GameMutation, player: Entity, ammo: AmmoKind, amount: number): void {
   const inventory = playerInventoryFor(game, player);
   writeComponent(
-    game,
+    mutation,
     player,
     "PlayerInventory",
     ammo === "pistol" ? { pistolAmmo: inventory.pistolAmmo + amount } : { cannonAmmo: inventory.cannonAmmo + amount },
   );
 }
 
-function applyHealthPatch(game: GameEcs, player: Entity, item: Entity, amount: number): readonly GameEvent[] {
+function applyHealthPatch(
+  game: GameEcs,
+  mutation: GameMutation,
+  player: Entity,
+  item: Entity,
+  amount: number,
+): readonly GameEvent[] {
   const health = playerHealthFor(game, player);
   const healed = Math.min(amount, Math.max(0, health.max - health.current));
-  if (healed > 0) writeComponent(game, player, "Health", { current: health.current + healed });
+  if (healed > 0) writeComponent(mutation, player, "Health", { current: health.current + healed });
   return [{ type: "healthPickedUp", entity: item, amount, healed }];
 }
 

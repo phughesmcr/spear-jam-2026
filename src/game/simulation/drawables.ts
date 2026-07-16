@@ -7,6 +7,8 @@ import {
   type SpriteAnimationSnapshot,
 } from "@/src/game/model/render_snapshot.ts";
 import type { GameRuntime } from "@/src/game/simulation/runtime.ts";
+import type { SessionProjection } from "@/src/game/presentation/session_projection.ts";
+import { DrawableLayer } from "@/src/game/simulation/components.ts";
 import { Direction } from "@/src/game/world/direction.ts";
 import type { DoorSlide, KeyColor as KeyColorType } from "@/src/game/content/map_entities.ts";
 import { DEFAULT_DOOR_OPEN_MS, doorSlideForCode, keyColorForCode } from "@/src/game/world/map.ts";
@@ -19,7 +21,7 @@ type DrawableScratch = {
   kind: DrawableKind;
   dir: number;
   spriteId: SpriteIdType;
-  animation: { kind: SpriteAnimationSnapshot["kind"]; startedAtMs: number; durationMs: number } | undefined;
+  animation: SpriteAnimationSnapshot | undefined;
   health: { current: number; max: number } | undefined;
   open: boolean;
   locked: boolean;
@@ -45,13 +47,18 @@ export type RuntimeReaders = {
   readonly forEachLight: (visit: LightEntityVisitor) => void;
 };
 
-export function createDrawableReaders(runtime: GameRuntime): RuntimeReaders {
-  const drawableQuery = runtime.game.query(runtime.crawler.components.GridPosition, runtime.game.components.Drawable);
-  const lightQuery = runtime.game.query(runtime.crawler.components.GridPosition, runtime.game.components.LightEmitter);
+export function createDrawableReaders(runtime: GameRuntime, projection: SessionProjection): RuntimeReaders {
+  const drawableQuery = runtime.simulation.ecs.query(
+    runtime.simulation.crawler.components.GridPosition,
+    runtime.simulation.ecs.components.Drawable,
+  );
+  const lightQuery = runtime.simulation.ecs.query(
+    runtime.simulation.crawler.components.GridPosition,
+    runtime.simulation.ecs.components.LightEmitter,
+  );
   let entities = new Uint32Array(64);
   let slots = new Array<SlotIndex>(64);
   const drawable = createDrawableScratch();
-  const animation = { kind: 0 as SpriteAnimationSnapshot["kind"], startedAtMs: 0, durationMs: 0 };
   const health = { current: 0, max: 0 };
   const light = createLightScratch();
   let drawableCount = 0;
@@ -68,7 +75,7 @@ export function createDrawableReaders(runtime: GameRuntime): RuntimeReaders {
 
   function collectDrawable(entity: Entity, slot: SlotIndex): void {
     ensureCapacity(drawableCount + 1);
-    const layer = runtime.game.storage.Drawable.getAt(slot, "layer");
+    const layer = runtime.simulation.ecs.storage.Drawable.getAt(slot, "layer");
     let insertion = drawableCount;
     while (
       insertion > 0 &&
@@ -85,19 +92,19 @@ export function createDrawableReaders(runtime: GameRuntime): RuntimeReaders {
 
   function visitLight(entity: Entity, slot: SlotIndex): void {
     light.entity = entity;
-    light.x = runtime.crawler.storage.GridPosition.getAt(slot, "x");
-    light.y = runtime.crawler.storage.GridPosition.getAt(slot, "y");
-    light.red = runtime.game.storage.LightEmitter.getAt(slot, "red");
-    light.green = runtime.game.storage.LightEmitter.getAt(slot, "green");
-    light.blue = runtime.game.storage.LightEmitter.getAt(slot, "blue");
-    light.radius = runtime.game.storage.LightEmitter.getAt(slot, "radius");
-    light.flickerAmount = runtime.game.storage.LightEmitter.getAt(slot, "flickerAmount");
-    light.flickerSpeed = runtime.game.storage.LightEmitter.getAt(slot, "flickerSpeed");
+    light.x = runtime.simulation.crawler.storage.GridPosition.getAt(slot, "x");
+    light.y = runtime.simulation.crawler.storage.GridPosition.getAt(slot, "y");
+    light.red = runtime.simulation.ecs.storage.LightEmitter.getAt(slot, "red");
+    light.green = runtime.simulation.ecs.storage.LightEmitter.getAt(slot, "green");
+    light.blue = runtime.simulation.ecs.storage.LightEmitter.getAt(slot, "blue");
+    light.radius = runtime.simulation.ecs.storage.LightEmitter.getAt(slot, "radius");
+    light.flickerAmount = runtime.simulation.ecs.storage.LightEmitter.getAt(slot, "flickerAmount");
+    light.flickerSpeed = runtime.simulation.ecs.storage.LightEmitter.getAt(slot, "flickerSpeed");
     lightVisitor(light);
   }
 
   function refreshDrawableOrder(): void {
-    const revision = runtime.game.storage.Drawable.revision;
+    const revision = runtime.simulation.ecs.storage.Drawable.revision;
     if (revision === drawableRevision) return;
     drawableCount = 0;
     drawableQuery.forEach(collectDrawable);
@@ -106,10 +113,22 @@ export function createDrawableReaders(runtime: GameRuntime): RuntimeReaders {
 
   function forEachDrawable(visit: DrawableEntityVisitor): void {
     refreshDrawableOrder();
+    const overlays = projection.overlays();
+    let overlayIndex = 0;
     for (let index = 0; index < drawableCount; index++) {
       const entity = entities[index]! as Entity;
-      if (writeDrawable(runtime, entity, slots[index]!, drawable, animation, health)) visit(drawable as DrawableEntity);
+      const slot = slots[index]!;
+      const layer = runtime.simulation.ecs.storage.Drawable.getAt(slot, "layer");
+      while (
+        overlayIndex < overlays.length &&
+        (DrawableLayer.Item < layer ||
+          (DrawableLayer.Item === layer && overlays[overlayIndex]!.entity < entity))
+      ) {
+        visit(overlays[overlayIndex++]!);
+      }
+      if (writeDrawable(runtime, projection, entity, slot, drawable, health)) visit(drawable as DrawableEntity);
     }
+    while (overlayIndex < overlays.length) visit(overlays[overlayIndex++]!);
   }
 
   function forEachLight(visit: LightEntityVisitor): void {
@@ -121,21 +140,21 @@ export function createDrawableReaders(runtime: GameRuntime): RuntimeReaders {
 }
 
 function compareOrder(a: Entity, aLayer: number, b: Entity, bSlot: SlotIndex, runtime: GameRuntime): number {
-  return aLayer - runtime.game.storage.Drawable.getAt(bSlot, "layer") || a - b;
+  return aLayer - runtime.simulation.ecs.storage.Drawable.getAt(bSlot, "layer") || a - b;
 }
 
 function writeDrawable(
   runtime: GameRuntime,
+  projection: SessionProjection,
   entity: Entity,
   slot: SlotIndex,
   drawable: DrawableScratch,
-  animation: NonNullable<DrawableScratch["animation"]>,
   health: NonNullable<DrawableScratch["health"]>,
 ): boolean {
-  const kind = runtime.game.storage.Drawable.getAt(slot, "kind") as DrawableKind;
+  const kind = runtime.simulation.ecs.storage.Drawable.getAt(slot, "kind") as DrawableKind;
   drawable.entity = entity;
-  drawable.x = runtime.crawler.storage.GridPosition.getAt(slot, "x");
-  drawable.y = runtime.crawler.storage.GridPosition.getAt(slot, "y");
+  drawable.x = runtime.simulation.crawler.storage.GridPosition.getAt(slot, "x");
+  drawable.y = runtime.simulation.crawler.storage.GridPosition.getAt(slot, "y");
   drawable.kind = kind;
   drawable.animation = undefined;
   drawable.health = undefined;
@@ -143,19 +162,14 @@ function writeDrawable(
   drawable.slide = undefined;
   drawable.openMs = DEFAULT_DOOR_OPEN_MS;
   if (kind === DrawableKind.Player || kind === DrawableKind.Actor) {
-    if (!has(runtime, entity, "Sprite") || runtime.crawler.entityFacing(entity) === undefined) return false;
-    drawable.dir = runtime.crawler.storage.Facing.getAt(slot, "dir");
-    drawable.spriteId = runtime.game.storage.Sprite.getAt(slot, "id") as SpriteIdType;
+    if (!has(runtime, entity, "Sprite") || runtime.simulation.crawler.entityFacing(entity) === undefined) return false;
+    drawable.dir = runtime.simulation.crawler.storage.Facing.getAt(slot, "dir");
+    drawable.spriteId = runtime.simulation.ecs.storage.Sprite.getAt(slot, "id") as SpriteIdType;
     if (kind === DrawableKind.Actor) {
-      if (has(runtime, entity, "SpriteAnimation")) {
-        animation.kind = runtime.game.storage.SpriteAnimation.getAt(slot, "kind") as SpriteAnimationSnapshot["kind"];
-        animation.startedAtMs = runtime.game.storage.SpriteAnimation.getAt(slot, "startedAtMs");
-        animation.durationMs = runtime.game.storage.SpriteAnimation.getAt(slot, "durationMs");
-        drawable.animation = animation;
-      }
+      drawable.animation = projection.animationFor(entity);
       if (has(runtime, entity, "Health")) {
-        health.current = runtime.game.storage.Health.getAt(slot, "current");
-        health.max = runtime.game.storage.Health.getAt(slot, "max");
+        health.current = runtime.simulation.ecs.storage.Health.getAt(slot, "current");
+        health.max = runtime.simulation.ecs.storage.Health.getAt(slot, "max");
         drawable.health = health;
       }
     }
@@ -164,31 +178,25 @@ function writeDrawable(
   if (kind === DrawableKind.Door) {
     if (!has(runtime, entity, "Door")) return false;
     const locked = has(runtime, entity, "Locked");
-    const openMs = runtime.game.storage.Door.getAt(slot, "openMs");
-    drawable.open = runtime.game.storage.Door.getAt(slot, "open") === 1;
+    const openMs = runtime.simulation.ecs.storage.Door.getAt(slot, "openMs");
+    drawable.open = runtime.simulation.ecs.storage.Door.getAt(slot, "open") === 1;
     drawable.locked = locked;
     drawable.secret = has(runtime, entity, "Secret");
     drawable.glass = has(runtime, entity, "Glass");
-    drawable.color = locked ? keyColorForCode(runtime.game.storage.Locked.getAt(slot, "color")) : undefined;
-    drawable.slide = doorSlideForCode(runtime.game.storage.Door.getAt(slot, "slide"));
+    drawable.color = locked ? keyColorForCode(runtime.simulation.ecs.storage.Locked.getAt(slot, "color")) : undefined;
+    drawable.slide = doorSlideForCode(runtime.simulation.ecs.storage.Door.getAt(slot, "slide"));
     drawable.openMs = openMs === 0 ? DEFAULT_DOOR_OPEN_MS : openMs;
     return true;
   }
   if (kind === DrawableKind.Sprite && has(runtime, entity, "Sprite")) {
-    drawable.spriteId = runtime.game.storage.Sprite.getAt(slot, "id") as SpriteIdType;
-    if (has(runtime, entity, "SpriteAnimation")) {
-      animation.kind = runtime.game.storage.SpriteAnimation.getAt(slot, "kind") as SpriteAnimationSnapshot["kind"];
-      animation.startedAtMs = runtime.game.storage.SpriteAnimation.getAt(slot, "startedAtMs");
-      animation.durationMs = runtime.game.storage.SpriteAnimation.getAt(slot, "durationMs");
-      drawable.animation = animation;
-    }
+    drawable.spriteId = runtime.simulation.ecs.storage.Sprite.getAt(slot, "id") as SpriteIdType;
     return true;
   }
   return false;
 }
 
-function has(runtime: GameRuntime, entity: Entity, name: keyof typeof runtime.game.components): boolean {
-  return runtime.game.entityHasComponent(entity, runtime.game.components[name]);
+function has(runtime: GameRuntime, entity: Entity, name: keyof typeof runtime.simulation.ecs.components): boolean {
+  return runtime.simulation.ecs.entityHasComponent(entity, runtime.simulation.ecs.components[name]);
 }
 
 function createDrawableScratch(): DrawableScratch {
