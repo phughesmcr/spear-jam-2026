@@ -39,6 +39,7 @@ import type { CardinalDirection, GridPoint } from "@/src/game/world/direction.ts
 import type { GameMap } from "@/src/game/world/map.ts";
 import type { TileVisibility } from "@/src/game/world/visibility.ts";
 import type { Entity } from "turn-based-engine/ecs";
+import type { GameSessionContent } from "@/src/game/simulation/content.ts";
 
 export type GameSessionTickResult = { readonly needsFrame: boolean };
 export type GameSessionOptions = {
@@ -49,9 +50,10 @@ export type GameSessionOptions = {
 export function createGameSession(
   map: GameMap,
   random: RandomSource,
+  content: GameSessionContent,
   options: GameSessionOptions = {},
 ): Promise<GameSession> {
-  return Promise.try(() => new GameSession(map, random, options));
+  return Promise.try(() => new GameSession(map, random, content, options));
 }
 
 export class GameSession implements Disposable {
@@ -60,10 +62,12 @@ export class GameSession implements Disposable {
   private readonly outputs: OutputReaderState;
   private commands: CommandResolutionState;
   private disposed = false;
+  private readonly content: GameSessionContent;
 
-  constructor(map: GameMap, random: RandomSource, options: GameSessionOptions = {}) {
+  constructor(map: GameMap, random: RandomSource, content: GameSessionContent, options: GameSessionOptions = {}) {
+    this.content = content;
     const now = options.now ?? currentTimeMs;
-    this.mapState = createMapSessionState(map);
+    this.mapState = createMapSessionState(map, content);
     if (options.cheat === true) applyInitialCheatLoadout(this.mapState);
     this.progression = createProgressionStatistics(this.mapState, now);
     this.outputs = createOutputReaders(this.mapState);
@@ -145,7 +149,7 @@ export class GameSession implements Disposable {
     checkpoint: ReturnType<typeof checkpointForMapLoad>,
     levelEntryCheckpoint?: ReturnType<typeof checkpointForRetry>,
   ): void {
-    const nextMapState = createMapSessionState(map, checkpoint);
+    const nextMapState = createMapSessionState(map, this.content, checkpoint);
     const nextProgression = createProgressionStatistics(
       nextMapState,
       this.progression.now,

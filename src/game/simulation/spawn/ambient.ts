@@ -1,7 +1,5 @@
 import type { DecorationDef, LightDef, SoundDef } from "@/src/game/content/map_entities.ts";
-import { spriteIdForDecoration } from "@/src/game/content/sprites.ts";
 import { DrawableKind } from "@/src/game/model/render_snapshot.ts";
-import { soundIdCode } from "@/src/game/model/sound.ts";
 import { DrawableLayer } from "@/src/game/simulation/components.ts";
 import type { GameRuntime } from "@/src/game/simulation/runtime.ts";
 import type { Entity } from "turn-based-engine/ecs";
@@ -12,7 +10,7 @@ export function createDecoration(runtime: GameRuntime, prefab: Omit<DecorationDe
     y: prefab.y,
     components: {
       Drawable: { kind: DrawableKind.Sprite, layer: DrawableLayer.Structure },
-      Sprite: { id: spriteIdForDecoration(prefab.decoration) },
+      Sprite: { id: runtime.content.presentation.spriteForDecoration(prefab.decoration) },
     },
   });
 }
@@ -41,7 +39,7 @@ export function createSound(runtime: GameRuntime, prefab: Omit<SoundDef, "prefab
     y: prefab.y,
     components: {
       SoundEmitter: {
-        soundId: soundIdCode(prefab.soundId),
+        soundId: runtime.content.audio.soundCode(prefab.soundId),
         radius: prefab.radius,
         volume: prefab.volume ?? 1,
       },

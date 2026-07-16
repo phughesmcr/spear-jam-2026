@@ -7,7 +7,7 @@ import {
   spearPickupDialogue,
 } from "@/src/game/simulation/interactions.ts";
 import { createDoor, createKey, createPlayer, createSpearTurret } from "@/src/game/simulation/spawn/mod.ts";
-import { createRuntime } from "@/src/game/simulation/runtime.ts";
+import { createRuntime } from "@/tests/game/simulation/helpers.ts";
 import { Direction } from "@/src/game/world/direction.ts";
 import { KeyColor } from "@/src/game/content/map_entities.ts";
 import { flatTestMap } from "@/tests/game/simulation/helpers.ts";
@@ -72,7 +72,7 @@ Deno.test("items coexist with a movement occupant and despawn through crawler li
 });
 
 Deno.test("spear pickup dialogue requests the dedicated reveal art", () => {
-  assertEquals(spearPickupDialogue().art, "spearReveal");
+  assertEquals(spearPickupDialogue(createRuntime(flatTestMap())).art, "spearReveal");
 });
 
 Deno.test("using a spear turret loads it only when the player holds the spear", () => {

@@ -1,4 +1,5 @@
-import { type EnemyArchetypeCode, enemyArchetypeForCode } from "@/src/game/content/enemies.ts";
+import type { SimulationContent } from "@/src/game/content/catalog.ts";
+import type { EnemyArchetypeCode } from "@/src/game/content/enemies.ts";
 import { type ItemKind as ItemKindType, ItemKind as ItemKindValues } from "@/src/game/content/items.ts";
 import type { SpriteId } from "@/src/game/content/sprite_ids.ts";
 import { type AttackDef, AttackPattern, AttackTargetMode } from "@/src/game/model/attack.ts";
@@ -184,7 +185,11 @@ export function writeComponent<Name extends GameComponentName>(
   game.storage[name].patch(entity, value);
 }
 
-export function enemyArchetypeFor(game: GameEcs, entity: Entity): EnemyArchetypeCode | undefined {
+export function enemyArchetypeFor(
+  game: GameEcs,
+  entity: Entity,
+  content: SimulationContent,
+): EnemyArchetypeCode | undefined {
   const archetype = readComponent(game, entity, "EnemyArchetype")?.archetype;
-  return archetype === undefined ? undefined : enemyArchetypeForCode(archetype);
+  return archetype === undefined ? undefined : content.enemyForCode(archetype).code;
 }

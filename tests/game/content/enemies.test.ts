@@ -1,35 +1,25 @@
-import {
-  DEFAULT_ENEMY_SENSES,
-  EnemyArchetypeCode,
-  enemyArchetypeForCode,
-  enemyCatalogEntry,
-} from "@/src/game/content/enemies.ts";
-import { DisplayName } from "@/src/game/content/names.ts";
-import { assertEquals, assertThrows } from "@std/assert";
+import { ENEMY_ARCHETYPE_KEYS, EnemyArchetypeCode, enemyAttackFacesTarget } from "@/src/game/content/enemies.ts";
+import { AttackPattern } from "@/src/game/model/attack.ts";
+import { assertEquals } from "@std/assert";
 
-Deno.test("enemyArchetypeForCode validates persisted enemy archetype values", () => {
-  assertEquals(enemyArchetypeForCode(EnemyArchetypeCode.MeleeDog), EnemyArchetypeCode.MeleeDog);
-  assertEquals(enemyArchetypeForCode(EnemyArchetypeCode.AgenticAcolyte), EnemyArchetypeCode.AgenticAcolyte);
-  assertThrows(() => enemyArchetypeForCode(99), Error, "Unknown enemy archetype");
+Deno.test("enemy vocabulary preserves compact codes and authored key order", () => {
+  assertEquals(EnemyArchetypeCode, {
+    MeleeDog: 1,
+    Gunslinger: 2,
+    NetworkNeophyte: 3,
+    SystemSentinel: 4,
+    AgenticAcolyte: 5,
+  });
+  assertEquals(ENEMY_ARCHETYPE_KEYS, [
+    "meleeDog",
+    "gunslinger",
+    "networkNeophyte",
+    "systemSentinel",
+    "agenticAcolyte",
+  ]);
 });
 
-Deno.test("enemy catalog owns default display names", () => {
-  assertEquals(enemyCatalogEntry(EnemyArchetypeCode.MeleeDog).displayName, DisplayName.DigitalDog);
-  assertEquals(enemyCatalogEntry(EnemyArchetypeCode.SystemSentinel).displayName, DisplayName.SystemSentinel);
-});
-
-Deno.test("enemy catalog owns default senses", () => {
-  assertEquals(DEFAULT_ENEMY_SENSES, { sightRadius: 5, hearingRadius: 7 });
-  assertEquals(enemyCatalogEntry(EnemyArchetypeCode.MeleeDog).senses, {
-    sightRadius: 4,
-    hearingRadius: 7,
-  });
-  assertEquals(enemyCatalogEntry(EnemyArchetypeCode.Gunslinger).senses, {
-    sightRadius: 5,
-    hearingRadius: 6,
-  });
-  assertEquals(enemyCatalogEntry(EnemyArchetypeCode.SystemSentinel).senses, {
-    sightRadius: 1,
-    hearingRadius: 1,
-  });
+Deno.test("line attacks face their target while adjacent attacks do not", () => {
+  assertEquals(enemyAttackFacesTarget(AttackPattern.Line), true);
+  assertEquals(enemyAttackFacesTarget(AttackPattern.Adjacent), false);
 });

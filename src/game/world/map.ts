@@ -2,7 +2,7 @@ import {
   DOOR_SLIDES,
   type DoorSlide,
   type EntityDef,
-  KeyColor,
+  KEY_COLORS,
   type KeyColor as KeyColorType,
 } from "@/src/game/content/map_entities.ts";
 import { dimensions, terrainAt as staticTerrainAt } from "@/src/game/world/grid.ts";
@@ -54,11 +54,7 @@ export type TerrainTile = BarrierTile | FloorTile | WallTile;
 
 export const DEFAULT_TERRAIN_PALETTE: readonly TerrainTile[] = TERRAIN_CATALOG;
 
-const KEY_COLOR_REGISTRY = createCodeRegistry("key color", [
-  KeyColor.Red,
-  KeyColor.Blue,
-  KeyColor.Yellow,
-]);
+const KEY_COLOR_REGISTRY = createCodeRegistry("key color", KEY_COLORS);
 
 export function keyColorCode(color: KeyColorType): number {
   return KEY_COLOR_REGISTRY.encode(color);

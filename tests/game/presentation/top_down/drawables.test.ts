@@ -5,6 +5,7 @@ import type { PlayerStatusSnapshot } from "@/src/game/model/state.ts";
 import { Direction } from "@/src/game/world/direction.ts";
 import { createGameMap } from "@/src/game/world/map.ts";
 import { renderDrawableEntities } from "@/src/game/presentation/top_down/drawables.ts";
+import { SHIPPED_GAME } from "@/src/game/content/shipped.ts";
 import type { MapRenderMetrics } from "@/src/game/presentation/top_down/map.ts";
 import { assertEquals } from "@std/assert";
 import type { Entity } from "turn-based-engine/ecs";
@@ -25,7 +26,12 @@ Deno.test("top-down drawable pass skips decorations and still draws items", () =
     { kind: DrawableKind.Sprite, entity: 3 as Entity, x: 2, y: 1, spriteId: SpriteId.HealthPatch },
   ];
 
-  renderDrawableEntities(ctx as unknown as CanvasRenderingContext2D, fakeSession(drawables), METRICS);
+  renderDrawableEntities(
+    ctx as unknown as CanvasRenderingContext2D,
+    fakeSession(drawables),
+    METRICS,
+    SHIPPED_GAME.presentation,
+  );
 
   assertEquals(ctx.fillTexts.map(({ text }) => text), ["+"]);
   assertEquals(ctx.fillStyles.includes("#ef4444"), true);

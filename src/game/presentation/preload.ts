@@ -1,13 +1,7 @@
-import {
-  DEFAULT_ENEMY_ARCHETYPE,
-  enemyArchetypeForKey,
-  spriteIdForEnemyArchetype,
-} from "@/src/game/content/enemies.ts";
-import { ITEM_KIND_BY_CONTENT_KEY, ItemKind } from "@/src/game/content/items.ts";
+import type { CompiledLevel, PresentationContent, SimulationContent } from "@/src/game/content/catalog.ts";
+import { ItemKind } from "@/src/game/content/items.ts";
 import { SpriteId, type SpriteId as SpriteIdType } from "@/src/game/content/sprite_ids.ts";
-import { spriteIdForDecoration, spriteIdForDisplayName, spriteIdForItem } from "@/src/game/content/sprites.ts";
 import type { EntityDef } from "@/src/game/content/map_entities.ts";
-import { CAMPAIGN } from "@/src/game/world/campaign.ts";
 import { type GameMap, keyColorCode } from "@/src/game/world/map.ts";
 import type { FirstPersonRenderer } from "@/src/game/presentation/first_person/renderer.ts";
 import { preloadCombatFeedbackAssets } from "@/src/game/presentation/ui/combat_feedback.ts";
@@ -26,15 +20,28 @@ const ALWAYS_CRITICAL_SPRITES: readonly SpriteIdType[] = [SpriteId.Corpse];
  * Sprite IDs that must be image-preloaded before `playing` for this map.
  * Includes authored entities plus dynamic sprites (corpse, loaded turret).
  */
-export function criticalSpriteIdsForMap(map: GameMap): ReadonlySet<SpriteIdType> {
+type PreloadSimulationContent = Pick<
+  SimulationContent,
+  "defaultEnemy" | "enemyForCode" | "enemyForKey" | "itemKindForKey"
+>;
+
+export function criticalSpriteIdsForMap(
+  map: GameMap,
+  simulation: PreloadSimulationContent,
+  presentation: PresentationContent,
+): ReadonlySet<SpriteIdType> {
   const ids = new Set<SpriteIdType>(ALWAYS_CRITICAL_SPRITES);
   for (const entity of map.entities) {
-    for (const id of spriteIdsForEntity(entity)) ids.add(id);
+    for (const id of spriteIdsForEntity(entity, simulation, presentation)) ids.add(id);
   }
   return ids;
 }
 
-export function spriteIdsForEntity(entity: EntityDef): readonly SpriteIdType[] {
+export function spriteIdsForEntity(
+  entity: EntityDef,
+  simulation: PreloadSimulationContent,
+  presentation: PresentationContent,
+): readonly SpriteIdType[] {
   switch (entity.prefab) {
     case "player":
     case "door":
@@ -42,27 +49,27 @@ export function spriteIdsForEntity(entity: EntityDef): readonly SpriteIdType[] {
     case "sound":
       return [];
     case "npc":
-      return [spriteIdForDisplayName(entity.displayName)];
+      return [presentation.spriteForDisplayName(entity.displayName)];
     case "enemy": {
-      const archetype = entity.archetype === undefined ?
-        DEFAULT_ENEMY_ARCHETYPE :
-        enemyArchetypeForKey(entity.archetype);
-      return [spriteIdForEnemyArchetype(archetype)];
+      const enemy = entity.archetype === undefined ?
+        simulation.enemyForCode(simulation.defaultEnemy) :
+        simulation.enemyForKey(entity.archetype);
+      return [enemy.sprite];
     }
     case "key":
-      return [spriteIdForItem(ItemKind.Key, keyColorCode(entity.color))];
+      return [presentation.spriteForItem(ItemKind.Key, keyColorCode(entity.color))];
     case "uplinkCode":
-      return [spriteIdForItem(ItemKind.UplinkCode, 0)];
+      return [presentation.spriteForItem(ItemKind.UplinkCode, 0)];
     case "uplinkTerminal":
       return [SpriteId.UplinkTerminal];
     case "weaponPickup":
-      return [spriteIdForItem(ItemKind.Weapon, entity.slot)];
+      return [presentation.spriteForItem(ItemKind.Weapon, entity.slot)];
     case "item":
-      return [spriteIdForItem(ITEM_KIND_BY_CONTENT_KEY[entity.item], entity.amount)];
+      return [presentation.spriteForItem(simulation.itemKindForKey(entity.item), entity.amount)];
     case "decoration":
-      return [spriteIdForDecoration(entity.decoration)];
+      return [presentation.spriteForDecoration(entity.decoration)];
     case "spearPickup":
-      return [spriteIdForItem(ItemKind.Spear, 0)];
+      return [presentation.spriteForItem(ItemKind.Spear, 0)];
     case "spearTurret":
       return [SpriteId.SpearTurret, SpriteId.SpearTurretLoaded];
     default: {
@@ -87,7 +94,9 @@ export type PreloadProgress = {
 };
 
 export type PreloadGameAssetsOptions = {
-  readonly mapName: string;
+  readonly level: CompiledLevel;
+  readonly content: PresentationContent;
+  readonly simulationContent: PreloadSimulationContent;
   readonly onProgress?: (progress: PreloadProgress) => void;
   readonly onAssetLoad?: () => void;
 };
@@ -97,8 +106,8 @@ export async function preloadGameAssets(
   firstPersonRenderer: FirstPersonRenderer,
   options: PreloadGameAssetsOptions,
 ): Promise<void> {
-  const map = CAMPAIGN.map(options.mapName);
-  const spriteIds = criticalSpriteIdsForMap(map);
+  const map = options.level.map;
+  const spriteIds = criticalSpriteIdsForMap(map, options.simulationContent, options.content);
   const jobs: Array<(onAssetLoad?: () => void) => Promise<void>> = [
     (onAssetLoad) => firstPersonRenderer.preloadMapAssets(document, map, spriteIds, onAssetLoad),
     (onAssetLoad) => preloadVerbMenuAssets(document, onAssetLoad),
@@ -149,13 +158,15 @@ export function warmShellAssets(
 export function warmMapAssets(
   document: Document,
   firstPersonRenderer: FirstPersonRenderer,
-  mapName: string,
+  level: CompiledLevel,
+  content: PresentationContent,
+  simulationContent: PreloadSimulationContent,
   onError: (error: unknown) => void,
   onAssetLoad?: () => void,
 ): void {
   scheduleIdle(
     async () => {
-      await preloadGameAssets(document, firstPersonRenderer, { mapName, onAssetLoad });
+      await preloadGameAssets(document, firstPersonRenderer, { level, content, simulationContent, onAssetLoad });
     },
     onError,
   );
@@ -165,13 +176,13 @@ export function warmMapAssets(
 export function warmDeferredAssets(
   document: Document,
   firstPersonRenderer: FirstPersonRenderer,
-  mapName: string,
+  level: CompiledLevel,
   onError: (error: unknown) => void,
   onAssetLoad?: () => void,
 ): void {
   scheduleIdle(
     async () => {
-      const map = CAMPAIGN.map(mapName);
+      const map = level.map;
       const jobs = [
         firstPersonRenderer.warmRemainingAssets(document, onAssetLoad),
         preloadIntermissionAssets(document, onAssetLoad),

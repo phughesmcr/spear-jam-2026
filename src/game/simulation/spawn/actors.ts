@@ -1,18 +1,7 @@
-import {
-  DEFAULT_ENEMY_ARCHETYPE,
-  enemyArchetypeForKey,
-  type EnemyCatalogEntry,
-  enemyCatalogEntry,
-  spriteIdForEnemyArchetype,
-} from "@/src/game/content/enemies.ts";
-import { dialogueTreeCode } from "@/src/game/content/dialogue/trees.ts";
-import { examineTextCode } from "@/src/game/content/examine_text.ts";
+import type { EnemyCatalogEntry } from "@/src/game/content/enemies.ts";
 import type { EnemyDef, NpcDef, PlayerDef } from "@/src/game/content/map_entities.ts";
-import { displayNameCode } from "@/src/game/content/names.ts";
 import { SpriteId } from "@/src/game/content/sprite_ids.ts";
-import { spriteIdForDisplayName } from "@/src/game/content/sprites.ts";
-import { storyEventCode, storyTargetCode } from "@/src/game/content/story.ts";
-import { attackOverridesFromContent, DEFAULT_ATTACK } from "@/src/game/model/attack.ts";
+import { attackOverridesFromContent } from "@/src/game/model/attack.ts";
 import { DrawableKind } from "@/src/game/model/render_snapshot.ts";
 import { type AttackSchema, DrawableLayer, IDLE_AWARENESS } from "@/src/game/simulation/components.ts";
 import {
@@ -65,25 +54,30 @@ export function createNpc(runtime: GameRuntime, prefab: NpcPrefab): Entity {
       Npc: {},
       Interactable: {},
       Drawable: { kind: DrawableKind.Actor, layer: DrawableLayer.Npc },
-      Sprite: { id: spriteIdForDisplayName(prefab.displayName) },
-      DisplayName: { displayName: displayNameCode(prefab.displayName) },
+      Sprite: { id: runtime.content.presentation.spriteForDisplayName(prefab.displayName) },
+      DisplayName: { displayName: runtime.content.simulation.displayNameCode(prefab.displayName) },
       ...(prefab.dialogueTreeId === undefined ? {} : {
-        DialogueTreeRef: { dialogueTreeId: dialogueTreeCode(prefab.dialogueTreeId) },
+        DialogueTreeRef: { dialogueTreeId: runtime.content.dialogue.code(prefab.dialogueTreeId) },
       }),
       ...(prefab.examineTextId === undefined ? {} : {
-        ExamineTextRef: { examineTextId: examineTextCode(prefab.examineTextId) },
+        ExamineTextRef: { examineTextId: runtime.content.simulation.examineTextCode(prefab.examineTextId) },
       }),
-      ...(prefab.storyId === undefined ? {} : { StoryTarget: { storyId: storyTargetCode(prefab.storyId) } }),
+      ...(prefab.storyId === undefined ? {} : {
+        StoryTarget: { storyId: runtime.content.simulation.storyTargetCode(prefab.storyId) },
+      }),
       ...(prefab.onTalkEvent === undefined ? {} : {
-        OnTalkEvent: { onTalkEvent: storyEventCode(prefab.onTalkEvent) },
+        OnTalkEvent: { onTalkEvent: runtime.content.simulation.storyEventCode(prefab.onTalkEvent) },
       }),
     },
   });
 }
 
 export function createEnemy(runtime: GameRuntime, prefab: EnemyPrefab): Entity {
-  const archetype = prefab.archetype === undefined ? DEFAULT_ENEMY_ARCHETYPE : enemyArchetypeForKey(prefab.archetype);
-  const catalog = enemyCatalogEntry(archetype);
+  const enemy = prefab.archetype === undefined ?
+    runtime.content.simulation.enemyForCode(runtime.content.simulation.defaultEnemy) :
+    runtime.content.simulation.enemyForKey(prefab.archetype);
+  const archetype = enemy.code;
+  const catalog = enemy.definition;
   const health = prefab.health ?? catalog.health;
   const displayName = prefab.displayName ?? catalog.displayName;
   return runtime.crawler.spawnCrawler({
@@ -97,10 +91,10 @@ export function createEnemy(runtime: GameRuntime, prefab: EnemyPrefab): Entity {
       Defense: { hitDc: prefab.hitDc ?? catalog.hitDc },
       Attack: createAttackSpec(prefab, catalog),
       Drawable: { kind: DrawableKind.Actor, layer: DrawableLayer.Enemy },
-      Sprite: { id: spriteIdForEnemyArchetype(archetype) },
-      DisplayName: { displayName: displayNameCode(displayName) },
+      Sprite: { id: enemy.sprite },
+      DisplayName: { displayName: runtime.content.simulation.displayNameCode(displayName) },
       ...(prefab.examineTextId === undefined ? {} : {
-        ExamineTextRef: { examineTextId: examineTextCode(prefab.examineTextId) },
+        ExamineTextRef: { examineTextId: runtime.content.simulation.examineTextCode(prefab.examineTextId) },
       }),
     },
   });
@@ -109,7 +103,6 @@ export function createEnemy(runtime: GameRuntime, prefab: EnemyPrefab): Entity {
 function createAttackSpec(prefab: EnemyPrefab, catalog: EnemyCatalogEntry): AttackSchema {
   const damage = prefab.damage ?? catalog.damage;
   return {
-    ...DEFAULT_ATTACK,
     ...catalog.attack,
     minDamage: damage,
     maxDamage: damage,

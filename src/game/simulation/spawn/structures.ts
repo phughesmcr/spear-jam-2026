@@ -1,10 +1,8 @@
-import { examineTextCode } from "@/src/game/content/examine_text.ts";
 import type { DoorDef, SpearTurretDef, UplinkTerminalDef } from "@/src/game/content/map_entities.ts";
 import { SpriteId } from "@/src/game/content/sprite_ids.ts";
 import { DrawableKind } from "@/src/game/model/render_snapshot.ts";
 import { DrawableLayer } from "@/src/game/simulation/components.ts";
 import type { GameRuntime } from "@/src/game/simulation/runtime.ts";
-import { CAMPAIGN } from "@/src/game/world/campaign.ts";
 import { doorSlideCode, keyColorCode } from "@/src/game/world/map.ts";
 import { TerrainBlock } from "turn-based-engine/crawler";
 import type { Entity } from "turn-based-engine/ecs";
@@ -25,7 +23,7 @@ export function createDoor(runtime: GameRuntime, prefab: DoorPrefab): Entity {
       Door: { open: 0, slide: doorSlideCode(prefab.slide), openMs: prefab.openMs ?? 0 },
       Interactable: {},
       ...(prefab.examineTextId === undefined ? {} : {
-        ExamineTextRef: { examineTextId: examineTextCode(prefab.examineTextId) },
+        ExamineTextRef: { examineTextId: runtime.content.simulation.examineTextCode(prefab.examineTextId) },
       }),
       ...(prefab.locked === true && prefab.color !== undefined ?
         { Locked: { color: keyColorCode(prefab.color) } } :
@@ -46,9 +44,9 @@ export function createUplinkTerminal(runtime: GameRuntime, prefab: Omit<UplinkTe
       Sprite: { id: SpriteId.UplinkTerminal },
       UplinkTerminal: { requiresSpear: prefab.requiresSpear === true ? 1 : 0 },
       Interactable: {},
-      TerminalDestination: { destination: CAMPAIGN.codeForDestination(prefab.goto) },
+      TerminalDestination: { destination: runtime.content.levels.codeForDestination(prefab.goto) },
       ...(prefab.examineTextId === undefined ? {} : {
-        ExamineTextRef: { examineTextId: examineTextCode(prefab.examineTextId) },
+        ExamineTextRef: { examineTextId: runtime.content.simulation.examineTextCode(prefab.examineTextId) },
       }),
     },
   });

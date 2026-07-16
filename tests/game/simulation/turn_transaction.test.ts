@@ -1,14 +1,16 @@
-import { EnemyArchetypeCode, enemyArchetypeKey } from "@/src/game/content/enemies.ts";
+import type { EnemyArchetypeKey } from "@/src/game/content/enemies.ts";
 import { IDLE_AWARENESS } from "@/src/game/simulation/components.ts";
 import { createEnemy, createNpc, createPlayer } from "@/src/game/simulation/spawn/mod.ts";
 import { applyItemPickupToPlayer } from "@/src/game/simulation/progression.ts";
-import { createRuntime } from "@/src/game/simulation/runtime.ts";
+import { createRuntime, TEST_SESSION_CONTENT } from "@/tests/game/simulation/helpers.ts";
 import { runTurnTransaction } from "@/src/game/simulation/turn/transaction.ts";
 import { DisplayName } from "@/src/game/content/names.ts";
 import { Direction } from "@/src/game/world/direction.ts";
 import { flatTestMap } from "@/tests/game/simulation/helpers.ts";
 import { assertEquals } from "@std/assert";
 import { TerrainBlock } from "turn-based-engine/crawler";
+
+const NEOPHYTE_ARCHETYPE: EnemyArchetypeKey = "networkNeophyte";
 
 Deno.test("free turn updates facing without moving or running enemies", () => {
   const runtime = createRuntime(flatTestMap(6, 3));
@@ -42,7 +44,7 @@ Deno.test("no-ammo attack remains free and skips enemies", () => {
   const player = createPlayer(runtime, { x: 1, y: 1, dir: Direction.East });
   const enemy = spawnEnemy(runtime, 4, 1);
   const pickup = runtime.crawler.spawnCrawler({ x: 1, y: 1 });
-  applyItemPickupToPlayer(runtime.game, player, { type: "weapon", entity: pickup, slot: 2 });
+  applyItemPickupToPlayer(runtime, player, { type: "weapon", entity: pickup, slot: 2 });
   runtime.game.storage.PlayerEquipment.set(player, "selectedWeapon", 2);
   const result = runTurnTransaction({ runtime, player, random: () => 0 }, { type: "attack" });
   assertEquals(result.cost, "free");
@@ -81,7 +83,7 @@ function spawnEnemy(runtime: ReturnType<typeof createRuntime>, x: number, y: num
     x,
     y,
     dir: Direction.West,
-    archetype: enemyArchetypeKey(EnemyArchetypeCode.NetworkNeophyte),
+    archetype: NEOPHYTE_ARCHETYPE,
     displayName: DisplayName.NetworkNeophyte,
   });
 }
@@ -92,6 +94,13 @@ function spawnMovingEnemy(runtime: ReturnType<typeof createRuntime>, x: number, 
     y,
     facing: Direction.West,
     blockMask: TerrainBlock.Movement,
-    components: { Enemy: {}, TurnTaker: {}, EnemyAwareness: IDLE_AWARENESS },
+    components: {
+      Enemy: {},
+      TurnTaker: {},
+      EnemyAwareness: IDLE_AWARENESS,
+      EnemyArchetype: {
+        archetype: TEST_SESSION_CONTENT.simulation.enemyForKey(NEOPHYTE_ARCHETYPE).code,
+      },
+    },
   });
 }

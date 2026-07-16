@@ -1,6 +1,6 @@
 import { TrackId } from "@/src/game/content/audio/music.ts";
 import { VICTORY_FADE_MS, VICTORY_HOLD_MS } from "@/src/game/content/victory.ts";
-import { createGameModel, transition } from "@/src/game/model/transition/mod.ts";
+import { createGameModel, transition } from "@/tests/game/model/transition/helpers.ts";
 import { assertEquals } from "@std/assert";
 import type { Entity } from "turn-based-engine/ecs";
 

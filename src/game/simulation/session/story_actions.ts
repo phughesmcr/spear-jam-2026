@@ -2,14 +2,7 @@ import { readComponent } from "@/src/game/simulation/components.ts";
 import { SpriteAnimationKind } from "@/src/game/model/render_snapshot.ts";
 import { playerHasStoryFlag } from "@/src/game/simulation/progression.ts";
 import type { GameRuntime } from "@/src/game/simulation/runtime.ts";
-import {
-  maskWithStoryFlag,
-  type StoryAction,
-  storyEventDefinition,
-  storyEventForCode,
-  type StoryEventId,
-  storyTargetForCode,
-} from "@/src/game/content/story.ts";
+import { maskWithStoryFlag, type StoryAction, type StoryEventId } from "@/src/game/content/story.ts";
 import { TerrainBlock } from "turn-based-engine/crawler";
 import type { Entity } from "turn-based-engine/ecs";
 
@@ -23,8 +16,10 @@ export function queueTalkEvent(
   if (target === undefined) return undefined;
   const code = readComponent(runtime.game, target, "OnTalkEvent")?.onTalkEvent;
   if (code === undefined) return undefined;
-  const event = storyEventForCode(code);
-  return playerHasStoryFlag(runtime.game, player, storyEventDefinition(event).flag) ? undefined : event;
+  const event = runtime.content.simulation.storyEventForCode(code);
+  return playerHasStoryFlag(runtime.game, player, runtime.content.simulation.storyEvent(event).flag) ?
+    undefined :
+    event;
 }
 
 export function applyEvent(
@@ -33,7 +28,7 @@ export function applyEvent(
   event: StoryEventId,
   nowMs: number,
 ): boolean {
-  const definition = storyEventDefinition(event);
+  const definition = runtime.content.simulation.storyEvent(event);
   if (playerHasStoryFlag(runtime.game, player, definition.flag)) return false;
   const actions = resolveActions(runtime, definition.actions);
   if (actions === undefined) return false;
@@ -60,7 +55,7 @@ export function assertUniqueTargets(runtime: GameRuntime): void {
   const seen = new Set<string>();
   const query = runtime.game.query(runtime.game.components.StoryTarget);
   query.forEach((_entity, slot) => {
-    const id = storyTargetForCode(runtime.game.storage.StoryTarget.getAt(slot, "storyId"));
+    const id = runtime.content.simulation.storyTargetForCode(runtime.game.storage.StoryTarget.getAt(slot, "storyId"));
     if (seen.has(id)) throw new Error(`Duplicate story target "${id}".`);
     seen.add(id);
   });
@@ -86,7 +81,12 @@ function resolveActions(
 function targetEntity(runtime: GameRuntime, targetId: StoryAction["target"]): Entity | undefined {
   let result: Entity | undefined;
   runtime.game.query(runtime.game.components.StoryTarget).forEach((entity, slot) => {
-    if (storyTargetForCode(runtime.game.storage.StoryTarget.getAt(slot, "storyId")) === targetId) result = entity;
+    if (
+      runtime.content.simulation.storyTargetForCode(runtime.game.storage.StoryTarget.getAt(slot, "storyId")) ===
+        targetId
+    ) {
+      result = entity;
+    }
   });
   return result;
 }

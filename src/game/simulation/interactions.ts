@@ -1,6 +1,6 @@
-import { ItemKind, itemKindForCode } from "@/src/game/content/items.ts";
+import { ItemKind } from "@/src/game/content/items.ts";
 import { SpriteId } from "@/src/game/content/sprite_ids.ts";
-import { dialogueTreeForCode, DialogueTreeId, dialogueTreeStart } from "@/src/game/content/dialogue/trees.ts";
+import { DialogueTreeId } from "@/src/game/content/dialogue/trees.ts";
 import {
   type GameComponentMap,
   hasComponent,
@@ -10,7 +10,6 @@ import {
 import type { GameRuntime } from "@/src/game/simulation/runtime.ts";
 import type { InteractVerb } from "@/src/game/model/commands.ts";
 import type { GameEvent } from "@/src/game/model/events.ts";
-import { displayNameForCode, displayNameText } from "@/src/game/content/names.ts";
 import { type AmmoKind, type CommandSlot, commandSlotForCode, type DialogueState } from "@/src/game/model/state.ts";
 import type { KeyColor } from "@/src/game/content/map_entities.ts";
 import { keyColorForCode } from "@/src/game/world/map.ts";
@@ -56,7 +55,7 @@ export function collectItemAt(runtime: GameRuntime, collector: Entity, x: number
   const item = runtime.crawler.findEntityAt(x, y, (entity) => hasComponent(runtime.game, entity, "Item"));
   if (item === undefined) return undefined;
   const { kind, value } = requireComponent(runtime.game, item, "Item");
-  const pickup = itemPickupFor(item, itemKindForCode(kind), value);
+  const pickup = itemPickupFor(item, runtime.content.simulation.itemKindForCode(kind), value);
   if (pickup.type === "health") {
     const health = requireComponent(runtime.game, collector, "Health");
     if (health.current >= health.max) return undefined;
@@ -84,8 +83,8 @@ function itemPickupFor(entity: Entity, kind: ItemKind, value: number): ItemPicku
   }
 }
 
-export function spearPickupDialogue(): DialogueState {
-  const start = dialogueTreeStart(DialogueTreeId.SpearPower);
+export function spearPickupDialogue(runtime: GameRuntime): DialogueState {
+  const start = runtime.content.dialogue.start(DialogueTreeId.SpearPower);
   return {
     title: "Spear of Destiny",
     art: "spearReveal",
@@ -173,9 +172,13 @@ function mutateDoorOpen(
 function interactWithNpc(runtime: GameRuntime, npc: Entity): PlayerInteractionResult {
   const displayNameCode = readComponent(runtime.game, npc, "DisplayName")?.displayName;
   if (displayNameCode === undefined) throw new Error(`NPC ${npc} is missing a display name.`);
-  const displayName = displayNameForCode(displayNameCode);
-  const title = displayNameText(displayName);
-  return { type: "dialogue", target: npc, events: [], dialogue: npcDialogueState(runtime, npc, title, displayName) };
+  const displayName = runtime.content.simulation.displayNameForCode(displayNameCode);
+  return {
+    type: "dialogue",
+    target: npc,
+    events: [],
+    dialogue: npcDialogueState(runtime, npc, displayName.text, displayName.id),
+  };
 }
 
 function interactWithUplinkTerminal(
@@ -219,8 +222,8 @@ function npcDialogueState(
   speaker: NonNullable<DialogueState["speaker"]>,
 ): DialogueState {
   const code = readComponent(runtime.game, npc, "DialogueTreeRef")?.dialogueTreeId;
-  const id = code === undefined ? undefined : dialogueTreeForCode(code);
-  const start = id === undefined ? undefined : dialogueTreeStart(id);
+  const id = code === undefined ? undefined : runtime.content.dialogue.idForCode(code);
+  const start = id === undefined ? undefined : runtime.content.dialogue.start(id);
   if (start === undefined) return { title, speaker, message: `${title} stayed silent.`, choices: [{ label: "BYE!" }] };
   return {
     title,

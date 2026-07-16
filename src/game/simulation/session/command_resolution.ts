@@ -1,7 +1,6 @@
 import type { RandomSource } from "@/src/engine/random.ts";
-import { enemyCatalogEntry, type EnemySoundProfile } from "@/src/game/content/enemies.ts";
+import type { EnemySoundProfile } from "@/src/game/content/enemies.ts";
 import type { StoryEventId } from "@/src/game/content/story.ts";
-import { playerWeaponSpec } from "@/src/game/content/weapons.ts";
 import type { PlayerCommand, PlayerCommandResult } from "@/src/game/model/commands.ts";
 import type { GameEvent } from "@/src/game/model/events.ts";
 import type { SoundCue } from "@/src/game/model/sound.ts";
@@ -26,7 +25,6 @@ import { applyEvent, queueTalkEvent } from "@/src/game/simulation/session/story_
 import { soundCuesForEvents } from "@/src/game/simulation/sound_cues.ts";
 import type { TurnContext } from "@/src/game/simulation/turn/actions.ts";
 import { runTurnTransaction, type TurnTransactionResult } from "@/src/game/simulation/turn/transaction.ts";
-import { CAMPAIGN } from "@/src/game/world/campaign.ts";
 import type { GridPoint } from "@/src/game/world/direction.ts";
 import type { Entity } from "turn-based-engine/ecs";
 
@@ -92,7 +90,7 @@ export function handlePlayerCommand(
       result.events.length === 0,
     dialogueTarget,
     playerWeaponSlot,
-    playerWeaponRadius: playerWeaponSpec(playerWeaponSlot).noiseRadius,
+    playerWeaponRadius: state.map.runtime.content.simulation.weapon(playerWeaponSlot).noiseRadius,
   });
   return withSoundCues(result, soundCues);
 }
@@ -145,10 +143,10 @@ function commitUplinkTerminalActivation(
 ): PlayerCommandResult {
   const destinationCode = readComponent(state.map.runtime.game, terminal, "TerminalDestination")?.destination;
   if (destinationCode === undefined) throw new Error(`Uplink terminal ${terminal} is missing a map destination.`);
-  const destination = CAMPAIGN.destinationForCode(destinationCode);
+  const destination = state.map.runtime.content.levels.destinationForCode(destinationCode);
   return destination.kind === "victory" ?
     commitVictory(state, events) :
-    commitMapChange(state, destination.map.name, events);
+    commitMapChange(state, destination.level.map.name, events);
 }
 
 function commitVictory(state: CommandResolutionState, events: readonly GameEvent[]): PlayerCommandResult {
@@ -176,8 +174,14 @@ function entityPositionSnapshot(map: MapSessionState): EntityPositionSnapshot {
 function enemySoundSnapshot(state: CommandResolutionState): ReadonlyMap<Entity, EnemySoundProfile> {
   const sounds = new Map<Entity, EnemySoundProfile>();
   forEachEnemyIdleSoundSource(state.outputs, (source) => {
-    const archetype = enemyArchetypeFor(state.map.runtime.game, source.entity);
-    if (archetype !== undefined) sounds.set(source.entity, enemyCatalogEntry(archetype).sounds);
+    const archetype = enemyArchetypeFor(
+      state.map.runtime.game,
+      source.entity,
+      state.map.runtime.content.simulation,
+    );
+    if (archetype !== undefined) {
+      sounds.set(source.entity, state.map.runtime.content.simulation.enemyForCode(archetype).definition.sounds);
+    }
   });
   return sounds;
 }

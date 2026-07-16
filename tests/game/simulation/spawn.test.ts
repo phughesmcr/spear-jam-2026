@@ -1,4 +1,4 @@
-import { EnemyArchetypeCode, enemyArchetypeKey } from "@/src/game/content/enemies.ts";
+import type { EnemyArchetypeKey } from "@/src/game/content/enemies.ts";
 import { SpriteId } from "@/src/game/content/sprite_ids.ts";
 import { hasComponent } from "@/src/game/simulation/components.ts";
 import { DialogueTreeId } from "@/src/game/content/dialogue/trees.ts";
@@ -13,7 +13,7 @@ import {
   createSpearTurret,
   createUplinkTerminal,
 } from "@/src/game/simulation/spawn/mod.ts";
-import { createRuntime } from "@/src/game/simulation/runtime.ts";
+import { createRuntime } from "@/tests/game/simulation/helpers.ts";
 import { ExamineTextId } from "@/src/game/content/examine_text.ts";
 import { DisplayName } from "@/src/game/content/names.ts";
 import { SoundId } from "@/src/game/model/sound.ts";
@@ -24,6 +24,8 @@ import { flatTestMap } from "@/tests/game/simulation/helpers.ts";
 import { assertEquals, assertThrows } from "@std/assert";
 import { TerrainBlock } from "turn-based-engine/crawler";
 
+const DOG_ARCHETYPE: EnemyArchetypeKey = "meleeDog";
+
 Deno.test("spawn functions attach custom components and exact crawler masks", () => {
   const runtime = createRuntime(flatTestMap(8, 3));
   const player = createPlayer(runtime, { x: 1, y: 1, dir: Direction.East }, 42);
@@ -31,7 +33,7 @@ Deno.test("spawn functions attach custom components and exact crawler masks", ()
     x: 2,
     y: 1,
     dir: Direction.West,
-    archetype: enemyArchetypeKey(EnemyArchetypeCode.MeleeDog),
+    archetype: DOG_ARCHETYPE,
     displayName: DisplayName.DigitalDog,
   });
   const normalDoor = createDoor(runtime, { x: 3, y: 1, locked: true, color: KeyColor.Red });

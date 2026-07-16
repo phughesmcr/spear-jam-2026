@@ -2,6 +2,7 @@ import { type AudioSettings, DEFAULT_AUDIO_SETTINGS } from "@/src/game/model/aud
 import type { PresentationViewScratch } from "@/src/game/model/presentation_state.ts";
 import { DEFAULT_INTERACTIVE_FPS } from "@/src/game/model/render_settings.ts";
 import type { GameMode, ViewMode } from "@/src/game/model/state.ts";
+import type { PresentationContent, SimulationContent } from "@/src/game/content/catalog.ts";
 import type { GameCanvasSize } from "@/src/game/presentation/canvas_size.ts";
 import type { FirstPersonRenderer } from "@/src/game/presentation/first_person/renderer.ts";
 import type { GameFrameResult, GameRenderScratch, RenderSpy } from "@/src/game/presentation/frame_scratch.ts";
@@ -26,6 +27,8 @@ export type FrameProps = {
   readonly audio?: AudioSettings;
   readonly interactiveFps?: number;
   readonly firstPersonRenderer?: FirstPersonRenderer;
+  readonly content?: PresentationContent;
+  readonly simulationContent?: Pick<SimulationContent, "weapon">;
   readonly nowMs?: number;
   readonly spy?: RenderSpy;
 };
@@ -41,6 +44,8 @@ export function renderGameFrame({
   audio = DEFAULT_AUDIO_SETTINGS,
   interactiveFps = DEFAULT_INTERACTIVE_FPS,
   firstPersonRenderer,
+  content,
+  simulationContent,
   nowMs = 0,
   spy = scratch.spy,
 }: FrameProps): GameFrameResult {
@@ -59,6 +64,9 @@ export function renderGameFrame({
   }
 
   if (session !== undefined) {
+    if (content === undefined || simulationContent === undefined) {
+      throw new Error("renderGameFrame requires bound presentation content for sessions.");
+    }
     renderSessionPass(
       ctx,
       canvasSize,
@@ -67,6 +75,8 @@ export function renderGameFrame({
       presentation,
       viewMode,
       firstPersonRenderer,
+      content,
+      simulationContent,
       nowMs,
       frameResult,
       spy,

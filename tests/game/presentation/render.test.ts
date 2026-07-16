@@ -8,6 +8,7 @@ import { renderGameFrame } from "@/src/game/presentation/render.ts";
 import { invalidateIntermissionCaches } from "@/src/game/presentation/ui/intermission.ts";
 import { createGameRenderScratch } from "@/src/game/presentation/frame_scratch.ts";
 import { assert, assertEquals } from "@std/assert";
+import { SHIPPED_GAME } from "@/src/game/content/shipped.ts";
 
 const FULL_CANVAS = { width: 720, height: 1280 };
 
@@ -310,7 +311,12 @@ function renderWithScratch(
   },
 ) {
   const scratch = props.scratch ?? createGameRenderScratch();
-  return renderGameFrame({ ...props, scratch });
+  return renderGameFrame({
+    content: SHIPPED_GAME.presentation,
+    simulationContent: SHIPPED_GAME.simulation,
+    ...props,
+    scratch,
+  });
 }
 
 function fakeFirstPersonRenderer(needsFrame = false, ambientOnly = false): FirstPersonRenderer {

@@ -1,4 +1,4 @@
-import { createGameModel, transition } from "@/src/game/model/transition/mod.ts";
+import { createGameModel, transition } from "@/tests/game/model/transition/helpers.ts";
 import { assertEquals } from "@std/assert";
 
 Deno.test("escape opens the title menu while playing and resume closes it", () => {

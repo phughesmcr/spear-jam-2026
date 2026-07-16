@@ -3,7 +3,7 @@ import type { FrameRenderSession } from "@/src/game/presentation/session_view.ts
 import type { PlayerStatusSnapshot } from "@/src/game/model/state.ts";
 import { createGameModel, type GameModel } from "@/src/game/model/transition/mod.ts";
 import { Direction } from "@/src/game/world/direction.ts";
-import { CAMPAIGN } from "@/src/game/world/campaign.ts";
+import { SHIPPED_GAME } from "@/src/game/content/shipped.ts";
 import { createGameMap } from "@/src/game/world/map.ts";
 import type { FirstPersonRenderer } from "@/src/game/presentation/first_person/renderer.ts";
 import { assertEquals } from "@std/assert";
@@ -12,6 +12,8 @@ Deno.test("presentation runtime renderNow cancels a pending RAF before rendering
   const window = new FakeWindow();
   let model = modelNeedingFrame();
   const runtime = createPresentationRuntime({
+    content: SHIPPED_GAME.presentation,
+    simulationContent: SHIPPED_GAME.simulation,
     host: window as unknown as Window,
     document: new FakeDocument() as unknown as Document,
     ctx: new FakeContext() as unknown as CanvasRenderingContext2D,
@@ -36,6 +38,8 @@ Deno.test("presentation runtime renderNow cancels a pending RAF before rendering
 Deno.test("presentation runtime RAF callback clears the pending frame before requesting another", () => {
   const window = new FakeWindow();
   const runtime = createPresentationRuntime({
+    content: SHIPPED_GAME.presentation,
+    simulationContent: SHIPPED_GAME.simulation,
     host: window as unknown as Window,
     document: new FakeDocument() as unknown as Document,
     ctx: new FakeContext() as unknown as CanvasRenderingContext2D,
@@ -68,6 +72,8 @@ Deno.test("presentation runtime RAF skips work until the interactive fps budget 
 
   try {
     const runtime = createPresentationRuntime({
+      content: SHIPPED_GAME.presentation,
+      simulationContent: SHIPPED_GAME.simulation,
       host: window as unknown as Window,
       document: new FakeDocument() as unknown as Document,
       ctx: new FakeContext() as unknown as CanvasRenderingContext2D,
@@ -115,6 +121,8 @@ Deno.test("presentation runtime RAF uses the model interactiveFps for the intera
 
   try {
     const runtime = createPresentationRuntime({
+      content: SHIPPED_GAME.presentation,
+      simulationContent: SHIPPED_GAME.simulation,
       host: window as unknown as Window,
       document: new FakeDocument() as unknown as Document,
       ctx: new FakeContext() as unknown as CanvasRenderingContext2D,
@@ -168,6 +176,8 @@ Deno.test("presentation runtime RAF uses a 12 fps budget for ambient-only first-
 
   try {
     const runtime = createPresentationRuntime({
+      content: SHIPPED_GAME.presentation,
+      simulationContent: SHIPPED_GAME.simulation,
       host: window as unknown as Window,
       document: new FakeDocument() as unknown as Document,
       ctx: new FakeContext() as unknown as CanvasRenderingContext2D,
@@ -211,6 +221,8 @@ Deno.test("presentation runtime RAF uses a 12 fps budget for ambient-only first-
 Deno.test("presentation runtime dispose cancels its pending RAF", () => {
   const window = new FakeWindow();
   const runtime = createPresentationRuntime({
+    content: SHIPPED_GAME.presentation,
+    simulationContent: SHIPPED_GAME.simulation,
     host: window as unknown as Window,
     document: new FakeDocument() as unknown as Document,
     ctx: new FakeContext() as unknown as CanvasRenderingContext2D,
@@ -245,6 +257,8 @@ Deno.test("presentation runtime forwards a rejected background asset warm to onE
 
   try {
     const runtime = createPresentationRuntime({
+      content: SHIPPED_GAME.presentation,
+      simulationContent: SHIPPED_GAME.simulation,
       host: new FakeWindow() as unknown as Window,
       document: new FakeDocument() as unknown as Document,
       ctx: new FakeContext() as unknown as CanvasRenderingContext2D,
@@ -256,7 +270,7 @@ Deno.test("presentation runtime forwards a rejected background asset warm to onE
       firstPersonRenderer: fakeFirstPersonRenderer({ needsFrame: false }, failure),
     });
 
-    runtime.warmDeferredAssets(CAMPAIGN.startMap.name);
+    runtime.warmDeferredAssets(SHIPPED_GAME.levels.start);
     await new Promise((resolve) => setTimeout(resolve, 0));
 
     assertEquals(errors.length, 1);

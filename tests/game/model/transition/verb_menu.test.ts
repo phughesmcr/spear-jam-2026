@@ -1,4 +1,4 @@
-import { createGameModel, transition } from "@/src/game/model/transition/mod.ts";
+import { createGameModel, transition } from "@/tests/game/model/transition/helpers.ts";
 import { assertEquals } from "@std/assert";
 
 Deno.test("transition previews a newly selected verb before confirming it with cursor input", () => {

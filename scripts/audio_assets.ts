@@ -1,6 +1,6 @@
-import { MUSIC_TRACKS } from "@/src/game/content/audio/music.ts";
-import { SOUND_CATALOG } from "@/src/game/content/audio/sounds.ts";
-import { VOICE_CATALOG } from "@/src/game/content/dialogue/voices.ts";
+import { TrackId } from "@/src/game/content/audio/music.ts";
+import { SHIPPED_GAME } from "@/src/game/content/shipped.ts";
+import { VOICE_IDS } from "@/src/game/content/dialogue/voices.ts";
 import { SOUND_IDS, SoundId, type SoundId as SoundIdType } from "@/src/game/model/sound.ts";
 
 type WaveSpec = {
@@ -86,7 +86,7 @@ export async function main(args: readonly string[] = Deno.args): Promise<void> {
 export async function generateAudioAssets(): Promise<void> {
   await Deno.mkdir(OUTPUT_DIR, { recursive: true });
   for (const soundId of SOUND_IDS) {
-    if (await assetExists(SOUND_CATALOG[soundId].src) || await pathExists(assetPath(soundId))) continue;
+    if (await assetExists(SHIPPED_GAME.audio.sound(soundId).src) || await pathExists(assetPath(soundId))) continue;
     await Deno.writeFile(assetPath(soundId), waveBytes(ASSET_SPECS[soundId], soundId));
   }
 }
@@ -94,15 +94,17 @@ export async function generateAudioAssets(): Promise<void> {
 export async function checkAudioAssets(): Promise<void> {
   const issues: string[] = [];
   for (const soundId of SOUND_IDS) {
-    const src = SOUND_CATALOG[soundId].src;
+    const src = SHIPPED_GAME.audio.sound(soundId).src;
     if (await assetExists(src)) continue;
     issues.push(`${src} is missing for ${soundId}. Run deno task audio:generate.`);
   }
-  for (const [trackId, track] of Object.entries(MUSIC_TRACKS)) {
+  for (const trackId of Object.values(TrackId)) {
+    const track = SHIPPED_GAME.audio.track(trackId);
     if (await assetExists(track.src)) continue;
     issues.push(`Music track ${trackId} is missing: ${track.src}`);
   }
-  for (const [voiceId, src] of Object.entries(VOICE_CATALOG)) {
+  for (const voiceId of VOICE_IDS) {
+    const src = SHIPPED_GAME.audio.voiceSource(voiceId);
     if (await assetExists(src)) continue;
     issues.push(`Dialogue voice ${voiceId} is missing: ${src}`);
   }

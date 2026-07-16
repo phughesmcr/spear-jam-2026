@@ -19,9 +19,10 @@ export type CodeRegistry<T extends string> = {
 };
 
 export function createCodeRegistry<T extends string>(label: string, ids: readonly T[]): CodeRegistry<T> {
-  const codeById = new Map<T, number>(ids.map((id, index) => [id, index + 1]));
+  const snapshot = Object.freeze([...ids]);
+  const codeById = new Map<T, number>(snapshot.map((id, index) => [id, index + 1]));
   return {
-    ids,
+    ids: snapshot,
     has(value: string): value is T {
       return codeById.has(value as T);
     },
@@ -31,7 +32,7 @@ export function createCodeRegistry<T extends string>(label: string, ids: readonl
       return code;
     },
     decode(code: number): T {
-      const id = ids[code - 1];
+      const id = snapshot[code - 1];
       if (id === undefined) throw new Error(`Unknown ${label} code: ${code}`);
       return id;
     },

@@ -14,6 +14,9 @@ export const KeyColor = {
   Yellow: "yellow",
 } as const;
 export type KeyColor = (typeof KeyColor)[keyof typeof KeyColor];
+export const KEY_COLORS = Object.freeze(
+  [KeyColor.Red, KeyColor.Blue, KeyColor.Yellow] as const satisfies readonly KeyColor[],
+);
 
 export type DoorSlide = "north" | "east" | "south" | "west" | "up" | "down";
 export const DOOR_SLIDES = ["north", "east", "south", "west", "up", "down"] as const satisfies readonly DoorSlide[];
@@ -53,7 +56,7 @@ const INT8_SCHEMA = INTEGER_SCHEMA.min(-128).max(127);
 const UINT16_SCHEMA = INTEGER_SCHEMA.min(0).max(65535);
 const NON_NEGATIVE_INTEGER_SCHEMA = INTEGER_SCHEMA.nonnegative();
 const DIRECTION_SCHEMA = INTEGER_SCHEMA.min(0).max(3);
-const KEY_COLOR_SCHEMA = stringEnumSchema<KeyColor>(Object.values(KeyColor), "key color");
+const KEY_COLOR_SCHEMA = stringEnumSchema<KeyColor>(KEY_COLORS, "key color");
 const DOOR_SLIDE_SCHEMA = stringEnumSchema<DoorSlide>(DOOR_SLIDES, "door slide");
 const LIGHT_COLOR_SCHEMA = z.string().regex(/^#[0-9a-f]{6}$/);
 const DISPLAY_NAME_SCHEMA = stringEnumSchema<DisplayName>(Object.values(DisplayName), "display name");

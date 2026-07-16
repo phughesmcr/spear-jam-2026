@@ -1,4 +1,4 @@
-import { dialogueTreeNode } from "@/src/game/content/dialogue/trees.ts";
+import type { DialogueContent } from "@/src/game/content/catalog.ts";
 import type { VoiceId } from "@/src/game/content/dialogue/voices.ts";
 import type { GameCommand } from "@/src/game/model/commands.ts";
 import type { GameMode } from "@/src/game/model/state.ts";
@@ -8,14 +8,20 @@ import type { PointerPhase } from "@/src/engine/input/mod.ts";
 
 type DialogueMode = Extract<GameMode, { readonly type: "dialogue" }>;
 
-export function dialogueCommand(model: GameModel, mode: DialogueMode, command: GameCommand): GameTransition {
+export function dialogueCommand(
+  content: DialogueContent,
+  model: GameModel,
+  mode: DialogueMode,
+  command: GameCommand,
+): GameTransition {
   return dispatchCommand(model, command, {
-    wait: () => selectDialogueChoice(model, mode, 1),
-    selectWeapon: (select) => selectDialogueChoice(model, mode, select.slot),
+    wait: () => selectDialogueChoice(content, model, mode, 1),
+    selectWeapon: (select) => selectDialogueChoice(content, model, mode, select.slot),
   });
 }
 
 export function dialoguePointer(
+  content: DialogueContent,
   model: GameModel,
   phase: PointerPhase,
   optionSlot: number | undefined,
@@ -35,7 +41,7 @@ export function dialoguePointer(
       const upMode = withoutDialoguePointerDown(mode);
       const upModel = { ...model, mode: upMode };
       if (optionSlot !== undefined && downSlot === optionSlot) {
-        return selectDialogueChoice(upModel, upMode, optionSlot);
+        return selectDialogueChoice(content, upModel, upMode, optionSlot);
       }
       return done(upModel);
     },
@@ -54,12 +60,17 @@ export function dialogueRenderEffects(
   return [voiceEffect, { type: "render" }];
 }
 
-function selectDialogueChoice(model: GameModel, mode: DialogueMode, slot: number): GameTransition {
+function selectDialogueChoice(
+  content: DialogueContent,
+  model: GameModel,
+  mode: DialogueMode,
+  slot: number,
+): GameTransition {
   const choice = mode.choices[slot - 1];
   if (choice === undefined) return done(model);
   if (choice.next === undefined || mode.treeKey === undefined) return closeDialogue(model);
 
-  const node = dialogueTreeNode(mode.treeKey, choice.next);
+  const node = content.node(mode.treeKey, choice.next);
   return done({
     ...model,
     mode: {

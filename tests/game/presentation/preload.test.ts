@@ -1,5 +1,5 @@
 import { SpriteId } from "@/src/game/content/sprite_ids.ts";
-import { CAMPAIGN } from "@/src/game/world/campaign.ts";
+import { SHIPPED_GAME } from "@/src/game/content/shipped.ts";
 import type { FirstPersonRenderer } from "@/src/game/presentation/first_person/renderer.ts";
 import {
   criticalSpriteIdsForMap,
@@ -11,6 +11,13 @@ import {
   warmShellAssets,
 } from "@/src/game/presentation/preload.ts";
 import { assert, assertEquals } from "@std/assert";
+
+const CONTENT = SHIPPED_GAME.presentation;
+const SIMULATION_CONTENT = SHIPPED_GAME.simulation;
+
+function spriteIds(entity: Parameters<typeof spriteIdsForEntity>[0]) {
+  return spriteIdsForEntity(entity, SIMULATION_CONTENT, CONTENT);
+}
 
 Deno.test("asset warm lifecycle separates shell, map-critical, and deferred presentation assets", async () => {
   const document = new LoadingDocument();
@@ -38,7 +45,9 @@ Deno.test("asset warm lifecycle separates shell, map-critical, and deferred pres
     warmMapAssets(
       document as unknown as Document,
       renderer,
-      CAMPAIGN.startMap.name,
+      SHIPPED_GAME.levels.start,
+      CONTENT,
+      SIMULATION_CONTENT,
       (error) => errors.push(error),
     );
     await flushWarmWork();
@@ -54,7 +63,7 @@ Deno.test("asset warm lifecycle separates shell, map-critical, and deferred pres
     warmDeferredAssets(
       document as unknown as Document,
       renderer,
-      CAMPAIGN.startMap.name,
+      SHIPPED_GAME.levels.start,
       (error) => errors.push(error),
     );
     await flushWarmWork();
@@ -69,48 +78,48 @@ Deno.test("asset warm lifecycle separates shell, map-critical, and deferred pres
 });
 
 Deno.test("spriteIdsForEntity maps authored prefabs to sprite ids", () => {
-  assertEquals(spriteIdsForEntity({ prefab: "player", x: 0, y: 0, dir: 0 }), []);
-  assertEquals(spriteIdsForEntity({ prefab: "npc", x: 0, y: 0, dir: 0, displayName: "john" }), [
+  assertEquals(spriteIds({ prefab: "player", x: 0, y: 0, dir: 0 }), []);
+  assertEquals(spriteIds({ prefab: "npc", x: 0, y: 0, dir: 0, displayName: "john" }), [
     SpriteId.John,
   ]);
-  assertEquals(spriteIdsForEntity({ prefab: "enemy", x: 0, y: 0, dir: 0, archetype: "meleeDog" }), [
+  assertEquals(spriteIds({ prefab: "enemy", x: 0, y: 0, dir: 0, archetype: "meleeDog" }), [
     SpriteId.DigitalDog,
   ]);
-  assertEquals(spriteIdsForEntity({ prefab: "key", x: 0, y: 0, color: "red" }), [SpriteId.RedKey]);
-  assertEquals(spriteIdsForEntity({ prefab: "uplinkCode", x: 0, y: 0 }), [SpriteId.UplinkCode]);
-  assertEquals(spriteIdsForEntity({ prefab: "uplinkTerminal", x: 0, y: 0, goto: "victory" }), [
+  assertEquals(spriteIds({ prefab: "key", x: 0, y: 0, color: "red" }), [SpriteId.RedKey]);
+  assertEquals(spriteIds({ prefab: "uplinkCode", x: 0, y: 0 }), [SpriteId.UplinkCode]);
+  assertEquals(spriteIds({ prefab: "uplinkTerminal", x: 0, y: 0, goto: "victory" }), [
     SpriteId.UplinkTerminal,
   ]);
-  assertEquals(spriteIdsForEntity({ prefab: "weaponPickup", x: 0, y: 0, slot: 2 }), [SpriteId.Weapon2]);
-  assertEquals(spriteIdsForEntity({ prefab: "item", x: 0, y: 0, item: "healthPatch", amount: 1 }), [
+  assertEquals(spriteIds({ prefab: "weaponPickup", x: 0, y: 0, slot: 2 }), [SpriteId.Weapon2]);
+  assertEquals(spriteIds({ prefab: "item", x: 0, y: 0, item: "healthPatch", amount: 1 }), [
     SpriteId.HealthPatch,
   ]);
-  assertEquals(spriteIdsForEntity({ prefab: "decoration", x: 0, y: 0, decoration: "serverPile" }), [
+  assertEquals(spriteIds({ prefab: "decoration", x: 0, y: 0, decoration: "serverPile" }), [
     SpriteId.DecorServerPile,
   ]);
-  assertEquals(spriteIdsForEntity({ prefab: "spearPickup", x: 0, y: 0 }), [SpriteId.Spear]);
-  assertEquals(spriteIdsForEntity({ prefab: "spearTurret", x: 0, y: 0 }), [
+  assertEquals(spriteIds({ prefab: "spearPickup", x: 0, y: 0 }), [SpriteId.Spear]);
+  assertEquals(spriteIds({ prefab: "spearTurret", x: 0, y: 0 }), [
     SpriteId.SpearTurret,
     SpriteId.SpearTurretLoaded,
   ]);
-  assertEquals(spriteIdsForEntity({ prefab: "door", x: 0, y: 0, slide: "east" }), []);
-  assertEquals(spriteIdsForEntity({ prefab: "light", x: 0, y: 0, color: "#ffffff", radius: 3 }), []);
+  assertEquals(spriteIds({ prefab: "door", x: 0, y: 0, slide: "east" }), []);
+  assertEquals(spriteIds({ prefab: "light", x: 0, y: 0, color: "#ffffff", radius: 3 }), []);
   assertEquals(
-    spriteIdsForEntity({ prefab: "sound", x: 0, y: 0, soundId: "ambientHum", radius: 3 }),
+    spriteIds({ prefab: "sound", x: 0, y: 0, soundId: "ambientHum", radius: 3 }),
     [],
   );
 });
 
 Deno.test("criticalSpriteIdsForMap always includes corpse", () => {
-  const ids = criticalSpriteIdsForMap(CAMPAIGN.map(CAMPAIGN.startMap.name));
+  const ids = criticalSpriteIdsForMap(SHIPPED_GAME.levels.start.map, SIMULATION_CONTENT, CONTENT);
   assertEquals(ids.has(SpriteId.Corpse), true);
 });
 
 Deno.test("criticalSpriteIdsForMap covers every campaign map entity sprite", () => {
-  for (const map of CAMPAIGN.maps) {
-    const ids = criticalSpriteIdsForMap(map);
+  for (const { map } of SHIPPED_GAME.levels.all) {
+    const ids = criticalSpriteIdsForMap(map, SIMULATION_CONTENT, CONTENT);
     for (const entity of map.entities) {
-      for (const spriteId of spriteIdsForEntity(entity)) {
+      for (const spriteId of spriteIds(entity)) {
         assertEquals(
           ids.has(spriteId),
           true,
@@ -122,13 +131,13 @@ Deno.test("criticalSpriteIdsForMap covers every campaign map entity sprite", () 
 });
 
 Deno.test("mapNeedsDialogueAssets matches NPC presence", () => {
-  assertEquals(mapNeedsDialogueAssets(CAMPAIGN.map("Boot Sector")), true);
-  assertEquals(mapNeedsDialogueAssets(CAMPAIGN.map("Data Conduit")), false);
+  assertEquals(mapNeedsDialogueAssets(SHIPPED_GAME.levels.get("Boot Sector").map), true);
+  assertEquals(mapNeedsDialogueAssets(SHIPPED_GAME.levels.get("Data Conduit").map), false);
 });
 
 Deno.test("mapNeedsSpearRevealAsset matches spear pickup presence", () => {
-  assertEquals(mapNeedsSpearRevealAsset(CAMPAIGN.map("The Nexus")), true);
-  assertEquals(mapNeedsSpearRevealAsset(CAMPAIGN.map("Data Conduit")), false);
+  assertEquals(mapNeedsSpearRevealAsset(SHIPPED_GAME.levels.get("The Nexus").map), true);
+  assertEquals(mapNeedsSpearRevealAsset(SHIPPED_GAME.levels.get("Data Conduit").map), false);
 });
 
 async function withImmediateIdleCallback(run: () => Promise<void>): Promise<void> {

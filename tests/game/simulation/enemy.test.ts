@@ -1,7 +1,7 @@
-import { EnemyArchetypeCode, enemyArchetypeKey } from "@/src/game/content/enemies.ts";
+import type { EnemyArchetypeKey } from "@/src/game/content/enemies.ts";
 import { readComponent, writeComponent } from "@/src/game/simulation/components.ts";
 import { createEnemy, createPlayer } from "@/src/game/simulation/spawn/mod.ts";
-import { createRuntime } from "@/src/game/simulation/runtime.ts";
+import { createRuntime } from "@/tests/game/simulation/helpers.ts";
 import { isPlayerDefeated, prepareEnemyHearing, runEnemyActorTurn } from "@/src/game/simulation/turn/enemy.ts";
 import { DisplayName } from "@/src/game/content/names.ts";
 import { type CardinalDirection, Direction } from "@/src/game/world/direction.ts";
@@ -14,7 +14,7 @@ import type { Entity } from "turn-based-engine/ecs";
 Deno.test("alert enemies pursue through the engine pathfinder", () => {
   const runtime = createRuntime(flatTestMap(7, 3));
   const player = createPlayer(runtime, { x: 1, y: 1, dir: Direction.East });
-  const enemy = spawnEnemy(runtime, EnemyArchetypeCode.NetworkNeophyte, 5, 1, Direction.West);
+  const enemy = spawnEnemy(runtime, "networkNeophyte", 5, 1, Direction.West);
   const events = runtime.pathfinder.batch(() => runEnemyActorTurn({ runtime, player, random: () => 0 }, enemy));
   assertEquals(events[0], { type: "enemyAlerted", entity: enemy });
   assertEquals(runtime.crawler.entityPosition(enemy), { x: 4, y: 1 });
@@ -24,7 +24,7 @@ Deno.test("alert enemies pursue through the engine pathfinder", () => {
 Deno.test("heard noise produces investigation without omniscient player pursuit", () => {
   const runtime = createRuntime(flatTestMap(8, 3));
   const player = createPlayer(runtime, { x: 1, y: 1, dir: Direction.East });
-  const enemy = spawnEnemy(runtime, EnemyArchetypeCode.MeleeDog, 6, 1, Direction.East);
+  const enemy = spawnEnemy(runtime, "meleeDog", 6, 1, Direction.East);
   const noises = [{ x: 4, y: 1, radius: 6 }] as const;
   const hearing = prepareEnemyHearing(runtime, noises);
   const events = runtime.pathfinder.batch(() =>
@@ -43,7 +43,7 @@ Deno.test("heard noise produces investigation without omniscient player pursuit"
 Deno.test("hearing chooses the nearest audible source", () => {
   const runtime = createRuntime(flatTestMap(7, 5));
   const player = createPlayer(runtime, { x: 6, y: 4, dir: Direction.West });
-  const enemy = spawnEnemy(runtime, EnemyArchetypeCode.NetworkNeophyte, 3, 2, Direction.East);
+  const enemy = spawnEnemy(runtime, "networkNeophyte", 3, 2, Direction.East);
 
   runPhase(
     runtime,
@@ -62,7 +62,7 @@ Deno.test("hearing chooses the nearest audible source", () => {
 Deno.test("equidistant noises deterministically prefer their input order", () => {
   const runtime = createRuntime(flatTestMap(7, 5));
   const player = createPlayer(runtime, { x: 6, y: 4, dir: Direction.West });
-  const enemy = spawnEnemy(runtime, EnemyArchetypeCode.NetworkNeophyte, 3, 2, Direction.East);
+  const enemy = spawnEnemy(runtime, "networkNeophyte", 3, 2, Direction.East);
 
   runPhase(
     runtime,
@@ -81,7 +81,7 @@ Deno.test("equidistant noises deterministically prefer their input order", () =>
 Deno.test("hearing respects both source and enemy radii", () => {
   const sourceRuntime = createRuntime(flatTestMap(9, 3));
   const sourcePlayer = createPlayer(sourceRuntime, { x: 8, y: 1, dir: Direction.West });
-  const sourceLimited = spawnEnemy(sourceRuntime, EnemyArchetypeCode.NetworkNeophyte, 3, 1, Direction.West);
+  const sourceLimited = spawnEnemy(sourceRuntime, "networkNeophyte", 3, 1, Direction.West);
   assertEquals(
     runPhase(
       sourceRuntime,
@@ -96,7 +96,7 @@ Deno.test("hearing respects both source and enemy radii", () => {
 
   const enemyRuntime = createRuntime(flatTestMap(9, 3));
   const enemyPlayer = createPlayer(enemyRuntime, { x: 8, y: 1, dir: Direction.West });
-  const enemyLimited = spawnEnemy(enemyRuntime, EnemyArchetypeCode.SystemSentinel, 3, 1, Direction.East);
+  const enemyLimited = spawnEnemy(enemyRuntime, "systemSentinel", 3, 1, Direction.East);
   assertEquals(
     runPhase(
       enemyRuntime,
@@ -113,7 +113,7 @@ Deno.test("hearing respects both source and enemy radii", () => {
 Deno.test("gunslingers retreat when adjacent", () => {
   const runtime = createRuntime(flatTestMap(6, 3));
   const player = createPlayer(runtime, { x: 2, y: 1, dir: Direction.East });
-  const enemy = spawnEnemy(runtime, EnemyArchetypeCode.Gunslinger, 3, 1, Direction.West);
+  const enemy = spawnEnemy(runtime, "gunslinger", 3, 1, Direction.West);
   runtime.pathfinder.batch(() => runEnemyActorTurn({ runtime, player, random: () => 0 }, enemy));
   assertEquals(runtime.crawler.entityPosition(enemy), { x: 4, y: 1 });
   assertEquals(readComponent(runtime.game, player, "Health")?.current, 10);
@@ -127,7 +127,7 @@ Deno.test("pursuit routes around blocking terrain", () => {
   ], []);
   const runtime = createRuntime(map);
   const player = createPlayer(runtime, { x: 5, y: 1, dir: Direction.West });
-  const enemy = spawnEnemy(runtime, EnemyArchetypeCode.NetworkNeophyte, 1, 1, Direction.East);
+  const enemy = spawnEnemy(runtime, "networkNeophyte", 1, 1, Direction.East);
   runPhase(runtime, player);
   assertEquals(runtime.crawler.entityPosition(enemy), { x: 1, y: 0 });
   assertEquals(runtime.crawler.entityFacing(enemy), Direction.North);
@@ -136,8 +136,8 @@ Deno.test("pursuit routes around blocking terrain", () => {
 Deno.test("unaware enemies and out-of-range sentinel senses remain idle", () => {
   const runtime = createRuntime(flatTestMap(7, 3));
   const player = createPlayer(runtime, { x: 5, y: 1, dir: Direction.West });
-  const unaware = spawnEnemy(runtime, EnemyArchetypeCode.NetworkNeophyte, 1, 1, Direction.West);
-  const sentinel = spawnEnemy(runtime, EnemyArchetypeCode.SystemSentinel, 2, 1, Direction.East);
+  const unaware = spawnEnemy(runtime, "networkNeophyte", 1, 1, Direction.West);
+  const sentinel = spawnEnemy(runtime, "systemSentinel", 2, 1, Direction.East);
   const events = runPhase(runtime, player, [{ x: 4, y: 2, radius: 1 }]);
   assertEquals(events, []);
   assertEquals(runtime.crawler.entityPosition(unaware), { x: 1, y: 1 });
@@ -147,7 +147,7 @@ Deno.test("unaware enemies and out-of-range sentinel senses remain idle", () => 
 Deno.test("sentinels investigate by watching and facing the dominant axis", () => {
   const runtime = createRuntime(flatTestMap(5, 5));
   const player = createPlayer(runtime, { x: 4, y: 4, dir: Direction.West });
-  const sentinel = spawnEnemy(runtime, EnemyArchetypeCode.SystemSentinel, 1, 1, Direction.West);
+  const sentinel = spawnEnemy(runtime, "systemSentinel", 1, 1, Direction.West);
   const events = runPhase(runtime, player, [{ x: 1, y: 2, radius: 3 }]);
   assertEquals(events, [{ type: "enemyInvestigating", entity: sentinel }]);
   assertEquals(runtime.crawler.entityPosition(sentinel), { x: 1, y: 1 });
@@ -157,7 +157,7 @@ Deno.test("sentinels investigate by watching and facing the dominant axis", () =
 Deno.test("enemies keep investigating their last known noise position", () => {
   const runtime = createRuntime(flatTestMap(8, 3));
   const player = createPlayer(runtime, { x: 7, y: 1, dir: Direction.West });
-  const enemy = spawnEnemy(runtime, EnemyArchetypeCode.NetworkNeophyte, 1, 1, Direction.West);
+  const enemy = spawnEnemy(runtime, "networkNeophyte", 1, 1, Direction.West);
   runPhase(runtime, player, [{ x: 4, y: 1, radius: 4 }]);
   assertEquals(runtime.crawler.entityPosition(enemy), { x: 2, y: 1 });
   runPhase(runtime, player);
@@ -167,7 +167,7 @@ Deno.test("enemies keep investigating their last known noise position", () => {
 Deno.test("melee dogs pounce and attack after closing two tiles", () => {
   const runtime = createRuntime(flatTestMap(6, 3));
   const player = createPlayer(runtime, { x: 4, y: 1, dir: Direction.West });
-  const dog = spawnEnemy(runtime, EnemyArchetypeCode.MeleeDog, 1, 1, Direction.East);
+  const dog = spawnEnemy(runtime, "meleeDog", 1, 1, Direction.East);
   const events = runPhase(runtime, player, [], () => 0.999);
   assertEquals(runtime.crawler.entityPosition(dog), { x: 3, y: 1 });
   assertEquals(events.map((event) => event.type), ["enemyAlerted", "damageDealt"]);
@@ -176,8 +176,8 @@ Deno.test("melee dogs pounce and attack after closing two tiles", () => {
 Deno.test("gunslingers shoot from range while sentinels hold position", () => {
   const runtime = createRuntime(flatTestMap(8, 3));
   const player = createPlayer(runtime, { x: 5, y: 1, dir: Direction.West });
-  const gunslinger = spawnEnemy(runtime, EnemyArchetypeCode.Gunslinger, 2, 1, Direction.East);
-  const sentinel = spawnEnemy(runtime, EnemyArchetypeCode.SystemSentinel, 1, 2, Direction.East);
+  const gunslinger = spawnEnemy(runtime, "gunslinger", 2, 1, Direction.East);
+  const sentinel = spawnEnemy(runtime, "systemSentinel", 1, 2, Direction.East);
   const events = runPhase(runtime, player, [], () => 0.999);
   assertEquals(runtime.crawler.entityPosition(gunslinger), { x: 2, y: 1 });
   assertEquals(runtime.crawler.entityPosition(sentinel), { x: 1, y: 2 });
@@ -188,8 +188,8 @@ Deno.test("player defeat stops later enemies in the same phase", () => {
   const runtime = createRuntime(flatTestMap(7, 3));
   const player = createPlayer(runtime, { x: 2, y: 1, dir: Direction.West });
   writeComponent(runtime.game, player, "Health", { current: 1, max: 1 });
-  spawnEnemy(runtime, EnemyArchetypeCode.MeleeDog, 1, 1, Direction.East);
-  const later = spawnEnemy(runtime, EnemyArchetypeCode.NetworkNeophyte, 5, 1, Direction.West);
+  spawnEnemy(runtime, "meleeDog", 1, 1, Direction.East);
+  const later = spawnEnemy(runtime, "networkNeophyte", 5, 1, Direction.West);
   runPhase(runtime, player, [], () => 0.999);
   assertEquals(readComponent(runtime.game, player, "Health")?.current, 0);
   assertEquals(runtime.crawler.entityPosition(later), { x: 5, y: 1 });
@@ -198,7 +198,7 @@ Deno.test("player defeat stops later enemies in the same phase", () => {
 Deno.test("agentic acolytes attack nearby cardinal targets without turning first", () => {
   const runtime = createRuntime(flatTestMap(6, 3));
   const player = createPlayer(runtime, { x: 3, y: 1, dir: Direction.West });
-  const acolyte = spawnEnemy(runtime, EnemyArchetypeCode.AgenticAcolyte, 1, 1, Direction.East);
+  const acolyte = spawnEnemy(runtime, "agenticAcolyte", 1, 1, Direction.East);
   const events = runPhase(runtime, player, [], () => 0.999);
   assertEquals(runtime.crawler.entityPosition(acolyte), { x: 1, y: 1 });
   assertEquals(events.map((event) => event.type), ["enemyAlerted", "damageDealt"]);
@@ -229,7 +229,7 @@ function runPhase(
 
 function spawnEnemy(
   runtime: ReturnType<typeof createRuntime>,
-  archetype: EnemyArchetypeCode,
+  archetype: EnemyArchetypeKey,
   x: number,
   y: number,
   dir: CardinalDirection,
@@ -238,18 +238,18 @@ function spawnEnemy(
     x,
     y,
     dir,
-    archetype: enemyArchetypeKey(archetype),
+    archetype,
     displayName: displayNameFor(archetype),
   });
 }
 
-function displayNameFor(archetype: EnemyArchetypeCode): DisplayName {
+function displayNameFor(archetype: EnemyArchetypeKey): DisplayName {
   switch (archetype) {
-    case EnemyArchetypeCode.MeleeDog:
+    case "meleeDog":
       return DisplayName.DigitalDog;
-    case EnemyArchetypeCode.Gunslinger:
+    case "gunslinger":
       return DisplayName.GigabitGunslinger;
-    case EnemyArchetypeCode.AgenticAcolyte:
+    case "agenticAcolyte":
       return DisplayName.AgenticAcolyte;
     default:
       return DisplayName.NetworkNeophyte;

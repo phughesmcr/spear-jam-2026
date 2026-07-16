@@ -1,4 +1,4 @@
-import { playerWeaponSpec } from "@/src/game/content/weapons.ts";
+import type { PresentationContent, SimulationContent } from "@/src/game/content/catalog.ts";
 import type { PresentationViewScratch } from "@/src/game/model/presentation_state.ts";
 import type { ViewMode } from "@/src/game/model/state.ts";
 import type { GameCanvasSize } from "@/src/game/presentation/canvas_size.ts";
@@ -28,6 +28,8 @@ export function renderSessionPass(
   presentation: PresentationViewScratch,
   viewMode: ViewMode,
   firstPersonRenderer: FirstPersonRenderer | undefined,
+  content: PresentationContent,
+  simulationContent: Pick<SimulationContent, "weapon">,
   nowMs: number,
   frameResult: GameFrameResultScratch,
   spy: RenderSpy,
@@ -50,7 +52,7 @@ export function renderSessionPass(
       session,
       nowMs,
       scratch.firstPersonFrame,
-      playerWeaponSpec(playerStatus.selectedWeapon).range,
+      simulationContent.weapon(playerStatus.selectedWeapon).range,
     );
     frameResult.needsFrame ||= scratch.firstPersonFrame.needsFrame;
     frameResult.ambientOnly = scratch.firstPersonFrame.ambientOnly;
@@ -65,7 +67,7 @@ export function renderSessionPass(
   }
 
   renderMap(ctx, canvasSize, map, session.getVisibility(), scratch.mapMetrics);
-  renderDrawableEntities(ctx, session, scratch.mapMetrics);
+  renderDrawableEntities(ctx, session, scratch.mapMetrics, content);
   renderCombatFeedback(ctx, scratch.mapMetrics, presentation.combatFeedback);
   renderHud(ctx, canvasSize, session);
 }

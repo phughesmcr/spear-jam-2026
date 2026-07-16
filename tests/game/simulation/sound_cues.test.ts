@@ -1,6 +1,6 @@
-import { EnemyArchetypeCode, enemyCatalogEntry } from "@/src/game/content/enemies.ts";
 import { SoundId } from "@/src/game/model/sound.ts";
 import { soundCuesForEvents } from "@/src/game/simulation/sound_cues.ts";
+import { TEST_SESSION_CONTENT } from "@/tests/game/simulation/helpers.ts";
 import type { Entity } from "turn-based-engine/ecs";
 import { assertEquals } from "@std/assert";
 
@@ -10,7 +10,7 @@ const DOOR = 3 as Entity;
 const PICKUP = 4 as Entity;
 const NPC = 5 as Entity;
 
-const DOG_SOUNDS = enemyCatalogEntry(EnemyArchetypeCode.MeleeDog).sounds;
+const DOG_SOUNDS = TEST_SESSION_CONTENT.simulation.enemyForKey("meleeDog").definition.sounds;
 
 function context(
   overrides: Partial<Parameters<typeof soundCuesForEvents>[1]> = {},

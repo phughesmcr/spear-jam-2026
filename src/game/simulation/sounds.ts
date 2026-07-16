@@ -1,4 +1,3 @@
-import { enemyArchetypeForCode, enemyCatalogEntry } from "@/src/game/content/enemies.ts";
 import type { GameRuntime } from "@/src/game/simulation/runtime.ts";
 import {
   type EnemyIdleSoundSource,
@@ -6,7 +5,6 @@ import {
   type SoundEmitterSnapshot,
   type SoundEmitterVisitor,
   SoundId,
-  soundIdForCode,
 } from "@/src/game/model/sound.ts";
 import type { Entity, SlotIndex } from "turn-based-engine/ecs";
 
@@ -45,7 +43,7 @@ export function createSoundReaders(runtime: GameRuntime): SoundReaders {
 
   function visitSoundEmitter(entity: Entity, slot: SlotIndex): void {
     sound.entity = entity;
-    sound.soundId = soundIdForCode(runtime.game.storage.SoundEmitter.getAt(slot, "soundId"));
+    sound.soundId = runtime.content.audio.soundIdForCode(runtime.game.storage.SoundEmitter.getAt(slot, "soundId"));
     sound.x = runtime.crawler.storage.GridPosition.getAt(slot, "x");
     sound.y = runtime.crawler.storage.GridPosition.getAt(slot, "y");
     sound.radius = runtime.game.storage.SoundEmitter.getAt(slot, "radius");
@@ -54,9 +52,9 @@ export function createSoundReaders(runtime: GameRuntime): SoundReaders {
   }
 
   function visitEnemyIdleSoundSource(entity: Entity, slot: SlotIndex): void {
-    const idle = enemyCatalogEntry(
-      enemyArchetypeForCode(runtime.game.storage.EnemyArchetype.getAt(slot, "archetype")),
-    ).sounds.idle;
+    const idle = runtime.content.simulation.enemyForCode(
+      runtime.game.storage.EnemyArchetype.getAt(slot, "archetype"),
+    ).definition.sounds.idle;
     enemy.entity = entity;
     enemy.soundId = idle.soundId;
     enemy.x = runtime.crawler.storage.GridPosition.getAt(slot, "x");

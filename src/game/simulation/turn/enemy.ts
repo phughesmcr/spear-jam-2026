@@ -1,10 +1,4 @@
-import {
-  DEFAULT_ENEMY_BEHAVIOR_POLICY,
-  DEFAULT_ENEMY_SENSES,
-  type EnemyBehaviorPolicy,
-  enemyCatalogEntry,
-  type EnemySenses,
-} from "@/src/game/content/enemies.ts";
+import { type EnemyBehaviorPolicy, type EnemySenses } from "@/src/game/content/enemies.ts";
 import {
   AwarenessState,
   enemyArchetypeFor,
@@ -217,13 +211,15 @@ function investigateTarget(
 }
 
 function enemyBehaviorPolicyFor(context: EnemyTurnContext, enemy: Entity): EnemyBehaviorPolicy {
-  const archetype = enemyArchetypeFor(context.runtime.game, enemy);
-  return archetype === undefined ? DEFAULT_ENEMY_BEHAVIOR_POLICY : enemyCatalogEntry(archetype).behavior;
+  const content = context.runtime.content.simulation;
+  const archetype = enemyArchetypeFor(context.runtime.game, enemy, content);
+  return content.enemyForCode(archetype ?? content.defaultEnemy).definition.behavior;
 }
 
 function enemySensesFor(context: EnemyTurnContext, enemy: Entity): EnemySenses {
-  const archetype = enemyArchetypeFor(context.runtime.game, enemy);
-  return archetype === undefined ? DEFAULT_ENEMY_SENSES : enemyCatalogEntry(archetype).senses;
+  const content = context.runtime.content.simulation;
+  const archetype = enemyArchetypeFor(context.runtime.game, enemy, content);
+  return content.enemyForCode(archetype ?? content.defaultEnemy).definition.senses;
 }
 
 function distanceToPlayer(context: EnemyTurnContext, enemy: Entity): number {

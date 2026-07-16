@@ -24,7 +24,7 @@ import {
   storyFlagsFromMask,
   storyFlagsToMask,
 } from "@/src/game/content/story.ts";
-import { playerWeaponSpec } from "@/src/game/content/weapons.ts";
+import type { GameRuntime } from "@/src/game/simulation/runtime.ts";
 import { KeyColor, type KeyColor as KeyColorType } from "@/src/game/content/map_entities.ts";
 import { keyColorCode } from "@/src/game/world/map.ts";
 import type { Entity } from "turn-based-engine/ecs";
@@ -172,7 +172,12 @@ export function spendPlayerAmmo(game: GameEcs, player: Entity, ammo: AmmoKind): 
   return true;
 }
 
-export function applyItemPickupToPlayer(game: GameEcs, player: Entity, pickup: ItemPickup): readonly GameEvent[] {
+export function applyItemPickupToPlayer(
+  runtime: GameRuntime,
+  player: Entity,
+  pickup: ItemPickup,
+): readonly GameEvent[] {
+  const game = runtime.game;
   switch (pickup.type) {
     case "key":
       addPlayerKey(game, player, pickup.color);
@@ -191,7 +196,7 @@ export function applyItemPickupToPlayer(game: GameEcs, player: Entity, pickup: I
         type: "weaponPickedUp",
         entity: pickup.entity,
         slot: pickup.slot,
-        label: playerWeaponSpec(pickup.slot).label,
+        label: runtime.content.simulation.weapon(pickup.slot).label,
       }];
     }
     case "health":

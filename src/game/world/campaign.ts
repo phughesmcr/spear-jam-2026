@@ -1,9 +1,4 @@
 import { createCodeRegistry } from "@/src/game/content/code_registry.ts";
-import bootSector from "@/src/game/content/maps/boot_sector.json" with { type: "json" };
-import dataConduit from "@/src/game/content/maps/data_conduit.json" with { type: "json" };
-import firewall from "@/src/game/content/maps/firewall.json" with { type: "json" };
-import mainframeCore from "@/src/game/content/maps/mainframe_core.json" with { type: "json" };
-import theNexus from "@/src/game/content/maps/the_nexus.json" with { type: "json" };
 import {
   type DoorDef,
   ENTITY_SCHEMA,
@@ -479,8 +474,3 @@ function tileKey(x: number, y: number): string {
 function inBounds(x: number, y: number, width: number, height: number): boolean {
   return Number.isInteger(x) && Number.isInteger(y) && x >= 0 && y >= 0 && x < width && y < height;
 }
-
-export const CAMPAIGN = compileCampaign({
-  startMapName: bootSector.name,
-  maps: [bootSector, dataConduit, firewall, theNexus, mainframeCore],
-});

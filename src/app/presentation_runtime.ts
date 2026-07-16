@@ -6,6 +6,7 @@ import {
   frameMsForFps,
 } from "@/src/game/model/render_settings.ts";
 import type { GameModel } from "@/src/game/model/transition/mod.ts";
+import type { CompiledLevel, PresentationContent, SimulationContent } from "@/src/game/content/catalog.ts";
 import { DEFAULT_GAME_CANVAS_SIZE, type GameCanvasSize } from "@/src/game/presentation/canvas_size.ts";
 import { createFirstPersonRenderer, type FirstPersonRenderer } from "@/src/game/presentation/first_person/renderer.ts";
 import { createGameRenderScratch } from "@/src/game/presentation/frame_scratch.ts";
@@ -21,6 +22,11 @@ import type { FrameRenderSession } from "@/src/game/presentation/session_view.ts
 const AMBIENT_FRAME_MS = frameMsForFps(AMBIENT_FPS);
 
 export type PresentationRuntimeSpec = {
+  readonly content: PresentationContent;
+  readonly simulationContent: Pick<
+    SimulationContent,
+    "defaultEnemy" | "enemyForCode" | "enemyForKey" | "itemKindForKey" | "weapon"
+  >;
   readonly host: Window;
   readonly document: Document;
   readonly ctx: CanvasRenderingContext2D;
@@ -38,10 +44,10 @@ export interface PresentationRuntime extends Disposable {
   start(): void;
   resize(size: GameCanvasSize): void;
   renderNow(): void;
-  preloadAssets(mapName: string): Promise<void>;
+  preloadAssets(level: CompiledLevel): Promise<void>;
   warmShellAssets(): void;
-  warmMapAssets(mapName: string): void;
-  warmDeferredAssets(mapName: string): void;
+  warmMapAssets(level: CompiledLevel): void;
+  warmDeferredAssets(level: CompiledLevel): void;
   resetFirstPerson(): void;
   bumpFirstPerson(dx: number, dy: number, nowMs: number): void;
 }
@@ -99,9 +105,11 @@ class Runtime implements PresentationRuntime {
     this.updateAndRender(performance.now());
   }
 
-  async preloadAssets(mapName: string): Promise<void> {
+  async preloadAssets(level: CompiledLevel): Promise<void> {
     await preloadGameAssets(this.spec.document, this.firstPersonRenderer, {
-      mapName,
+      level,
+      content: this.spec.content,
+      simulationContent: this.spec.simulationContent,
       onAssetLoad: this.renderLoadedAssets,
       onProgress: (progress) => this.spec.onLoadingProgress?.(progress.loaded, progress.total),
     });
@@ -111,21 +119,23 @@ class Runtime implements PresentationRuntime {
     warmShellAssets(this.spec.document, this.spec.onError, this.renderLoadedAssets);
   }
 
-  warmMapAssets(mapName: string): void {
+  warmMapAssets(level: CompiledLevel): void {
     warmMapAssets(
       this.spec.document,
       this.firstPersonRenderer,
-      mapName,
+      level,
+      this.spec.content,
+      this.spec.simulationContent,
       this.spec.onError,
       this.renderLoadedAssets,
     );
   }
 
-  warmDeferredAssets(mapName: string): void {
+  warmDeferredAssets(level: CompiledLevel): void {
     warmDeferredAssets(
       this.spec.document,
       this.firstPersonRenderer,
-      mapName,
+      level,
       this.spec.onError,
       this.renderLoadedAssets,
     );
@@ -162,6 +172,8 @@ class Runtime implements PresentationRuntime {
       audio: model.audio,
       interactiveFps: model.interactiveFps,
       firstPersonRenderer: this.firstPersonRenderer,
+      content: this.spec.content,
+      simulationContent: this.spec.simulationContent,
       nowMs,
     });
     this.lastRenderMs = nowMs;

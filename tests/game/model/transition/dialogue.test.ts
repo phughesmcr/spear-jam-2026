@@ -1,6 +1,6 @@
 import { VoiceId } from "@/src/game/content/dialogue/voices.ts";
 import { DisplayName } from "@/src/game/content/names.ts";
-import { createGameModel, type GameModel, transition } from "@/src/game/model/transition/mod.ts";
+import { createGameModel, type GameModel, transition } from "@/tests/game/model/transition/helpers.ts";
 import { assertEquals } from "@std/assert";
 import type { Entity } from "turn-based-engine/ecs";
 

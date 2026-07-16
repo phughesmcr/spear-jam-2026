@@ -29,7 +29,6 @@ import { examineEntity } from "@/src/game/simulation/examine.ts";
 import type { BlocksSight, NoiseStimulus } from "@/src/game/simulation/perception.ts";
 import type { RandomSource } from "@/src/engine/random.ts";
 import type { CommandSlot, DialogueState } from "@/src/game/model/state.ts";
-import { playerWeaponSpec } from "@/src/game/content/weapons.ts";
 import {
   CARDINAL_DELTAS,
   type CardinalDirection,
@@ -171,12 +170,12 @@ function resolvePlayerMoveIntent(context: TurnContext, actor: Entity, mode: Play
   if (pickup === undefined) {
     return { events: [], cost: "turn", noise: playerNoise(context, MOVE_NOISE_RADIUS), acted: true };
   }
-  const events = applyItemPickupToPlayer(context.runtime.game, actor, pickup);
+  const events = applyItemPickupToPlayer(context.runtime, actor, pickup);
   if (pickup.type === "spear") {
     return {
       events,
       cost: "free",
-      dialogue: { dialogue: spearPickupDialogue() },
+      dialogue: { dialogue: spearPickupDialogue(context.runtime) },
       acted: true,
     };
   }
@@ -246,7 +245,7 @@ function resolvePlayerAttackIntent(context: TurnContext, actor: Entity): IntentR
     | CommandSlot
     | undefined;
   if (selected === undefined) return { events: [], cost: "free" };
-  const weapon = playerWeaponSpec(selected);
+  const weapon = context.runtime.content.simulation.weapon(selected);
   if (weapon.ammo !== undefined && !spendPlayerAmmo(context.runtime.game, actor, weapon.ammo)) {
     return { events: [{ type: "noAmmo", ammo: weapon.ammo }], cost: "free", acted: true };
   }
@@ -275,7 +274,11 @@ function resolveSelectWeaponIntent(context: TurnContext, actor: Entity, slot: Co
   const available = playerHasWeapon(context.runtime.game, actor, slot);
   if (available) selectPlayerWeapon(context.runtime.game, actor, slot);
   return {
-    events: [{ type: available ? "weaponSelected" : "weaponUnavailable", slot, label: playerWeaponSpec(slot).label }],
+    events: [{
+      type: available ? "weaponSelected" : "weaponUnavailable",
+      slot,
+      label: context.runtime.content.simulation.weapon(slot).label,
+    }],
     cost: "free",
     acted: true,
   };

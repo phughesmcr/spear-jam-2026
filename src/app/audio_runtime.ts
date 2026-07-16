@@ -1,13 +1,10 @@
 import type { AudioRuntime as EngineAudioRuntime } from "@/src/engine/audio/mod.ts";
+import type { AudioContent } from "@/src/game/content/catalog.ts";
 import {
-  audioCuesFor,
-  audioEmittersFor,
   type AudioSettings,
-  audioTrackFor,
-  audioVoiceFor,
   type AudioWorldSession,
+  createAudioProjection,
   type EnemyIdleSoundSource,
-  idleAudioSourcesFor,
   listenerPoseFor,
   type SoundCue,
   type SoundEmitterSnapshot,
@@ -17,6 +14,7 @@ import {
 import { createWebAudioRuntime } from "@/src/platform/web/audio/mod.ts";
 
 export type AudioRuntimeSpec = {
+  readonly content: AudioContent;
   readonly host: Window;
   readonly getSession: () => AudioWorldSession | undefined;
   readonly audio?: EngineAudioRuntime;
@@ -40,11 +38,13 @@ export function createAudioRuntime(spec: AudioRuntimeSpec): AudioRuntime {
 class Runtime implements AudioRuntime {
   private readonly spec: AudioRuntimeSpec;
   private readonly audio: EngineAudioRuntime;
+  private readonly projection: ReturnType<typeof createAudioProjection>;
   private readonly soundEmitters: SoundEmitterSnapshot[] = [];
   private readonly enemyIdleSources: EnemyIdleSoundSource[] = [];
 
   constructor(spec: AudioRuntimeSpec) {
     this.spec = spec;
+    this.projection = createAudioProjection(spec.content);
     this.audio = spec.audio ?? createWebAudioRuntime(spec.host);
   }
 
@@ -63,7 +63,7 @@ class Runtime implements AudioRuntime {
   }
 
   playCues(cues: readonly SoundCue[]): void {
-    this.audio.playCues(audioCuesFor(cues));
+    this.audio.playCues(this.projection.cues(cues));
   }
 
   stopSounds(): void {
@@ -71,7 +71,7 @@ class Runtime implements AudioRuntime {
   }
 
   setDialogueVoice(voice: VoiceId | undefined): void {
-    this.audio.setVoice(voice === undefined ? undefined : audioVoiceFor(voice));
+    this.audio.setVoice(voice === undefined ? undefined : this.projection.voice(voice));
   }
 
   syncWorld(): void {
@@ -82,12 +82,12 @@ class Runtime implements AudioRuntime {
       session.forEachSoundEmitter((emitter) => this.soundEmitters.push({ ...emitter }));
       session.forEachEnemyIdleSoundSource((source) => this.enemyIdleSources.push({ ...source }));
     }
-    this.audio.syncAmbientEmitters(audioEmittersFor(this.soundEmitters));
-    this.audio.syncIdleSources(idleAudioSourcesFor(this.enemyIdleSources));
+    this.audio.syncAmbientEmitters(this.projection.emitters(this.soundEmitters));
+    this.audio.syncIdleSources(this.projection.idleSources(this.enemyIdleSources));
   }
 
   playMusic(trackId: TrackId): void {
-    this.audio.playMusic(audioTrackFor(trackId));
+    this.audio.playMusic(this.projection.track(trackId));
   }
 
   [Symbol.dispose](): void {

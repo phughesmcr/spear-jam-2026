@@ -1,5 +1,5 @@
 import { TrackId } from "@/src/game/content/audio/music.ts";
-import { createGameModel, transition } from "@/src/game/model/transition/mod.ts";
+import { createGameModel, transition } from "@/tests/game/model/transition/helpers.ts";
 import { assertEquals } from "@std/assert";
 
 Deno.test("transition starts with render and map loading effects", () => {

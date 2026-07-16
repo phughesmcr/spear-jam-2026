@@ -9,17 +9,14 @@ import type {
   ListenerPose,
 } from "@/src/engine/audio/mod.ts";
 import {
-  audioCuesFor,
-  audioEmittersFor,
-  audioTrackFor,
-  audioVoiceFor,
   type AudioWorldSession,
+  createAudioProjection,
   type EnemyIdleSoundSource,
-  idleAudioSourcesFor,
   type SoundEmitterSnapshot,
   TrackId,
   VoiceId,
 } from "@/src/game/audio/mod.ts";
+import { SHIPPED_GAME } from "@/src/game/content/shipped.ts";
 import { SoundId } from "@/src/game/model/sound.ts";
 import { createGameModel } from "@/src/game/model/transition/mod.ts";
 import { listenerPoseFor } from "@/src/game/audio/mod.ts";
@@ -28,19 +25,21 @@ import { assertEquals } from "@std/assert";
 import type { Entity } from "turn-based-engine/ecs";
 
 const EMITTER = 2 as Entity;
+const PROJECTION = createAudioProjection(SHIPPED_GAME.audio);
 
 Deno.test("audio runtime world sync clears stale emitters when the session disappears", () => {
   const audio = new FakeAudioRuntime();
   let session: AudioWorldSession | undefined = fakeAudioSession();
   const runtime = createAudioRuntime({
+    content: SHIPPED_GAME.audio,
     host: {} as Window,
     getSession: () => session,
     audio,
   });
 
   runtime.syncWorld();
-  assertEquals(audio.ambientEmitters, audioEmittersFor([ambientEmitter()]));
-  assertEquals(audio.idleSources, idleAudioSourcesFor([enemyIdleSource()]));
+  assertEquals(audio.ambientEmitters, PROJECTION.emitters([ambientEmitter()]));
+  assertEquals(audio.idleSources, PROJECTION.idleSources([enemyIdleSource()]));
 
   session = undefined;
   runtime.syncWorld();
@@ -51,6 +50,7 @@ Deno.test("audio runtime world sync clears stale emitters when the session disap
 Deno.test("audio runtime updateListener uses the current session pose", () => {
   const audio = new FakeAudioRuntime();
   const runtime = createAudioRuntime({
+    content: SHIPPED_GAME.audio,
     host: {} as Window,
     getSession: () => fakeAudioSession(),
     audio,
@@ -63,19 +63,29 @@ Deno.test("audio runtime updateListener uses the current session pose", () => {
 
 Deno.test("audio runtime forwards the selected music track", () => {
   const audio = new FakeAudioRuntime();
-  const runtime = createAudioRuntime({ host: {} as Window, getSession: () => undefined, audio });
+  const runtime = createAudioRuntime({
+    content: SHIPPED_GAME.audio,
+    host: {} as Window,
+    getSession: () => undefined,
+    audio,
+  });
 
   runtime.playMusic(TrackId.Map3);
 
-  assertEquals(audio.musicTrack, audioTrackFor(TrackId.Map3));
+  assertEquals(audio.musicTrack, PROJECTION.track(TrackId.Map3));
 });
 
 Deno.test("audio runtime forwards dialogue voice changes", () => {
   const audio = new FakeAudioRuntime();
-  const runtime = createAudioRuntime({ host: {} as Window, getSession: () => undefined, audio });
+  const runtime = createAudioRuntime({
+    content: SHIPPED_GAME.audio,
+    host: {} as Window,
+    getSession: () => undefined,
+    audio,
+  });
 
   runtime.setDialogueVoice(VoiceId.JohnNexusGreet);
-  assertEquals(audio.voice, audioVoiceFor(VoiceId.JohnNexusGreet));
+  assertEquals(audio.voice, PROJECTION.voice(VoiceId.JohnNexusGreet));
 
   runtime.setDialogueVoice(undefined);
   assertEquals(audio.voice, undefined);
@@ -83,7 +93,12 @@ Deno.test("audio runtime forwards dialogue voice changes", () => {
 
 Deno.test("audio runtime owns unlock, volume, cue, stop, and disposal lifecycle", async () => {
   const audio = new FakeAudioRuntime();
-  const runtime = createAudioRuntime({ host: {} as Window, getSession: () => undefined, audio });
+  const runtime = createAudioRuntime({
+    content: SHIPPED_GAME.audio,
+    host: {} as Window,
+    getSession: () => undefined,
+    audio,
+  });
   const model = createGameModel("Level 1");
   const cues = [{ soundId: SoundId.BlockedMove }] as const;
 
@@ -93,7 +108,7 @@ Deno.test("audio runtime owns unlock, volume, cue, stop, and disposal lifecycle"
 
   assertEquals(audio.unlocks, 1);
   assertEquals(audio.volumes, model.audio);
-  assertEquals(audio.cues, audioCuesFor(cues));
+  assertEquals(audio.cues, PROJECTION.cues(cues));
 
   runtime.stopSounds();
   assertEquals(audio.cues, []);

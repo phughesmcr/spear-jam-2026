@@ -1,4 +1,4 @@
-import { ITEM_KIND_BY_CONTENT_KEY, ItemKind } from "@/src/game/content/items.ts";
+import { ItemKind } from "@/src/game/content/items.ts";
 import type {
   ItemDef,
   KeyDef,
@@ -6,7 +6,6 @@ import type {
   UplinkCodeDef,
   WeaponPickupDef,
 } from "@/src/game/content/map_entities.ts";
-import { spriteIdForItem } from "@/src/game/content/sprites.ts";
 import { DrawableKind } from "@/src/game/model/render_snapshot.ts";
 import { DrawableLayer } from "@/src/game/simulation/components.ts";
 import type { GameRuntime } from "@/src/game/simulation/runtime.ts";
@@ -32,7 +31,7 @@ export function createWeaponPickup(runtime: GameRuntime, prefab: Omit<WeaponPick
 }
 
 export function createItem(runtime: GameRuntime, prefab: Omit<ItemDef, "prefab">): Entity {
-  return createPickup(runtime, prefab, ITEM_KIND_BY_CONTENT_KEY[prefab.item], prefab.amount);
+  return createPickup(runtime, prefab, runtime.content.simulation.itemKindForKey(prefab.item), prefab.amount);
 }
 
 function createPickup(runtime: GameRuntime, prefab: PositionedSpawn, item: ItemKind, value: number): Entity {
@@ -41,7 +40,7 @@ function createPickup(runtime: GameRuntime, prefab: PositionedSpawn, item: ItemK
     y: prefab.y,
     components: {
       Drawable: { kind: DrawableKind.Sprite, layer: DrawableLayer.Item },
-      Sprite: { id: spriteIdForItem(item, value) },
+      Sprite: { id: runtime.content.presentation.spriteForItem(item, value) },
       Item: { kind: item, value },
     },
   });

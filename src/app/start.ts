@@ -4,15 +4,15 @@ import { createGameExecution, type GameExecution } from "@/src/app/game_executio
 import { createPresentationRuntime, type PresentationRuntime } from "@/src/app/presentation_runtime.ts";
 import type { PointerInput } from "@/src/engine/input/mod.ts";
 import type { GameCommand } from "@/src/game/model/commands.ts";
+import { SHIPPED_GAME } from "@/src/game/content/shipped.ts";
 import { firstPersonTouchGesturesEnabled, routePointerInput } from "@/src/game/presentation/input_routing.ts";
 import { DEFAULT_GAME_CANVAS_SIZE } from "@/src/game/presentation/canvas_size.ts";
 import {
   createGameModel,
+  createGameTransition,
   type GameModel,
   type GameTransitionEvent,
-  transition,
 } from "@/src/game/model/transition/mod.ts";
-import { CAMPAIGN } from "@/src/game/world/campaign.ts";
 import { canvasSizeController } from "@/src/platform/web/canvas.ts";
 
 const NO_FRAME = { needsFrame: false } as const;
@@ -44,6 +44,7 @@ class Game implements GameController {
   private readonly audio: AudioRuntime;
   private readonly execution: GameExecution;
   private model: GameModel;
+  private readonly transition: ReturnType<typeof createGameTransition>;
   private canvasController: Disposable;
   private inputController?: Disposable;
 
@@ -51,13 +52,16 @@ class Game implements GameController {
     this.spec = spec;
     this.controller = controller;
     const fullBoot = spec.startMapName === undefined;
-    this.model = createGameModel(spec.startMapName ?? CAMPAIGN.startMap.name, {
+    this.transition = createGameTransition(SHIPPED_GAME.dialogue);
+    this.model = createGameModel(spec.startMapName ?? SHIPPED_GAME.levels.start.map.name, {
       showTitle: fullBoot,
       showIntro: fullBoot,
     });
     const executionRef: { current?: GameExecution } = {};
     const getSession = () => executionRef.current?.getSession();
     this.presentation = createPresentationRuntime({
+      content: SHIPPED_GAME.presentation,
+      simulationContent: SHIPPED_GAME.simulation,
       host: spec.host,
       document: spec.canvas.ownerDocument,
       ctx: spec.ctx,
@@ -71,10 +75,12 @@ class Game implements GameController {
       },
     });
     this.audio = createAudioRuntime({
+      content: SHIPPED_GAME.audio,
       host: spec.host,
       getSession,
     });
     executionRef.current = createGameExecution({
+      sessionContent: SHIPPED_GAME,
       host: spec.host,
       signal: controller.signal,
       seed: spec.seed,
@@ -132,7 +138,7 @@ class Game implements GameController {
   }
 
   private apply(event: GameTransitionEvent): void {
-    const next = transition(this.model, event);
+    const next = this.transition(this.model, event);
     this.model = next.model;
     this.execution.execute(next.effects);
   }

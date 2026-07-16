@@ -1,4 +1,4 @@
-import { topDownSpriteAppearance } from "@/src/game/content/sprites.ts";
+import type { PresentationContent } from "@/src/game/content/catalog.ts";
 import { SpriteId } from "@/src/game/content/sprite_ids.ts";
 import {
   type ActorDrawableEntity,
@@ -39,11 +39,12 @@ export function renderDrawableEntities(
   ctx: CanvasRenderingContext2D,
   session: FrameRenderSession,
   metrics: MapRenderMetrics,
+  content: PresentationContent,
 ): void {
   const visibility = session.getVisibility();
   session.forEachDrawable((drawable) => {
     if (drawable.kind !== DrawableKind.Player && !visibility.isVisible(drawable.x, drawable.y)) return;
-    renderDrawableEntity(ctx, drawable, metrics);
+    renderDrawableEntity(ctx, drawable, metrics, content);
   });
 }
 
@@ -51,14 +52,15 @@ function renderDrawableEntity(
   ctx: CanvasRenderingContext2D,
   drawable: DrawableEntity,
   metrics: MapRenderMetrics,
+  content: PresentationContent,
 ): void {
   const kind = drawable.kind;
   switch (kind) {
     case DrawableKind.Player:
-      renderPlayer(ctx, drawable.x, drawable.y, drawable.dir, metrics);
+      renderPlayer(ctx, drawable.x, drawable.y, drawable.dir, metrics, content);
       return;
     case DrawableKind.Actor:
-      renderActorDrawable(ctx, drawable, metrics);
+      renderActorDrawable(ctx, drawable, metrics, content);
       return;
     case DrawableKind.Door:
       renderDoor(
@@ -74,7 +76,7 @@ function renderDrawableEntity(
       );
       return;
     case DrawableKind.Sprite:
-      renderSpriteDrawable(ctx, drawable, metrics);
+      renderSpriteDrawable(ctx, drawable, metrics, content);
       return;
     default: {
       const _exhaustive: never = kind;
@@ -87,8 +89,9 @@ function renderActorDrawable(
   ctx: CanvasRenderingContext2D,
   drawable: ActorDrawableEntity,
   metrics: MapRenderMetrics,
+  content: PresentationContent,
 ): void {
-  const appearance = topDownSpriteAppearance(drawable.spriteId);
+  const appearance = content.appearance(drawable.spriteId);
   renderActorSymbol(
     ctx,
     drawable.x,
@@ -105,8 +108,9 @@ function renderSpriteDrawable(
   ctx: CanvasRenderingContext2D,
   drawable: SpriteDrawableEntity,
   metrics: MapRenderMetrics,
+  content: PresentationContent,
 ): void {
-  const appearance = topDownSpriteAppearance(drawable.spriteId);
+  const appearance = content.appearance(drawable.spriteId);
   switch (appearance.shape) {
     case "actor":
       renderActorSymbol(ctx, drawable.x, drawable.y, 0, appearance.color, appearance.symbol, metrics);
@@ -382,6 +386,7 @@ function renderPlayer(
   y: number,
   dir: number,
   metrics: MapRenderMetrics,
+  content: PresentationContent,
 ): void {
   const { tileSize } = metrics;
   const centerX = tileCenterX(metrics, x);
@@ -394,7 +399,7 @@ function renderPlayer(
   const baseCenterY = centerY - forward.dy * radius;
   const baseOffset = radius * PLAYER_BASE_WIDTH_RATIO;
 
-  ctx.fillStyle = topDownSpriteAppearance(SpriteId.Player).color;
+  ctx.fillStyle = content.appearance(SpriteId.Player).color;
   ctx.beginPath();
   ctx.moveTo(centerX + forward.dx * radius, centerY + forward.dy * radius);
   ctx.lineTo(baseCenterX + sideX * baseOffset, baseCenterY + sideY * baseOffset);

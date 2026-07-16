@@ -7,57 +7,72 @@ import type {
   IdleAudioSource,
   ListenerPose,
 } from "@/src/engine/audio/mod.ts";
-import { MUSIC_TRACKS, type TrackId } from "@/src/game/content/audio/music.ts";
-import { soundCatalogEntry } from "@/src/game/content/audio/sounds.ts";
-import { type VoiceId, voiceSource } from "@/src/game/content/dialogue/voices.ts";
+import type { AudioContent } from "@/src/game/content/catalog.ts";
+import type { TrackId } from "@/src/game/content/audio/music.ts";
+import type { VoiceId } from "@/src/game/content/dialogue/voices.ts";
 import type { EnemyIdleSoundSource, SoundCue, SoundEmitterSnapshot } from "@/src/game/model/sound.ts";
 import type { CardinalDirection, GridPoint } from "@/src/game/world/direction.ts";
 
-export function audioTrackFor(trackId: TrackId): AudioTrack {
-  return { id: trackId, ...MUSIC_TRACKS[trackId] };
-}
+export function createAudioProjection(content: AudioContent) {
+  function track(trackId: TrackId): AudioTrack {
+    return { id: trackId, ...content.track(trackId) };
+  }
 
-export function audioVoiceFor(voiceId: VoiceId): AudioClip {
-  return { id: voiceId, src: voiceSource(voiceId), volume: 1, loop: false, radius: 0 };
-}
+  function voice(voiceId: VoiceId): AudioClip {
+    return { id: voiceId, src: content.voiceSource(voiceId), volume: 1, loop: false, radius: 0 };
+  }
 
-export function audioCueFor(cue: SoundCue): AudioCue {
-  return {
-    clip: audioClipFor(cue.soundId),
-    ...(cue.position === undefined ? {} : { position: audioPointFor(cue.position) }),
-    ...(cue.radius === undefined ? {} : { radius: cue.radius }),
-    ...(cue.volume === undefined ? {} : { volume: cue.volume }),
-  };
-}
+  function cue(value: SoundCue): AudioCue {
+    return {
+      clip: clip(value.soundId),
+      ...(value.position === undefined ? {} : { position: audioPointFor(value.position) }),
+      ...(value.radius === undefined ? {} : { radius: value.radius }),
+      ...(value.volume === undefined ? {} : { volume: value.volume }),
+    };
+  }
 
-export function audioCuesFor(cues: readonly SoundCue[]): readonly AudioCue[] {
-  return cues.map(audioCueFor);
-}
+  function cues(values: readonly SoundCue[]): readonly AudioCue[] {
+    return values.map(cue);
+  }
 
-export function audioEmitterFor(emitter: SoundEmitterSnapshot): AudioEmitter {
-  return {
-    id: emitter.entity,
-    clip: audioClipFor(emitter.soundId),
-    position: audioPointFor(emitter),
-    radius: emitter.radius,
-    volume: emitter.volume,
-  };
-}
+  function emitter(value: SoundEmitterSnapshot): AudioEmitter {
+    return {
+      id: value.entity,
+      clip: clip(value.soundId),
+      position: audioPointFor(value),
+      radius: value.radius,
+      volume: value.volume,
+    };
+  }
 
-export function audioEmittersFor(emitters: readonly SoundEmitterSnapshot[]): readonly AudioEmitter[] {
-  return emitters.map(audioEmitterFor);
-}
+  function emitters(values: readonly SoundEmitterSnapshot[]): readonly AudioEmitter[] {
+    return values.map(emitter);
+  }
 
-export function idleAudioSourceFor(source: EnemyIdleSoundSource): IdleAudioSource {
-  return {
-    ...audioEmitterFor(source),
-    minDelayMs: source.minDelayMs,
-    maxDelayMs: source.maxDelayMs,
-  };
-}
+  function idleSource(value: EnemyIdleSoundSource): IdleAudioSource {
+    return {
+      ...emitter(value),
+      minDelayMs: value.minDelayMs,
+      maxDelayMs: value.maxDelayMs,
+    };
+  }
 
-export function idleAudioSourcesFor(sources: readonly EnemyIdleSoundSource[]): readonly IdleAudioSource[] {
-  return sources.map(idleAudioSourceFor);
+  function idleSources(values: readonly EnemyIdleSoundSource[]): readonly IdleAudioSource[] {
+    return values.map(idleSource);
+  }
+
+  function clip(soundId: SoundCue["soundId"]): AudioClip {
+    const entry = content.sound(soundId);
+    return {
+      id: soundId,
+      src: entry.src,
+      volume: entry.volume,
+      loop: entry.loop,
+      radius: entry.radius,
+    };
+  }
+
+  return { track, voice, cue, cues, emitter, emitters, idleSource, idleSources };
 }
 
 export function listenerPoseFor(position: GridPoint, facing: CardinalDirection): ListenerPose {
@@ -65,17 +80,6 @@ export function listenerPoseFor(position: GridPoint, facing: CardinalDirection):
     position: audioPointFor(position),
     forward: listenerForwardFor(facing),
     up: { x: 0, y: 1, z: 0 },
-  };
-}
-
-function audioClipFor(soundId: SoundCue["soundId"]): AudioClip {
-  const entry = soundCatalogEntry(soundId);
-  return {
-    id: soundId,
-    src: entry.src,
-    volume: entry.volume,
-    loop: entry.loop,
-    radius: entry.radius,
   };
 }
 

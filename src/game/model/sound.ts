@@ -1,6 +1,5 @@
 import type { CommandSlot } from "@/src/game/model/state.ts";
 import type { GridPoint } from "@/src/game/world/direction.ts";
-import { createCodeRegistry } from "@/src/game/content/code_registry.ts";
 import type { Entity } from "turn-based-engine/ecs";
 
 export const SoundId = {
@@ -111,9 +110,6 @@ export const AMBIENT_SOUND_IDS = [
 ] as const satisfies readonly SoundId[];
 export type AmbientSoundId = (typeof AMBIENT_SOUND_IDS)[number];
 
-// Codes are the 1-based position of each id in SOUND_IDS; only ever append to keep them stable.
-const SOUND_ID_REGISTRY = createCodeRegistry("sound id", SOUND_IDS);
-
 export type SoundCue = {
   readonly soundId: SoundId;
   readonly position?: GridPoint;
@@ -137,14 +133,6 @@ export type EnemyIdleSoundSource = SoundEmitterSnapshot & {
 
 export type SoundEmitterVisitor = (sound: SoundEmitterSnapshot) => void;
 export type EnemyIdleSoundSourceVisitor = (source: EnemyIdleSoundSource) => void;
-
-export function soundIdCode(soundId: SoundId): number {
-  return SOUND_ID_REGISTRY.encode(soundId);
-}
-
-export function soundIdForCode(code: number): SoundId {
-  return SOUND_ID_REGISTRY.decode(code);
-}
 
 export function weaponSoundId(slot: CommandSlot): SoundId {
   switch (slot) {

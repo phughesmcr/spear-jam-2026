@@ -1,14 +1,21 @@
 import { createGameExecution, type GameExecutionSpec } from "@/src/app/game_execution.ts";
 import type { AudioRuntime } from "@/src/app/audio_runtime.ts";
 import type { PresentationRuntime } from "@/src/app/presentation_runtime.ts";
-import { musicTrackForMap, TrackId } from "@/src/game/content/audio/music.ts";
+import { TrackId } from "@/src/game/content/audio/music.ts";
+import type { CompiledLevel } from "@/src/game/content/catalog.ts";
+import { SHIPPED_GAME } from "@/src/game/content/shipped.ts";
 import { VoiceId } from "@/src/game/content/dialogue/voices.ts";
 import type { AudioSettings } from "@/src/game/model/audio_settings.ts";
 import type { SoundCue } from "@/src/game/model/sound.ts";
 import { createGameModel, type GameModel, type GameTransitionEvent } from "@/src/game/model/transition/mod.ts";
 import { DEFAULT_GAME_CANVAS_SIZE, type GameCanvasSize } from "@/src/game/presentation/canvas_size.ts";
-import { CAMPAIGN } from "@/src/game/world/campaign.ts";
+import { TEST_SESSION_CONTENT } from "@/tests/game/simulation/helpers.ts";
 import { assert, assertEquals } from "@std/assert";
+
+const CAMPAIGN = {
+  startMap: SHIPPED_GAME.levels.start.map,
+  maps: SHIPPED_GAME.levels.all.map((level) => level.map),
+};
 
 Deno.test("game execution routes synchronous effects to their concrete owners", () => {
   const log: string[] = [];
@@ -196,7 +203,7 @@ Deno.test("game execution lets the latest overlapping existing-session load win"
     "reset",
     "listener",
     "world",
-    `music:${musicTrackForMap(winningMap!.name)}`,
+    `music:${SHIPPED_GAME.levels.get(winningMap!.name).music}`,
     "apply:mapLoaded",
     `warm:${winningMap!.name}`,
   ];
@@ -423,6 +430,7 @@ function executionSpec(options: {
   const log = options.log ?? [];
   const controller = options.controller ?? new AbortController();
   return {
+    sessionContent: TEST_SESSION_CONTENT,
     host: (options.host ?? new FakeWindow()) as unknown as Window,
     signal: controller.signal,
     seed: 1,
@@ -454,16 +462,16 @@ class FakePresentationRuntime implements PresentationRuntime {
   renderNow(): void {
     this.log.push("render");
   }
-  preloadAssets(mapName: string): Promise<void> {
-    this.log.push(`preload:${mapName}`);
+  preloadAssets(level: CompiledLevel): Promise<void> {
+    this.log.push(`preload:${level.map.name}`);
     return Promise.resolve();
   }
   warmShellAssets(): void {}
-  warmMapAssets(mapName: string): void {
-    this.log.push(`warm-map:${mapName}`);
+  warmMapAssets(level: CompiledLevel): void {
+    this.log.push(`warm-map:${level.map.name}`);
   }
-  warmDeferredAssets(mapName: string): void {
-    this.log.push(`warm:${mapName}`);
+  warmDeferredAssets(level: CompiledLevel): void {
+    this.log.push(`warm:${level.map.name}`);
   }
   resetFirstPerson(): void {
     this.log.push("reset");
@@ -481,8 +489,8 @@ class ControllablePreloadPresentation extends FakePresentationRuntime {
     readonly reject: (error: unknown) => void;
   }[] = [];
 
-  override preloadAssets(mapName: string): Promise<void> {
-    return new Promise((resolve, reject) => this.pending.push({ mapName, resolve, reject }));
+  override preloadAssets(level: CompiledLevel): Promise<void> {
+    return new Promise((resolve, reject) => this.pending.push({ mapName: level.map.name, resolve, reject }));
   }
 
   resolveNext(mapName: string): void {

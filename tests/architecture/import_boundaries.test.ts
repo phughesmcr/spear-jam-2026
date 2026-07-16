@@ -65,6 +65,9 @@ const LEGACY_GAME_SESSION_LIFECYCLE = resolve(SIMULATION_ROOT, "session/lifecycl
 const GAME_EXECUTION = resolve(SOURCE_ROOT, "app/game_execution.ts");
 const APPLICATION_START = resolve(SOURCE_ROOT, "app/start.ts");
 const CAMPAIGN_MODULE = resolve(SOURCE_ROOT, "game/world/campaign.ts");
+const GAME_CATALOG_MODULE = resolve(SOURCE_ROOT, "game/content/catalog.ts");
+const SHIPPED_GAME_MODULE = resolve(SOURCE_ROOT, "game/content/shipped.ts");
+const CONTENT_SOURCE_ROOT = resolve(SOURCE_ROOT, "game/content/source");
 const CAMPAIGN_MAP_ROOT = resolve(SOURCE_ROOT, "game/content/maps");
 const LEGACY_CAMPAIGN_MODULES = new Set([
   resolve(SOURCE_ROOT, "game/content/map_schema.ts"),
@@ -79,6 +82,7 @@ const CAMPAIGN_INDEPENDENT_WORLD_MODULES = [
   "terrain_palette.ts",
 ].map((name) => resolve(SOURCE_ROOT, `game/world/${name}`));
 const PRESENTATION_RUNTIME_IMPORTS = new Set([
+  "@/src/game/content/catalog.ts",
   "@/src/game/model/presentation_state.ts",
   "@/src/game/model/render_settings.ts",
   "@/src/game/model/transition/mod.ts",
@@ -90,6 +94,7 @@ const PRESENTATION_RUNTIME_IMPORTS = new Set([
   "@/src/game/presentation/session_view.ts",
 ]);
 const AUDIO_RUNTIME_IMPORTS = new Set([
+  "@/src/game/content/catalog.ts",
   "@/src/engine/audio/mod.ts",
   "@/src/game/audio/mod.ts",
   "@/src/platform/web/audio/mod.ts",
@@ -242,7 +247,7 @@ Deno.test({
 });
 
 Deno.test({
-  name: "campaign compilation exposes one boundary and owns shipped content",
+  name: "game catalog owns shipped content and campaign remains a lower-level compiler",
   permissions: { read: [SOURCE_ROOT] },
   fn: async () => {
     const files = new Set(await sourceFiles(SOURCE_ROOT));
@@ -255,11 +260,13 @@ Deno.test({
       const exportedNames = [...source.matchAll(
         /^export\s+(?:type|interface|class|function|const)\s+([A-Za-z_$][\w$]*)/gm,
       )].map((match) => match[1]!).sort();
-      const expectedExports = ["CAMPAIGN", "Campaign", "CampaignDestination", "compileCampaign"].sort();
+      const expectedExports = ["Campaign", "CampaignDestination", "compileCampaign"].sort();
       if (exportedNames.join(",") !== expectedExports.join(",")) {
         violations.push(`game/world/campaign.ts exports ${exportedNames.join(", ")}`);
       }
     }
+    if (!files.has(GAME_CATALOG_MODULE)) violations.push("game/content/catalog.ts is missing");
+    if (!files.has(SHIPPED_GAME_MODULE)) violations.push("game/content/shipped.ts is missing");
     for (const legacyPath of LEGACY_CAMPAIGN_MODULES) {
       if (files.has(legacyPath)) violations.push(`${relative(SOURCE_ROOT, legacyPath)} still exists`);
     }
@@ -274,9 +281,16 @@ Deno.test({
         if (
           importedPath.startsWith(`${CAMPAIGN_MAP_ROOT}/`) &&
           importedPath.endsWith(".json") &&
-          sourcePath !== CAMPAIGN_MODULE
+          sourcePath !== SHIPPED_GAME_MODULE
         ) {
           violations.push(`${relative(SOURCE_ROOT, sourcePath)} imports shipped map ${specifier}`);
+        }
+        if (
+          importedPath.startsWith(`${CONTENT_SOURCE_ROOT}/`) &&
+          !sourcePath.startsWith(`${CONTENT_SOURCE_ROOT}/`) &&
+          sourcePath !== SHIPPED_GAME_MODULE
+        ) {
+          violations.push(`${relative(SOURCE_ROOT, sourcePath)} imports private authored source ${specifier}`);
         }
       }
     }
@@ -285,6 +299,72 @@ Deno.test({
       const imports = importSpecifiers(await Deno.readTextFile(modulePath));
       if (imports.includes("@/src/game/world/campaign.ts")) {
         violations.push(`${relative(SOURCE_ROOT, modulePath)} imports the campaign boundary`);
+      }
+    }
+
+    for (const sourcePath of files) {
+      const imports = importSpecifiers(await Deno.readTextFile(sourcePath));
+      if (imports.includes("@/src/game/content/shipped.ts") && sourcePath !== APPLICATION_START) {
+        violations.push(`${relative(SOURCE_ROOT, sourcePath)} imports SHIPPED_GAME`);
+      }
+    }
+
+    const catalogImports = importSpecifiers(await Deno.readTextFile(GAME_CATALOG_MODULE));
+    if (catalogImports.includes("@/src/game/content/shipped.ts")) {
+      violations.push("game/content/catalog.ts imports shipped content");
+    }
+    if (catalogImports.some((specifier) => specifier.startsWith("@/src/game/content/source/"))) {
+      violations.push("game/content/catalog.ts imports private authored source");
+    }
+
+    const forbiddenLegacyExports: Readonly<Record<string, readonly string[]>> = {
+      "game/content/audio/music.ts": ["MUSIC_TRACKS", "SHIPPED_MAP_TRACKS", "musicTrackForMap"],
+      "game/content/audio/sounds.ts": ["SOUND_CATALOG", "soundCatalogEntry"],
+      "game/content/dialogue/voices.ts": ["VOICE_CATALOG", "voiceSource"],
+      "game/content/dialogue/trees.ts": [
+        "validateDialogueTrees",
+        "dialogueTreeStart",
+        "dialogueTreeNode",
+        "dialogueTreeCode",
+        "dialogueTreeForCode",
+      ],
+      "game/content/enemies.ts": [
+        "DEFAULT_ENEMY_ARCHETYPE",
+        "DEFAULT_ENEMY_BEHAVIOR_POLICY",
+        "DEFAULT_ENEMY_SENSES",
+        "enemyArchetypeKey",
+        "enemyArchetypeForKey",
+        "enemyArchetypeForCode",
+        "enemyCatalogEntry",
+        "spriteIdForEnemyArchetype",
+      ],
+      "game/content/names.ts": ["displayNameText", "displayNameCode", "displayNameForCode"],
+      "game/content/examine_text.ts": ["examineText", "examineTextCode", "examineTextIdForCode"],
+      "game/content/items.ts": ["itemKindForCode", "ITEM_KIND_BY_CONTENT_KEY"],
+      "game/content/story.ts": [
+        "storyEventDefinition",
+        "storyEventIdFor",
+        "storyTargetIdFor",
+        "storyEventCode",
+        "storyEventForCode",
+        "storyTargetCode",
+        "storyTargetForCode",
+      ],
+      "game/content/sprites.ts": [
+        "topDownSpriteAppearance",
+        "spriteIdForDisplayName",
+        "spriteIdForItem",
+        "spriteIdForDecoration",
+      ],
+      "game/content/weapons.ts": ["playerWeaponSpec"],
+      "game/model/sound.ts": ["soundIdCode", "soundIdForCode"],
+    };
+    for (const [path, names] of Object.entries(forbiddenLegacyExports)) {
+      const source = await Deno.readTextFile(resolve(SOURCE_ROOT, path));
+      for (const name of names) {
+        if (new RegExp(`\\bexport\\s+(?:const|function)\\s+${name}\\b`).test(source)) {
+          violations.push(`${path} still exports displaced ${name}`);
+        }
       }
     }
 

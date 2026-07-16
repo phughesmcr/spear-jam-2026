@@ -1,5 +1,5 @@
 import { GAME_COMPONENTS } from "@/src/game/simulation/components.ts";
-import { createRuntime } from "@/src/game/simulation/runtime.ts";
+import { createRuntime } from "@/tests/game/simulation/helpers.ts";
 import { Direction } from "turn-based-engine/crawler";
 import { assertEquals } from "@std/assert";
 import { flatTestMap } from "@/tests/game/simulation/helpers.ts";

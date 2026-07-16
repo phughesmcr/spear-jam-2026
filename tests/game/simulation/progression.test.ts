@@ -12,7 +12,7 @@ import {
   restorePlayerProgressionCheckpoint,
   selectPlayerWeapon,
 } from "@/src/game/simulation/progression.ts";
-import { createRuntime } from "@/src/game/simulation/runtime.ts";
+import { createRuntime } from "@/tests/game/simulation/helpers.ts";
 import { StoryFlag } from "@/src/game/content/story.ts";
 import { Direction } from "@/src/game/world/direction.ts";
 import { KeyColor } from "@/src/game/content/map_entities.ts";
@@ -53,7 +53,7 @@ Deno.test("picking up a new weapon selects it", () => {
   const player = createPlayer(runtime, { x: 1, y: 0, dir: Direction.East });
   const item = runtime.crawler.spawnCrawler({ x: 1, y: 0 });
 
-  applyItemPickupToPlayer(runtime.game, player, { type: "weapon", entity: item, slot: 2 });
+  applyItemPickupToPlayer(runtime, player, { type: "weapon", entity: item, slot: 2 });
 
   assertEquals(playerStatusSnapshotFor(runtime.game, player).selectedWeapon, 2);
 });
@@ -62,10 +62,10 @@ Deno.test("picking up an owned weapon preserves the selected weapon", () => {
   const runtime = createRuntime(flatTestMap());
   const player = createPlayer(runtime, { x: 1, y: 0, dir: Direction.East });
   const item = runtime.crawler.spawnCrawler({ x: 1, y: 0 });
-  applyItemPickupToPlayer(runtime.game, player, { type: "weapon", entity: item, slot: 2 });
+  applyItemPickupToPlayer(runtime, player, { type: "weapon", entity: item, slot: 2 });
   selectPlayerWeapon(runtime.game, player, 1);
 
-  applyItemPickupToPlayer(runtime.game, player, { type: "weapon", entity: item, slot: 2 });
+  applyItemPickupToPlayer(runtime, player, { type: "weapon", entity: item, slot: 2 });
 
   assertEquals(playerStatusSnapshotFor(runtime.game, player).selectedWeapon, 1);
 });
@@ -74,9 +74,9 @@ Deno.test("progression checkpoint round-trips durable values and story flags", (
   const runtime = createRuntime(flatTestMap());
   const player = createPlayer(runtime, { x: 1, y: 0, dir: Direction.East });
   const item = runtime.crawler.spawnCrawler({ x: 1, y: 0 });
-  applyItemPickupToPlayer(runtime.game, player, { type: "key", entity: item, color: KeyColor.Blue });
-  applyItemPickupToPlayer(runtime.game, player, { type: "uplinkCode", entity: item });
-  applyItemPickupToPlayer(runtime.game, player, { type: "weapon", entity: item, slot: 2 });
+  applyItemPickupToPlayer(runtime, player, { type: "key", entity: item, color: KeyColor.Blue });
+  applyItemPickupToPlayer(runtime, player, { type: "uplinkCode", entity: item });
+  applyItemPickupToPlayer(runtime, player, { type: "weapon", entity: item, slot: 2 });
   writeComponent(runtime.game, player, "PlayerProgress", { credits: 12, score: 14, xp: 3, levelCredits: 4 });
   addPlayerStoryFlag(runtime.game, player, StoryFlag.JohnSpoken);
   const checkpoint = capturePlayerProgressionCheckpoint(runtime.game, player);
@@ -98,9 +98,9 @@ Deno.test("clearing transient progression preserves weapons and durable progress
   const runtime = createRuntime(flatTestMap());
   const player = createPlayer(runtime, { x: 1, y: 0, dir: Direction.East });
   const item = runtime.crawler.spawnCrawler({ x: 1, y: 0 });
-  applyItemPickupToPlayer(runtime.game, player, { type: "key", entity: item, color: KeyColor.Red });
-  applyItemPickupToPlayer(runtime.game, player, { type: "uplinkCode", entity: item });
-  applyItemPickupToPlayer(runtime.game, player, { type: "spear", entity: item });
+  applyItemPickupToPlayer(runtime, player, { type: "key", entity: item, color: KeyColor.Red });
+  applyItemPickupToPlayer(runtime, player, { type: "uplinkCode", entity: item });
+  applyItemPickupToPlayer(runtime, player, { type: "spear", entity: item });
   clearTransientPlayerState(runtime.game, player);
   assertEquals(playerStatusSnapshotFor(runtime.game, player).heldKeys, []);
   assertEquals(playerStatusSnapshotFor(runtime.game, player).hasUplinkCode, false);

@@ -1,13 +1,15 @@
-import { EnemyArchetypeCode, enemyArchetypeKey } from "@/src/game/content/enemies.ts";
+import type { EnemyArchetypeKey } from "@/src/game/content/enemies.ts";
 import { AttackPattern, AttackTargetMode } from "@/src/game/simulation/components.ts";
 import type { AttackSchema } from "@/src/game/simulation/components.ts";
 import { attackEntity, attackTargets, resolveAttack } from "@/src/game/simulation/combat.ts";
 import { createDoor, createEnemy, createPlayer } from "@/src/game/simulation/spawn/mod.ts";
-import { createRuntime } from "@/src/game/simulation/runtime.ts";
+import { createRuntime } from "@/tests/game/simulation/helpers.ts";
 import { DisplayName } from "@/src/game/content/names.ts";
 import { Direction } from "@/src/game/world/direction.ts";
 import { flatTestMap } from "@/tests/game/simulation/helpers.ts";
 import { assertEquals } from "@std/assert";
+
+const DOG_ARCHETYPE: EnemyArchetypeKey = "meleeDog";
 
 const ATTACK: AttackSchema = {
   minDamage: 2,
@@ -83,7 +85,7 @@ Deno.test("defeat emits events, writes an effect, and despawns the defender", ()
     y: 1,
     dir: Direction.West,
     health: 1,
-    archetype: enemyArchetypeKey(EnemyArchetypeCode.MeleeDog),
+    archetype: DOG_ARCHETYPE,
     displayName: DisplayName.DigitalDog,
   });
   let effect: { x: number; y: number; sprite: number } | undefined;
@@ -99,7 +101,7 @@ function spawnEnemy(runtime: ReturnType<typeof createRuntime>, x: number, y: num
     x,
     y,
     dir: Direction.West,
-    archetype: enemyArchetypeKey(EnemyArchetypeCode.MeleeDog),
+    archetype: DOG_ARCHETYPE,
     displayName: DisplayName.DigitalDog,
   });
 }

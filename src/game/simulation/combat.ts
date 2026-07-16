@@ -9,10 +9,8 @@ import {
 } from "@/src/game/simulation/components.ts";
 import type { GameRuntime } from "@/src/game/simulation/runtime.ts";
 import type { GameEvent } from "@/src/game/model/events.ts";
-import { displayNameForCode, displayNameText } from "@/src/game/content/names.ts";
 import type { RandomSource } from "@/src/engine/random.ts";
 import type { CommandSlot } from "@/src/game/model/state.ts";
-import { playerWeaponSpec } from "@/src/game/content/weapons.ts";
 import { Direction } from "@/src/game/world/direction.ts";
 import { TerrainBlock } from "turn-based-engine/crawler";
 import type { Entity } from "turn-based-engine/ecs";
@@ -38,7 +36,7 @@ export function attackWithSelectedWeapon(
   random: RandomSource,
   writeDefeatEffect?: DefeatEffectWriter,
 ): readonly GameEvent[] {
-  const weapon = playerWeaponSpec(selectedWeapon);
+  const weapon = runtime.content.simulation.weapon(selectedWeapon);
   const targets = attackTargets(runtime, player, weapon, (entity) => hasComponent(runtime.game, entity, "Enemy"));
   if (targets.length === 0) return [{ type: "attackMissed", actor: player, actorName: entityName(runtime, player) }];
   const events: GameEvent[] = [];
@@ -182,5 +180,5 @@ function randomInt(min: number, max: number, random: RandomSource): number {
 function entityName(runtime: GameRuntime, entity: Entity): string {
   if (hasComponent(runtime.game, entity, "Player")) return "You";
   const code = readComponent(runtime.game, entity, "DisplayName")?.displayName;
-  return code === undefined ? "Something" : displayNameText(displayNameForCode(code));
+  return code === undefined ? "Something" : runtime.content.simulation.displayNameForCode(code).text;
 }

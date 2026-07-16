@@ -1,11 +1,10 @@
 import type { AudioRuntime } from "@/src/app/audio_runtime.ts";
 import type { PresentationRuntime } from "@/src/app/presentation_runtime.ts";
 import { SplitMix32 } from "@/src/engine/random.ts";
-import { musicTrackForMap } from "@/src/game/content/audio/music.ts";
+import type { CompiledLevel } from "@/src/game/content/catalog.ts";
 import { relativeMoveDirectionOffset } from "@/src/game/model/commands.ts";
 import type { GameEffect, GameModel, GameTransitionEvent } from "@/src/game/model/transition/mod.ts";
-import { createGameSession, type GameSession } from "@/src/game/simulation/mod.ts";
-import { CAMPAIGN } from "@/src/game/world/campaign.ts";
+import { createGameSession, type GameSession, type GameSessionContent } from "@/src/game/simulation/mod.ts";
 import { directionDelta, normalizeDirection } from "@/src/game/world/direction.ts";
 
 const NO_FRAME = { needsFrame: false } as const;
@@ -17,6 +16,7 @@ export type GameExecutionSpec = {
   readonly signal: AbortSignal;
   readonly seed: number;
   readonly cheat?: boolean;
+  readonly sessionContent: GameSessionContent;
   readonly presentation: PresentationRuntime;
   readonly audio: AudioRuntime;
   readonly getModel: () => GameModel;
@@ -68,7 +68,7 @@ class Execution implements GameExecution {
           this.spec.presentation.resetFirstPerson();
           break;
         case "warmMapAssets":
-          this.spec.presentation.warmMapAssets(effect.mapName);
+          this.spec.presentation.warmMapAssets(this.spec.sessionContent.levels.get(effect.mapName));
           break;
         case "closeDialogue":
           this.session?.closeDialogue();
@@ -132,38 +132,43 @@ class Execution implements GameExecution {
     mapName: string,
     generation: number,
   ): Promise<void> {
-    const map = CAMPAIGN.map(mapName);
-    await this.spec.presentation.preloadAssets(mapName);
+    const level = this.spec.sessionContent.levels.get(mapName);
+    await this.spec.presentation.preloadAssets(level);
     if (!this.isCurrentSessionGeneration(generation)) return;
 
     const currentSession = this.session;
     if (kind === "retryMap") {
       if (currentSession === undefined) throw new Error("Cannot retry before the game session exists.");
-      currentSession.retryMap(map);
+      currentSession.retryMap(level.map);
     } else if (currentSession !== undefined) {
-      currentSession.loadMap(map);
+      currentSession.loadMap(level.map);
     } else {
-      const createdSession = await createGameSession(map, () => this.rng.nextFloat(), { cheat: this.spec.cheat });
+      const createdSession = await createGameSession(
+        level.map,
+        () => this.rng.nextFloat(),
+        this.spec.sessionContent,
+        { cheat: this.spec.cheat },
+      );
       if (!this.isCurrentSessionGeneration(generation)) {
         createdSession[Symbol.dispose]();
         return;
       }
       this.session = createdSession;
     }
-    this.finishMapLoad(mapName);
+    this.finishMapLoad(level);
   }
 
   private isCurrentSessionGeneration(generation: number): boolean {
     return generation === this.sessionGeneration && !this.disposed && !this.spec.signal.aborted;
   }
 
-  private finishMapLoad(mapName: string): void {
+  private finishMapLoad(level: CompiledLevel): void {
     this.spec.presentation.resetFirstPerson();
     this.spec.audio.updateListener();
     this.spec.audio.syncWorld();
-    this.spec.audio.playMusic(musicTrackForMap(mapName));
-    this.spec.apply({ type: "mapLoaded", mapName });
-    this.spec.presentation.warmDeferredAssets(mapName);
+    this.spec.audio.playMusic(level.music);
+    this.spec.apply({ type: "mapLoaded", mapName: level.map.name });
+    this.spec.presentation.warmDeferredAssets(level);
   }
 
   private handlePlayerCommand(command: Extract<GameEffect, { readonly type: "runPlayerCommand" }>["command"]): void {

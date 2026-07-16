@@ -2,7 +2,7 @@ import { DrawableLayer } from "@/src/game/simulation/components.ts";
 import { SpriteId } from "@/src/game/content/sprite_ids.ts";
 import { createDrawableReaders } from "@/src/game/simulation/drawables.ts";
 import { DrawableKind } from "@/src/game/model/render_snapshot.ts";
-import { createRuntime, type GameRuntime } from "@/src/game/simulation/runtime.ts";
+import { createRuntime, type GameRuntime } from "@/tests/game/simulation/helpers.ts";
 import { flatTestMap } from "@/tests/game/simulation/helpers.ts";
 import { assertEquals } from "@std/assert";
 import type { Entity } from "turn-based-engine/ecs";

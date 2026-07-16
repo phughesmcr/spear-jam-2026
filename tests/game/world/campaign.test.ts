@@ -1,6 +1,7 @@
 import { KeyColor } from "@/src/game/content/map_entities.ts";
 import { SoundId } from "@/src/game/model/sound.ts";
-import { CAMPAIGN, compileCampaign } from "@/src/game/world/campaign.ts";
+import { SHIPPED_GAME } from "@/src/game/content/shipped.ts";
+import { compileCampaign } from "@/src/game/world/campaign.ts";
 import type { GameMap, TerrainTile } from "@/src/game/world/map.ts";
 import {
   DEFAULT_BARS_TERRAIN_ID,
@@ -16,6 +17,9 @@ import {
   assertStringIncludes,
   assertThrows,
 } from "@std/assert";
+
+const SHIPPED_MAPS = SHIPPED_GAME.levels.all.map((level) => level.map);
+const SHIPPED_START_MAP = SHIPPED_GAME.levels.start.map;
 
 Deno.test("compileCampaign publishes one coherent campaign", () => {
   const campaign = compileCampaign({
@@ -219,15 +223,15 @@ Deno.test("compileCampaign rejects unknown map content ids", () => {
 });
 
 Deno.test("shipped campaign preserves its authored signature", () => {
-  const signature = CAMPAIGN.maps.map((map) => ({
+  const signature = SHIPPED_MAPS.map((map) => ({
     name: map.name,
     width: map.terrain.tiles[0]?.length,
     height: map.terrain.tiles.length,
     entities: map.entities.length,
   }));
 
-  assertEquals(CAMPAIGN.startMap.name, "Boot Sector");
-  assertStrictEquals(CAMPAIGN.startMap, CAMPAIGN.map("Boot Sector"));
+  assertEquals(SHIPPED_START_MAP.name, "Boot Sector");
+  assertStrictEquals(SHIPPED_START_MAP, SHIPPED_GAME.levels.get("Boot Sector").map);
   assertEquals(signature, [
     { name: "Boot Sector", width: 15, height: 18, entities: 59 },
     { name: "Data Conduit", width: 15, height: 13, entities: 35 },
@@ -235,11 +239,11 @@ Deno.test("shipped campaign preserves its authored signature", () => {
     { name: "The Nexus", width: 17, height: 17, entities: 50 },
     { name: "Mainframe Core", width: 19, height: 20, entities: 72 },
   ]);
-  assertEquals(CAMPAIGN.maps.reduce((count, map) => count + map.entities.length, 0), 278);
+  assertEquals(SHIPPED_MAPS.reduce((count, map) => count + map.entities.length, 0), 278);
 });
 
 Deno.test("shipped campaign uses valid texture-pack terrain palettes", () => {
-  for (const map of CAMPAIGN.maps) {
+  for (const map of SHIPPED_MAPS) {
     assert(
       map.terrain.palette.some((tile) => terrainTextures(tile).length > 0),
       `${map.name} should declare terrain textures.`,
@@ -252,7 +256,7 @@ Deno.test("shipped campaign uses valid texture-pack terrain palettes", () => {
 });
 
 Deno.test("shipped campaign terrain palettes vary floor, ceiling, and wall textures", () => {
-  for (const map of CAMPAIGN.maps) {
+  for (const map of SHIPPED_MAPS) {
     const textures = paletteTerrainTextures(map.terrain.palette);
     assert(
       textures.floors.size >= 3,

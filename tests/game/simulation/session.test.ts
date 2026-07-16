@@ -1,4 +1,4 @@
-import { dialogueTreeCode, DialogueTreeId } from "@/src/game/content/dialogue/trees.ts";
+import { DialogueTreeId } from "@/src/game/content/dialogue/trees.ts";
 import { SPRITE_ATTACK_MS, SPRITE_DEATH_MS, SPRITE_WALK_MS } from "@/src/game/simulation/components.ts";
 import { SpriteId } from "@/src/game/content/sprite_ids.ts";
 import {
@@ -8,19 +8,18 @@ import {
   SpriteAnimationKind,
 } from "@/src/game/model/render_snapshot.ts";
 import { createDeathEffect } from "@/src/game/simulation/spawn/mod.ts";
-import { createRuntime } from "@/src/game/simulation/runtime.ts";
-import { createGameSession } from "@/src/game/simulation/session.ts";
+import { createRuntime } from "@/tests/game/simulation/helpers.ts";
+import { createGameSession } from "@/tests/game/simulation/helpers.ts";
 import { createAnimationController } from "@/src/game/simulation/session/sprite_animations.ts";
 import type { PlayerCommandResult } from "@/src/game/model/commands.ts";
-import { DisplayName, displayNameCode } from "@/src/game/content/names.ts";
+import { DisplayName } from "@/src/game/content/names.ts";
 import { type EnemyIdleSoundSource, type SoundEmitterSnapshot, SoundId } from "@/src/game/model/sound.ts";
-import { storyEventCode, StoryEventId, StoryFlag, storyTargetCode, StoryTargetId } from "@/src/game/content/story.ts";
+import { StoryEventId, StoryFlag, StoryTargetId } from "@/src/game/content/story.ts";
 import { Direction } from "@/src/game/world/direction.ts";
 import { type EntityDef, KeyColor } from "@/src/game/content/map_entities.ts";
 import { createGameMap, type GameMap } from "@/src/game/world/map.ts";
-import { CAMPAIGN } from "@/src/game/world/campaign.ts";
 import { DEFAULT_BARS_TERRAIN_ID, DEFAULT_WALL_TERRAIN_ID } from "@/src/game/world/terrain_palette.ts";
-import { flatTestMap } from "@/tests/game/simulation/helpers.ts";
+import { flatTestMap, TEST_SESSION_CONTENT } from "@/tests/game/simulation/helpers.ts";
 import { assert, assertEquals, assertRejects, assertStrictEquals } from "@std/assert";
 
 Deno.test("createGameSession initializes default player progression and requires a player spawn", async () => {
@@ -722,16 +721,16 @@ Deno.test("normal map loads clear old metadata components and write new map meta
   const session = await createGameSession(storyTestMap(), () => 0);
   try {
     assertEquals(session.getMapScopedMetadata(), [{
-      displayName: displayNameCode(DisplayName.John),
-      dialogueTreeId: dialogueTreeCode(DialogueTreeId.JohnIntro),
-      storyId: storyTargetCode(StoryTargetId.John),
-      onTalkEvent: storyEventCode(StoryEventId.JohnSpoken),
+      displayName: TEST_SESSION_CONTENT.simulation.displayNameCode(DisplayName.John),
+      dialogueTreeId: TEST_SESSION_CONTENT.dialogue.code(DialogueTreeId.JohnIntro),
+      storyId: TEST_SESSION_CONTENT.simulation.storyTargetCode(StoryTargetId.John),
+      onTalkEvent: TEST_SESSION_CONTENT.simulation.storyEventCode(StoryEventId.JohnSpoken),
     }]);
 
     session.loadMap(testMap([{ prefab: "uplinkTerminal", x: 2, y: 1, goto: "Data Conduit" }]));
 
     assertEquals(session.getMapScopedMetadata(), [{
-      terminalDestination: CAMPAIGN.codeForDestination("Data Conduit"),
+      terminalDestination: TEST_SESSION_CONTENT.levels.codeForDestination("Data Conduit"),
     }]);
   } finally {
     session[Symbol.dispose]();

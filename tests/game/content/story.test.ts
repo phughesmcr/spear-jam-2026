@@ -1,32 +1,39 @@
-import { assertEquals, assertThrows } from "@std/assert";
+import { assert, assertEquals, assertThrows } from "@std/assert";
 import {
-  storyEventDefinition,
+  maskHasStoryFlag,
+  maskWithStoryFlag,
+  STORY_EVENT_IDS,
+  STORY_TARGET_IDS,
   StoryEventId,
-  storyEventIdFor,
   StoryFlag,
+  storyFlagsFromMask,
+  storyFlagsToMask,
   StoryTargetId,
-  storyTargetIdFor,
 } from "@/src/game/content/story.ts";
 
-Deno.test("storyEventDefinition resolves John spoken into a one-shot move action", () => {
-  assertEquals(storyEventDefinition(StoryEventId.JohnSpoken), {
-    flag: StoryFlag.JohnSpoken,
-    actions: [{
-      type: "moveEntity",
-      target: StoryTargetId.John,
-      destination: { x: 1, y: 3 },
-    }],
-  });
+Deno.test("story vocabulary preserves event and target code order", () => {
+  assertEquals(STORY_EVENT_IDS, [StoryEventId.JohnSpoken]);
+  assertEquals(STORY_TARGET_IDS, [StoryTargetId.John]);
 });
 
-Deno.test("story id mappers reject unknown content ids", () => {
-  assertEquals(storyEventIdFor("johnSpoken", "npc onTalkEvent"), StoryEventId.JohnSpoken);
-  assertEquals(storyTargetIdFor("john", "npc storyId"), StoryTargetId.John);
+Deno.test("story flag helpers preserve compact bit-mask state", () => {
+  const mask = maskWithStoryFlag(0, StoryFlag.JohnSpoken);
+  assertEquals(mask, 1);
+  assertEquals(maskHasStoryFlag(mask, StoryFlag.JohnSpoken), true);
+  assertEquals(storyFlagsToMask([StoryFlag.JohnSpoken]), mask);
+  assertEquals(storyFlagsFromMask(mask), [StoryFlag.JohnSpoken]);
+});
 
-  assertThrows(
-    () => storyEventIdFor("missing", "npc onTalkEvent"),
-    Error,
-    'npc onTalkEvent: Unknown story event "missing".',
-  );
-  assertThrows(() => storyTargetIdFor("missing", "npc storyId"), Error, 'npc storyId: Unknown story target "missing".');
+Deno.test("story event vocabulary is runtime-immutable and preserves flag bit identity", () => {
+  const event = STORY_EVENT_IDS[0]!;
+  const mask = storyFlagsToMask([event]);
+
+  assertEquals(mask, 1);
+  assert(Object.isFrozen(STORY_EVENT_IDS));
+  assertThrows(() => {
+    (STORY_EVENT_IDS as unknown as string[])[0] = "changed";
+  }, TypeError);
+
+  assertEquals(storyFlagsToMask([event]), mask);
+  assertEquals(storyFlagsFromMask(mask), [event]);
 });
