@@ -95,7 +95,7 @@ class Execution implements GameExecution {
         case "endRun":
           this.sessionGeneration++;
           this.abortActivePreparation();
-          this.disposeSession();
+          this.clearSession();
           break;
         case "scheduleVictory":
           this.scheduleVictory(effect.delayMs);
@@ -123,7 +123,7 @@ class Execution implements GameExecution {
       this.spec.host.clearTimeout(this.victoryTimeoutId);
       this.victoryTimeoutId = undefined;
     }
-    this.disposeSession();
+    this.clearSession();
   }
 
   private startSessionTransition(kind: SessionTransitionKind, mapName: string): void {
@@ -169,16 +169,12 @@ class Execution implements GameExecution {
     } else if (currentSession !== undefined) {
       currentSession.loadMap(level.map);
     } else {
-      const createdSession = await createGameSession(
+      const createdSession = createGameSession(
         level.map,
         () => this.rng.nextFloat(),
         this.spec.sessionContent,
         { cheat: this.spec.cheat },
       );
-      if (!this.isCurrentSessionGeneration(generation)) {
-        createdSession[Symbol.dispose]();
-        return;
-      }
       this.session = createdSession;
     }
     this.finishMapLoad(level);
@@ -244,8 +240,7 @@ class Execution implements GameExecution {
     }, delayMs);
   }
 
-  private disposeSession(): void {
-    this.session?.[Symbol.dispose]();
+  private clearSession(): void {
     this.session = undefined;
   }
 }

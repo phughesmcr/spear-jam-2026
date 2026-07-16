@@ -39,7 +39,7 @@ export function createGameSession(
   map: GameMap,
   random: RandomSource,
   options: GameSessionOptions = {},
-): Promise<GameSession> {
+): GameSession {
   return createBoundGameSession(map, random, TEST_SESSION_CONTENT, options);
 }
 

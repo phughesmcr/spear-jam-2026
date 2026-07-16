@@ -395,7 +395,7 @@ Deno.test("game execution ticks sessions only in active play modes", async () =>
   execution[Symbol.dispose]();
 });
 
-Deno.test("game execution disposes an ended session exactly once", async () => {
+Deno.test("game execution releases an ended session", async () => {
   let resolveLoaded: (() => void) | undefined;
   const loaded = new Promise<void>((resolve) => resolveLoaded = resolve);
   const execution = createGameExecution(executionSpec({
@@ -413,22 +413,11 @@ Deno.test("game execution disposes an ended session exactly once", async () => {
     configurable: true,
     value: () => closeCount++,
   });
-  const dispose = session[Symbol.dispose].bind(session);
-  let disposeCount = 0;
-  Object.defineProperty(session, Symbol.dispose, {
-    configurable: true,
-    value() {
-      disposeCount++;
-      dispose();
-    },
-  });
-
   execution.execute([{ type: "closeDialogue" }, { type: "endRun" }]);
   execution[Symbol.dispose]();
 
   assertEquals(execution.getSession(), undefined);
   assertEquals(closeCount, 1);
-  assertEquals(disposeCount, 1);
 });
 
 Deno.test("game execution invalidates pending work on endRun and permits a later load", async () => {

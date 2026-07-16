@@ -52,16 +52,15 @@ export function createGameSession(
   random: RandomSource,
   content: GameSessionContent,
   options: GameSessionOptions = {},
-): Promise<GameSession> {
-  return Promise.try(() => new GameSession(map, random, content, options));
+): GameSession {
+  return new GameSession(map, random, content, options);
 }
 
-export class GameSession implements Disposable {
+export class GameSession {
   private mapState: MapSessionState;
   private progression: ProgressionStatisticsState;
   private readonly outputs: OutputReaderState;
   private commands: CommandResolutionState;
-  private disposed = false;
   private readonly content: GameSessionContent;
 
   constructor(map: GameMap, random: RandomSource, content: GameSessionContent, options: GameSessionOptions = {}) {
@@ -71,7 +70,7 @@ export class GameSession implements Disposable {
     if (options.cheat === true) applyInitialCheatLoadout(this.mapState);
     this.progression = createProgressionStatistics(this.mapState, now);
     this.outputs = createOutputReaders(this.mapState);
-    this.commands = createCommandResolution(this.mapState, this.progression, this.outputs, random);
+    this.commands = createCommandResolution(this.mapState, this.progression, this.outputs, random, now);
     startLevelStatistics(this.progression, this.mapState);
   }
 
@@ -160,17 +159,13 @@ export class GameSession implements Disposable {
       nextProgression,
       this.outputs,
       this.commands.random,
+      this.commands.now,
     );
     startLevelStatistics(nextProgression, nextMapState);
     replaceOutputMap(this.outputs, nextMapState);
     this.mapState = nextMapState;
     this.progression = nextProgression;
     this.commands = nextCommands;
-  }
-
-  [Symbol.dispose](): void {
-    if (this.disposed) return;
-    this.disposed = true;
   }
 }
 

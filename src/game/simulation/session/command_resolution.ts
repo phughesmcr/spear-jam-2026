@@ -36,6 +36,7 @@ export type CommandResolutionState = {
   readonly progression: ProgressionStatisticsState;
   readonly outputs: OutputReaderState;
   readonly random: RandomSource;
+  readonly now: () => number;
   readonly animations: AnimationController;
   pendingDialogueStoryEvent?: StoryEventId;
 };
@@ -45,12 +46,14 @@ export function createCommandResolution(
   progression: ProgressionStatisticsState,
   outputs: OutputReaderState,
   random: RandomSource,
+  now: () => number,
 ): CommandResolutionState {
   return {
     map,
     progression,
     outputs,
     random,
+    now,
     animations: createAnimationController(map.runtime),
   };
 }
@@ -98,7 +101,7 @@ export function handlePlayerCommand(
 export function closeDialogue(state: CommandResolutionState): void {
   const event = state.pendingDialogueStoryEvent;
   state.pendingDialogueStoryEvent = undefined;
-  if (event !== undefined) applyEvent(state.map.runtime, state.map.player, event, performance.now());
+  if (event !== undefined) applyEvent(state.map.runtime, state.map.player, event, state.now());
 }
 
 function turnContext(state: CommandResolutionState): TurnContext {
@@ -125,7 +128,7 @@ function commitTurnTransaction(
   }
   if (transaction.outcome === "victory") return commitVictory(state, transaction.events);
   if (transaction.cost === "turn") {
-    const nowMs = performance.now();
+    const nowMs = state.now();
     state.animations.applyWalks(actorPositions, nowMs);
     state.animations.applyEvents(state.map.player, transaction.events, nowMs);
     state.animations.advance(nowMs);
