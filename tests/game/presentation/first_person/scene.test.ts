@@ -227,3 +227,37 @@ Deno.test("scene lighting throttles flicker rebuilds and resets when lights disa
   assertEquals([...scene.lightGreen], Array(9).fill(255));
   assertEquals([...scene.lightBlue], Array(9).fill(255));
 });
+
+Deno.test("scene lighting reuses visitor functions between updates", () => {
+  const { view: assets } = createFirstPersonAssets();
+  const map = createGameMap("Visitor Reuse", [[1]], [], {
+    palette: [{ kind: "floor", id: 1, floor_texture: "floor", ceiling_texture: "ceiling" }],
+  });
+  const scene = sceneForMap(createSceneState(), assets.materials, map);
+  const throttle = createLightUpdateThrottle();
+  const light: LightEntity = {
+    entity: 2 as Entity,
+    x: 0,
+    y: 0,
+    red: 255,
+    green: 255,
+    blue: 255,
+    radius: 1,
+    flickerAmount: 1,
+    flickerSpeed: 7,
+  };
+  const visitors: ((light: LightEntity) => void)[] = [];
+  const provider = {
+    forEachLight(visit: (light: LightEntity) => void): void {
+      visitors.push(visit);
+      visit(light);
+    },
+  };
+
+  updateSceneLights(scene, provider, 0, throttle);
+  updateSceneLights(scene, provider, 250, throttle);
+
+  assertStrictEquals(visitors[0], visitors[2]);
+  assertStrictEquals(visitors[1], visitors[3]);
+  assertNotEquals(visitors[0], visitors[1]);
+});

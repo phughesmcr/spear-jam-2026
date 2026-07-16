@@ -4,6 +4,7 @@ import {
   addSprite,
   addThinWall,
   CAMERA_PLANE_LENGTH,
+  cameraForAngle,
   cameraForGridPose,
   clearSceneDynamic,
   createFrame,
@@ -13,6 +14,7 @@ import {
   THIN_SLIDE_DOWN,
   THIN_SLIDE_NEG,
   THIN_SLIDE_UP,
+  writeCameraForAngle,
 } from "@/src/engine/raycast/scene.ts";
 import type { TexelSource } from "@/src/engine/raycast/textures.ts";
 import { bakeSolidTexture, bakeTexture, TEX_SIZE } from "@/src/engine/raycast/textures.ts";
@@ -86,6 +88,19 @@ function corridorScene(width = 5): RaycastScene {
 
 const CAMERA = cameraForGridPose(1, 1, 1, 0);
 const REVERSE_CAMERA = cameraForGridPose(3, 1, -1, 0);
+
+Deno.test("writeCameraForAngle reuses camera storage", () => {
+  const camera = cameraForAngle(0, 0, 0);
+
+  writeCameraForAngle(camera, 2, 3, Math.PI / 2);
+
+  assertAlmostEquals(camera.x, 2);
+  assertAlmostEquals(camera.y, 3);
+  assertAlmostEquals(camera.dirX, 0, 1e-12);
+  assertAlmostEquals(camera.dirY, 1);
+  assertAlmostEquals(camera.planeX, -CAMERA_PLANE_LENGTH);
+  assertAlmostEquals(camera.planeY, 0, 1e-12);
+});
 
 function texel(atlas: RaycastAtlas, layer: TextureAtlasLayer, id: number, band: number): number {
   return atlas[layer][id]!.mips[0]!.bands[band]![0]!;

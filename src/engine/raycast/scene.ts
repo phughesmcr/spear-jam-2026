@@ -49,6 +49,7 @@ export {
   THIN_SLIDE_NEG,
   THIN_SLIDE_POS,
   THIN_SLIDE_UP,
+  writeCameraForAngle,
 } from "@/src/engine/raycast/scene_data.ts";
 export type {
   RaycastAtlas,

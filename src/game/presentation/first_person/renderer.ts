@@ -38,6 +38,7 @@ import {
   createRaycastView,
   type RaycastScene,
   type ViewRect,
+  writeCameraForAngle,
 } from "@/src/engine/raycast/mod.ts";
 import {
   createNudgeTween,
@@ -84,6 +85,7 @@ export interface FirstPersonRenderer {
 function createFirstPersonRendererState(materials: FirstPersonMaterials) {
   const state = {
     view: createRaycastView(),
+    camera: cameraForAngle(0, 0, 0),
     sceneByMap: new WeakMap<GameMap, RaycastScene>(),
     terrainBarriersByScene: new WeakMap<RaycastScene, readonly TerrainBarrier[]>(),
     drawableMap: undefined as GameMap | undefined,
@@ -221,16 +223,18 @@ function renderFirstPersonView(
   const ambient = state.spritesAmbient || lightsAnimating || skyAnimating;
   const needsFrame = interactive || ambient;
 
+  writeCameraForAngle(
+    state.camera,
+    state.poseSample.x + state.nudgeSample.dx,
+    state.poseSample.y + state.nudgeSample.dy,
+    state.poseSample.angle,
+  );
   state.view.render(
     ctx,
     rect,
     scene,
     assets.atlas,
-    cameraForAngle(
-      state.poseSample.x + state.nudgeSample.dx,
-      state.poseSample.y + state.nudgeSample.dy,
-      state.poseSample.angle,
-    ),
+    state.camera,
     headBobFraction(state.poseSample),
     nowMs,
     healthBarMaxDistance,

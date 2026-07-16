@@ -55,12 +55,12 @@ const SHADE_BAND_DISTANCE = 1;
 export const FIXED_ONE = 65536;
 
 export type RaycastCamera = {
-  readonly x: number;
-  readonly y: number;
-  readonly dirX: number;
-  readonly dirY: number;
-  readonly planeX: number;
-  readonly planeY: number;
+  x: number;
+  y: number;
+  dirX: number;
+  dirY: number;
+  planeX: number;
+  planeY: number;
 };
 
 /** Camera for a cardinal-facing grid actor standing on cell (x, y). */
@@ -77,16 +77,20 @@ export function cameraForGridPose(x: number, y: number, dirX: number, dirY: numb
 
 /** Camera at a world-space point facing `angle` (radians, atan2 convention). */
 export function cameraForAngle(x: number, y: number, angle: number): RaycastCamera {
+  const camera = { x: 0, y: 0, dirX: 0, dirY: 0, planeX: 0, planeY: 0 };
+  writeCameraForAngle(camera, x, y, angle);
+  return camera;
+}
+
+export function writeCameraForAngle(camera: RaycastCamera, x: number, y: number, angle: number): void {
   const dirX = Math.cos(angle);
   const dirY = Math.sin(angle);
-  return {
-    x,
-    y,
-    dirX,
-    dirY,
-    planeX: -dirY * CAMERA_PLANE_LENGTH,
-    planeY: dirX * CAMERA_PLANE_LENGTH,
-  };
+  camera.x = x;
+  camera.y = y;
+  camera.dirX = dirX;
+  camera.dirY = dirY;
+  camera.planeX = -dirY * CAMERA_PLANE_LENGTH;
+  camera.planeY = dirX * CAMERA_PLANE_LENGTH;
 }
 
 export type RaycastAtlas = {

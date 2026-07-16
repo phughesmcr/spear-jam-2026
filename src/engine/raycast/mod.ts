@@ -11,6 +11,7 @@ export {
   THIN_SLIDE_NEG,
   THIN_SLIDE_POS,
   THIN_SLIDE_UP,
+  writeCameraForAngle,
 } from "@/src/engine/raycast/scene.ts";
 export type { RaycastAtlas, RaycastScene, ThinWallAxis, ThinWallSlide } from "@/src/engine/raycast/scene.ts";
 export { createRaycastView } from "@/src/engine/raycast/view.ts";

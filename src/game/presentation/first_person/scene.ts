@@ -1,4 +1,4 @@
-import type { LightEntityVisitor } from "@/src/game/model/render_snapshot.ts";
+import type { LightEntity, LightEntityVisitor } from "@/src/game/model/render_snapshot.ts";
 import type { DoorSlide } from "@/src/game/content/map_entities.ts";
 import {
   type GameMap,
@@ -49,10 +49,32 @@ const LIGHT_REBUILD_INTERVAL_MS = 1000 / 12;
 export type LightUpdateThrottle = {
   lastRebuildMs: number;
   lastSignature: number;
+  signature: number;
+  lightCount: number;
+  animating: boolean;
+  foundLight: boolean;
+  scene: RaycastScene | undefined;
+  nowMs: number;
+  readonly visitForSignature: LightEntityVisitor;
+  readonly visitForRender: LightEntityVisitor;
 };
 
 export function createLightUpdateThrottle(): LightUpdateThrottle {
-  return { lastRebuildMs: Number.NEGATIVE_INFINITY, lastSignature: 0 };
+  const state = {
+    lastRebuildMs: Number.NEGATIVE_INFINITY,
+    lastSignature: 0,
+    signature: 0,
+    lightCount: 0,
+    animating: false,
+    foundLight: false,
+    scene: undefined,
+    nowMs: 0,
+    visitForSignature: (_light: LightEntity): void => {},
+    visitForRender: (_light: LightEntity): void => {},
+  } satisfies LightUpdateThrottle;
+  state.visitForSignature = (light): void => measureLight(state, light);
+  state.visitForRender = (light): void => renderLight(state, light);
+  return state;
 }
 
 export function sceneHasSkyCeiling(scene: RaycastScene, atlas: RaycastAtlas): boolean {
@@ -122,64 +144,71 @@ export function updateSceneLights(
   nowMs: number,
   throttle: LightUpdateThrottle,
 ): boolean {
-  let signature = 0;
-  let lightCount = 0;
-  let animating = false;
-  session.forEachLight((light): void => {
-    if (light.radius <= 0) return;
-    lightCount++;
-    signature = Math.imul(signature, 31) + light.entity + light.x * 17 + light.y * 13 + light.radius;
-    animating ||= light.flickerAmount > 0;
-  });
-  signature ^= lightCount;
+  throttle.signature = 0;
+  throttle.lightCount = 0;
+  throttle.animating = false;
+  session.forEachLight(throttle.visitForSignature);
+  throttle.signature ^= throttle.lightCount;
 
   const elapsed = nowMs - throttle.lastRebuildMs;
   const due = !(elapsed >= 0 && elapsed < LIGHT_REBUILD_INTERVAL_MS);
-  if (!due && signature === throttle.lastSignature) return animating;
+  if (!due && throttle.signature === throttle.lastSignature) return throttle.animating;
 
   throttle.lastRebuildMs = nowMs;
-  throttle.lastSignature = signature;
+  throttle.lastSignature = throttle.signature;
+  throttle.scene = scene;
+  throttle.nowMs = nowMs;
+  throttle.foundLight = false;
+  session.forEachLight(throttle.visitForRender);
+  throttle.scene = undefined;
 
-  let foundLight = false;
-  session.forEachLight((light): void => {
-    if (light.radius <= 0) return;
-    if (!foundLight) {
-      scene.lightRed.fill(LIGHT_AMBIENT);
-      scene.lightGreen.fill(LIGHT_AMBIENT);
-      scene.lightBlue.fill(LIGHT_AMBIENT);
-      foundLight = true;
-    }
-
-    const flickerAmount = light.flickerAmount;
-    const intensity = flickerAmount > 0 ?
-      flickerIntensity(light.x, light.y, flickerAmount, light.flickerSpeed, nowMs) :
-      1;
-
-    const minX = Math.max(0, light.x - light.radius);
-    const maxX = Math.min(scene.mapWidth - 1, light.x + light.radius);
-    const minY = Math.max(0, light.y - light.radius);
-    const maxY = Math.min(scene.mapHeight - 1, light.y + light.radius);
-    for (let y = minY; y <= maxY; y++) {
-      for (let x = minX; x <= maxX; x++) {
-        const distance = Math.hypot(x - light.x, y - light.y);
-        if (distance > light.radius) continue;
-
-        const strength = (1 - distance / (light.radius + 1)) * intensity;
-        const cell = y * scene.mapWidth + x;
-        addLightChannel(scene.lightRed, cell, light.red * strength);
-        addLightChannel(scene.lightGreen, cell, light.green * strength);
-        addLightChannel(scene.lightBlue, cell, light.blue * strength);
-      }
-    }
-  });
-
-  if (!foundLight) {
+  if (!throttle.foundLight) {
     scene.lightRed.fill(LIGHT_FULL_BRIGHT);
     scene.lightGreen.fill(LIGHT_FULL_BRIGHT);
     scene.lightBlue.fill(LIGHT_FULL_BRIGHT);
   }
 
-  return animating;
+  return throttle.animating;
+}
+
+function measureLight(state: LightUpdateThrottle, light: LightEntity): void {
+  if (light.radius <= 0) return;
+  state.lightCount++;
+  state.signature = Math.imul(state.signature, 31) + light.entity + light.x * 17 + light.y * 13 + light.radius;
+  state.animating ||= light.flickerAmount > 0;
+}
+
+function renderLight(state: LightUpdateThrottle, light: LightEntity): void {
+  const scene = state.scene;
+  if (scene === undefined || light.radius <= 0) return;
+  if (!state.foundLight) {
+    scene.lightRed.fill(LIGHT_AMBIENT);
+    scene.lightGreen.fill(LIGHT_AMBIENT);
+    scene.lightBlue.fill(LIGHT_AMBIENT);
+    state.foundLight = true;
+  }
+
+  const flickerAmount = light.flickerAmount;
+  const intensity = flickerAmount > 0 ?
+    flickerIntensity(light.x, light.y, flickerAmount, light.flickerSpeed, state.nowMs) :
+    1;
+
+  const minX = Math.max(0, light.x - light.radius);
+  const maxX = Math.min(scene.mapWidth - 1, light.x + light.radius);
+  const minY = Math.max(0, light.y - light.radius);
+  const maxY = Math.min(scene.mapHeight - 1, light.y + light.radius);
+  for (let y = minY; y <= maxY; y++) {
+    for (let x = minX; x <= maxX; x++) {
+      const distance = Math.hypot(x - light.x, y - light.y);
+      if (distance > light.radius) continue;
+
+      const strength = (1 - distance / (light.radius + 1)) * intensity;
+      const cell = y * scene.mapWidth + x;
+      addLightChannel(scene.lightRed, cell, light.red * strength);
+      addLightChannel(scene.lightGreen, cell, light.green * strength);
+      addLightChannel(scene.lightBlue, cell, light.blue * strength);
+    }
+  }
 }
 
 function flickerIntensity(

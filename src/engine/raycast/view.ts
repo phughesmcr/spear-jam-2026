@@ -34,9 +34,9 @@ export type ViewRect = {
 };
 
 export type ViewFrameSize = {
-  readonly width: number;
-  readonly cropHeight: number;
-  readonly height: number;
+  width: number;
+  cropHeight: number;
+  height: number;
 };
 
 type ViewBuffers = {
@@ -60,15 +60,24 @@ export type RaycastView = {
 };
 
 export function internalFrameSize(rect: ViewRect): ViewFrameSize {
+  const size = { width: 0, cropHeight: 0, height: 0 };
+  writeInternalFrameSize(rect, size);
+  return size;
+}
+
+export function writeInternalFrameSize(rect: ViewRect, size: ViewFrameSize): void {
   const width = Math.max(2, Math.round(rect.width * INTERNAL_SCALE));
   // Keep the visible internal height even so the horizon splits rows exactly;
   // the overscan margin keeps that parity.
   const cropHeight = Math.max(2, Math.round(rect.height * INTERNAL_SCALE * 0.5) * 2);
-  return { width, cropHeight, height: cropHeight + OVERSCAN_ROWS * 2 };
+  size.width = width;
+  size.cropHeight = cropHeight;
+  size.height = cropHeight + OVERSCAN_ROWS * 2;
 }
 
 export function createRaycastView(): RaycastView {
   let buffers: ViewBuffers | undefined;
+  const frameSize = { width: 0, cropHeight: 0, height: 0 };
 
   const ensureBuffers = (
     width: number,
@@ -100,7 +109,7 @@ export function createRaycastView(): RaycastView {
 
   return {
     render(ctx, rect, scene, atlas, camera, verticalOffsetFraction = 0, nowMs = 0, healthBarMaxDistance = 0): void {
-      const frameSize = internalFrameSize(rect);
+      writeInternalFrameSize(rect, frameSize);
       const view = ensureBuffers(
         frameSize.width,
         frameSize.height,
