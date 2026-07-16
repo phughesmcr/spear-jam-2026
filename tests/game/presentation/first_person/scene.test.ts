@@ -38,7 +38,7 @@ function lightProvider(lights: readonly LightEntity[]) {
 }
 
 Deno.test("scene maps authored wall, floor, ceiling, and sky materials", () => {
-  const assets = createFirstPersonAssets();
+  const { view: assets } = createFirstPersonAssets();
   const map = createGameMap(
     "Textured",
     [[1, 2, 3, 4]],
@@ -78,7 +78,7 @@ Deno.test("scene maps authored wall, floor, ceiling, and sky materials", () => {
 });
 
 Deno.test("scene caches one static scene per map identity", () => {
-  const assets = createFirstPersonAssets();
+  const { view: assets } = createFirstPersonAssets();
   const state = createSceneState();
   const map = createGameMap("Cached", [[1]], [], {
     palette: [{ kind: "floor", id: 1, floor_texture: "floor", ceiling_texture: "ceiling" }],
@@ -91,7 +91,7 @@ Deno.test("scene caches one static scene per map identity", () => {
 });
 
 Deno.test("scene adds barrier terrain as transparent thin walls over planes", () => {
-  const assets = createFirstPersonAssets();
+  const { view: assets } = createFirstPersonAssets();
   const state = createSceneState();
   const map = createGameMap("Barrier", [
     [0, 0, DEFAULT_WALL_TERRAIN_ID, 0, 0],
@@ -111,7 +111,7 @@ Deno.test("scene adds barrier terrain as transparent thin walls over planes", ()
 });
 
 Deno.test("scene rejects texture refs outside the authored pack grid", () => {
-  const assets = createFirstPersonAssets();
+  const { view: assets } = createFirstPersonAssets();
   const map = createGameMap(
     "Invalid Texture",
     [[1]],
@@ -136,7 +136,7 @@ Deno.test("scene rejects texture refs outside the authored pack grid", () => {
 });
 
 Deno.test("scene builds static geometry for every campaign map", () => {
-  const assets = createFirstPersonAssets();
+  const { view: assets } = createFirstPersonAssets();
   const state = createSceneState();
 
   for (const { map } of SHIPPED_GAME.levels.all) {
@@ -148,7 +148,7 @@ Deno.test("scene builds static geometry for every campaign map", () => {
 });
 
 Deno.test("scene derives door axes, slides, and secret-wall material from surrounding terrain", () => {
-  const assets = createFirstPersonAssets();
+  const { view: assets } = createFirstPersonAssets();
   const map = createGameMap(
     "Doors",
     [
@@ -184,7 +184,7 @@ Deno.test("scene derives door axes, slides, and secret-wall material from surrou
 });
 
 Deno.test("scene lighting throttles flicker rebuilds and resets when lights disappear", () => {
-  const assets = createFirstPersonAssets();
+  const { view: assets } = createFirstPersonAssets();
   const map = createGameMap(
     "Lights",
     [

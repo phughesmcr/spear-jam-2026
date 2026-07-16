@@ -9,8 +9,11 @@ import { invalidateIntermissionCaches } from "@/src/game/presentation/ui/intermi
 import { createGameRenderScratch } from "@/src/game/presentation/frame_scratch.ts";
 import { assert, assertEquals } from "@std/assert";
 import { SHIPPED_GAME } from "@/src/game/content/shipped.ts";
+import { createPresentationAssetView } from "@/src/game/presentation/asset_view.ts";
+import { createFirstPersonAssets } from "@/src/game/presentation/first_person/assets/mod.ts";
 
 const FULL_CANVAS = { width: 720, height: 1280 };
+const TEST_ASSETS = createPresentationAssetView(createFirstPersonAssets().view);
 
 Deno.test("renderGameFrame draws a visible first-person vignette over the play area", () => {
   withFakeOffscreenCanvas((): void => {
@@ -306,12 +309,14 @@ Deno.test("renderGameFrame skips session rendering for opaque intermission mode"
 });
 
 function renderWithScratch(
-  props: Omit<Parameters<typeof renderGameFrame>[0], "scratch"> & {
+  props: Omit<Parameters<typeof renderGameFrame>[0], "assets" | "scratch"> & {
+    assets?: Parameters<typeof renderGameFrame>[0]["assets"];
     scratch?: ReturnType<typeof createGameRenderScratch>;
   },
 ) {
   const scratch = props.scratch ?? createGameRenderScratch();
   return renderGameFrame({
+    assets: TEST_ASSETS,
     content: SHIPPED_GAME.presentation,
     simulationContent: SHIPPED_GAME.simulation,
     ...props,
@@ -321,8 +326,6 @@ function renderWithScratch(
 
 function fakeFirstPersonRenderer(needsFrame = false, ambientOnly = false): FirstPersonRenderer {
   return {
-    preloadMapAssets: () => Promise.resolve(),
-    warmRemainingAssets: () => Promise.resolve(),
     reset(): void {},
     bump(): void {},
     render: (_ctx, _rect, _session, _nowMs, out) => {

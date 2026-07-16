@@ -1,7 +1,8 @@
 import type { CommandSlot } from "@/src/game/model/state.ts";
 import type { WeaponHudPhase } from "@/src/game/model/presentation_state.ts";
-import { createImageAsset, type ImageAsset, imageForAsset, preloadImageAssets } from "@/src/engine/canvas/mod.ts";
+import { imageForAsset } from "@/src/engine/canvas/mod.ts";
 import type { GameCanvasSize } from "@/src/game/presentation/canvas_size.ts";
+import type { WeaponHudAssets } from "@/src/game/presentation/asset_view.ts";
 
 export type WeaponHudImageSize = {
   readonly width: number;
@@ -15,45 +16,21 @@ export type WeaponHudSpriteRect = {
   readonly height: number;
 };
 
-const WEAPON_SLOTS = [1, 2, 3] as const satisfies readonly CommandSlot[];
-const WEAPON_HUD_PHASES = ["idle", "active"] as const satisfies readonly WeaponHudPhase[];
 const MAX_WIDTH_FRACTION = 0.82;
 const MAX_HEIGHT_FRACTION = 0.6;
 const RIGHT_OFFSET_FRACTION = 0.08;
 const LOWER_OFFSET_FRACTION = 0.06;
 const MIN_IMAGE_SIZE = 1;
 
-const weaponHudAssets: Readonly<Record<CommandSlot, Readonly<Record<WeaponHudPhase, ImageAsset>>>> = {
-  1: {
-    idle: createImageAsset(new URL("../../../../assets/game/ui/weapon_1_idle.png", import.meta.url).href),
-    active: createImageAsset(new URL("../../../../assets/game/ui/weapon_1_active.png", import.meta.url).href),
-  },
-  2: {
-    idle: createImageAsset(new URL("../../../../assets/game/ui/weapon_2_idle.png", import.meta.url).href),
-    active: createImageAsset(new URL("../../../../assets/game/ui/weapon_2_active.png", import.meta.url).href),
-  },
-  3: {
-    idle: createImageAsset(new URL("../../../../assets/game/ui/weapon_3_idle.png", import.meta.url).href),
-    active: createImageAsset(new URL("../../../../assets/game/ui/weapon_3_active.png", import.meta.url).href),
-  },
-};
-
-const IMAGE_ASSETS = Object.freeze(
-  WEAPON_SLOTS.flatMap((slot) => WEAPON_HUD_PHASES.map((phase) => weaponHudAssets[slot][phase])),
-);
-
-export async function preloadWeaponHudAssets(document: Document, onAssetLoad?: () => void): Promise<void> {
-  await preloadImageAssets(document, IMAGE_ASSETS, onAssetLoad);
-}
-
 export function renderWeaponHud(
   ctx: CanvasRenderingContext2D,
   canvasSize: GameCanvasSize,
+  assets: WeaponHudAssets,
   selectedWeapon: CommandSlot,
   phase: WeaponHudPhase,
 ): void {
-  const selectedAsset = weaponHudAssets[selectedWeapon][phase];
-  const fallbackAsset = phase === "active" ? weaponHudAssets[selectedWeapon].idle : undefined;
+  const selectedAsset = assets[selectedWeapon][phase];
+  const fallbackAsset = phase === "active" ? assets[selectedWeapon].idle : undefined;
   const image = imageForAsset(selectedAsset) ??
     (fallbackAsset === undefined ? undefined : imageForAsset(fallbackAsset));
   if (image === undefined) return;

@@ -27,6 +27,8 @@ const PRESENTATION_RENDER_PASSES = [
 const LEGACY_APPLICATION_RUNTIME = resolve(SOURCE_ROOT, "app/runtime.ts");
 const LEGACY_SESSION_LIFECYCLE = resolve(SOURCE_ROOT, "app/session_lifecycle.ts");
 const PRESENTATION_RUNTIME = resolve(SOURCE_ROOT, "app/presentation_runtime.ts");
+const PRESENTATION_ASSETS = resolve(SOURCE_ROOT, "app/presentation_assets.ts");
+const LEGACY_PRESENTATION_PRELOAD = resolve(SOURCE_ROOT, "game/presentation/preload.ts");
 const AUDIO_RUNTIME = resolve(SOURCE_ROOT, "app/audio_runtime.ts");
 const GAME_AUDIO_ROOT = resolve(SOURCE_ROOT, "game/audio");
 const GAME_AUDIO_PUBLIC_MODULE = resolve(GAME_AUDIO_ROOT, "mod.ts");
@@ -86,10 +88,10 @@ const PRESENTATION_RUNTIME_IMPORTS = new Set([
   "@/src/game/model/presentation_state.ts",
   "@/src/game/model/render_settings.ts",
   "@/src/game/model/transition/mod.ts",
+  "@/src/game/presentation/asset_view.ts",
   "@/src/game/presentation/canvas_size.ts",
   "@/src/game/presentation/first_person/renderer.ts",
   "@/src/game/presentation/frame_scratch.ts",
-  "@/src/game/presentation/preload.ts",
   "@/src/game/presentation/render.ts",
   "@/src/game/presentation/session_view.ts",
 ]);
@@ -381,6 +383,8 @@ Deno.test({
     if (files.has(LEGACY_APPLICATION_RUNTIME)) violations.push("app/runtime.ts still exists");
     if (files.has(LEGACY_SESSION_LIFECYCLE)) violations.push("app/session_lifecycle.ts still exists");
     if (!files.has(PRESENTATION_RUNTIME)) violations.push("app/presentation_runtime.ts is missing");
+    if (!files.has(PRESENTATION_ASSETS)) violations.push("app/presentation_assets.ts is missing");
+    if (files.has(LEGACY_PRESENTATION_PRELOAD)) violations.push("game/presentation/preload.ts still exists");
     if (!files.has(AUDIO_RUNTIME)) violations.push("app/audio_runtime.ts is missing");
     if (!files.has(GAME_EXECUTION)) violations.push("app/game_execution.ts is missing");
 
@@ -389,6 +393,7 @@ Deno.test({
     for (
       const required of [
         "@/src/app/presentation_runtime.ts",
+        "@/src/app/presentation_assets.ts",
         "@/src/app/audio_runtime.ts",
         "@/src/app/game_execution.ts",
       ]
@@ -416,8 +421,8 @@ Deno.test({
     if (/\bpreviousViewMode\b|\bcompletion\.type\b/.test(startSource)) {
       violations.push("app/start.ts interprets transition consequences");
     }
-    if (/\.warmMapAssets\s*\(/.test(startSource)) {
-      violations.push("app/start.ts directly warms transition-selected map assets");
+    if (/\.warm(?:Shell|Map|Deferred)Assets\s*\(/.test(startSource)) {
+      violations.push("app/start.ts uses a displaced presentation warm path");
     }
 
     if (files.has(PRESENTATION_RUNTIME)) {
@@ -673,6 +678,63 @@ Deno.test({
 });
 
 Deno.test({
+  name: "presentation assets have one lifecycle owner and pure render consumers",
+  permissions: { read: [SOURCE_ROOT] },
+  fn: async () => {
+    const files = await sourceFiles(SOURCE_ROOT);
+    const violations: string[] = [];
+    if (!files.includes(PRESENTATION_ASSETS)) violations.push("app/presentation_assets.ts is missing");
+    if (files.includes(LEGACY_PRESENTATION_PRELOAD)) violations.push("game/presentation/preload.ts still exists");
+
+    if (files.includes(PRESENTATION_ASSETS)) {
+      const ownerSource = await Deno.readTextFile(PRESENTATION_ASSETS);
+      for (const primitive of ["requestIdleCallback", "cancelIdleCallback", "setTimeout", "clearTimeout"]) {
+        if (!ownerSource.includes(primitive)) {
+          violations.push(`app/presentation_assets.ts does not retain paired scheduler primitive ${primitive}`);
+        }
+      }
+      for (
+        const otherPath of [
+          APPLICATION_START,
+          GAME_EXECUTION,
+          PRESENTATION_RUNTIME,
+          resolve(SOURCE_ROOT, "game/presentation/asset_bundles.ts"),
+        ]
+      ) {
+        const source = await Deno.readTextFile(otherPath);
+        if (/\brequestIdleCallback\b|\bcancelIdleCallback\b/.test(source)) {
+          violations.push(`${relative(SOURCE_ROOT, otherPath)} owns presentation idle scheduling`);
+        }
+      }
+    }
+
+    for (const sourcePath of files) {
+      const source = await Deno.readTextFile(sourcePath);
+      const path = relative(SOURCE_ROOT, sourcePath);
+      const presentationRenderPath = path.startsWith("game/presentation/") &&
+        path !== "game/presentation/asset_bundles.ts" &&
+        !path.startsWith("game/presentation/first_person/assets/");
+      if (presentationRenderPath && /\bpreloadImageAssets?\b|\.loadRequired\s*\(|\.loadRemaining\s*\(/.test(source)) {
+        violations.push(`${path} imports preparation into a render path`);
+      }
+      if (/\b(?:preloadGameAssets|warmShellAssets|warmMapAssets|warmDeferredAssets)\b/.test(source)) {
+        violations.push(`${path} retains a displaced presentation readiness API`);
+      }
+    }
+
+    const runtimeImports = importSpecifiers(await Deno.readTextFile(PRESENTATION_RUNTIME));
+    if (runtimeImports.includes("@/src/app/presentation_assets.ts")) {
+      violations.push("app/presentation_runtime.ts owns presentation preparation");
+    }
+    if (runtimeImports.includes("@/src/game/presentation/asset_bundles.ts")) {
+      violations.push("app/presentation_runtime.ts imports preparation jobs");
+    }
+
+    assertEquals(violations.sort(), []);
+  },
+});
+
+Deno.test({
   name: "presentation render coordinator delegates concrete passes",
   permissions: { read: [SOURCE_ROOT] },
   fn: async () => {
@@ -681,7 +743,7 @@ Deno.test({
     const directImplementationImports = specifiers.filter((specifier) =>
       specifier.includes("/game/presentation/ui/") ||
       specifier.includes("/game/presentation/top_down/") ||
-      specifier === "@/src/game/presentation/preload.ts"
+      specifier === "@/src/game/presentation/asset_bundles.ts"
     );
 
     assertEquals(passImports.sort(), [...PRESENTATION_RENDER_PASSES].sort());

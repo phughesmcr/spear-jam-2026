@@ -10,6 +10,7 @@ import {
   type FirstPersonRenderer,
   type FirstPersonRenderSession,
 } from "@/src/game/presentation/first_person/renderer.ts";
+import { createFirstPersonAssets } from "@/src/game/presentation/first_person/assets/mod.ts";
 import { TURN_TWEEN_MS } from "@/src/game/presentation/first_person/tween.ts";
 import { assert, assertAlmostEquals, assertEquals } from "@std/assert";
 import type { Entity } from "turn-based-engine/ecs";
@@ -132,10 +133,14 @@ function render(
   return out;
 }
 
+function createRenderer(): FirstPersonRenderer {
+  return createFirstPersonRenderer(createFirstPersonAssets().view);
+}
+
 Deno.test("first-person renderer reports the tweened camera angle", () => {
   withFakeOffscreenCanvas(() => {
     const map = testMap();
-    const renderer = createFirstPersonRenderer();
+    const renderer = createRenderer();
 
     const initial = render(renderer, sessionFor(map, [playerDrawable(1, 2, Direction.East)]), 0);
     assertAlmostEquals(initial.cameraAngle, 0);
@@ -155,7 +160,7 @@ Deno.test("first-person renderer reports the tweened camera angle", () => {
 Deno.test("first-person renderer reset discards presentation tweens", () => {
   withFakeOffscreenCanvas(() => {
     const map = testMap();
-    const renderer = createFirstPersonRenderer();
+    const renderer = createRenderer();
     render(renderer, sessionFor(map, [playerDrawable(1, 2, Direction.East)]), 0);
     render(renderer, sessionFor(map, [playerDrawable(1, 2, Direction.South)]), 0);
 
@@ -170,7 +175,7 @@ Deno.test("first-person renderer exposes ambient frame demand", () => {
   withFakeOffscreenCanvas(() => {
     const skyMap = testMap(SKY_CEILING_TEXTURE);
     const sky = render(
-      createFirstPersonRenderer(),
+      createRenderer(),
       sessionFor(skyMap, [playerDrawable(1, 2, Direction.North)]),
       0,
     );
@@ -178,7 +183,7 @@ Deno.test("first-person renderer exposes ambient frame demand", () => {
 
     const litMap = testMap();
     const flicker = render(
-      createFirstPersonRenderer(),
+      createRenderer(),
       sessionFor(litMap, [playerDrawable(1, 2, Direction.North)], [{
         entity: 2 as Entity,
         x: 1,
@@ -200,7 +205,7 @@ Deno.test("first-person renderer exposes ambient frame demand", () => {
 Deno.test("first-person render never loads or raster-bakes assets", () => {
   withFakeOffscreenCanvas(() => {
     const map = testMap();
-    const renderer = createFirstPersonRenderer();
+    const renderer = createRenderer();
     const session = sessionFor(map, [
       playerDrawable(1, 2, Direction.North),
       {
@@ -217,6 +222,13 @@ Deno.test("first-person render never loads or raster-bakes assets", () => {
 
     assertEquals(FakeOffscreenCanvasRenderingContext2D.rasterReadCount, 0);
   });
+});
+
+Deno.test("first-person renderer exposes no asset preparation capability", () => {
+  const renderer = createRenderer();
+
+  assertEquals("preloadMapAssets" in renderer, false);
+  assertEquals("warmRemainingAssets" in renderer, false);
 });
 
 Deno.test("first-person renderer does not retain reusable drawable snapshots", () => {
@@ -238,7 +250,7 @@ Deno.test("first-person renderer does not retain reusable drawable snapshots", (
       forEachLight(): void {},
     };
 
-    const result = render(createFirstPersonRenderer(), session, 0);
+    const result = render(createRenderer(), session, 0);
 
     assert(result.needsFrame);
     assert(result.ambientOnly);

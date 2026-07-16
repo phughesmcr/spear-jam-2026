@@ -1,14 +1,20 @@
 import { createGameExecution, type GameExecutionSpec } from "@/src/app/game_execution.ts";
 import type { AudioRuntime } from "@/src/app/audio_runtime.ts";
 import type { PresentationRuntime } from "@/src/app/presentation_runtime.ts";
+import type {
+  AssetPreparation,
+  PrepareAssetsOptions,
+  PresentationAssetRequest,
+  PresentationAssets,
+} from "@/src/app/presentation_assets.ts";
 import { TrackId } from "@/src/game/content/audio/music.ts";
-import type { CompiledLevel } from "@/src/game/content/catalog.ts";
 import { SHIPPED_GAME } from "@/src/game/content/shipped.ts";
 import { VoiceId } from "@/src/game/content/dialogue/voices.ts";
 import type { AudioSettings } from "@/src/game/model/audio_settings.ts";
 import type { SoundCue } from "@/src/game/model/sound.ts";
 import { createGameModel, type GameModel, type GameTransitionEvent } from "@/src/game/model/transition/mod.ts";
 import { DEFAULT_GAME_CANVAS_SIZE, type GameCanvasSize } from "@/src/game/presentation/canvas_size.ts";
+import type { PresentationAssetView } from "@/src/game/presentation/asset_view.ts";
 import { TEST_SESSION_CONTENT } from "@/tests/game/simulation/helpers.ts";
 import { assert, assertEquals } from "@std/assert";
 
@@ -25,7 +31,7 @@ Deno.test("game execution routes synchronous effects to their concrete owners", 
   execution.execute([
     { type: "render" },
     { type: "resetFirstPerson" },
-    { type: "warmMapAssets", mapName: CAMPAIGN.startMap.name },
+    { type: "scheduleMapAssets", mapName: CAMPAIGN.startMap.name },
     { type: "setDialogueVoice", voice: VoiceId.JohnNexusGreet },
     { type: "ensureInput" },
     { type: "applyAudioVolumes" },
@@ -36,7 +42,7 @@ Deno.test("game execution routes synchronous effects to their concrete owners", 
   assertEquals(log, [
     "render",
     "reset",
-    `warm-map:${CAMPAIGN.startMap.name}`,
+    `schedule:${CAMPAIGN.startMap.name}`,
     `voice:${VoiceId.JohnNexusGreet}`,
     "input",
     `volumes:${model.audio.musicVolume}:${model.audio.soundVolume}`,
@@ -65,13 +71,13 @@ Deno.test("game execution commits a loaded session before finalizing its output 
 
   assert(execution.getSession() !== undefined);
   assertEquals(log, [
-    `preload:${CAMPAIGN.startMap.name}`,
+    `prepare:${CAMPAIGN.startMap.name}`,
     "reset",
     "listener",
     "world",
     `music:${TrackId.Map1}`,
     "apply:mapLoaded",
-    `warm:${CAMPAIGN.startMap.name}`,
+    `deferred:${CAMPAIGN.startMap.name}`,
   ]);
   assertEquals(events[0], { type: "mapLoaded", mapName: CAMPAIGN.startMap.name });
   execution[Symbol.dispose]();
@@ -104,16 +110,16 @@ Deno.test("game execution does not commit or finalize an aborted map load", asyn
   await nextTask();
 
   assertEquals(execution.getSession(), undefined);
-  assertEquals(log, [`preload:${CAMPAIGN.startMap.name}`]);
+  assertEquals(log, [`prepare:${CAMPAIGN.startMap.name}`]);
   execution[Symbol.dispose]();
 });
 
 Deno.test("game execution does not mutate an existing session when preload is aborted", async () => {
   const controller = new AbortController();
-  const presentation = new ControllablePreloadPresentation([]);
-  const execution = createGameExecution(executionSpec({ controller, presentation }));
+  const assets = new ControllablePresentationAssets([]);
+  const execution = createGameExecution(executionSpec({ controller, assets }));
   execution.execute([{ type: "loadMap", mapName: CAMPAIGN.startMap.name }]);
-  presentation.resolveNext(CAMPAIGN.startMap.name);
+  assets.resolveNext(CAMPAIGN.startMap.name);
   await nextTask();
   const session = execution.getSession();
   assert(session !== undefined);
@@ -122,7 +128,7 @@ Deno.test("game execution does not mutate an existing session when preload is ab
 
   execution.execute([{ type: "loadMap", mapName: destination.name }]);
   controller.abort();
-  presentation.resolveNext(destination.name);
+  assets.resolveNext(destination.name);
   await nextTask();
 
   assert(execution.getSession() === session);
@@ -170,24 +176,24 @@ Deno.test("game execution retries the current session through the same finalizat
   assert(execution.getSession() === session);
   assertEquals(session.getPlayerPosition(), checkpointPosition);
   assertEquals(log, [
-    `preload:${CAMPAIGN.startMap.name}`,
+    `prepare:${CAMPAIGN.startMap.name}`,
     "reset",
     "listener",
     "world",
     `music:${TrackId.Map1}`,
     "apply:mapLoaded",
-    `warm:${CAMPAIGN.startMap.name}`,
+    `deferred:${CAMPAIGN.startMap.name}`,
   ]);
   execution[Symbol.dispose]();
 });
 
 Deno.test("game execution lets the latest overlapping existing-session load win", async () => {
   const log: string[] = [];
-  const presentation = new ControllablePreloadPresentation(log);
-  const execution = createGameExecution(executionSpec({ log, presentation }));
+  const assets = new ControllablePresentationAssets(log);
+  const execution = createGameExecution(executionSpec({ log, assets }));
 
   execution.execute([{ type: "loadMap", mapName: CAMPAIGN.startMap.name }]);
-  presentation.resolveNext(CAMPAIGN.startMap.name);
+  assets.resolveNext(CAMPAIGN.startMap.name);
   await nextTask();
   assert(execution.getSession() !== undefined);
   log.length = 0;
@@ -197,7 +203,7 @@ Deno.test("game execution lets the latest overlapping existing-session load win"
   const [staleMap, winningMap] = destinations;
   execution.execute([{ type: "loadMap", mapName: staleMap!.name }]);
   execution.execute([{ type: "loadMap", mapName: winningMap!.name }]);
-  presentation.resolveNext(winningMap!.name);
+  assets.resolveNext(winningMap!.name);
   await nextTask();
   const winningFinalization = [
     "reset",
@@ -205,10 +211,10 @@ Deno.test("game execution lets the latest overlapping existing-session load win"
     "world",
     `music:${SHIPPED_GAME.levels.get(winningMap!.name).music}`,
     "apply:mapLoaded",
-    `warm:${winningMap!.name}`,
+    `deferred:${winningMap!.name}`,
   ];
   assertEquals(log, winningFinalization);
-  presentation.resolveNext(staleMap!.name);
+  assets.resolveNext(staleMap!.name);
   await nextTask();
 
   assertEquals(execution.getSession()?.getMap().name, winningMap!.name);
@@ -218,10 +224,10 @@ Deno.test("game execution lets the latest overlapping existing-session load win"
 
 Deno.test("game execution suppresses a stale preload rejection", async () => {
   const errors: unknown[] = [];
-  const presentation = new ControllablePreloadPresentation([]);
-  const execution = createGameExecution(executionSpec({ presentation, onError: (error) => errors.push(error) }));
+  const assets = new ControllablePresentationAssets([]);
+  const execution = createGameExecution(executionSpec({ assets, onError: (error) => errors.push(error) }));
   execution.execute([{ type: "loadMap", mapName: CAMPAIGN.startMap.name }]);
-  presentation.resolveNext(CAMPAIGN.startMap.name);
+  assets.resolveNext(CAMPAIGN.startMap.name);
   await nextTask();
   const destinations = CAMPAIGN.maps.filter((map) => map.name !== CAMPAIGN.startMap.name).slice(0, 2);
   assertEquals(destinations.length, 2);
@@ -229,8 +235,8 @@ Deno.test("game execution suppresses a stale preload rejection", async () => {
 
   execution.execute([{ type: "loadMap", mapName: staleMap!.name }]);
   execution.execute([{ type: "loadMap", mapName: winningMap!.name }]);
-  presentation.resolveNext(winningMap!.name);
-  presentation.rejectNext(staleMap!.name, new Error("stale preload failed"));
+  assets.resolveNext(winningMap!.name);
+  assets.rejectNext(staleMap!.name, new Error("stale preload failed"));
   await nextTask();
 
   assertEquals(errors, []);
@@ -238,14 +244,87 @@ Deno.test("game execution suppresses a stale preload rejection", async () => {
   execution[Symbol.dispose]();
 });
 
+Deno.test("game execution accepts progress only from the current blocking level request", async () => {
+  const events: GameTransitionEvent[] = [];
+  const assets = new ControllablePresentationAssets([]);
+  const execution = createGameExecution(executionSpec({ assets, apply: (event) => events.push(event) }));
+  const [staleLevel, activeLevel] = SHIPPED_GAME.levels.all.slice(0, 2);
+
+  execution.execute([{ type: "loadMap", mapName: staleLevel!.map.name }]);
+  execution.execute([{ type: "loadMap", mapName: activeLevel!.map.name }]);
+  assets.reportProgress(staleLevel!.map.name, 1, 2);
+  assets.reportProgress(activeLevel!.map.name, 1, 2);
+
+  assertEquals(events, [{ type: "loadingProgress", completed: 1, total: 2 }]);
+  assets.resolveNext(activeLevel!.map.name);
+  await nextTask();
+  execution[Symbol.dispose]();
+});
+
+Deno.test("game execution treats predictive preparation failure as diagnostic only", async () => {
+  const failure = new Error("predictive preparation failed");
+  const fatal: unknown[] = [];
+  const diagnostics: unknown[] = [];
+  const assets = new RejectingIdlePresentationAssets([], failure);
+  const execution = createGameExecution(executionSpec({
+    assets,
+    onError: (error) => fatal.push(error),
+    onDiagnostic: (error) => diagnostics.push(error),
+  }));
+
+  execution.execute([{ type: "scheduleMapAssets", mapName: CAMPAIGN.startMap.name }]);
+  await nextTask();
+
+  assertEquals(fatal, []);
+  assertEquals(diagnostics, [failure]);
+  execution[Symbol.dispose]();
+});
+
+Deno.test("game execution treats deferred preparation failure as diagnostic only", async () => {
+  const failure = new Error("deferred preparation failed");
+  const fatal: unknown[] = [];
+  const diagnostics: unknown[] = [];
+  const assets = new RejectingIdlePresentationAssets([], failure);
+  const execution = createGameExecution(executionSpec({
+    assets,
+    onError: (error) => fatal.push(error),
+    onDiagnostic: (error) => diagnostics.push(error),
+  }));
+
+  execution.execute([{ type: "loadMap", mapName: CAMPAIGN.startMap.name }]);
+  await nextTask();
+
+  assert(execution.getSession() !== undefined);
+  assertEquals(fatal, []);
+  assertEquals(diagnostics, [failure]);
+  execution[Symbol.dispose]();
+});
+
+Deno.test("game execution commits after degraded critical presentation preparation", async () => {
+  const events: GameTransitionEvent[] = [];
+  const assets = new ControllablePresentationAssets([]);
+  const execution = createGameExecution(executionSpec({ assets, apply: (event) => events.push(event) }));
+
+  execution.execute([{ type: "loadMap", mapName: CAMPAIGN.startMap.name }]);
+  assets.resolveNext(CAMPAIGN.startMap.name, {
+    kind: "degraded",
+    unavailable: [{ source: "missing.png", stage: "load" }],
+  });
+  await nextTask();
+
+  assert(execution.getSession() !== undefined);
+  assert(events.some((event) => event.type === "mapLoaded"));
+  execution[Symbol.dispose]();
+});
+
 Deno.test("game execution reports an active preload rejection", async () => {
   const errors: unknown[] = [];
-  const presentation = new ControllablePreloadPresentation([]);
-  const execution = createGameExecution(executionSpec({ presentation, onError: (error) => errors.push(error) }));
+  const assets = new ControllablePresentationAssets([]);
+  const execution = createGameExecution(executionSpec({ assets, onError: (error) => errors.push(error) }));
   const failure = new Error("active preload failed");
 
   execution.execute([{ type: "loadMap", mapName: CAMPAIGN.startMap.name }]);
-  presentation.rejectNext(CAMPAIGN.startMap.name, failure);
+  assets.rejectNext(CAMPAIGN.startMap.name, failure);
   await nextTask();
 
   assertEquals(errors, [failure]);
@@ -354,10 +433,10 @@ Deno.test("game execution disposes an ended session exactly once", async () => {
 
 Deno.test("game execution invalidates pending work on endRun and permits a later load", async () => {
   const log: string[] = [];
-  const presentation = new ControllablePreloadPresentation(log);
-  const execution = createGameExecution(executionSpec({ log, presentation }));
+  const assets = new ControllablePresentationAssets(log);
+  const execution = createGameExecution(executionSpec({ log, assets }));
   execution.execute([{ type: "loadMap", mapName: CAMPAIGN.startMap.name }]);
-  presentation.resolveNext(CAMPAIGN.startMap.name);
+  assets.resolveNext(CAMPAIGN.startMap.name);
   await nextTask();
   assert(execution.getSession() !== undefined);
   log.length = 0;
@@ -366,13 +445,13 @@ Deno.test("game execution invalidates pending work on endRun and permits a later
 
   execution.execute([{ type: "loadMap", mapName: destination.name }]);
   execution.execute([{ type: "endRun" }]);
-  presentation.resolveNext(destination.name);
+  assets.resolveNext(destination.name);
   await nextTask();
   assertEquals(execution.getSession(), undefined);
   assertEquals(log, []);
 
   execution.execute([{ type: "loadMap", mapName: destination.name }]);
-  presentation.resolveNext(destination.name);
+  assets.resolveNext(destination.name);
   await nextTask();
   assertEquals(execution.getSession()?.getMap().name, destination.name);
   execution[Symbol.dispose]();
@@ -380,12 +459,12 @@ Deno.test("game execution invalidates pending work on endRun and permits a later
 
 Deno.test("game execution disposal prevents a pending load from resurrecting a session", async () => {
   const log: string[] = [];
-  const presentation = new ControllablePreloadPresentation(log);
-  const execution = createGameExecution(executionSpec({ log, presentation }));
+  const assets = new ControllablePresentationAssets(log);
+  const execution = createGameExecution(executionSpec({ log, assets }));
 
   execution.execute([{ type: "loadMap", mapName: CAMPAIGN.startMap.name }]);
   execution[Symbol.dispose]();
-  presentation.resolveNext(CAMPAIGN.startMap.name);
+  assets.resolveNext(CAMPAIGN.startMap.name);
   await nextTask();
 
   assertEquals(execution.getSession(), undefined);
@@ -425,7 +504,9 @@ function executionSpec(options: {
   readonly host?: FakeWindow;
   readonly apply?: (event: GameTransitionEvent) => void;
   readonly presentation?: PresentationRuntime;
+  readonly assets?: PresentationAssets;
   readonly onError?: (error: unknown) => void;
+  readonly onDiagnostic?: (error: unknown) => void;
 } = {}): GameExecutionSpec {
   const log = options.log ?? [];
   const controller = options.controller ?? new AbortController();
@@ -434,12 +515,16 @@ function executionSpec(options: {
     host: (options.host ?? new FakeWindow()) as unknown as Window,
     signal: controller.signal,
     seed: 1,
+    assets: options.assets ?? new FakePresentationAssets(log),
     presentation: options.presentation ?? new FakePresentationRuntime(log),
     audio: new FakeAudioRuntime(log),
     getModel: () => options.model ?? createGameModel(CAMPAIGN.startMap.name),
     apply: options.apply ?? ((event) => log.push(`apply:${event.type}`)),
     ensureInput: () => log.push("input"),
     onError: options.onError ?? ((error) => {
+      throw error;
+    }),
+    onDiagnostic: options.onDiagnostic ?? ((error) => {
       throw error;
     }),
   };
@@ -462,17 +547,6 @@ class FakePresentationRuntime implements PresentationRuntime {
   renderNow(): void {
     this.log.push("render");
   }
-  preloadAssets(level: CompiledLevel): Promise<void> {
-    this.log.push(`preload:${level.map.name}`);
-    return Promise.resolve();
-  }
-  warmShellAssets(): void {}
-  warmMapAssets(level: CompiledLevel): void {
-    this.log.push(`warm-map:${level.map.name}`);
-  }
-  warmDeferredAssets(level: CompiledLevel): void {
-    this.log.push(`warm:${level.map.name}`);
-  }
   resetFirstPerson(): void {
     this.log.push("reset");
   }
@@ -482,27 +556,85 @@ class FakePresentationRuntime implements PresentationRuntime {
   [Symbol.dispose](): void {}
 }
 
-class ControllablePreloadPresentation extends FakePresentationRuntime {
-  private readonly pending: {
-    readonly mapName: string;
-    readonly resolve: () => void;
-    readonly reject: (error: unknown) => void;
-  }[] = [];
+class FakePresentationAssets implements PresentationAssets {
+  protected readonly log: string[];
 
-  override preloadAssets(level: CompiledLevel): Promise<void> {
-    return new Promise((resolve, reject) => this.pending.push({ mapName: level.map.name, resolve, reject }));
+  constructor(log: string[]) {
+    this.log = log;
   }
 
-  resolveNext(mapName: string): void {
+  prepare(
+    request: PresentationAssetRequest,
+    options: PrepareAssetsOptions,
+  ): Promise<AssetPreparation> {
+    if (request.kind === "level") {
+      this.log.push(`${options.urgency === "blocking" ? "prepare" : "schedule"}:${request.level.map.name}`);
+    } else if (request.kind === "deferred") {
+      this.log.push(`deferred:${request.level.map.name}`);
+    }
+    return Promise.resolve({ kind: "ready" });
+  }
+
+  view(): PresentationAssetView {
+    throw new Error("Fake asset view is not used by game execution.");
+  }
+
+  [Symbol.dispose](): void {}
+}
+
+class ControllablePresentationAssets extends FakePresentationAssets {
+  private readonly pending: {
+    readonly mapName: string;
+    readonly resolve: (result: AssetPreparation) => void;
+    readonly reject: (error: unknown) => void;
+    readonly options: PrepareAssetsOptions;
+  }[] = [];
+
+  override prepare(
+    request: PresentationAssetRequest,
+    options: PrepareAssetsOptions,
+  ): Promise<AssetPreparation> {
+    if (request.kind !== "level" || options.urgency !== "blocking") {
+      return super.prepare(request, options);
+    }
+    return new Promise((resolve, reject) =>
+      this.pending.push({ mapName: request.level.map.name, resolve, reject, options })
+    );
+  }
+
+  resolveNext(mapName: string, result: AssetPreparation = { kind: "ready" }): void {
     const index = this.pending.findIndex((entry) => entry.mapName === mapName);
     assert(index >= 0);
-    this.pending.splice(index, 1)[0]!.resolve();
+    this.pending.splice(index, 1)[0]!.resolve(result);
   }
 
   rejectNext(mapName: string, error: unknown): void {
     const index = this.pending.findIndex((entry) => entry.mapName === mapName);
     assert(index >= 0);
     this.pending.splice(index, 1)[0]!.reject(error);
+  }
+
+  reportProgress(mapName: string, completed: number, total: number): void {
+    const entry = this.pending.find((candidate) => candidate.mapName === mapName);
+    assert(entry !== undefined);
+    entry.options.onProgress?.({ completed, total });
+  }
+}
+
+class RejectingIdlePresentationAssets extends FakePresentationAssets {
+  private readonly failure: unknown;
+
+  constructor(log: string[], failure: unknown) {
+    super(log);
+    this.failure = failure;
+  }
+
+  override prepare(
+    request: PresentationAssetRequest,
+    options: PrepareAssetsOptions,
+  ): Promise<AssetPreparation> {
+    if (options.urgency === "idle") return Promise.reject(this.failure);
+    return super.prepare(request, options);
   }
 }
 

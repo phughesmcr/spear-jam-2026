@@ -76,7 +76,7 @@ export function createGameTransition(content: DialogueContent) {
       case "mapLoaded":
         return mapLoaded(model, event.mapName);
       case "loadingProgress":
-        return loadingProgress(model, event.loaded, event.total);
+        return loadingProgress(model, event.completed, event.total);
       case "loadFailed":
         return done({ ...model, mode: { type: "error", message: event.message } }, [{ type: "render" }]);
       case "victoryTransitionComplete":

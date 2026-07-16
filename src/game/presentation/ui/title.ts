@@ -1,7 +1,8 @@
 import type { TitleHoverButton, TitleIntent } from "@/src/game/model/state.ts";
-import { createImageAsset, imageForAsset, preloadImageAsset } from "@/src/engine/canvas/mod.ts";
+import { imageForAsset } from "@/src/engine/canvas/mod.ts";
 import type { GameCanvasSize } from "@/src/game/presentation/canvas_size.ts";
 import type { RenderSpy } from "@/src/game/presentation/frame_scratch.ts";
+import type { PresentationUiAssets } from "@/src/game/presentation/asset_view.ts";
 import { monoFont } from "@/src/game/presentation/ui/text.ts";
 
 export type TitleButtonRect = {
@@ -23,7 +24,6 @@ type CoverRect = {
   readonly height: number;
 };
 
-const TITLE_BACKGROUND_SRC = new URL("../../../../assets/game/titlescreen_mobile.png", import.meta.url).href;
 const FALLBACK_BACKGROUND = "#020406";
 const BUTTON_LABELS = {
   start: "START GAME",
@@ -41,8 +41,6 @@ const BUTTON_HEIGHT_MAX = 60;
 const PULSE_MS = 1400;
 const SCAN_MS = 2200;
 
-const titleBackgroundAsset = createImageAsset(TITLE_BACKGROUND_SRC);
-
 type TitleGeometryCache = {
   width: number;
   height: number;
@@ -52,10 +50,6 @@ type TitleGeometryCache = {
 };
 
 let titleGeometryCache: TitleGeometryCache | undefined;
-
-export async function preloadTitleAssets(document: Document, onAssetLoad?: () => void): Promise<void> {
-  await preloadImageAsset(document, titleBackgroundAsset, onAssetLoad);
-}
 
 export function titleStartButtonRect(canvasSize: GameCanvasSize): TitleButtonRect {
   return titleGeometryFor(canvasSize).startButton;
@@ -143,6 +137,7 @@ function titleButtonHit(rect: TitleButtonRect, point: TitlePoint): boolean {
 export function renderTitle(
   ctx: CanvasRenderingContext2D,
   canvasSize: GameCanvasSize,
+  assets: PresentationUiAssets["title"],
   intent: TitleIntent,
   nowMs = 0,
   hoverButton?: TitleHoverButton,
@@ -152,7 +147,7 @@ export function renderTitle(
   const startButton = geometry.startButton;
   const settingsButton = geometry.settingsButton;
   const helpButton = geometry.helpButton;
-  const image = imageForAsset(titleBackgroundAsset);
+  const image = imageForAsset(assets.background);
 
   ctx.save();
   ctx.fillStyle = FALLBACK_BACKGROUND;

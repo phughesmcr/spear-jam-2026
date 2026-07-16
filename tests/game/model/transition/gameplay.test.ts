@@ -43,7 +43,7 @@ Deno.test("transition derives command result intermission state", () => {
     revealed: false,
   });
   assertEquals(result.model.presentation.messages, [{ text: "The uplink hums.", expiresAtMs: 2200 }]);
-  assertEquals(result.effects, [{ type: "render" }, { type: "warmMapAssets", mapName: "Level 2" }]);
+  assertEquals(result.effects, [{ type: "render" }, { type: "scheduleMapAssets", mapName: "Level 2" }]);
 });
 
 Deno.test("transition stores command result combat feedback in presentation", () => {
@@ -111,7 +111,7 @@ Deno.test("transition retries defeat through a session-owned checkpoint effect",
 
   const result = transition(model, { type: "gameCommand", command: { type: "wait" } });
   assertEquals(result.model.presentation, { messages: [], combatFeedback: [] });
-  assertEquals(result.model.mode, { type: "loading", loaded: 0, total: 0 });
+  assertEquals(result.model.mode, { type: "loading", completed: 0, total: 0 });
   assertEquals(result.effects, [
     { type: "render" },
     { type: "retryMap", mapName: "Level 2" },

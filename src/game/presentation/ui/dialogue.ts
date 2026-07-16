@@ -1,6 +1,7 @@
 import type { DialogueState } from "@/src/game/model/state.ts";
 import { DisplayName } from "@/src/game/content/names.ts";
-import { createImageAsset, type ImageAsset, imageForAsset, preloadImageAssets } from "@/src/engine/canvas/mod.ts";
+import { imageForAsset } from "@/src/engine/canvas/mod.ts";
+import type { DialogueAssets } from "@/src/game/presentation/asset_view.ts";
 import type { GameCanvasSize } from "@/src/game/presentation/canvas_size.ts";
 import { fitText, monoFont } from "@/src/game/presentation/ui/text.ts";
 
@@ -72,25 +73,10 @@ const REVEAL_CHOICE_GAP = 8;
 const REVEAL_ASPECT_RATIO = 3 / 2;
 const DIALOGUE_OPTION_SLOTS = [1, 2, 3] as const satisfies readonly DialogueOptionSlot[];
 
-const DIALOGUE_PORTRAIT_ASSETS: Partial<Record<DisplayName, ImageAsset>> = {
-  [DisplayName.John]: createImageAsset(new URL("../../../../assets/game/ui/dialogue_john.png", import.meta.url).href),
-};
-const DIALOGUE_PORTRAIT_IMAGE_ASSETS = Object.freeze(Object.values(DIALOGUE_PORTRAIT_ASSETS));
-const SPEAR_REVEAL_ASSET = createImageAsset(
-  new URL("../../../../assets/game/ui/spear_reveal.png", import.meta.url).href,
-);
-
-export async function preloadDialogueAssets(document: Document, onAssetLoad?: () => void): Promise<void> {
-  await preloadImageAssets(document, DIALOGUE_PORTRAIT_IMAGE_ASSETS, onAssetLoad);
-}
-
-export async function preloadSpearRevealAsset(document: Document, onAssetLoad?: () => void): Promise<void> {
-  await preloadImageAssets(document, [SPEAR_REVEAL_ASSET], onAssetLoad);
-}
-
 export function renderDialogue(
   ctx: CanvasRenderingContext2D,
   canvasSize: GameCanvasSize,
+  assets: DialogueAssets,
   dialogue: DialogueState,
 ): void {
   const layout = dialogueLayout(canvasSize, dialogue.choices);
@@ -99,7 +85,7 @@ export function renderDialogue(
   ctx.fillStyle = SCRIM;
   ctx.fillRect(0, 0, canvasSize.width, canvasSize.height);
 
-  if (dialogue.art === "spearReveal" && drawSpearReveal(ctx, canvasSize, dialogue)) {
+  if (dialogue.art === "spearReveal" && drawSpearReveal(ctx, canvasSize, assets, dialogue)) {
     ctx.restore();
     return;
   }
@@ -107,7 +93,7 @@ export function renderDialogue(
   drawPanel(ctx, layout.panel);
   drawHeader(ctx, layout.header, dialogue.title);
   drawMessage(ctx, layout.message, dialogue.message);
-  drawPortrait(ctx, layout.portrait, dialogue.title, dialogue.speaker);
+  drawPortrait(ctx, layout.portrait, assets, dialogue.title, dialogue.speaker);
   drawChoices(ctx, layout.choices);
 
   ctx.restore();
@@ -278,9 +264,10 @@ function fitFinalLine(
 function drawSpearReveal(
   ctx: CanvasRenderingContext2D,
   canvasSize: GameCanvasSize,
+  assets: DialogueAssets,
   dialogue: DialogueState,
 ): boolean {
-  const image = imageForAsset(SPEAR_REVEAL_ASSET);
+  const image = imageForAsset(assets.spearReveal);
   if (image === undefined) return false;
 
   const layout = spearRevealLayout(canvasSize, dialogue.choices);
@@ -350,6 +337,7 @@ function drawMessage(ctx: CanvasRenderingContext2D, rect: DialogueRect, message:
 function drawPortrait(
   ctx: CanvasRenderingContext2D,
   rect: DialogueRect,
+  assets: DialogueAssets,
   title: string,
   speaker?: DisplayName,
 ): void {
@@ -364,7 +352,7 @@ function drawPortrait(
   ctx.fillStyle = background;
   ctx.fillRect(rect.x, rect.y, rect.width, rect.height);
 
-  const portrait = speaker === undefined ? undefined : DIALOGUE_PORTRAIT_ASSETS[speaker];
+  const portrait = speaker === undefined ? undefined : assets.portraits[speaker];
   const image = portrait === undefined ? undefined : imageForAsset(portrait);
   if (image !== undefined) {
     drawPortraitImage(ctx, rect, image);

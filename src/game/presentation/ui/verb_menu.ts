@@ -1,6 +1,7 @@
 import type { CommandSlot, VerbMenuControl, VerbMenuTarget } from "@/src/game/model/state.ts";
 import { type VerbId, VERBS } from "@/src/game/model/verbs.ts";
-import { createImageAsset, type ImageAsset, imageForAsset, preloadImageAssets } from "@/src/engine/canvas/mod.ts";
+import { imageForAsset } from "@/src/engine/canvas/mod.ts";
+import type { VerbMenuAssets } from "@/src/game/presentation/asset_view.ts";
 import type { GameCanvasSize } from "@/src/game/presentation/canvas_size.ts";
 import { monoFont } from "@/src/game/presentation/ui/text.ts";
 
@@ -26,7 +27,6 @@ type VerbMenuRect = {
   readonly height: number;
 };
 type VerbHotspotSpec = {
-  readonly glowSrc: string;
   readonly centerX: number;
   readonly centerY: number;
   readonly radiusX: number;
@@ -89,11 +89,9 @@ const MENU_BUTTON_BACKGROUND = "rgba(8, 13, 22, 0.82)";
 const MENU_BUTTON_BORDER = "rgba(125, 211, 252, 0.72)";
 const MENU_BUTTON_TEXT = "#e0f2fe";
 const MENU_BUTTON_SELECTED_BACKGROUND = "rgba(34, 211, 238, 0.28)";
-const VERB_MENU_SPRITE_SRC = new URL("../../../../assets/game/ui/verb_menu_cutout.png", import.meta.url).href;
 const HOTSPOT_SPECS: Readonly<Record<VerbId, VerbHotspotSpec>> = {
   // Body-part directions use the doll's left/right, so ATTACK is the screen-right knife hand.
   attack: {
-    glowSrc: new URL("../../../../assets/game/ui/verb_menu_glow_attack.png", import.meta.url).href,
     centerX: 0.86,
     centerY: 0.39,
     radiusX: 0.13,
@@ -102,7 +100,6 @@ const HOTSPOT_SPECS: Readonly<Record<VerbId, VerbHotspotSpec>> = {
     labelY: 0.19,
   },
   use: {
-    glowSrc: new URL("../../../../assets/game/ui/verb_menu_glow_use.png", import.meta.url).href,
     centerX: 0.17,
     centerY: 0.44,
     radiusX: 0.17,
@@ -111,7 +108,6 @@ const HOTSPOT_SPECS: Readonly<Record<VerbId, VerbHotspotSpec>> = {
     labelY: 0.28,
   },
   open: {
-    glowSrc: new URL("../../../../assets/game/ui/verb_menu_glow_open.png", import.meta.url).href,
     centerX: 0.53,
     centerY: 0.57,
     radiusX: 0.12,
@@ -120,7 +116,6 @@ const HOTSPOT_SPECS: Readonly<Record<VerbId, VerbHotspotSpec>> = {
     labelY: 0.72,
   },
   examine: {
-    glowSrc: new URL("../../../../assets/game/ui/verb_menu_glow_examine.png", import.meta.url).href,
     centerX: 0.5,
     centerY: 0.27,
     radiusX: 0.17,
@@ -129,7 +124,6 @@ const HOTSPOT_SPECS: Readonly<Record<VerbId, VerbHotspotSpec>> = {
     labelY: 0.14,
   },
   talk: {
-    glowSrc: new URL("../../../../assets/game/ui/verb_menu_glow_talk.png", import.meta.url).href,
     centerX: 0.5,
     centerY: 0.37,
     radiusX: 0.16,
@@ -150,25 +144,16 @@ const HOTSPOTS_BY_VERB_ID: Readonly<Record<VerbId, VerbHotspot>> = Object.freeze
   Object.fromEntries(HOTSPOTS.map((hotspot) => [hotspot.verbId, hotspot])) as Record<VerbId, VerbHotspot>,
 );
 
-const spriteAsset = createImageAsset(VERB_MENU_SPRITE_SRC);
-const glowAssets = Object.fromEntries(
-  VERBS.map((verb) => [verb.id, createImageAsset(HOTSPOT_SPECS[verb.id].glowSrc)]),
-) as Record<VerbId, ImageAsset>;
-const IMAGE_ASSETS = Object.freeze([spriteAsset, ...VERBS.map((verb) => glowAssets[verb.id])]);
-
-export async function preloadVerbMenuAssets(document: Document, onAssetLoad?: () => void): Promise<void> {
-  await preloadImageAssets(document, IMAGE_ASSETS, onAssetLoad);
-}
-
 export function renderVerbMenu(
   ctx: CanvasRenderingContext2D,
   canvasSize: GameCanvasSize,
+  assets: VerbMenuAssets,
   _selectedIndex: number,
   hoverTarget?: VerbMenuTarget,
 ): void {
-  const sprite = imageForAsset(spriteAsset);
+  const sprite = imageForAsset(assets.sprite);
   if (sprite !== undefined) {
-    renderSpriteVerbMenu(ctx, canvasSize, hoverTarget, sprite);
+    renderSpriteVerbMenu(ctx, canvasSize, assets, hoverTarget, sprite);
     return;
   }
   renderTextVerbMenu(ctx, canvasSize, hoverTarget);
@@ -344,6 +329,7 @@ function renderTextVerbMenu(
 function renderSpriteVerbMenu(
   ctx: CanvasRenderingContext2D,
   canvasSize: GameCanvasSize,
+  assets: VerbMenuAssets,
   hoverTarget: VerbMenuTarget | undefined,
   sprite: HTMLImageElement,
 ): void {
@@ -351,7 +337,7 @@ function renderSpriteVerbMenu(
   const activeTarget = hoverTarget;
   const selectedVerb = activeTarget?.kind === "verb" ? VERBS[activeTarget.verbIndex] : undefined;
   const selectedHotspot = selectedVerb === undefined ? undefined : HOTSPOTS_BY_VERB_ID[selectedVerb.id];
-  const selectedGlow = selectedHotspot === undefined ? undefined : imageForAsset(glowAssets[selectedHotspot.verbId]);
+  const selectedGlow = selectedHotspot === undefined ? undefined : imageForAsset(assets.glows[selectedHotspot.verbId]);
 
   ctx.save();
   ctx.fillStyle = MENU_SCRIM;

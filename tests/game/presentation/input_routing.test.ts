@@ -275,7 +275,7 @@ Deno.test("routePointerInput maps verb menu pointer input to verb transition eve
 Deno.test("routePointerInput keeps fallback verb routing for unhandled modes", () => {
   assertEquals(
     routePointerInput(
-      modelWithMode({ type: "loading", loaded: 0, total: 0 }),
+      modelWithMode({ type: "loading", completed: 0, total: 0 }),
       CANVAS_SIZE,
       pointer({ phase: "cancel" }),
     ),

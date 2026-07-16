@@ -1,5 +1,6 @@
 import type { CombatFeedback, CombatFeedbackSide, CombatFeedbackTone } from "@/src/game/model/combat_feedback.ts";
-import { createImageAsset, imageForAsset, preloadImageAssets } from "@/src/engine/canvas/mod.ts";
+import { imageForAsset } from "@/src/engine/canvas/mod.ts";
+import type { CombatFeedbackAssets } from "@/src/game/presentation/asset_view.ts";
 import type { GameCanvasSize } from "@/src/game/presentation/canvas_size.ts";
 import type { MapRenderMetrics } from "@/src/game/presentation/top_down/map.ts";
 import { fitText, monoFont } from "@/src/game/presentation/ui/text.ts";
@@ -42,12 +43,6 @@ const D20_ATLAS_COLUMNS = 5;
 const D20_ATLAS_ROWS = 4;
 const D20_MIN_ROLL = 1;
 const D20_MAX_ROLL = 20;
-const combatPanelAsset = createImageAsset(
-  new URL("../../../../assets/game/ui/combat_stats_box.png", import.meta.url).href,
-);
-const d20FacesAsset = createImageAsset(new URL("../../../../assets/game/ui/d20_faces.png", import.meta.url).href);
-const COMBAT_FEEDBACK_IMAGE_ASSETS = Object.freeze([combatPanelAsset, d20FacesAsset]);
-
 type FeedbackRect = {
   readonly x: number;
   readonly y: number;
@@ -60,10 +55,6 @@ export type FirstPersonCombatFeedbackPanel = {
   readonly rect: FeedbackRect;
   readonly feedback: CombatFeedback;
 };
-
-export async function preloadCombatFeedbackAssets(document: Document, onAssetLoad?: () => void): Promise<void> {
-  await preloadImageAssets(document, COMBAT_FEEDBACK_IMAGE_ASSETS, onAssetLoad);
-}
 
 export function renderCombatFeedback(
   ctx: CanvasRenderingContext2D,
@@ -101,6 +92,7 @@ export function renderCombatFeedback(
 export function renderFirstPersonCombatFeedback(
   ctx: CanvasRenderingContext2D,
   canvasSize: GameCanvasSize,
+  assets: CombatFeedbackAssets,
   feedback: readonly CombatFeedback[],
 ): void {
   const panels = firstPersonCombatFeedbackPanels(canvasSize, feedback);
@@ -111,7 +103,7 @@ export function renderFirstPersonCombatFeedback(
   ctx.imageSmoothingEnabled = false;
 
   for (const panel of panels) {
-    renderFirstPersonCombatPanel(ctx, panel);
+    renderFirstPersonCombatPanel(ctx, assets, panel);
   }
 
   ctx.imageSmoothingEnabled = smoothing;
@@ -185,10 +177,11 @@ function firstPersonCombatPanelRect(canvasSize: GameCanvasSize, side: CombatFeed
 
 function renderFirstPersonCombatPanel(
   ctx: CanvasRenderingContext2D,
+  assets: CombatFeedbackAssets,
   panel: FirstPersonCombatFeedbackPanel,
 ): void {
-  const frame = imageForAsset(combatPanelAsset);
-  const d20Faces = imageForAsset(d20FacesAsset);
+  const frame = imageForAsset(assets.panel);
+  const d20Faces = imageForAsset(assets.d20Faces);
 
   ctx.save();
   renderFirstPersonCombatBackdrop(ctx, panel, frame);

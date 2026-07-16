@@ -1,5 +1,6 @@
 import type { AudioSettings } from "@/src/game/model/audio_settings.ts";
 import type { GameCanvasSize } from "@/src/game/presentation/canvas_size.ts";
+import type { PresentationUiAssets } from "@/src/game/presentation/asset_view.ts";
 import type { GameFrameResult, RenderSpy } from "@/src/game/presentation/frame_scratch.ts";
 import type { ShellMode } from "@/src/game/presentation/mode_policy.ts";
 import { renderIntermission } from "@/src/game/presentation/ui/intermission.ts";
@@ -10,6 +11,7 @@ import { renderTitle } from "@/src/game/presentation/ui/title.ts";
 export function renderShellPass(
   ctx: CanvasRenderingContext2D,
   canvasSize: GameCanvasSize,
+  assets: PresentationUiAssets,
   mode: ShellMode,
   audio: AudioSettings,
   interactiveFps: number,
@@ -18,18 +20,18 @@ export function renderShellPass(
 ): GameFrameResult {
   switch (mode.type) {
     case "title":
-      renderTitle(ctx, canvasSize, mode.intent, nowMs, mode.hoverButton, spy);
+      renderTitle(ctx, canvasSize, assets.title, mode.intent, nowMs, mode.hoverButton, spy);
       return { needsFrame: true, ambientOnly: false };
     case "settings":
       renderSettings(ctx, canvasSize, { audio, interactiveFps }, nowMs);
       return { needsFrame: true, ambientOnly: false };
     case "loading": {
-      const subtitle = mode.total > 0 ? `${mode.loaded}/${mode.total}` : undefined;
+      const subtitle = mode.total > 0 ? `${mode.completed}/${mode.total}` : undefined;
       renderStatusOverlay(ctx, canvasSize, "LOADING", subtitle);
       return { needsFrame: false };
     }
     case "intermission":
-      renderIntermission(ctx, canvasSize, mode, nowMs, spy);
+      renderIntermission(ctx, canvasSize, assets.intermission, mode, nowMs, spy);
       return { needsFrame: true, ambientOnly: false };
     default: {
       const _exhaustive: never = mode;

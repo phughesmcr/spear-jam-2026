@@ -2,6 +2,7 @@ import type { PresentationContent, SimulationContent } from "@/src/game/content/
 import type { PresentationViewScratch } from "@/src/game/model/presentation_state.ts";
 import type { ViewMode } from "@/src/game/model/state.ts";
 import type { GameCanvasSize } from "@/src/game/presentation/canvas_size.ts";
+import type { PresentationUiAssets } from "@/src/game/presentation/asset_view.ts";
 import type { FirstPersonRenderer } from "@/src/game/presentation/first_person/renderer.ts";
 import type { GameFrameResultScratch, GameRenderScratch, RenderSpy } from "@/src/game/presentation/frame_scratch.ts";
 import type { FrameRenderSession } from "@/src/game/presentation/session_view.ts";
@@ -26,6 +27,7 @@ export function renderSessionPass(
   scratch: GameRenderScratch,
   session: FrameRenderSession,
   presentation: PresentationViewScratch,
+  assets: PresentationUiAssets,
   viewMode: ViewMode,
   firstPersonRenderer: FirstPersonRenderer | undefined,
   content: PresentationContent,
@@ -57,12 +59,12 @@ export function renderSessionPass(
     frameResult.needsFrame ||= scratch.firstPersonFrame.needsFrame;
     frameResult.ambientOnly = scratch.firstPersonFrame.ambientOnly;
     renderFirstPersonVignette(ctx, playRect);
-    renderWeaponHud(ctx, canvasSize, playerStatus.selectedWeapon, presentation.weaponHudPhase);
-    renderFirstPersonHud(ctx, canvasSize, playerStatus, {
+    renderWeaponHud(ctx, canvasSize, assets.weaponHud, playerStatus.selectedWeapon, presentation.weaponHudPhase);
+    renderFirstPersonHud(ctx, canvasSize, assets.hud, playerStatus, {
       showKeys: presentation.showKeys,
       compassAngle: scratch.firstPersonFrame.cameraAngle,
     });
-    renderFirstPersonCombatFeedback(ctx, canvasSize, presentation.combatFeedback);
+    renderFirstPersonCombatFeedback(ctx, canvasSize, assets.combatFeedback, presentation.combatFeedback);
     return;
   }
 

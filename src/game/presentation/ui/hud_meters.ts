@@ -1,6 +1,7 @@
 import type { AmmoKind, PlayerHealthState, PlayerStatusSnapshot } from "@/src/game/model/state.ts";
 import { KeyColor } from "@/src/game/content/map_entities.ts";
-import { createImageAsset, imageForAsset, preloadImageAssets } from "@/src/engine/canvas/mod.ts";
+import { imageForAsset } from "@/src/engine/canvas/mod.ts";
+import type { HudAssets } from "@/src/game/presentation/asset_view.ts";
 import type { GameCanvasSize } from "@/src/game/presentation/canvas_size.ts";
 import { fitText, monoFont } from "@/src/game/presentation/ui/text.ts";
 
@@ -35,18 +36,6 @@ const KEY_SLOT_RECTS: Readonly<Record<KeyColor, Readonly<UnitRect>>> = {
   [KeyColor.Yellow]: keySlotRect(481, 137, 136, 139),
   [KeyColor.Blue]: keySlotRect(718, 137, 137, 139),
 };
-
-const firstPersonHudAssets = {
-  health: createImageAsset(new URL("../../../../assets/game/ui/health_bar.png", import.meta.url).href),
-  ammo: createImageAsset(new URL("../../../../assets/game/ui/ammo_bar.png", import.meta.url).href),
-  keys: createImageAsset(new URL("../../../../assets/game/ui/key_bar_ryb.png", import.meta.url).href),
-} as const;
-
-const FIRST_PERSON_HUD_IMAGE_ASSETS = Object.freeze([
-  firstPersonHudAssets.health,
-  firstPersonHudAssets.ammo,
-  firstPersonHudAssets.keys,
-]);
 
 type UnitRect = {
   readonly x: number;
@@ -98,13 +87,10 @@ export type FirstPersonHudPanel =
     readonly heldKeys: readonly KeyColor[];
   };
 
-export async function preloadHudAssets(document: Document, onAssetLoad?: () => void): Promise<void> {
-  await preloadImageAssets(document, FIRST_PERSON_HUD_IMAGE_ASSETS, onAssetLoad);
-}
-
 export function renderFirstPersonMeterPanels(
   ctx: CanvasRenderingContext2D,
   canvasSize: GameCanvasSize,
+  assets: HudAssets,
   playerState: PlayerStatusSnapshot,
   options: FirstPersonMeterOptions = {},
 ): void {
@@ -118,13 +104,13 @@ export function renderFirstPersonMeterPanels(
   for (const panel of panels) {
     switch (panel.kind) {
       case "health":
-        renderHealthPanel(ctx, panel);
+        renderHealthPanel(ctx, assets, panel);
         break;
       case "ammo":
-        renderAmmoPanel(ctx, panel);
+        renderAmmoPanel(ctx, assets, panel);
         break;
       case "keys":
-        renderKeyPanel(ctx, panel);
+        renderKeyPanel(ctx, assets, panel);
         break;
     }
   }
@@ -239,9 +225,10 @@ function scaledPanelSize(
 
 function renderHealthPanel(
   ctx: CanvasRenderingContext2D,
+  assets: HudAssets,
   panel: Extract<FirstPersonHudPanel, { kind: "health" }>,
 ): void {
-  const image = imageForAsset(firstPersonHudAssets.health);
+  const image = imageForAsset(assets.health);
   if (image === undefined) return;
 
   const valueRect = rectInPanel(panel.rect, HEALTH_VALUE_RECT);
@@ -256,9 +243,10 @@ function renderHealthPanel(
 
 function renderAmmoPanel(
   ctx: CanvasRenderingContext2D,
+  assets: HudAssets,
   panel: Extract<FirstPersonHudPanel, { kind: "ammo" }>,
 ): void {
-  const image = imageForAsset(firstPersonHudAssets.ammo);
+  const image = imageForAsset(assets.ammo);
   if (image === undefined) return;
 
   const valueRect = rectInPanel(panel.rect, AMMO_VALUE_RECT);
@@ -275,9 +263,10 @@ function renderAmmoPanel(
 
 function renderKeyPanel(
   ctx: CanvasRenderingContext2D,
+  assets: HudAssets,
   panel: Extract<FirstPersonHudPanel, { kind: "keys" }>,
 ): void {
-  const image = imageForAsset(firstPersonHudAssets.keys);
+  const image = imageForAsset(assets.keys);
   if (image === undefined) return;
 
   for (const key of panel.heldKeys) {

@@ -1,6 +1,7 @@
 import { assertEquals } from "@std/assert";
 import { invalidateIntermissionCaches, renderIntermission } from "@/src/game/presentation/ui/intermission.ts";
 import { createRenderSpy } from "@/src/game/presentation/frame_scratch.ts";
+import { createPresentationUiAssets } from "@/src/game/presentation/asset_view.ts";
 
 const FULL_CANVAS = { width: 720, height: 1280 };
 
@@ -8,6 +9,7 @@ Deno.test("renderIntermission reuses cached background across warm frames", () =
   withFakeOffscreenCanvas(() => {
     invalidateIntermissionCaches();
     const ctx = new FakeIntermissionContext();
+    const assets = createPresentationUiAssets().intermission;
     const mode = {
       type: "intermission" as const,
       pages: ["The first breach is open."],
@@ -19,8 +21,8 @@ Deno.test("renderIntermission reuses cached background across warm frames", () =
       revealed: true,
     };
 
-    renderIntermission(ctx as unknown as CanvasRenderingContext2D, FULL_CANVAS, mode, 0, createRenderSpy());
-    renderIntermission(ctx as unknown as CanvasRenderingContext2D, FULL_CANVAS, mode, 16, createRenderSpy());
+    renderIntermission(ctx as unknown as CanvasRenderingContext2D, FULL_CANVAS, assets, mode, 0, createRenderSpy());
+    renderIntermission(ctx as unknown as CanvasRenderingContext2D, FULL_CANVAS, assets, mode, 16, createRenderSpy());
 
     assertEquals(ctx.drawImageCalls, 2);
     assertEquals(FakeOffscreenCanvas.createCount, 1);

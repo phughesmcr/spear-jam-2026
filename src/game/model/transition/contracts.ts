@@ -29,7 +29,7 @@ export type GameModel = {
 export type GameEffect =
   | { readonly type: "render" }
   | { readonly type: "resetFirstPerson" }
-  | { readonly type: "warmMapAssets"; readonly mapName: string }
+  | { readonly type: "scheduleMapAssets"; readonly mapName: string }
   | { readonly type: "closeDialogue" }
   | { readonly type: "setDialogueVoice"; readonly voice?: VoiceId }
   | { readonly type: "ensureInput" }
@@ -45,7 +45,7 @@ export type GameEffect =
 export type GameTransitionEvent =
   | { readonly type: "start"; readonly nowMs?: number }
   | { readonly type: "mapLoaded"; readonly mapName: string }
-  | { readonly type: "loadingProgress"; readonly loaded: number; readonly total: number }
+  | { readonly type: "loadingProgress"; readonly completed: number; readonly total: number }
   | { readonly type: "loadFailed"; readonly message: string }
   | { readonly type: "victoryTransitionComplete"; readonly nowMs?: number }
   | { readonly type: "gameCommand"; readonly command: GameCommand; readonly nowMs?: number }

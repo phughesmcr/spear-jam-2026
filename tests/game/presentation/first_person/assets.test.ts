@@ -29,6 +29,10 @@ class FakeImage {
     this.settled = true;
     for (const listener of this.listeners[type]) listener();
   }
+
+  decode(): Promise<void> {
+    return Promise.resolve();
+  }
 }
 
 class FakeDocument {
@@ -54,15 +58,23 @@ class FakeOffscreenContext {
   imageSmoothingEnabled = true;
   readonly drawCalls: DrawCall[] = [];
   readonly drawError: Error | undefined;
+  readonly failingSourceSuffix: string | undefined;
 
-  constructor(drawError: Error | undefined) {
+  constructor(drawError: Error | undefined, failingSourceSuffix: string | undefined) {
     this.drawError = drawError;
+    this.failingSourceSuffix = failingSourceSuffix;
   }
 
   clearRect(): void {}
 
   drawImage(...args: unknown[]): void {
-    if (this.drawError !== undefined) throw this.drawError;
+    const source = args[0] as { readonly src?: string } | undefined;
+    if (
+      this.drawError !== undefined &&
+      (this.failingSourceSuffix === undefined || source?.src?.endsWith(this.failingSourceSuffix) === true)
+    ) {
+      throw this.drawError;
+    }
     this.drawCalls.push(args);
   }
 
@@ -80,11 +92,12 @@ class FakeOffscreenContext {
 
 class FakeOffscreenCanvas {
   static drawError: Error | undefined;
+  static failingSourceSuffix: string | undefined;
   static instances: FakeOffscreenCanvas[] = [];
 
   readonly width: number;
   readonly height: number;
-  readonly context = new FakeOffscreenContext(FakeOffscreenCanvas.drawError);
+  readonly context = new FakeOffscreenContext(FakeOffscreenCanvas.drawError, FakeOffscreenCanvas.failingSourceSuffix);
 
   constructor(width: number, height: number) {
     this.width = width;
@@ -97,9 +110,14 @@ class FakeOffscreenCanvas {
   }
 }
 
-async function withFakeOffscreenCanvas(run: () => Promise<void>, drawError?: Error): Promise<void> {
+async function withFakeOffscreenCanvas(
+  run: () => Promise<void>,
+  drawError?: Error,
+  failingSourceSuffix?: string,
+): Promise<void> {
   const original = globalThis.OffscreenCanvas;
   FakeOffscreenCanvas.drawError = drawError;
+  FakeOffscreenCanvas.failingSourceSuffix = failingSourceSuffix;
   FakeOffscreenCanvas.instances = [];
   Object.defineProperty(globalThis, "OffscreenCanvas", {
     configurable: true,
@@ -135,8 +153,12 @@ function failUnsettled(document: FakeDocument): void {
   }
 }
 
+async function flushImageSettlement(): Promise<void> {
+  for (let turn = 0; turn < 5; turn++) await Promise.resolve();
+}
+
 Deno.test("first-person assets expose deterministic allocation-free fallback materials", () => {
-  const assets = createFirstPersonAssets();
+  const { view: assets } = createFirstPersonAssets();
   const material = assets.materials.sprite(SpriteId.John);
 
   assert(material !== undefined);
@@ -157,14 +179,14 @@ Deno.test("first-person assets expose deterministic allocation-free fallback mat
 
 Deno.test("required loading selects map sources and compiles lightmaps after their colour crop", async () => {
   await withFakeOffscreenCanvas(async () => {
-    const assets = createFirstPersonAssets();
+    const { loader, view: assets } = createFirstPersonAssets();
     const document = new FakeDocument();
     const planeSlot = assets.materials.floor("pack1:0,0");
     const planeFallback = assets.atlas.planes[planeSlot];
     const john = assets.materials.sprite(SpriteId.John)!;
     const spriteFallback = assets.atlas.sprites[john.slot];
     let callbackCount = 0;
-    const preload = assets.preloadRequired(
+    const preload = loader.loadRequired(
       document as unknown as Document,
       packedMap(),
       new Set([SpriteId.John]),
@@ -177,15 +199,15 @@ Deno.test("required loading selects map sources and compiles lightmaps after the
     assert(!document.images.some((image) => image.src.endsWith("/sprites/digital_dog.png")));
 
     document.imageEnding("/sprites/john_lightmap.png").dispatch("load");
-    await Promise.resolve();
+    await flushImageSettlement();
     assertEquals(assets.atlas.spriteLightmaps[john.slot], undefined);
 
     document.imageEnding("/textures/pack1.png").dispatch("load");
-    await Promise.resolve();
+    await flushImageSettlement();
     assertNotStrictEquals(assets.atlas.planes[planeSlot], planeFallback);
 
     document.imageEnding("/sprites/john.png").dispatch("load");
-    await Promise.resolve();
+    await flushImageSettlement();
     assertNotStrictEquals(assets.atlas.sprites[john.slot], spriteFallback);
     assert(assets.atlas.spriteLightmaps[john.slot] !== undefined);
     assert(john.aspect > 1);
@@ -201,18 +223,18 @@ Deno.test("required loading selects map sources and compiles lightmaps after the
 
 Deno.test("map target registration compiles a texture-pack source warmed earlier", async () => {
   await withFakeOffscreenCanvas(async () => {
-    const assets = createFirstPersonAssets();
+    const { loader, view: assets } = createFirstPersonAssets();
     const document = new FakeDocument();
     const slot = assets.materials.floor("pack1:0,0");
     const fallback = assets.atlas.planes[slot];
-    const warm = assets.warmRemaining(document as unknown as Document);
+    const warm = loader.loadRemaining(document as unknown as Document);
 
     document.imageEnding("/textures/pack1.png").dispatch("load");
-    await Promise.resolve();
+    await flushImageSettlement();
     assertStrictEquals(assets.atlas.planes[slot], fallback);
 
     let callbackCount = 0;
-    const preload = assets.preloadRequired(
+    const preload = loader.loadRequired(
       document as unknown as Document,
       packedMap(),
       new Set(),
@@ -227,45 +249,77 @@ Deno.test("map target registration compiles a texture-pack source warmed earlier
 });
 
 Deno.test("shared sprite URLs load once and repeated preloads are idempotent", async () => {
-  const assets = createFirstPersonAssets();
+  const { loader } = createFirstPersonAssets();
   const document = new FakeDocument();
   const spriteIds = new Set([SpriteId.RedKey, SpriteId.BlueKey]);
-  const first = assets.preloadRequired(document as unknown as Document, defaultMap(), spriteIds);
+  const first = loader.loadRequired(document as unknown as Document, defaultMap(), spriteIds);
 
   assertEquals(
     document.images.filter((image) => image.src.endsWith("/sprites/key_lightmap.png")).length,
     1,
   );
   failUnsettled(document);
-  await first;
+  const results = await first;
+  assertEquals(
+    results.filter((result) =>
+      result.kind === "unavailable" && result.issue.source.endsWith("/sprites/key_lightmap.png")
+    )
+      .length,
+    1,
+  );
   const imageCount = document.images.length;
 
-  await assets.preloadRequired(document as unknown as Document, defaultMap(), spriteIds);
+  await loader.loadRequired(document as unknown as Document, defaultMap(), spriteIds);
   assertEquals(document.images.length, imageCount);
 });
 
 Deno.test("normal image failures settle on fallbacks while raster failures reject", async () => {
-  const failedAssets = createFirstPersonAssets();
+  const { loader: failedLoader, view: failedAssets } = createFirstPersonAssets();
   const failedDocument = new FakeDocument();
   const john = failedAssets.materials.sprite(SpriteId.John)!;
   const fallback = failedAssets.atlas.sprites[john.slot];
-  const failed = failedAssets.preloadRequired(
+  const failed = failedLoader.loadRequired(
     failedDocument as unknown as Document,
     defaultMap(),
     new Set([SpriteId.John]),
   );
   failUnsettled(failedDocument);
-  await failed;
+  const unavailable = await failed;
+  const johnIssue = unavailable.find((result) =>
+    result.kind === "unavailable" && result.issue.source.endsWith("/sprites/john.png")
+  );
+  assert(johnIssue?.kind === "unavailable");
+  assertEquals(johnIssue.issue.stage, "load");
   assertStrictEquals(failedAssets.atlas.sprites[john.slot], fallback);
   assertEquals(failedAssets.atlas.spriteLightmaps[john.slot], undefined);
 
   const rasterError = new Error("raster failed");
   await withFakeOffscreenCanvas(async () => {
-    const assets = createFirstPersonAssets();
+    const { loader } = createFirstPersonAssets();
     const document = new FakeDocument();
-    const preload = assets.preloadRequired(document as unknown as Document, defaultMap(), new Set());
+    const preload = loader.loadRequired(document as unknown as Document, defaultMap(), new Set());
     document.images[0]!.dispatch("load");
     failUnsettled(document);
     await assertRejects(() => preload, Error, rasterError.message);
   }, rasterError);
+});
+
+Deno.test("a request-specific bake failure does not reject an unrelated level request", async () => {
+  const rasterError = new Error("pack raster failed");
+  await withFakeOffscreenCanvas(
+    async () => {
+      const { loader } = createFirstPersonAssets();
+      const document = new FakeDocument();
+      const failing = loader.loadRequired(document as unknown as Document, packedMap(), new Set());
+      const safe = loader.loadRequired(document as unknown as Document, defaultMap(), new Set());
+
+      document.imageEnding("/textures/pack1.png").dispatch("load");
+      await assertRejects(() => failing, Error, rasterError.message);
+
+      failUnsettled(document);
+      await safe;
+    },
+    rasterError,
+    "/textures/pack1.png",
+  );
 });

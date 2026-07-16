@@ -1,6 +1,7 @@
 import type { PlayerStatusSnapshot } from "@/src/game/model/state.ts";
 import { Direction } from "@/src/game/world/direction.ts";
 import { KeyColor } from "@/src/game/content/map_entities.ts";
+import { createPresentationUiAssets } from "@/src/game/presentation/asset_view.ts";
 import { renderFirstPersonHud } from "@/src/game/presentation/ui/hud.ts";
 import {
   firstPersonCompassMarkers,
@@ -10,7 +11,7 @@ import {
   renderFirstPersonCompassAtAngle,
 } from "@/src/game/presentation/ui/hud_compass.ts";
 import type { FirstPersonHudPanel } from "@/src/game/presentation/ui/hud_meters.ts";
-import { firstPersonHudPanels, preloadHudAssets } from "@/src/game/presentation/ui/hud_meters.ts";
+import { firstPersonHudPanels } from "@/src/game/presentation/ui/hud_meters.ts";
 import { assertAlmostEquals, assertEquals } from "@std/assert";
 
 const CANVAS = { width: 720, height: 1280 };
@@ -132,16 +133,18 @@ Deno.test("firstPersonHudPanels shows keys only when explicitly requested", () =
   assertEquals(keys.rect.y, Math.round((CANVAS.height - keys.rect.height) / 2));
 });
 
-Deno.test("renderFirstPersonHud aligns key color overlays to the key bar slots", async () => {
+Deno.test("renderFirstPersonHud aligns key color overlays to the key bar slots", () => {
   const document = new FakeHudDocument();
-  const preload = preloadHudAssets(document as unknown as Document);
-  for (const image of document.images) image.dispatch("load");
-  await preload;
+  const assets = createPresentationUiAssets().hud;
+  for (const asset of Object.values(assets)) {
+    asset.state = { type: "ready", image: new FakeHudImage() as unknown as HTMLImageElement };
+  }
 
   const ctx = new FakeHudContext(document);
   renderFirstPersonHud(
     ctx as unknown as CanvasRenderingContext2D,
     CANVAS,
+    assets,
     playerSnapshot({ heldKeys: [KeyColor.Red, KeyColor.Yellow, KeyColor.Blue] }),
     { showKeys: true },
   );
@@ -199,36 +202,10 @@ function playerSnapshot(patch: PlayerSnapshotPatch = {}): PlayerStatusSnapshot {
   };
 }
 
-type FakeImageEvent = "load" | "error";
-type FakeImageListener = () => void;
-
 class FakeHudImage {
-  decoding: "async" | "auto" | "sync" = "auto";
-  src = "";
-  private readonly listeners: Record<FakeImageEvent, FakeImageListener[]> = {
-    load: [],
-    error: [],
-  };
-
-  addEventListener(type: FakeImageEvent, listener: FakeImageListener): void {
-    this.listeners[type].push(listener);
-  }
-
-  dispatch(type: FakeImageEvent): void {
-    for (const listener of this.listeners[type]) listener();
-  }
 }
 
 class FakeHudDocument {
-  readonly images: FakeHudImage[] = [];
-
-  createElement(tagName: string): FakeHudImage {
-    if (tagName !== "img") throw new Error(`Unexpected tag ${tagName}.`);
-
-    const image = new FakeHudImage();
-    this.images.push(image);
-    return image;
-  }
 }
 
 type FakeEllipseCall = {

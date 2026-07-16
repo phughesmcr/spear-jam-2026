@@ -1,5 +1,6 @@
 import { assertEquals } from "@std/assert";
 import { VERBS } from "@/src/game/model/verbs.ts";
+import { createPresentationUiAssets } from "@/src/game/presentation/asset_view.ts";
 import {
   renderVerbMenu,
   verbMenuButtonRects,
@@ -96,16 +97,18 @@ Deno.test("verbMenuTargetAt maps menu buttons to controls and weapon slots", () 
 
 Deno.test("renderVerbMenu does not highlight a verb without a hover target", () => {
   const ctx = new FakeVerbMenuContext();
+  const assets = createPresentationUiAssets().verbMenu;
 
-  renderVerbMenu(ctx as unknown as CanvasRenderingContext2D, { width: 720, height: 1280 }, 0);
+  renderVerbMenu(ctx as unknown as CanvasRenderingContext2D, { width: 720, height: 1280 }, assets, 0);
 
   assertEquals(ctx.fillRects.some((call) => call.fillStyle === SELECTED_VERB_BACKGROUND), false);
 });
 
 Deno.test("renderVerbMenu highlights the hovered verb in the text fallback menu", () => {
   const ctx = new FakeVerbMenuContext();
+  const assets = createPresentationUiAssets().verbMenu;
 
-  renderVerbMenu(ctx as unknown as CanvasRenderingContext2D, { width: 720, height: 1280 }, 0, {
+  renderVerbMenu(ctx as unknown as CanvasRenderingContext2D, { width: 720, height: 1280 }, assets, 0, {
     kind: "verb",
     verbIndex: 0,
   });

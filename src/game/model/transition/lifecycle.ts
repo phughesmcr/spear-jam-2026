@@ -14,7 +14,7 @@ export function createGameModel(startMapName: string, options: GameModelOptions 
     showTitle: options.showTitle ?? false,
     currentMapName: startMapName,
     presentation: createPresentationState(),
-    mode: { type: "loading", loaded: 0, total: 0 },
+    mode: { type: "loading", completed: 0, total: 0 },
     viewMode: "firstPerson",
     audio: DEFAULT_AUDIO_SETTINGS,
     interactiveFps: DEFAULT_INTERACTIVE_FPS,
@@ -29,7 +29,7 @@ export function startGame(model: GameModel, nowMs: number): GameTransition {
       { type: "applyAudioVolumes" },
       { type: "playMusic", trackId: TrackId.Title },
       { type: "render" },
-      { type: "warmMapAssets", mapName: model.startMapName },
+      { type: "scheduleMapAssets", mapName: model.startMapName },
     ]);
   }
   return beginGame(model, nowMs);
@@ -51,11 +51,11 @@ export function beginGame(model: GameModel, nowMs: number): GameTransition {
         { type: "applyAudioVolumes" },
         { type: "playMusic", trackId: TrackId.Intro },
         { type: "render" },
-        { type: "warmMapAssets", mapName: model.startMapName },
+        { type: "scheduleMapAssets", mapName: model.startMapName },
       ],
     );
   }
-  return done({ ...model, mode: { type: "loading", loaded: 0, total: 0 } }, [
+  return done({ ...model, mode: { type: "loading", completed: 0, total: 0 } }, [
     { type: "applyAudioVolumes" },
     { type: "render" },
     { type: "loadMap", mapName: model.startMapName },
@@ -71,8 +71,8 @@ export function mapLoaded(model: GameModel, mapName: string): GameTransition {
   }, [{ type: "ensureInput" }, { type: "render" }]);
 }
 
-export function loadingProgress(model: GameModel, loaded: number, total: number): GameTransition {
+export function loadingProgress(model: GameModel, completed: number, total: number): GameTransition {
   if (model.mode.type !== "loading") return done(model);
-  if (model.mode.loaded === loaded && model.mode.total === total) return done(model);
-  return done({ ...model, mode: { type: "loading", loaded, total } }, [{ type: "render" }]);
+  if (model.mode.completed === completed && model.mode.total === total) return done(model);
+  return done({ ...model, mode: { type: "loading", completed, total } }, [{ type: "render" }]);
 }

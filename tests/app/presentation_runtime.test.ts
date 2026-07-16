@@ -6,6 +6,8 @@ import { Direction } from "@/src/game/world/direction.ts";
 import { SHIPPED_GAME } from "@/src/game/content/shipped.ts";
 import { createGameMap } from "@/src/game/world/map.ts";
 import type { FirstPersonRenderer } from "@/src/game/presentation/first_person/renderer.ts";
+import { createFirstPersonAssets } from "@/src/game/presentation/first_person/assets/mod.ts";
+import { createPresentationAssetView, type PresentationAssetView } from "@/src/game/presentation/asset_view.ts";
 import { assertEquals } from "@std/assert";
 
 Deno.test("presentation runtime renderNow cancels a pending RAF before rendering immediately", () => {
@@ -14,11 +16,10 @@ Deno.test("presentation runtime renderNow cancels a pending RAF before rendering
   const runtime = createPresentationRuntime({
     content: SHIPPED_GAME.presentation,
     simulationContent: SHIPPED_GAME.simulation,
+    assets: runtimeAssets(),
     host: window as unknown as Window,
-    document: new FakeDocument() as unknown as Document,
     ctx: new FakeContext() as unknown as CanvasRenderingContext2D,
     signal: new AbortController().signal,
-    onError: ignoreError,
     getModel: () => model,
     getSession: () => undefined,
     tickSession: noFrameTick,
@@ -40,11 +41,10 @@ Deno.test("presentation runtime RAF callback clears the pending frame before req
   const runtime = createPresentationRuntime({
     content: SHIPPED_GAME.presentation,
     simulationContent: SHIPPED_GAME.simulation,
+    assets: runtimeAssets(),
     host: window as unknown as Window,
-    document: new FakeDocument() as unknown as Document,
     ctx: new FakeContext() as unknown as CanvasRenderingContext2D,
     signal: new AbortController().signal,
-    onError: ignoreError,
     getModel: () => modelNeedingFrame(),
     getSession: () => undefined,
     tickSession: noFrameTick,
@@ -74,11 +74,10 @@ Deno.test("presentation runtime RAF skips work until the interactive fps budget 
     const runtime = createPresentationRuntime({
       content: SHIPPED_GAME.presentation,
       simulationContent: SHIPPED_GAME.simulation,
+      assets: runtimeAssets(),
       host: window as unknown as Window,
-      document: new FakeDocument() as unknown as Document,
       ctx: new FakeContext() as unknown as CanvasRenderingContext2D,
       signal: new AbortController().signal,
-      onError: ignoreError,
       getModel: () => {
         updateCount++;
         return modelNeedingFrame();
@@ -123,11 +122,10 @@ Deno.test("presentation runtime RAF uses the model interactiveFps for the intera
     const runtime = createPresentationRuntime({
       content: SHIPPED_GAME.presentation,
       simulationContent: SHIPPED_GAME.simulation,
+      assets: runtimeAssets(),
       host: window as unknown as Window,
-      document: new FakeDocument() as unknown as Document,
       ctx: new FakeContext() as unknown as CanvasRenderingContext2D,
       signal: new AbortController().signal,
-      onError: ignoreError,
       getModel: () => {
         updateCount++;
         return { ...modelNeedingFrame(), interactiveFps: 12 };
@@ -178,11 +176,10 @@ Deno.test("presentation runtime RAF uses a 12 fps budget for ambient-only first-
     const runtime = createPresentationRuntime({
       content: SHIPPED_GAME.presentation,
       simulationContent: SHIPPED_GAME.simulation,
+      assets: runtimeAssets(),
       host: window as unknown as Window,
-      document: new FakeDocument() as unknown as Document,
       ctx: new FakeContext() as unknown as CanvasRenderingContext2D,
       signal: new AbortController().signal,
-      onError: ignoreError,
       getModel: () => {
         updateCount++;
         return playingModel();
@@ -223,11 +220,10 @@ Deno.test("presentation runtime dispose cancels its pending RAF", () => {
   const runtime = createPresentationRuntime({
     content: SHIPPED_GAME.presentation,
     simulationContent: SHIPPED_GAME.simulation,
+    assets: runtimeAssets(),
     host: window as unknown as Window,
-    document: new FakeDocument() as unknown as Document,
     ctx: new FakeContext() as unknown as CanvasRenderingContext2D,
     signal: new AbortController().signal,
-    onError: ignoreError,
     getModel: () => modelNeedingFrame(),
     getSession: () => undefined,
     tickSession: noFrameTick,
@@ -239,50 +235,6 @@ Deno.test("presentation runtime dispose cancels its pending RAF", () => {
   runtime[Symbol.dispose]();
 
   assertEquals(window.cancelledFrameIds, [1]);
-});
-
-Deno.test("presentation runtime forwards a rejected background asset warm to onError exactly once", async () => {
-  const failure = new Error("warm failed");
-  const errors: unknown[] = [];
-  const hadOwnIdleCallback = Object.hasOwn(globalThis, "requestIdleCallback");
-  const ownIdleCallback = Object.getOwnPropertyDescriptor(globalThis, "requestIdleCallback");
-  Object.defineProperty(globalThis, "requestIdleCallback", {
-    configurable: true,
-    writable: true,
-    value: (callback: () => void): number => {
-      callback();
-      return 1;
-    },
-  });
-
-  try {
-    const runtime = createPresentationRuntime({
-      content: SHIPPED_GAME.presentation,
-      simulationContent: SHIPPED_GAME.simulation,
-      host: new FakeWindow() as unknown as Window,
-      document: new FakeDocument() as unknown as Document,
-      ctx: new FakeContext() as unknown as CanvasRenderingContext2D,
-      signal: new AbortController().signal,
-      onError: (error) => errors.push(error),
-      getModel: () => modelWithoutFrame(),
-      getSession: () => undefined,
-      tickSession: noFrameTick,
-      firstPersonRenderer: fakeFirstPersonRenderer({ needsFrame: false }, failure),
-    });
-
-    runtime.warmDeferredAssets(SHIPPED_GAME.levels.start);
-    await new Promise((resolve) => setTimeout(resolve, 0));
-
-    assertEquals(errors.length, 1);
-    assertEquals(errors[0], failure);
-    runtime[Symbol.dispose]();
-  } finally {
-    if (hadOwnIdleCallback && ownIdleCallback !== undefined) {
-      Object.defineProperty(globalThis, "requestIdleCallback", ownIdleCallback);
-    } else {
-      delete (globalThis as { requestIdleCallback?: typeof requestIdleCallback }).requestIdleCallback;
-    }
-  }
 });
 
 function modelNeedingFrame(): GameModel {
@@ -310,15 +262,8 @@ function playingModel(): GameModel {
 
 function fakeFirstPersonRenderer(
   result: { readonly needsFrame: boolean; readonly ambientOnly?: boolean } = { needsFrame: false },
-  warmError?: unknown,
 ): FirstPersonRenderer {
   return {
-    preloadMapAssets() {
-      return Promise.resolve();
-    },
-    warmRemainingAssets() {
-      return warmError === undefined ? Promise.resolve() : Promise.reject(warmError);
-    },
     reset() {},
     bump() {},
     render(_ctx, _rect, _session, _nowMs, out) {
@@ -329,7 +274,9 @@ function fakeFirstPersonRenderer(
   };
 }
 
-function ignoreError(_error: unknown): void {}
+function runtimeAssets(): PresentationAssetView {
+  return createPresentationAssetView(createFirstPersonAssets().view);
+}
 
 function noFrameTick(): { readonly needsFrame: false } {
   return { needsFrame: false };

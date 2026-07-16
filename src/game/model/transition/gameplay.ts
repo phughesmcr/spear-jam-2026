@@ -36,7 +36,7 @@ export function defeatCommand(model: GameModel, command: GameCommand): GameTrans
   const resetModel = {
     ...model,
     presentation: createPresentationState(),
-    mode: { type: "loading", loaded: 0, total: 0 },
+    mode: { type: "loading", completed: 0, total: 0 },
   } satisfies GameModel;
   return done(resetModel, [{ type: "render" }, { type: "retryMap", mapName: model.currentMapName }]);
 }
@@ -82,7 +82,7 @@ export function playerCommandResult(
           completion: { type: "loadMap", mapName: result.mapChange.goto },
           nowMs,
         }),
-        [{ type: "render" }, { type: "warmMapAssets", mapName: result.mapChange.goto }],
+        [{ type: "render" }, { type: "scheduleMapAssets", mapName: result.mapChange.goto }],
       );
     case "dialogue":
       return done({

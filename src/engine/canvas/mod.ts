@@ -5,4 +5,4 @@ export type CanvasSize = {
 };
 
 export { createImageAsset, imageForAsset, preloadImageAsset, preloadImageAssets } from "./image_assets.ts";
-export type { ImageAsset } from "./image_assets.ts";
+export type { ImageAsset, ImageAssetIssue, ImageAssetResult, ImageAssetState } from "./image_assets.ts";

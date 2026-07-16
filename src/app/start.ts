@@ -2,6 +2,11 @@ import { setupInput } from "@/src/app/input.ts";
 import { type AudioRuntime, createAudioRuntime } from "@/src/app/audio_runtime.ts";
 import { createGameExecution, type GameExecution } from "@/src/app/game_execution.ts";
 import { createPresentationRuntime, type PresentationRuntime } from "@/src/app/presentation_runtime.ts";
+import {
+  createPresentationAssetIdleScheduler,
+  createPresentationAssets,
+  type PresentationAssets,
+} from "@/src/app/presentation_assets.ts";
 import type { PointerInput } from "@/src/engine/input/mod.ts";
 import type { GameCommand } from "@/src/game/model/commands.ts";
 import { SHIPPED_GAME } from "@/src/game/content/shipped.ts";
@@ -40,6 +45,7 @@ export function startGame(spec: GameSpec): GameController {
 class Game implements GameController {
   private readonly spec: GameSpec;
   private readonly controller: AbortController;
+  private readonly assets: PresentationAssets;
   private readonly presentation: PresentationRuntime;
   private readonly audio: AudioRuntime;
   private readonly execution: GameExecution;
@@ -58,22 +64,27 @@ class Game implements GameController {
       showIntro: fullBoot,
     });
     const executionRef: { current?: GameExecution } = {};
+    const presentationRef: { current?: PresentationRuntime } = {};
     const getSession = () => executionRef.current?.getSession();
+    this.assets = createPresentationAssets({
+      document: spec.canvas.ownerDocument,
+      content: SHIPPED_GAME.presentation,
+      simulationContent: SHIPPED_GAME.simulation,
+      idle: createPresentationAssetIdleScheduler(spec.host),
+      onAssetChange: () => presentationRef.current?.renderNow(),
+    });
     this.presentation = createPresentationRuntime({
       content: SHIPPED_GAME.presentation,
       simulationContent: SHIPPED_GAME.simulation,
+      assets: this.assets.view(),
       host: spec.host,
-      document: spec.canvas.ownerDocument,
       ctx: spec.ctx,
       signal: controller.signal,
       getModel: () => this.model,
       getSession,
       tickSession: (modeType, nowMs) => executionRef.current?.tick(modeType, nowMs) ?? NO_FRAME,
-      onError: (error) => this.handleLoadError(error),
-      onLoadingProgress: (loaded, total) => {
-        this.apply({ type: "loadingProgress", loaded, total });
-      },
     });
+    presentationRef.current = this.presentation;
     this.audio = createAudioRuntime({
       content: SHIPPED_GAME.audio,
       host: spec.host,
@@ -85,12 +96,14 @@ class Game implements GameController {
       signal: controller.signal,
       seed: spec.seed,
       cheat: spec.cheat,
+      assets: this.assets,
       presentation: this.presentation,
       audio: this.audio,
       getModel: () => this.model,
       apply: (event) => this.apply(event),
       ensureInput: () => this.ensureInput(),
       onError: (error) => this.handleLoadError(error),
+      onDiagnostic: (error) => this.reportAssetDiagnostic(error),
     });
     this.execution = executionRef.current;
     this.canvasController = canvasSizeController(
@@ -105,7 +118,9 @@ class Game implements GameController {
   start(): void {
     this.presentation.start();
     this.apply({ type: "start", nowMs: performance.now() });
-    this.presentation.warmShellAssets();
+    void this.assets.prepare({ kind: "shell" }, { urgency: "idle" }).catch((error) => {
+      this.reportAssetDiagnostic(error);
+    });
   }
 
   unlockAudio(): Promise<void> {
@@ -119,6 +134,11 @@ class Game implements GameController {
       type: "loadFailed",
       message: error instanceof Error ? error.message : "Unknown error",
     });
+  }
+
+  private reportAssetDiagnostic(error: unknown): void {
+    if (this.controller.signal.aborted) return;
+    console.warn("Presentation asset preparation failed.", error);
   }
 
   private handleGameCommand(command: GameCommand): void {
@@ -158,6 +178,7 @@ class Game implements GameController {
     this.controller.abort();
     this.inputController?.[Symbol.dispose]();
     this.execution[Symbol.dispose]();
+    this.assets[Symbol.dispose]();
     this.presentation[Symbol.dispose]();
     this.audio[Symbol.dispose]();
     this.canvasController?.[Symbol.dispose]();

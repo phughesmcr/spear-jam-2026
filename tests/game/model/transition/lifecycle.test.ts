@@ -5,7 +5,7 @@ import { assertEquals } from "@std/assert";
 Deno.test("transition starts with render and map loading effects", () => {
   const result = transition(createGameModel("Level 1"), { type: "start" });
 
-  assertEquals(result.model.mode, { type: "loading", loaded: 0, total: 0 });
+  assertEquals(result.model.mode, { type: "loading", completed: 0, total: 0 });
   assertEquals(result.effects, [
     { type: "applyAudioVolumes" },
     { type: "render" },
@@ -25,7 +25,7 @@ Deno.test("transition can start on the title screen before beginning the game", 
     { type: "applyAudioVolumes" },
     { type: "playMusic", trackId: TrackId.Title },
     { type: "render" },
-    { type: "warmMapAssets", mapName: "Level 1" },
+    { type: "scheduleMapAssets", mapName: "Level 1" },
   ]);
 
   result = transition(result.model, { type: "gameCommand", command: { type: "wait" }, nowMs: 1000 });
@@ -37,7 +37,7 @@ Deno.test("transition can start on the title screen before beginning the game", 
     { type: "applyAudioVolumes" },
     { type: "playMusic", trackId: TrackId.Intro },
     { type: "render" },
-    { type: "warmMapAssets", mapName: "Level 1" },
+    { type: "scheduleMapAssets", mapName: "Level 1" },
   ]);
 });
 
@@ -45,7 +45,7 @@ Deno.test("title start without intro loads the start map", () => {
   const titled = transition(createGameModel("Level 1", { showTitle: true }), { type: "start" }).model;
   const result = transition(titled, { type: "gameCommand", command: { type: "wait" } });
 
-  assertEquals(result.model.mode, { type: "loading", loaded: 0, total: 0 });
+  assertEquals(result.model.mode, { type: "loading", completed: 0, total: 0 });
   assertEquals(result.effects, [
     { type: "applyAudioVolumes" },
     { type: "render" },
@@ -73,7 +73,7 @@ Deno.test("transition can start with an intro intermission before loading the fi
     { type: "applyAudioVolumes" },
     { type: "playMusic", trackId: TrackId.Intro },
     { type: "render" },
-    { type: "warmMapAssets", mapName: "Level 1" },
+    { type: "scheduleMapAssets", mapName: "Level 1" },
   ]);
 
   result = transition(result.model, { type: "gameCommand", command: { type: "wait" }, nowMs: 1000 });
@@ -93,7 +93,7 @@ Deno.test("transition can start with an intro intermission before loading the fi
 
   mode = { ...mode, pageIndex: mode.pages.length - 1, revealed: true };
   result = transition({ ...result.model, mode }, { type: "gameCommand", command: { type: "wait" }, nowMs: 1000 });
-  assertEquals(result.model.mode, { type: "loading", loaded: 0, total: 0 });
+  assertEquals(result.model.mode, { type: "loading", completed: 0, total: 0 });
   assertEquals(result.effects, [
     { type: "render" },
     { type: "loadMap", mapName: "Level 1" },

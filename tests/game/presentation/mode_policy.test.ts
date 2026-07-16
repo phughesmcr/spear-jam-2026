@@ -23,7 +23,7 @@ Deno.test("renderLayerPolicy skips session underlays for shell modes", () => {
       opaqueFirstPerson: false,
     },
   );
-  assertEquals(renderLayerPolicy({ type: "loading", loaded: 0, total: 0 }, "firstPerson"), {
+  assertEquals(renderLayerPolicy({ type: "loading", completed: 0, total: 0 }, "firstPerson"), {
     opaqueFirstPerson: false,
   });
 });

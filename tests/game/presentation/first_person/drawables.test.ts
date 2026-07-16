@@ -61,7 +61,7 @@ function door(overrides: Partial<Extract<DrawableEntity, { kind: typeof Drawable
 }
 
 Deno.test("drawables add ordinary and glass doors with semantic materials", () => {
-  const materials = createFirstPersonAssets().materials;
+  const materials = createFirstPersonAssets().view.materials;
   const state = createDrawableState();
   const map = createDoorMap();
   const scene = createTestScene();
@@ -100,7 +100,7 @@ Deno.test("drawables add ordinary and glass doors with semantic materials", () =
 });
 
 Deno.test("drawables keep secret doors on the sliding-solid path", () => {
-  const materials = createFirstPersonAssets().materials;
+  const materials = createFirstPersonAssets().view.materials;
   const map = createDoorMap();
   const scene = createTestScene();
   const cell = 1 * scene.mapWidth + 2;
@@ -137,7 +137,7 @@ Deno.test("drawables keep secret doors on the sliding-solid path", () => {
 });
 
 Deno.test("drawables animate a door from its current openness", () => {
-  const materials = createFirstPersonAssets().materials;
+  const materials = createFirstPersonAssets().view.materials;
   const state = createDrawableState();
   const map = createDoorMap();
   const scene = createTestScene();
@@ -161,7 +161,7 @@ Deno.test("drawables animate a door from its current openness", () => {
 });
 
 Deno.test("drawables choose directional attack sprites and pass actor health", () => {
-  const materials = createFirstPersonAssets().materials;
+  const materials = createFirstPersonAssets().view.materials;
   const scene = createTestScene();
   const nowMs = 100;
   const actor: DrawableEntity = {
@@ -194,7 +194,7 @@ Deno.test("drawables choose directional attack sprites and pass actor health", (
 });
 
 Deno.test("drawables tween moving actors and select the walk frame", () => {
-  const materials = createFirstPersonAssets().materials;
+  const materials = createFirstPersonAssets().view.materials;
   const state = createDrawableState();
   const scene = createTestScene();
   const map = createDoorMap();
@@ -225,7 +225,7 @@ Deno.test("drawables tween moving actors and select the walk frame", () => {
 });
 
 Deno.test("drawables select death sheet frames", () => {
-  const materials = createFirstPersonAssets().materials;
+  const materials = createFirstPersonAssets().view.materials;
   const scene = createTestScene();
   const nowMs = SPRITE_DEATH_MS / 2;
   const corpse: DrawableEntity = {
@@ -252,7 +252,7 @@ Deno.test("drawables select death sheet frames", () => {
 });
 
 Deno.test("drawables apply item bob, elevation, scale, and ceiling clipping metadata", () => {
-  const materials = createFirstPersonAssets().materials;
+  const materials = createFirstPersonAssets().view.materials;
   const state = createDrawableState();
   const map = createDoorMap();
   const scene = createTestScene();

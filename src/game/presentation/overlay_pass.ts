@@ -1,5 +1,6 @@
 import type { PresentationViewScratch } from "@/src/game/model/presentation_state.ts";
 import type { GameCanvasSize } from "@/src/game/presentation/canvas_size.ts";
+import type { PresentationUiAssets } from "@/src/game/presentation/asset_view.ts";
 import type { GameFrameResult, GameFrameResultScratch, RenderSpy } from "@/src/game/presentation/frame_scratch.ts";
 import type { OverlayMode } from "@/src/game/presentation/mode_policy.ts";
 import { renderDialogue } from "@/src/game/presentation/ui/dialogue.ts";
@@ -11,6 +12,7 @@ import { renderVerbMenu } from "@/src/game/presentation/ui/verb_menu.ts";
 export function renderOverlayPass(
   ctx: CanvasRenderingContext2D,
   canvasSize: GameCanvasSize,
+  assets: PresentationUiAssets,
   mode: OverlayMode,
   presentation: PresentationViewScratch,
   nowMs: number,
@@ -25,10 +27,10 @@ export function renderOverlayPass(
       renderStatusOverlay(ctx, canvasSize, "PAUSED", "P to resume");
       return { needsFrame: false };
     case "help":
-      renderHelp(ctx, canvasSize);
+      renderHelp(ctx, canvasSize, assets.help);
       return { needsFrame: false };
     case "dialogue":
-      renderDialogue(ctx, canvasSize, mode);
+      renderDialogue(ctx, canvasSize, assets.dialogue, mode);
       return { needsFrame: false };
     case "defeat":
       renderStatusOverlay(ctx, canvasSize, "DEFEAT", "Space to retry level");
@@ -40,7 +42,7 @@ export function renderOverlayPass(
       renderStatusOverlay(ctx, canvasSize, "LOAD FAILED", mode.message);
       return { needsFrame: false };
     case "verbMenu":
-      renderVerbMenu(ctx, canvasSize, mode.selectedIndex, mode.hoverTarget);
+      renderVerbMenu(ctx, canvasSize, assets.verbMenu, mode.selectedIndex, mode.hoverTarget);
       return finalizePlayingFrame(frameResult, presentation);
     case "playing":
       return finalizePlayingFrame(frameResult, presentation);

@@ -4,7 +4,8 @@ import {
   isMessageRevealed,
   visibleCharacterCount,
 } from "@/src/game/model/intermission.ts";
-import { createImageAsset, imageForAsset, preloadImageAsset } from "@/src/engine/canvas/mod.ts";
+import { imageForAsset } from "@/src/engine/canvas/mod.ts";
+import type { PresentationUiAssets } from "@/src/game/presentation/asset_view.ts";
 import type { GameCanvasSize } from "@/src/game/presentation/canvas_size.ts";
 import type { RenderSpy } from "@/src/game/presentation/frame_scratch.ts";
 import { fitText, monoFont } from "@/src/game/presentation/ui/text.ts";
@@ -29,10 +30,7 @@ const PROMPT_TEXT = "#8ef7a6";
 const PROMPT_SHADOW = "rgba(0, 0, 0, 0.92)";
 const PROMPT_BLINK_MS = 760;
 const MAX_WRAP_LINES = 64;
-const VICTORY_BACKGROUND_SRC = new URL("../../../../assets/game/endscreen.png", import.meta.url).href;
 const VICTORY_OVERLAY_COLOR = "rgba(2, 4, 6, 0.64)";
-
-const victoryBackgroundAsset = createImageAsset(VICTORY_BACKGROUND_SRC);
 
 type IntermissionLayoutCache = {
   width: number;
@@ -69,13 +67,10 @@ let layoutCache: IntermissionLayoutCache | undefined;
 let contentCache: IntermissionContentCache | undefined;
 let backgroundCache: IntermissionBackgroundCache | undefined;
 
-export async function preloadIntermissionAssets(document: Document, onAssetLoad?: () => void): Promise<void> {
-  await preloadImageAsset(document, victoryBackgroundAsset, onAssetLoad);
-}
-
 export function renderIntermission(
   ctx: CanvasRenderingContext2D,
   canvasSize: GameCanvasSize,
+  assets: PresentationUiAssets["intermission"],
   intermission: IntermissionMode,
   nowMs: number,
   _spy?: RenderSpy,
@@ -90,7 +85,7 @@ export function renderIntermission(
   ctx.save();
   ctx.globalAlpha = 1;
   ctx.globalCompositeOperation = "source-over";
-  drawBackground(ctx, canvasSize, intermission.background);
+  drawBackground(ctx, canvasSize, assets, intermission.background);
   drawTitle(ctx, layout, title);
   drawMessage(ctx, layout, content, visibleChars, revealed);
   drawPrompt(ctx, layout, content.fittedPrompt, nowMs);
@@ -248,10 +243,11 @@ function fillWrappedLines(
 function drawBackground(
   ctx: CanvasRenderingContext2D,
   canvasSize: GameCanvasSize,
+  assets: PresentationUiAssets["intermission"],
   background: IntermissionMode["background"],
 ): void {
   if (background === "victory") {
-    drawVictoryBackground(ctx, canvasSize);
+    drawVictoryBackground(ctx, canvasSize, assets);
     return;
   }
 
@@ -268,8 +264,12 @@ function drawSystemBackground(ctx: CanvasRenderingContext2D, canvasSize: GameCan
   paintIntermissionBackground(ctx, canvasSize.width, canvasSize.height);
 }
 
-function drawVictoryBackground(ctx: CanvasRenderingContext2D, canvasSize: GameCanvasSize): void {
-  const image = imageForAsset(victoryBackgroundAsset);
+function drawVictoryBackground(
+  ctx: CanvasRenderingContext2D,
+  canvasSize: GameCanvasSize,
+  assets: PresentationUiAssets["intermission"],
+): void {
+  const image = imageForAsset(assets.victoryBackground);
   if (image === undefined) {
     drawSystemBackground(ctx, canvasSize);
     return;

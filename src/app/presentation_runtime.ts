@@ -6,16 +6,11 @@ import {
   frameMsForFps,
 } from "@/src/game/model/render_settings.ts";
 import type { GameModel } from "@/src/game/model/transition/mod.ts";
-import type { CompiledLevel, PresentationContent, SimulationContent } from "@/src/game/content/catalog.ts";
+import type { PresentationContent, SimulationContent } from "@/src/game/content/catalog.ts";
+import type { PresentationAssetView } from "@/src/game/presentation/asset_view.ts";
 import { DEFAULT_GAME_CANVAS_SIZE, type GameCanvasSize } from "@/src/game/presentation/canvas_size.ts";
 import { createFirstPersonRenderer, type FirstPersonRenderer } from "@/src/game/presentation/first_person/renderer.ts";
 import { createGameRenderScratch } from "@/src/game/presentation/frame_scratch.ts";
-import {
-  preloadGameAssets,
-  warmDeferredAssets,
-  warmMapAssets,
-  warmShellAssets,
-} from "@/src/game/presentation/preload.ts";
 import { renderGameFrame } from "@/src/game/presentation/render.ts";
 import type { FrameRenderSession } from "@/src/game/presentation/session_view.ts";
 
@@ -27,16 +22,14 @@ export type PresentationRuntimeSpec = {
     SimulationContent,
     "defaultEnemy" | "enemyForCode" | "enemyForKey" | "itemKindForKey" | "weapon"
   >;
+  readonly assets: PresentationAssetView;
   readonly host: Window;
-  readonly document: Document;
   readonly ctx: CanvasRenderingContext2D;
   readonly signal: AbortSignal;
   readonly getModel: () => GameModel;
   readonly getSession: () => FrameRenderSession | undefined;
   readonly tickSession: (modeType: GameModel["mode"]["type"], nowMs: number) => { readonly needsFrame: boolean };
-  readonly onError: (error: unknown) => void;
   readonly firstPersonRenderer?: FirstPersonRenderer;
-  readonly onLoadingProgress?: (loaded: number, total: number) => void;
 };
 
 export interface PresentationRuntime extends Disposable {
@@ -44,10 +37,6 @@ export interface PresentationRuntime extends Disposable {
   start(): void;
   resize(size: GameCanvasSize): void;
   renderNow(): void;
-  preloadAssets(level: CompiledLevel): Promise<void>;
-  warmShellAssets(): void;
-  warmMapAssets(level: CompiledLevel): void;
-  warmDeferredAssets(level: CompiledLevel): void;
   resetFirstPerson(): void;
   bumpFirstPerson(dx: number, dy: number, nowMs: number): void;
 }
@@ -77,13 +66,9 @@ class Runtime implements PresentationRuntime {
     }
     this.updateAndRender(nowMs);
   };
-  private readonly renderLoadedAssets = (): void => {
-    if (this.started) this.renderNow();
-  };
-
   constructor(spec: PresentationRuntimeSpec) {
     this.spec = spec;
-    this.firstPersonRenderer = spec.firstPersonRenderer ?? createFirstPersonRenderer();
+    this.firstPersonRenderer = spec.firstPersonRenderer ?? createFirstPersonRenderer(spec.assets.firstPerson);
   }
 
   get canvasSize(): GameCanvasSize {
@@ -103,42 +88,6 @@ class Runtime implements PresentationRuntime {
     if (!this.started || this.spec.signal.aborted) return;
     this.cancelPendingFrame();
     this.updateAndRender(performance.now());
-  }
-
-  async preloadAssets(level: CompiledLevel): Promise<void> {
-    await preloadGameAssets(this.spec.document, this.firstPersonRenderer, {
-      level,
-      content: this.spec.content,
-      simulationContent: this.spec.simulationContent,
-      onAssetLoad: this.renderLoadedAssets,
-      onProgress: (progress) => this.spec.onLoadingProgress?.(progress.loaded, progress.total),
-    });
-  }
-
-  warmShellAssets(): void {
-    warmShellAssets(this.spec.document, this.spec.onError, this.renderLoadedAssets);
-  }
-
-  warmMapAssets(level: CompiledLevel): void {
-    warmMapAssets(
-      this.spec.document,
-      this.firstPersonRenderer,
-      level,
-      this.spec.content,
-      this.spec.simulationContent,
-      this.spec.onError,
-      this.renderLoadedAssets,
-    );
-  }
-
-  warmDeferredAssets(level: CompiledLevel): void {
-    warmDeferredAssets(
-      this.spec.document,
-      this.firstPersonRenderer,
-      level,
-      this.spec.onError,
-      this.renderLoadedAssets,
-    );
   }
 
   resetFirstPerson(): void {
@@ -164,6 +113,7 @@ class Runtime implements PresentationRuntime {
     const renderResult = renderGameFrame({
       ctx: this.spec.ctx,
       canvasSize: this.currentCanvasSize,
+      assets: this.spec.assets,
       scratch: this.renderScratch,
       session,
       mode: model.mode,

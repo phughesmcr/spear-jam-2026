@@ -13,7 +13,12 @@ import {
   type WallTexture,
 } from "@/src/game/world/map.ts";
 import { isTexturePackRef, parseTexturePackRef, SKY_CEILING_TEXTURE } from "@/src/game/world/terrain_palette.ts";
-import { createImageAsset, type ImageAsset, preloadImageAsset } from "@/src/engine/canvas/mod.ts";
+import {
+  createImageAsset,
+  type ImageAsset,
+  type ImageAssetResult,
+  preloadImageAsset,
+} from "@/src/engine/canvas/mod.ts";
 import {
   type ContentCrop,
   createImageTextureBaker,
@@ -55,6 +60,7 @@ type SpriteEntry = {
   readonly definition: FirstPersonSpriteDefinition;
   readonly materials: readonly MutableSpriteMaterial[];
   readonly sources: readonly ManagedSource[];
+  readonly targets: readonly BakeTarget[];
 };
 
 type ManagedSource = {
@@ -92,6 +98,7 @@ type PipelineState = {
   readonly targets: BakeTarget[];
   readonly targetsByLayerSlot: Map<string, BakeTarget>;
   readonly fixedSources: ReadonlySet<ManagedSource>;
+  readonly fixedTargets: ReadonlySet<BakeTarget>;
   readonly packSources: ReadonlyMap<TexturePack, ManagedSource>;
   readonly spritesById: ReadonlyMap<SpriteIdType, SpriteEntry>;
 };
@@ -114,24 +121,34 @@ const SPRITE_CROP_MARGIN = 0.05;
 export function createFirstPersonAssetPipeline() {
   const catalog = createFirstPersonAssetCatalog();
   const state = createPipelineState(catalog);
-  return {
+  const view = {
     atlas: state.atlas,
     materials: createMaterials(state),
-    preloadRequired(
-      document: Document,
-      map: GameMap,
-      spriteIds: ReadonlySet<SpriteIdType>,
-      onChange?: () => void,
-    ): Promise<void> {
-      const sources = new Set(state.fixedSources);
-      for (const source of registerMapTargets(state, map)) sources.add(source);
-      for (const spriteId of spriteIds) {
-        for (const source of state.spritesById.get(spriteId)?.sources ?? []) sources.add(source);
-      }
-      return loadSources(state, document, sources, onChange);
-    },
-    warmRemaining(document: Document, onChange?: () => void): Promise<void> {
-      return loadSources(state, document, state.sourcesByUrl.values(), onChange);
+  };
+  return {
+    view,
+    loader: {
+      loadRequired(
+        document: Document,
+        map: GameMap,
+        spriteIds: ReadonlySet<SpriteIdType>,
+        onChange?: () => void,
+      ): Promise<readonly ImageAssetResult[]> {
+        const sources = new Set(state.fixedSources);
+        const targets = new Set(state.fixedTargets);
+        const mapSelection = registerMapTargets(state, map);
+        for (const source of mapSelection.sources) sources.add(source);
+        for (const target of mapSelection.targets) targets.add(target);
+        for (const spriteId of spriteIds) {
+          const sprite = state.spritesById.get(spriteId);
+          for (const source of sprite?.sources ?? []) sources.add(source);
+          for (const target of sprite?.targets ?? []) targets.add(target);
+        }
+        return loadSources(state, document, sources, targets, onChange);
+      },
+      loadRemaining(document: Document, onChange?: () => void): Promise<readonly ImageAssetResult[]> {
+        return loadSources(state, document, state.sourcesByUrl.values(), state.targets, onChange);
+      },
     },
   };
 }
@@ -146,10 +163,13 @@ function createPipelineState(catalog: FirstPersonAssetCatalog): PipelineState {
   };
 
   const fixedSources = new Set<ManagedSource>();
+  const fixedTargets = new Set<BakeTarget>();
   for (const recipe of catalog.fixedImages) {
     const source = managedSource(mutable.sourcesByUrl, recipe.src);
     fixedSources.add(source);
-    for (const target of recipe.targets) registerTarget(mutable, source, target, { kind: "none" });
+    for (const target of recipe.targets) {
+      fixedTargets.add(registerTarget(mutable, source, target, { kind: "none" }));
+    }
   }
 
   const packSources = new Map<TexturePack, ManagedSource>();
@@ -162,7 +182,7 @@ function createPipelineState(catalog: FirstPersonAssetCatalog): PipelineState {
     spritesById.set(definition.spriteId, registerSprite(mutable, definition));
   }
 
-  return { ...mutable, fixedSources, packSources, spritesById };
+  return { ...mutable, fixedSources, fixedTargets, packSources, spritesById };
 }
 
 function managedSource(sourcesByUrl: Map<string, ManagedSource>, src: string): ManagedSource {
@@ -190,14 +210,15 @@ function registerSprite(
     }),
   );
   const sourceDefinition = definition.source;
-  if (sourceDefinition === undefined) return { definition, materials, sources: [] };
+  if (sourceDefinition === undefined) return { definition, materials, sources: [], targets: [] };
 
   const colorSource = managedSource(state.sourcesByUrl, sourceDefinition.src);
   const sources: ManagedSource[] = [colorSource];
+  const targets: BakeTarget[] = [];
   const cropState: CropState = { status: "pending" };
   const frames = spriteFrames(sourceDefinition.sheet, sourceDefinition.frame);
   for (let offset = 0; offset < frames.length; offset++) {
-    registerTarget(
+    targets.push(registerTarget(
       state,
       colorSource,
       { layer: "sprites", slot: definition.slot + offset, frame: frames[offset] },
@@ -206,22 +227,22 @@ function registerSprite(
         state: cropState,
       },
       materials[offset],
-    );
+    ));
   }
 
   if (sourceDefinition.lightmapSrc !== undefined) {
     const lightmapSource = managedSource(state.sourcesByUrl, sourceDefinition.lightmapSrc);
     sources.push(lightmapSource);
     for (let offset = 0; offset < frames.length; offset++) {
-      registerTarget(
+      targets.push(registerTarget(
         state,
         lightmapSource,
         { layer: "spriteLightmaps", slot: definition.slot + offset, frame: frames[offset] },
         { kind: "reuse", state: cropState },
-      );
+      ));
     }
   }
-  return { definition, materials, sources };
+  return { definition, materials, sources, targets };
 }
 
 function spriteFrames(
@@ -265,22 +286,26 @@ function registerTarget(
   return target;
 }
 
-function registerMapTargets(state: PipelineState, map: GameMap): ReadonlySet<ManagedSource> {
+function registerMapTargets(
+  state: PipelineState,
+  map: GameMap,
+): { readonly sources: ReadonlySet<ManagedSource>; readonly targets: ReadonlySet<BakeTarget> } {
   const sources = new Set<ManagedSource>();
+  const targets = new Set<BakeTarget>();
   const { width, height } = mapDimensions(map);
   for (let y = 0; y < height; y++) {
     for (let x = 0; x < width; x++) {
       const terrain = terrainAt(map, x, y);
       if (terrain === undefined) continue;
       if (terrain.kind === "wall") {
-        registerPackTarget(state, "walls", terrain.wall_texture, sources);
+        registerPackTarget(state, "walls", terrain.wall_texture, sources, targets);
         continue;
       }
-      registerPackTarget(state, "planes", terrain.floor_texture, sources);
-      registerPackTarget(state, "planes", terrain.ceiling_texture, sources);
+      registerPackTarget(state, "planes", terrain.floor_texture, sources, targets);
+      registerPackTarget(state, "planes", terrain.ceiling_texture, sources, targets);
     }
   }
-  return sources;
+  return { sources, targets };
 }
 
 function registerPackTarget(
@@ -288,13 +313,14 @@ function registerPackTarget(
   layer: "walls" | "planes",
   texture: WallTexture | FloorTexture | CeilingTexture,
   sources: Set<ManagedSource>,
+  targets: Set<BakeTarget>,
 ): void {
   if (!isTexturePackRef(texture)) return;
   const { pack } = parseTexturePackRef(texture);
   const source = state.packSources.get(pack);
   if (source === undefined) throw new Error(`Missing first-person texture pack ${pack}.`);
   sources.add(source);
-  registerTarget(
+  targets.add(registerTarget(
     state,
     source,
     {
@@ -303,42 +329,50 @@ function registerPackTarget(
       frame: texturePackFrame(texture as TexturePackRef),
     },
     { kind: "none" },
-  );
+  ));
 }
 
 async function loadSources(
   state: PipelineState,
   document: Document,
   sources: Iterable<ManagedSource>,
+  targets: Iterable<BakeTarget>,
   onChange: (() => void) | undefined,
-): Promise<void> {
-  notifyIfChanged(state, onChange);
-  await Promise.all([...new Set(sources)].map(async (source) => {
-    await preloadImageAsset(document, source.asset);
-    notifyIfChanged(state, onChange);
+): Promise<readonly ImageAssetResult[]> {
+  const selectedTargets = [...new Set(targets)];
+  notifyIfChanged(state, selectedTargets, onChange);
+  const uniqueSources = [...new Set(sources)];
+  const results = await Promise.all(uniqueSources.map(async (source) => {
+    const result = await preloadImageAsset(document, source.asset);
+    notifyIfChanged(state, selectedTargets, onChange);
+    return result;
   }));
-  notifyIfChanged(state, onChange);
+  notifyIfChanged(state, selectedTargets, onChange);
+  return results;
 }
 
-function notifyIfChanged(state: PipelineState, onChange: (() => void) | undefined): void {
-  if (compileToFixedPoint(state)) onChange?.();
+function notifyIfChanged(
+  state: PipelineState,
+  targets: readonly BakeTarget[],
+  onChange: (() => void) | undefined,
+): void {
+  if (compileToFixedPoint(state, targets)) onChange?.();
 }
 
-function compileToFixedPoint(state: PipelineState): boolean {
+function compileToFixedPoint(state: PipelineState, targets: readonly BakeTarget[]): boolean {
   let changed = false;
   let advanced: boolean;
   do {
     advanced = false;
-    for (const target of state.targets) {
+    for (const target of targets) {
       if (target.status !== "pending") continue;
-      if (target.source.asset.failed) {
+      if (target.source.asset.state.type === "unavailable") {
         markUnavailable(target);
         advanced = true;
         continue;
       }
-      if (!target.source.asset.loaded) continue;
-      const image = target.source.asset.image;
-      if (image === undefined) throw new Error(`Loaded image asset has no image: ${target.source.asset.src}`);
+      if (target.source.asset.state.type !== "ready") continue;
+      const image = target.source.asset.state.image;
       if (target.crop.kind === "reuse") {
         if (target.crop.state.status === "pending") continue;
         if (target.crop.state.status === "unavailable") {

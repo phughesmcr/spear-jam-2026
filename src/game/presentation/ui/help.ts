@@ -1,5 +1,6 @@
-import { createImageAsset, imageForAsset, preloadImageAsset } from "@/src/engine/canvas/mod.ts";
+import { imageForAsset } from "@/src/engine/canvas/mod.ts";
 import type { GameCanvasSize } from "@/src/game/presentation/canvas_size.ts";
+import type { PresentationUiAssets } from "@/src/game/presentation/asset_view.ts";
 import { monoFont } from "@/src/game/presentation/ui/text.ts";
 
 type HelpImageRect = {
@@ -9,18 +10,15 @@ type HelpImageRect = {
   readonly height: number;
 };
 
-const HELP_IMAGE_SRC = new URL("../../../../assets/game/help.png", import.meta.url).href;
 const HELP_BACKGROUND = "rgba(0, 0, 0, 0.9)";
 const HELP_FALLBACK_TEXT = "#e0f2fe";
 
-const helpAsset = createImageAsset(HELP_IMAGE_SRC);
-
-export async function preloadHelpAssets(document: Document, onAssetLoad?: () => void): Promise<void> {
-  await preloadImageAsset(document, helpAsset, onAssetLoad);
-}
-
-export function renderHelp(ctx: CanvasRenderingContext2D, canvasSize: GameCanvasSize): void {
-  const image = imageForAsset(helpAsset);
+export function renderHelp(
+  ctx: CanvasRenderingContext2D,
+  canvasSize: GameCanvasSize,
+  assets: PresentationUiAssets["help"],
+): void {
+  const image = imageForAsset(assets.guide);
 
   ctx.save();
   ctx.fillStyle = HELP_BACKGROUND;

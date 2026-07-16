@@ -11,7 +11,6 @@
  * facing relative to the camera, Wolf3D style.
  */
 
-import type { SpriteId } from "@/src/game/content/sprite_ids.ts";
 import {
   type DrawableEntity,
   type DrawableEntityVisitor,
@@ -20,7 +19,10 @@ import {
 } from "@/src/game/model/render_snapshot.ts";
 import { type CardinalDirection, Direction, directionDelta, normalizeDirection } from "@/src/game/world/direction.ts";
 import type { GameMap } from "@/src/game/world/map.ts";
-import { createFirstPersonAssets, type FirstPersonMaterials } from "@/src/game/presentation/first_person/assets/mod.ts";
+import {
+  type FirstPersonAssetView,
+  type FirstPersonMaterials,
+} from "@/src/game/presentation/first_person/assets/mod.ts";
 import { addDrawable } from "@/src/game/presentation/first_person/drawables.ts";
 import {
   addTerrainBarriers,
@@ -67,13 +69,6 @@ export type FirstPersonFrameScratch = {
 };
 
 export interface FirstPersonRenderer {
-  preloadMapAssets(
-    document: Document,
-    map: GameMap,
-    spriteIds: ReadonlySet<SpriteId>,
-    onChange?: () => void,
-  ): Promise<void>;
-  warmRemainingAssets(document: Document, onChange?: () => void): Promise<void>;
   reset(): void;
   bump(dirX: number, dirY: number, nowMs: number): void;
   render(
@@ -138,16 +133,9 @@ function createFirstPersonRendererState(materials: FirstPersonMaterials) {
 
 type FirstPersonRendererState = ReturnType<typeof createFirstPersonRendererState>;
 
-export function createFirstPersonRenderer(): FirstPersonRenderer {
-  const assets = createFirstPersonAssets();
+export function createFirstPersonRenderer(assets: FirstPersonAssetView): FirstPersonRenderer {
   const state = createFirstPersonRendererState(assets.materials);
   return {
-    preloadMapAssets(document, map, spriteIds, onChange) {
-      return assets.preloadRequired(document, map, spriteIds, onChange);
-    },
-    warmRemainingAssets(document, onChange) {
-      return assets.warmRemaining(document, onChange);
-    },
     reset() {
       resetFirstPersonRendererState(state);
     },
@@ -183,7 +171,7 @@ function bumpFirstPersonRenderer(state: FirstPersonRendererState, dirX: number, 
  */
 function renderFirstPersonView(
   state: FirstPersonRendererState,
-  assets: ReturnType<typeof createFirstPersonAssets>,
+  assets: FirstPersonAssetView,
   ctx: CanvasRenderingContext2D,
   rect: ViewRect,
   session: FirstPersonRenderSession,

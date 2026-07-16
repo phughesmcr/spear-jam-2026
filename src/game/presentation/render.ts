@@ -3,6 +3,7 @@ import type { PresentationViewScratch } from "@/src/game/model/presentation_stat
 import { DEFAULT_INTERACTIVE_FPS } from "@/src/game/model/render_settings.ts";
 import type { GameMode, ViewMode } from "@/src/game/model/state.ts";
 import type { PresentationContent, SimulationContent } from "@/src/game/content/catalog.ts";
+import type { PresentationAssetView } from "@/src/game/presentation/asset_view.ts";
 import type { GameCanvasSize } from "@/src/game/presentation/canvas_size.ts";
 import type { FirstPersonRenderer } from "@/src/game/presentation/first_person/renderer.ts";
 import type { GameFrameResult, GameRenderScratch, RenderSpy } from "@/src/game/presentation/frame_scratch.ts";
@@ -20,6 +21,7 @@ export type FrameProps = {
   readonly ctx: CanvasRenderingContext2D;
   readonly canvasSize: GameCanvasSize;
   readonly scratch: GameRenderScratch;
+  readonly assets: PresentationAssetView;
   readonly session?: FrameRenderSession;
   readonly mode?: GameMode;
   readonly presentation?: PresentationViewScratch;
@@ -37,8 +39,9 @@ export function renderGameFrame({
   ctx,
   canvasSize,
   scratch,
+  assets,
   session,
-  mode = { type: "loading", loaded: 0, total: 0 },
+  mode = { type: "loading", completed: 0, total: 0 },
   presentation = scratch.presentation,
   viewMode = "firstPerson",
   audio = DEFAULT_AUDIO_SETTINGS,
@@ -60,7 +63,7 @@ export function renderGameFrame({
   }
 
   if (isShellMode(mode)) {
-    return renderShellPass(ctx, canvasSize, mode, audio, interactiveFps, nowMs, spy);
+    return renderShellPass(ctx, canvasSize, assets.ui, mode, audio, interactiveFps, nowMs, spy);
   }
 
   if (session !== undefined) {
@@ -73,6 +76,7 @@ export function renderGameFrame({
       scratch,
       session,
       presentation,
+      assets.ui,
       viewMode,
       firstPersonRenderer,
       content,
@@ -83,5 +87,5 @@ export function renderGameFrame({
     );
   }
 
-  return renderOverlayPass(ctx, canvasSize, mode, presentation, nowMs, frameResult, spy);
+  return renderOverlayPass(ctx, canvasSize, assets.ui, mode, presentation, nowMs, frameResult, spy);
 }

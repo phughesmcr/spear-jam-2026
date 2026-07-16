@@ -1,5 +1,6 @@
 import type { AudioRuntime } from "@/src/app/audio_runtime.ts";
 import type { PresentationRuntime } from "@/src/app/presentation_runtime.ts";
+import type { PresentationAssets } from "@/src/app/presentation_assets.ts";
 import { SplitMix32 } from "@/src/engine/random.ts";
 import type { CompiledLevel } from "@/src/game/content/catalog.ts";
 import { relativeMoveDirectionOffset } from "@/src/game/model/commands.ts";
@@ -17,12 +18,14 @@ export type GameExecutionSpec = {
   readonly seed: number;
   readonly cheat?: boolean;
   readonly sessionContent: GameSessionContent;
+  readonly assets: PresentationAssets;
   readonly presentation: PresentationRuntime;
   readonly audio: AudioRuntime;
   readonly getModel: () => GameModel;
   readonly apply: (event: GameTransitionEvent) => void;
   readonly ensureInput: () => void;
   readonly onError: (error: unknown) => void;
+  readonly onDiagnostic: (error: unknown) => void;
 };
 
 export interface GameExecution extends Disposable {
@@ -41,6 +44,7 @@ class Execution implements GameExecution {
   private session?: GameSession;
   private disposed = false;
   private sessionGeneration = 0;
+  private activePreparation?: AbortController;
   private victoryTimeoutId?: number;
 
   constructor(spec: GameExecutionSpec) {
@@ -67,8 +71,8 @@ class Execution implements GameExecution {
         case "resetFirstPerson":
           this.spec.presentation.resetFirstPerson();
           break;
-        case "warmMapAssets":
-          this.spec.presentation.warmMapAssets(this.spec.sessionContent.levels.get(effect.mapName));
+        case "scheduleMapAssets":
+          this.scheduleLevelAssets(this.spec.sessionContent.levels.get(effect.mapName));
           break;
         case "closeDialogue":
           this.session?.closeDialogue();
@@ -90,6 +94,7 @@ class Execution implements GameExecution {
           break;
         case "endRun":
           this.sessionGeneration++;
+          this.abortActivePreparation();
           this.disposeSession();
           break;
         case "scheduleVictory":
@@ -113,6 +118,7 @@ class Execution implements GameExecution {
   [Symbol.dispose](): void {
     this.disposed = true;
     this.sessionGeneration++;
+    this.abortActivePreparation();
     if (this.victoryTimeoutId !== undefined) {
       this.spec.host.clearTimeout(this.victoryTimeoutId);
       this.victoryTimeoutId = undefined;
@@ -122,6 +128,9 @@ class Execution implements GameExecution {
 
   private startSessionTransition(kind: SessionTransitionKind, mapName: string): void {
     const generation = ++this.sessionGeneration;
+    this.abortActivePreparation();
+    const preparation = new AbortController();
+    this.activePreparation = preparation;
     void this.runSessionTransition(kind, mapName, generation).catch((error) => {
       if (this.isCurrentSessionGeneration(generation)) this.spec.onError(error);
     });
@@ -133,7 +142,24 @@ class Execution implements GameExecution {
     generation: number,
   ): Promise<void> {
     const level = this.spec.sessionContent.levels.get(mapName);
-    await this.spec.presentation.preloadAssets(level);
+    const preparation = this.activePreparation;
+    if (preparation === undefined) return;
+    try {
+      await this.spec.assets.prepare(
+        { kind: "level", level },
+        {
+          urgency: "blocking",
+          signal: AbortSignal.any([this.spec.signal, preparation.signal]),
+          onProgress: ({ completed, total }) => {
+            if (this.isCurrentSessionGeneration(generation)) {
+              this.spec.apply({ type: "loadingProgress", completed, total });
+            }
+          },
+        },
+      );
+    } finally {
+      if (this.activePreparation === preparation) this.activePreparation = undefined;
+    }
     if (!this.isCurrentSessionGeneration(generation)) return;
 
     const currentSession = this.session;
@@ -168,7 +194,16 @@ class Execution implements GameExecution {
     this.spec.audio.syncWorld();
     this.spec.audio.playMusic(level.music);
     this.spec.apply({ type: "mapLoaded", mapName: level.map.name });
-    this.spec.presentation.warmDeferredAssets(level);
+    void this.spec.assets.prepare({ kind: "deferred", level }, { urgency: "idle" }).catch(this.spec.onDiagnostic);
+  }
+
+  private scheduleLevelAssets(level: CompiledLevel): void {
+    void this.spec.assets.prepare({ kind: "level", level }, { urgency: "idle" }).catch(this.spec.onDiagnostic);
+  }
+
+  private abortActivePreparation(): void {
+    this.activePreparation?.abort();
+    this.activePreparation = undefined;
   }
 
   private handlePlayerCommand(command: Extract<GameEffect, { readonly type: "runPlayerCommand" }>["command"]): void {

@@ -53,7 +53,7 @@ export function intermissionCommand(
   }
   switch (mode.completion.type) {
     case "loadMap": {
-      const loadingModel = { ...model, mode: { type: "loading", loaded: 0, total: 0 } } satisfies GameModel;
+      const loadingModel = { ...model, mode: { type: "loading", completed: 0, total: 0 } } satisfies GameModel;
       return done(loadingModel, [
         { type: "render" },
         { type: "loadMap", mapName: mode.completion.mapName },

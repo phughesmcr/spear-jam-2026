@@ -79,7 +79,7 @@ export type IntermissionCompletion =
 
 export type GameMode =
   | { readonly type: "title"; readonly intent: TitleIntent; readonly hoverButton?: TitleHoverButton }
-  | { readonly type: "loading"; readonly loaded: number; readonly total: number }
+  | { readonly type: "loading"; readonly completed: number; readonly total: number }
   | { readonly type: "playing" }
   | {
     readonly type: "victoryTransition";
