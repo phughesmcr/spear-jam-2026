@@ -11,7 +11,7 @@ import {
   type RaycastAtlas,
   TEX_SIZE,
   type TexelSource,
-} from "@/src/engine/raycast/mod.ts";
+} from "turn-based-web-engine/raycast";
 import {
   BARRIER_SLOT_BY_TEXTURE,
   createFirstPersonAssetCatalog,

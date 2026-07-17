@@ -3,17 +3,23 @@ import { dirname, relative, resolve } from "@std/path";
 
 const SOURCE_ROOT = resolve(Deno.cwd(), "src");
 const ALLOWED_LAYER_DEPENDENCIES = {
-  app: new Set(["app", "engine", "game", "platform"]),
-  engine: new Set(["engine"]),
-  game: new Set(["engine", "game"]),
-  platform: new Set(["engine", "platform"]),
+  app: new Set(["app", "game"]),
+  game: new Set(["game"]),
 } as const;
-const ENGINE_IMPORTS = new Set([
+const PUBLIC_ENGINE_IMPORTS = new Set([
   "turn-based-engine/crawler",
   "turn-based-engine/ecs",
   "turn-based-engine/rng",
   "turn-based-engine/simulation",
+  "turn-based-web-engine/audio",
+  "turn-based-web-engine/canvas",
+  "turn-based-web-engine/input",
+  "turn-based-web-engine/raycast",
 ]);
+const DISPLACED_LOCAL_PREFIXES = [
+  ["@", "src", "engine"].join("/"),
+  ["@", "src", "platform"].join("/"),
+] as const;
 const GLOBALLY_DISPLACED = [
   /\bcreateCrawlerGame\b/,
   /\brestoreCrawlerGame\b/,
@@ -55,7 +61,7 @@ Deno.test({
 });
 
 Deno.test({
-  name: "public engine imports and the aggregate execution cutover remain enforced",
+  name: "public engine imports and completed ownership cutovers remain enforced",
   permissions: { read: [SOURCE_ROOT] },
   fn: async () => {
     const violations: string[] = [];
@@ -63,8 +69,14 @@ Deno.test({
       const source = await Deno.readTextFile(sourcePath);
       const name = relative(SOURCE_ROOT, sourcePath);
       for (const specifier of importSpecifiers(source)) {
-        if (specifier.includes("turn-based-engine") && !ENGINE_IMPORTS.has(specifier)) {
+        if (
+          (specifier.includes("turn-based-engine") || specifier.includes("turn-based-web-engine")) &&
+          !PUBLIC_ENGINE_IMPORTS.has(specifier)
+        ) {
           violations.push(`${name}: non-public engine import ${specifier}`);
+        }
+        for (const prefix of DISPLACED_LOCAL_PREFIXES) {
+          if (specifier.startsWith(prefix)) violations.push(`${name}: displaced local engine import ${specifier}`);
         }
       }
       for (const pattern of GLOBALLY_DISPLACED) {

@@ -4,7 +4,7 @@ import {
   isMessageRevealed,
   visibleCharacterCount,
 } from "@/src/game/model/intermission.ts";
-import { imageForAsset } from "@/src/engine/canvas/mod.ts";
+import { imageForAsset } from "turn-based-web-engine/canvas";
 import type { PresentationUiAssets } from "@/src/game/presentation/asset_view.ts";
 import type { GameCanvasSize } from "@/src/game/presentation/canvas_size.ts";
 import type { RenderSpy } from "@/src/game/presentation/frame_scratch.ts";

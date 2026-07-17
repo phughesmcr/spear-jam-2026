@@ -1,9 +1,14 @@
-import { type InputSize, type PointerInput, type TouchGestureEnabled, TouchGestures } from "@/src/engine/input/mod.ts";
+import {
+  type InputSize,
+  type PointerInput,
+  type TouchGestureEnabled,
+  TouchGestures,
+} from "turn-based-web-engine/input";
 import type { GameCommand } from "@/src/game/model/commands.ts";
 import { commandForKeyPress, commandForTouchGesture } from "@/src/game/presentation/input.ts";
-import { setupKeyboard } from "@/src/platform/web/input/keyboard.ts";
-import { setupPointer } from "@/src/platform/web/input/pointer.ts";
-import { windowTouchGestureScheduler } from "@/src/platform/web/input/scheduler.ts";
+import { setupKeyboard } from "turn-based-web-engine/input";
+import { setupPointer } from "turn-based-web-engine/input";
+import { windowTouchGestureScheduler } from "turn-based-web-engine/input";
 
 export type GameCommandReceiver = (command: GameCommand) => void;
 export type PointerInputReceiver = (input: PointerInput) => void;

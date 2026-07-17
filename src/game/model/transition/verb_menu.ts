@@ -4,7 +4,7 @@ import type { GameModel, GameTransition } from "@/src/game/model/transition/cont
 import { dispatchCommand, done, pointerGesture } from "@/src/game/model/transition/result.ts";
 import { toggleView } from "@/src/game/model/transition/view.ts";
 import { VERBS, verbToCommand } from "@/src/game/model/verbs.ts";
-import type { PointerPhase } from "@/src/engine/input/mod.ts";
+import type { PointerPhase } from "turn-based-web-engine/input";
 
 type VerbMenuMode = Extract<GameModel["mode"], { readonly type: "verbMenu" }>;
 

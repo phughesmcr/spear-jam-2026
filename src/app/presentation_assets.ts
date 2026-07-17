@@ -1,4 +1,4 @@
-import type { ImageAssetIssue, ImageAssetResult } from "@/src/engine/canvas/mod.ts";
+import type { ImageAssetIssue, ImageAssetResult } from "turn-based-web-engine/canvas";
 import type { CompiledLevel } from "@/src/game/content/catalog.ts";
 import {
   type AssetBundleDependencies,

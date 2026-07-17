@@ -18,7 +18,7 @@ import {
   type ImageAsset,
   type ImageAssetResult,
   preloadImageAsset,
-} from "@/src/engine/canvas/mod.ts";
+} from "turn-based-web-engine/canvas";
 import {
   type ContentCrop,
   createImageTextureBaker,
@@ -26,7 +26,7 @@ import {
   type ImageTextureBaker,
   type RaycastAtlas,
   type SourceFrame,
-} from "@/src/engine/raycast/mod.ts";
+} from "turn-based-web-engine/raycast";
 import {
   BARRIER_SLOT_BY_TEXTURE,
   createFirstPersonAssetCatalog,

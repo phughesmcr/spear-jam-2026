@@ -1,8 +1,8 @@
 import type { SpriteId as SpriteIdType } from "@/src/game/content/sprite_ids.ts";
 import type { KeyColor } from "@/src/game/content/map_entities.ts";
 import type { BarrierTexture, CeilingTexture, FloorTexture, GameMap, WallTexture } from "@/src/game/world/map.ts";
-import type { ImageAssetResult } from "@/src/engine/canvas/mod.ts";
-import type { RaycastAtlas } from "@/src/engine/raycast/mod.ts";
+import type { ImageAssetResult } from "turn-based-web-engine/canvas";
+import type { RaycastAtlas } from "turn-based-web-engine/raycast";
 import { createFirstPersonAssetPipeline } from "@/src/game/presentation/first_person/assets/pipeline.ts";
 
 export type FirstPersonSpriteAnimation = "idle" | "walk" | "attack";

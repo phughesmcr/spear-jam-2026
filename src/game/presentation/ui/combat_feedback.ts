@@ -1,5 +1,5 @@
 import type { CombatFeedback, CombatFeedbackSide, CombatFeedbackTone } from "@/src/game/model/combat_feedback.ts";
-import { imageForAsset } from "@/src/engine/canvas/mod.ts";
+import { imageForAsset } from "turn-based-web-engine/canvas";
 import type { CombatFeedbackAssets } from "@/src/game/presentation/asset_view.ts";
 import type { GameCanvasSize } from "@/src/game/presentation/canvas_size.ts";
 import type { MapRenderMetrics } from "@/src/game/presentation/top_down/map.ts";

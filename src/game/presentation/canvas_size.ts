@@ -1,4 +1,4 @@
-import type { CanvasSize } from "@/src/engine/canvas/mod.ts";
+import type { CanvasSize } from "turn-based-web-engine/canvas";
 
 export type GameCanvasSize = CanvasSize;
 

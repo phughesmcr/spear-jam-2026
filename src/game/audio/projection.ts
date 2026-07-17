@@ -6,7 +6,7 @@ import type {
   AudioTrack,
   IdleAudioSource,
   ListenerPose,
-} from "@/src/engine/audio/mod.ts";
+} from "turn-based-web-engine/audio";
 import type { AudioContent } from "@/src/game/content/catalog.ts";
 import type { TrackId } from "@/src/game/content/audio/music.ts";
 import type { VoiceId } from "@/src/game/content/dialogue/voices.ts";

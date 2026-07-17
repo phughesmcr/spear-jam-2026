@@ -1,4 +1,4 @@
-import { type ImageAsset, type ImageAssetResult, preloadImageAsset } from "@/src/engine/canvas/mod.ts";
+import { type ImageAsset, type ImageAssetResult, preloadImageAsset } from "turn-based-web-engine/canvas";
 import type { CompiledLevel, PresentationContent, SimulationContent } from "@/src/game/content/catalog.ts";
 import { ItemKind } from "@/src/game/content/items.ts";
 import type { EntityDef } from "@/src/game/content/map_entities.ts";

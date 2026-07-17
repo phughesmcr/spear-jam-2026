@@ -6,7 +6,7 @@ import { createFirstPersonAssets, type FirstPersonMaterials } from "@/src/game/p
 import { addDrawable, type FirstPersonDrawableState } from "@/src/game/presentation/first_person/drawables.ts";
 import { Direction } from "turn-based-engine/crawler";
 import { createGameMap, type GameMap } from "@/src/game/world/map.ts";
-import { clearSceneDynamic, createScene, type RaycastScene } from "@/src/engine/raycast/mod.ts";
+import { clearSceneDynamic, createScene, type RaycastScene } from "turn-based-web-engine/raycast";
 import { assertAlmostEquals, assertEquals, assertNotEquals } from "@std/assert";
 import type { Entity } from "turn-based-engine/ecs";
 

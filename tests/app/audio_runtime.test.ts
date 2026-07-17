@@ -7,7 +7,7 @@ import type {
   AudioTrack,
   IdleAudioSource,
   ListenerPose,
-} from "@/src/engine/audio/mod.ts";
+} from "turn-based-web-engine/audio";
 import {
   type AudioWorldSession,
   createAudioProjection,

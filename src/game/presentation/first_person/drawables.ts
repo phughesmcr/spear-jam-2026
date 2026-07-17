@@ -15,7 +15,7 @@ import {
   type FirstPersonSpriteMaterial,
 } from "@/src/game/presentation/first_person/assets/mod.ts";
 import { doorAxis, doorSlideForAxis, secretWallTextureSlot } from "@/src/game/presentation/first_person/scene.ts";
-import { addSlidingSolidWall, addSprite, addThinWall, type RaycastScene } from "@/src/engine/raycast/mod.ts";
+import { addSlidingSolidWall, addSprite, addThinWall, type RaycastScene } from "turn-based-web-engine/raycast";
 import {
   createScalarTween,
   createSpriteTween,

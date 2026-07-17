@@ -1,4 +1,4 @@
-import { createImageAsset, type ImageAsset } from "@/src/engine/canvas/mod.ts";
+import { createImageAsset, type ImageAsset } from "turn-based-web-engine/canvas";
 import { DisplayName } from "@/src/game/content/names.ts";
 import type { WeaponHudPhase } from "@/src/game/model/presentation_state.ts";
 import type { CommandSlot } from "@/src/game/model/state.ts";

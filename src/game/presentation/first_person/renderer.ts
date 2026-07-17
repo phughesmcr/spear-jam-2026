@@ -39,7 +39,7 @@ import {
   type RaycastScene,
   type ViewRect,
   writeCameraForAngle,
-} from "@/src/engine/raycast/mod.ts";
+} from "turn-based-web-engine/raycast";
 import {
   createNudgeTween,
   createPoseTween,

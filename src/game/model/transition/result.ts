@@ -1,6 +1,6 @@
 import type { GameCommand } from "@/src/game/model/commands.ts";
 import type { GameEffect, GameModel, GameTransition } from "@/src/game/model/transition/contracts.ts";
-import type { PointerPhase } from "@/src/engine/input/mod.ts";
+import type { PointerPhase } from "turn-based-web-engine/input";
 
 export function done(model: GameModel, effects: readonly GameEffect[] = []): GameTransition {
   return { model, effects };

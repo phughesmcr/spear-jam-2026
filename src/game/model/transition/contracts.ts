@@ -5,7 +5,7 @@ import type { GameCommand, PlayerCommand, PlayerCommandResult } from "@/src/game
 import type { PresentationState } from "@/src/game/model/presentation_state.ts";
 import type { SettingsSliderId } from "@/src/game/model/render_settings.ts";
 import type { GameMode, TitleHoverButton, VerbMenuTarget, ViewMode } from "@/src/game/model/state.ts";
-import type { PointerPhase } from "@/src/engine/input/mod.ts";
+import type { PointerPhase } from "turn-based-web-engine/input";
 import type { Entity } from "turn-based-engine/ecs";
 
 export type GameModelOptions = {

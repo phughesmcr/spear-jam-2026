@@ -1,6 +1,6 @@
 import type { CommandSlot } from "@/src/game/model/state.ts";
 import type { WeaponHudPhase } from "@/src/game/model/presentation_state.ts";
-import { imageForAsset } from "@/src/engine/canvas/mod.ts";
+import { imageForAsset } from "turn-based-web-engine/canvas";
 import type { GameCanvasSize } from "@/src/game/presentation/canvas_size.ts";
 import type { WeaponHudAssets } from "@/src/game/presentation/asset_view.ts";
 

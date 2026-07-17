@@ -1,4 +1,4 @@
-import type { AudioRuntime as EngineAudioRuntime } from "@/src/engine/audio/mod.ts";
+import type { AudioRuntime as EngineAudioRuntime } from "turn-based-web-engine/audio";
 import type { AudioContent } from "@/src/game/content/catalog.ts";
 import {
   type AudioSettings,
@@ -11,7 +11,7 @@ import {
   type TrackId,
   type VoiceId,
 } from "@/src/game/audio/mod.ts";
-import { createWebAudioRuntime } from "@/src/platform/web/audio/mod.ts";
+import { createWebAudioRuntime } from "turn-based-web-engine/audio";
 
 export type AudioRuntimeSpec = {
   readonly content: AudioContent;

@@ -4,7 +4,7 @@ import type { GameCommand } from "@/src/game/model/commands.ts";
 import type { GameMode } from "@/src/game/model/state.ts";
 import type { GameEffect, GameModel, GameTransition } from "@/src/game/model/transition/contracts.ts";
 import { dispatchCommand, done, pointerGesture } from "@/src/game/model/transition/result.ts";
-import type { PointerPhase } from "@/src/engine/input/mod.ts";
+import type { PointerPhase } from "turn-based-web-engine/input";
 
 type DialogueMode = Extract<GameMode, { readonly type: "dialogue" }>;
 

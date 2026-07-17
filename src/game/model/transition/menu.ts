@@ -9,7 +9,7 @@ import type { GameMode, TitleHoverButton } from "@/src/game/model/state.ts";
 import type { GameModel, GameTransition } from "@/src/game/model/transition/contracts.ts";
 import { beginGame } from "@/src/game/model/transition/lifecycle.ts";
 import { dispatchCommand, done, pointerGesture } from "@/src/game/model/transition/result.ts";
-import type { PointerPhase } from "@/src/engine/input/mod.ts";
+import type { PointerPhase } from "turn-based-web-engine/input";
 
 type HelpMode = Extract<GameMode, { readonly type: "help" }>;
 type SettingsMode = Extract<GameMode, { readonly type: "settings" }>;

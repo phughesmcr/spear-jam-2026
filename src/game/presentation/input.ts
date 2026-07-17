@@ -1,5 +1,5 @@
 import type { GameCommand, RelativeMoveDirection } from "@/src/game/model/commands.ts";
-import type { InputSize, TouchGesture } from "@/src/engine/input/mod.ts";
+import type { InputSize, TouchGesture } from "turn-based-web-engine/input";
 
 const MOVE_DIRECTIONS_BY_SWIPE = {
   up: "forward",

@@ -1,6 +1,6 @@
 import { firstPersonTouchGesturesEnabled, routePointerInput } from "@/src/game/presentation/input_routing.ts";
 import { createGameModel, type GameModel, transition } from "@/tests/game/model/transition/helpers.ts";
-import type { PointerInput } from "@/src/engine/input/mod.ts";
+import type { PointerInput } from "turn-based-web-engine/input";
 import { DEFAULT_GAME_CANVAS_SIZE } from "@/src/game/presentation/canvas_size.ts";
 import { dialogueLayout } from "@/src/game/presentation/ui/dialogue.ts";
 import { settingsBackButtonRect, settingsSliderRects } from "@/src/game/presentation/ui/settings.ts";

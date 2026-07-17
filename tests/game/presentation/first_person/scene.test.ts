@@ -18,7 +18,7 @@ import {
   secretWallTextureSlot,
   updateSceneLights,
 } from "@/src/game/presentation/first_person/scene.ts";
-import { THIN_AXIS_X, THIN_AXIS_Y, THIN_SLIDE_NEG, THIN_SLIDE_POS, THIN_SLIDE_UP } from "@/src/engine/raycast/mod.ts";
+import { THIN_AXIS_X, THIN_AXIS_Y, THIN_SLIDE_NEG, THIN_SLIDE_POS, THIN_SLIDE_UP } from "turn-based-web-engine/raycast";
 import { assert, assertEquals, assertNotEquals, assertStrictEquals, assertThrows } from "@std/assert";
 import type { Entity } from "turn-based-engine/ecs";
 

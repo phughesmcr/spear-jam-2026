@@ -7,7 +7,7 @@ import {
   createPresentationAssets,
   type PresentationAssets,
 } from "@/src/app/presentation_assets.ts";
-import type { PointerInput } from "@/src/engine/input/mod.ts";
+import type { PointerInput } from "turn-based-web-engine/input";
 import type { GameCommand } from "@/src/game/model/commands.ts";
 import { SHIPPED_GAME } from "@/src/game/content/shipped.ts";
 import { firstPersonTouchGesturesEnabled, routePointerInput } from "@/src/game/presentation/input_routing.ts";
@@ -18,7 +18,7 @@ import {
   type GameModel,
   type GameTransitionEvent,
 } from "@/src/game/model/transition/mod.ts";
-import { canvasSizeController } from "@/src/platform/web/canvas.ts";
+import { canvasSizeController } from "turn-based-web-engine/canvas";
 
 const NO_FRAME = { needsFrame: false } as const;
 

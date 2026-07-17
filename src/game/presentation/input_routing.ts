@@ -1,5 +1,5 @@
 import type { GameCommand } from "@/src/game/model/commands.ts";
-import type { PointerInput } from "@/src/engine/input/mod.ts";
+import type { PointerInput } from "turn-based-web-engine/input";
 import type { GameMode } from "@/src/game/model/state.ts";
 import type { GameModel, GameTransitionEvent } from "@/src/game/model/transition/mod.ts";
 import type { GameCanvasSize } from "@/src/game/presentation/canvas_size.ts";

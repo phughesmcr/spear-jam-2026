@@ -1,4 +1,4 @@
-import { imageForAsset } from "@/src/engine/canvas/mod.ts";
+import { imageForAsset } from "turn-based-web-engine/canvas";
 import type { GameCanvasSize } from "@/src/game/presentation/canvas_size.ts";
 import type { PresentationUiAssets } from "@/src/game/presentation/asset_view.ts";
 import { monoFont } from "@/src/game/presentation/ui/text.ts";

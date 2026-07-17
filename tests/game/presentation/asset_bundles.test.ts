@@ -1,4 +1,4 @@
-import type { ImageAssetResult } from "@/src/engine/canvas/mod.ts";
+import type { ImageAssetResult } from "turn-based-web-engine/canvas";
 import { SHIPPED_GAME } from "@/src/game/content/shipped.ts";
 import { SpriteId } from "@/src/game/content/sprite_ids.ts";
 import {

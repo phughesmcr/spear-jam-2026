@@ -14,7 +14,7 @@ import {
   TEXTURE_PACK_TILE_COUNT,
   TEXTURE_PACKS,
 } from "@/src/game/world/terrain_palette.ts";
-import type { SourceFrame } from "@/src/engine/raycast/mod.ts";
+import type { SourceFrame } from "turn-based-web-engine/raycast";
 
 export type AtlasLayer = "walls" | "planes" | "sprites" | "spriteLightmaps";
 
