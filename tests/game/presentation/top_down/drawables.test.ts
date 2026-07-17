@@ -18,12 +18,13 @@ const METRICS: MapRenderMetrics = {
   offsetY: 0,
 };
 
-Deno.test("top-down drawable pass skips decorations and still draws items", () => {
+Deno.test("top-down drawable pass skips corpses and decorations while still drawing items", () => {
   const ctx = new FakeDrawableContext();
   const drawables: DrawableEntity[] = [
     { kind: DrawableKind.Sprite, entity: 1 as Entity, x: 1, y: 1, spriteId: SpriteId.DecorCeilingLight },
     { kind: DrawableKind.Sprite, entity: 2 as Entity, x: 0, y: 1, spriteId: SpriteId.DecorServerPile },
     { kind: DrawableKind.Sprite, entity: 3 as Entity, x: 2, y: 1, spriteId: SpriteId.HealthPatch },
+    { kind: DrawableKind.Sprite, entity: 4 as Entity, x: 1, y: 2, spriteId: SpriteId.Corpse },
   ];
 
   renderDrawableEntities(
@@ -37,6 +38,7 @@ Deno.test("top-down drawable pass skips decorations and still draws items", () =
   assertEquals(ctx.fillStyles.includes("#ef4444"), true);
   assertEquals(ctx.fillStyles.includes("#facc15"), false);
   assertEquals(ctx.fillStyles.includes("#64748b"), false);
+  assertEquals(ctx.fillStyles.includes("#4b5563"), false);
 });
 
 function fakeSession(drawables: readonly DrawableEntity[]): FrameRenderSession {

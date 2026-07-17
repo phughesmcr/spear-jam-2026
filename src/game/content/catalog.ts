@@ -62,7 +62,6 @@ const ATTACK_FIELD_NAMES = [
 const TOP_DOWN_SHAPES = [
   "actor",
   "badge",
-  "corpse",
   "key",
   "none",
   "player",

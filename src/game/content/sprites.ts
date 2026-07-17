@@ -1,4 +1,4 @@
-type TopDownShape = "actor" | "badge" | "corpse" | "key" | "none" | "player" | "terminal" | "uplinkCode" | "weapon";
+type TopDownShape = "actor" | "badge" | "key" | "none" | "player" | "terminal" | "uplinkCode" | "weapon";
 
 export type TopDownSpriteAppearance = {
   readonly shape: TopDownShape;

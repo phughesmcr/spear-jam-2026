@@ -118,9 +118,6 @@ function renderSpriteDrawable(
     case "badge":
       renderBadge(ctx, drawable.x, drawable.y, appearance.color, appearance.symbol ?? "", metrics);
       return;
-    case "corpse":
-      renderCorpse(ctx, drawable.x, drawable.y, appearance.color, metrics);
-      return;
     case "key":
       renderKey(ctx, drawable.x, drawable.y, appearance.color, metrics);
       return;
@@ -297,24 +294,6 @@ function renderBadge(
   ctx.textAlign = "center";
   ctx.textBaseline = "middle";
   ctx.fillText(label, centerX, centerY + 0.5);
-}
-
-function renderCorpse(
-  ctx: CanvasRenderingContext2D,
-  x: number,
-  y: number,
-  color: string,
-  metrics: MapRenderMetrics,
-): void {
-  const { tileSize } = metrics;
-  const centerX = tileCenterX(metrics, x);
-  const centerY = tileCenterY(metrics, y);
-  const radius = tileSize * 0.22;
-
-  ctx.fillStyle = color;
-  ctx.beginPath();
-  ctx.ellipse(centerX, centerY, radius * 1.2, radius * 0.72, -0.45, 0, Math.PI * 2);
-  ctx.fill();
 }
 
 function renderEnemyHealth(

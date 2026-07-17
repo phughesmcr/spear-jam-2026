@@ -26,7 +26,7 @@ export const SHIPPED_PRESENTATION_SOURCE = {
     [SpriteId.Weapon2]: { shape: "weapon", color: "#c084fc", symbol: "2" },
     [SpriteId.Weapon3]: { shape: "weapon", color: "#c084fc", symbol: "3" },
     [SpriteId.UplinkCode]: { shape: "uplinkCode", color: "#7dd3fc" },
-    [SpriteId.Corpse]: { shape: "corpse", color: "#4b5563" },
+    [SpriteId.Corpse]: { shape: "none", color: "#4b5563" },
     [SpriteId.PistolAmmo]: { shape: "badge", color: "#38bdf8", symbol: "P" },
     [SpriteId.CannonAmmo]: { shape: "badge", color: "#f97316", symbol: "C" },
     [SpriteId.DecorServerPile]: { shape: "none", color: "#000000" },
