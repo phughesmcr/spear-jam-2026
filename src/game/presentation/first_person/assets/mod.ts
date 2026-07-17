@@ -46,7 +46,6 @@ export interface FirstPersonAssetLoader {
     spriteIds: ReadonlySet<SpriteIdType>,
     onChange?: () => void,
   ): Promise<readonly ImageAssetResult[]>;
-  loadRemaining(document: Document, onChange?: () => void): Promise<readonly ImageAssetResult[]>;
 }
 
 export interface FirstPersonAssets {

@@ -320,14 +320,20 @@ export function drawWallColumn(
   if (yStart >= yEnd) return;
 
   const mip = wallMip(texture, lineHeight);
-  const texels = mip.bands[band]!;
+  const texels = mip.texels;
   const texStep = ((mip.size * FIXED_ONE) / lineHeight) | 0;
   let texPos = (((yStart - top) * mip.size * FIXED_ONE) / lineHeight) | 0;
   const columnBase = (((texX * mip.size) / TEX_SIZE) | 0) << mip.shift;
   let offset = yStart * width + x;
   if (opaque) {
     for (let y = yStart; y < yEnd; y++) {
-      pixels[offset] = lightTexel(texels[columnBase + ((texPos >>> 16) & mip.mask)]!, lightRed, lightGreen, lightBlue);
+      pixels[offset] = lightTexel(
+        texels[columnBase + ((texPos >>> 16) & mip.mask)]!,
+        lightRed,
+        lightGreen,
+        lightBlue,
+        band,
+      );
       texPos += texStep;
       offset += width;
     }
@@ -336,7 +342,7 @@ export function drawWallColumn(
   for (let y = yStart; y < yEnd; y++) {
     const texel = texels[columnBase + ((texPos >>> 16) & mip.mask)]!;
     if (texel !== TRANSPARENT_TEXEL) {
-      pixels[offset] = blendTexel(lightTexel(texel, lightRed, lightGreen, lightBlue), pixels[offset]!);
+      pixels[offset] = blendTexel(lightTexel(texel, lightRed, lightGreen, lightBlue, band), pixels[offset]!);
     }
     texPos += texStep;
     offset += width;
@@ -378,7 +384,7 @@ function drawVerticalSlideColumn(
   if (yStart >= yEnd) return;
 
   const mip = wallMip(texture, lineHeight);
-  const texels = mip.bands[band]!;
+  const texels = mip.texels;
   // Texture rows track the slab: a risen slab shows its lower rows.
   const texStep = ((mip.size * FIXED_ONE) / lineHeight) | 0;
   const slabTexTop = slide === THIN_SLIDE_UP ? offset : 0;
@@ -389,7 +395,7 @@ function drawVerticalSlideColumn(
     const texel = texels[columnBase + ((texPos >>> 16) & mip.mask)]!;
     if (texel !== TRANSPARENT_TEXEL) {
       pixels[pixelOffset] = blendTexel(
-        lightTexel(texel, lightRed, lightGreen, lightBlue),
+        lightTexel(texel, lightRed, lightGreen, lightBlue, band),
         pixels[pixelOffset]!,
       );
     }

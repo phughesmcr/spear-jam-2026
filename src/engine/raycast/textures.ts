@@ -3,10 +3,9 @@
  *
  * All render-time textures are mipmapped arrays of packed RGBA texels (one
  * Uint32 per texel, byte order matching ImageData memory). Baking happens
- * once at load time so the per-pixel render loops only ever copy uint32s:
- * shading is pre-multiplied into SHADE_BANDS darkness variants and wall or
- * sprite textures are stored column-major so drawing a screen column reads
- * texture memory sequentially.
+ * once at load time. Distance shading uses one shared channel lookup instead
+ * of retaining eight copies of every texture; wall and sprite textures remain
+ * column-major so drawing a screen column reads texture memory sequentially.
  */
 
 export const TEX_SIZE = 128;
@@ -18,8 +17,9 @@ const TEX_MIP_SHIFTS = [7, 6, 5, 4] as const;
 const SHADE_GAMMA = 2.2;
 const INVERSE_SHADE_GAMMA = 1 / SHADE_GAMMA;
 
-/** Darkness variants per texture; band 0 is full brightness. */
+/** Discrete darkness levels resolved through the shared channel lookup; band 0 is full brightness. */
 export const SHADE_BANDS = 8;
+const SHADE_CHANNELS = createShadeChannels();
 
 /** Fully transparent texel sentinel. Non-zero alpha is preserved for blending. */
 export const TRANSPARENT_TEXEL = 0;
@@ -41,8 +41,8 @@ export type BakedTextureMip = {
   readonly size: number;
   readonly shift: number;
   readonly mask: number;
-  /** One Uint32Array(size * size) per shade band, band 0 brightest. */
-  readonly bands: readonly Uint32Array[];
+  /** Packed RGBA texels. Distance shading is applied through a shared lookup. */
+  readonly texels: Uint32Array;
 };
 
 export type BakedTexture = {
@@ -63,7 +63,7 @@ export type BakeOptions = {
 };
 
 /**
- * Bake an RGBA source into pre-shaded mip texel bands. Sources of any size are
+ * Bake an RGBA source into one packed mip chain. Sources of any size are
  * first resampled to TEX_SIZE with nearest-neighbour; lower mips are averaged
  * from that base level. Fully transparent texels (alpha 0) become
  * {@link TRANSPARENT_TEXEL}; all other alpha values are preserved for mid-alpha
@@ -161,13 +161,8 @@ function downsampleTexels(source: Uint8Array, sourceSize: number): Uint8Array {
 }
 
 function bakeMip(source: Uint8Array, size: number, shift: number, transpose: boolean): BakedTextureMip {
-  const bands: Uint32Array[] = [];
-  const bandBytes: Uint8Array[] = [];
-  for (let band = 0; band < SHADE_BANDS; band++) {
-    const texels = new Uint32Array(size * size);
-    bands.push(texels);
-    bandBytes.push(new Uint8Array(texels.buffer));
-  }
+  const texels = new Uint32Array(size * size);
+  const bytes = new Uint8Array(texels.buffer);
 
   for (let y = 0; y < size; y++) {
     for (let x = 0; x < size; x++) {
@@ -175,25 +170,38 @@ function bakeMip(source: Uint8Array, size: number, shift: number, transpose: boo
       const alpha = source[sourceIndex + 3]!;
       const texelIndex = transpose ? (x << shift) | y : (y << shift) | x;
       if (alpha === 0) {
-        continue; // Bands start zeroed, which is the transparent sentinel.
+        continue; // Texels start zeroed, which is the transparent sentinel.
       }
 
-      const red = source[sourceIndex]!;
-      const green = source[sourceIndex + 1]!;
-      const blue = source[sourceIndex + 2]!;
-      for (let band = 0; band < SHADE_BANDS; band++) {
-        const brightness = (SHADE_BANDS - band) / SHADE_BANDS;
-        const byteIndex = texelIndex * 4;
-        const bytes = bandBytes[band]!;
-        bytes[byteIndex] = shadeChannel(red, brightness);
-        bytes[byteIndex + 1] = shadeChannel(green, brightness);
-        bytes[byteIndex + 2] = shadeChannel(blue, brightness);
-        bytes[byteIndex + 3] = alpha;
-      }
+      const byteIndex = texelIndex * 4;
+      bytes[byteIndex] = source[sourceIndex]!;
+      bytes[byteIndex + 1] = source[sourceIndex + 1]!;
+      bytes[byteIndex + 2] = source[sourceIndex + 2]!;
+      bytes[byteIndex + 3] = alpha;
     }
   }
 
-  return { size, shift, mask: size - 1, bands };
+  return { size, shift, mask: size - 1, texels };
+}
+
+function createShadeChannels(): Uint8Array {
+  const channels = new Uint8Array(SHADE_BANDS * 256);
+  for (let band = 0; band < SHADE_BANDS; band++) {
+    const brightness = (SHADE_BANDS - band) / SHADE_BANDS;
+    const offset = band << 8;
+    for (let value = 0; value < 256; value++) channels[offset | value] = shadeChannel(value, brightness);
+  }
+  return channels;
+}
+
+/** Apply one gamma-aware distance-shade band without allocating texture copies. */
+export function shadeTexel(texel: number, band: number): number {
+  if (texel === TRANSPARENT_TEXEL || band <= 0) return texel;
+  const offset = (band >= SHADE_BANDS ? SHADE_BANDS - 1 : band) << 8;
+  return ((texel & 0xff000000) |
+    SHADE_CHANNELS[offset | (texel & 0xff)]! |
+    (SHADE_CHANNELS[offset | ((texel >>> 8) & 0xff)]! << 8) |
+    (SHADE_CHANNELS[offset | ((texel >>> 16) & 0xff)]! << 16)) >>> 0;
 }
 
 function shadeChannel(value: number, brightness: number): number {

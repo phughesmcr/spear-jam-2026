@@ -136,8 +136,8 @@ Deno.test("deferred UI is the exact complement of each level-critical UI bundle"
     const critical = await runBundle({ kind: "level", level });
     const deferred = await runBundle({ kind: "deferred", level });
 
-    assertEquals(deferred.jobCount, 2);
-    assertEquals(deferred.loader.calls, ["remaining"]);
+    assertEquals(deferred.jobCount, 1);
+    assertEquals(deferred.loader.calls, []);
     assertEquals(deferred.imageNames, [...expectedDeferred].sort());
     assertEquals(
       critical.imageNames.filter((name) => deferred.imageNames.includes(name)),
@@ -186,7 +186,7 @@ function fileName(source: string): string {
 }
 
 class RecordingFirstPersonLoader implements FirstPersonAssetLoader {
-  readonly calls: Array<"required" | "remaining"> = [];
+  readonly calls: Array<"required"> = [];
   requiredMap: Parameters<FirstPersonAssetLoader["loadRequired"]>[1] | undefined;
   requiredSprites: ReadonlySet<number> = new Set();
 
@@ -199,15 +199,6 @@ class RecordingFirstPersonLoader implements FirstPersonAssetLoader {
     this.calls.push("required");
     this.requiredMap = map;
     this.requiredSprites = spriteIds;
-    onChange?.();
-    return Promise.resolve([]);
-  }
-
-  loadRemaining(
-    _document: Document,
-    onChange?: () => void,
-  ): Promise<readonly ImageAssetResult[]> {
-    this.calls.push("remaining");
     onChange?.();
     return Promise.resolve([]);
   }

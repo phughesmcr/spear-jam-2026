@@ -203,9 +203,10 @@ function drawSprite(
   if (yStart >= yEnd || xStart >= xEnd) return;
 
   const mip = texture.mips[0]!;
-  const texels = mip.bands[shadeBand(depth)]!;
-  const sourceTexels = lightmap === undefined ? undefined : mip.bands[0]!;
-  const lightmapTexels = lightmap?.mips[0]?.bands[0];
+  const texels = mip.texels;
+  const shade = shadeBand(depth);
+  const sourceTexels = lightmap === undefined ? undefined : mip.texels;
+  const lightmapTexels = lightmap?.mips[0]?.texels;
   const texStepX = ((mip.size * FIXED_ONE) / spriteWidth) | 0;
   const texStepY = ((mip.size * FIXED_ONE) / spriteHeight) | 0;
   const texYStart = (((yStart - top) * mip.size * FIXED_ONE) / spriteHeight) | 0;
@@ -225,7 +226,7 @@ function drawSprite(
       const texel = texels[texelIndex]!;
       // Binary punch-through: soft mid-alpha fringes stay discarded for sprites.
       if ((texel >>> 24) >= SPRITE_ALPHA_CUTOFF) {
-        const litTexel = lightTexel(texel, lightRed, lightGreen, lightBlue);
+        const litTexel = lightTexel(texel, lightRed, lightGreen, lightBlue, shade);
         pixels[offset] = lightmapTexels === undefined || sourceTexels === undefined ?
           litTexel :
           lightmapTexel(litTexel, sourceTexels[texelIndex]!, lightmapTexels[texelIndex]!);

@@ -147,6 +147,12 @@ function packedMap() {
   });
 }
 
+function secondPackedMap() {
+  return createGameMap("Second Packed Assets", [[1]], [], {
+    palette: [{ kind: "floor", id: 1, floor_texture: "pack2:0,0", ceiling_texture: "ceiling" }],
+  });
+}
+
 function failUnsettled(document: FakeDocument): void {
   for (const image of document.images) {
     if (!image.settled) image.dispatch("error");
@@ -221,30 +227,32 @@ Deno.test("required loading selects map sources and compiles lightmaps after the
   });
 });
 
-Deno.test("map target registration compiles a texture-pack source warmed earlier", async () => {
+Deno.test("required loading keeps only the current map's dynamic atlas targets resident", async () => {
   await withFakeOffscreenCanvas(async () => {
     const { loader, view: assets } = createFirstPersonAssets();
     const document = new FakeDocument();
-    const slot = assets.materials.floor("pack1:0,0");
-    const fallback = assets.atlas.planes[slot];
-    const warm = loader.loadRemaining(document as unknown as Document);
+    const firstSlot = assets.materials.floor("pack1:0,0");
+    const secondSlot = assets.materials.floor("pack2:0,0");
+    const firstFallback = assets.atlas.planes[firstSlot];
+    const secondFallback = assets.atlas.planes[secondSlot];
+    const first = loader.loadRequired(document as unknown as Document, packedMap(), new Set());
 
     document.imageEnding("/textures/pack1.png").dispatch("load");
     await flushImageSettlement();
-    assertStrictEquals(assets.atlas.planes[slot], fallback);
+    assertNotStrictEquals(assets.atlas.planes[firstSlot], firstFallback);
 
-    let callbackCount = 0;
-    const preload = loader.loadRequired(
-      document as unknown as Document,
-      packedMap(),
-      new Set(),
-      () => callbackCount++,
-    );
-    assertNotStrictEquals(assets.atlas.planes[slot], fallback);
-    assertEquals(callbackCount, 1);
+    const second = loader.loadRequired(document as unknown as Document, secondPackedMap(), new Set());
+    document.imageEnding("/textures/pack2.png").dispatch("load");
+    await flushImageSettlement();
+    assertNotStrictEquals(assets.atlas.planes[secondSlot], secondFallback);
 
     failUnsettled(document);
-    await Promise.all([warm, preload]);
+    await Promise.all([first, second]);
+    assertStrictEquals(assets.atlas.planes[firstSlot], firstFallback);
+
+    await loader.loadRequired(document as unknown as Document, packedMap(), new Set());
+    assertNotStrictEquals(assets.atlas.planes[firstSlot], firstFallback);
+    assertStrictEquals(assets.atlas.planes[secondSlot], secondFallback);
   });
 });
 
@@ -304,22 +312,49 @@ Deno.test("normal image failures settle on fallbacks while raster failures rejec
   }, rasterError);
 });
 
-Deno.test("a request-specific bake failure does not reject an unrelated level request", async () => {
+Deno.test("an obsolete level request cannot rebake an evicted atlas target", async () => {
+  await withFakeOffscreenCanvas(async () => {
+    const { loader, view: assets } = createFirstPersonAssets();
+    const document = new FakeDocument();
+    const slot = assets.materials.floor("pack1:0,0");
+    const fallback = assets.atlas.planes[slot];
+    const obsolete = loader.loadRequired(document as unknown as Document, packedMap(), new Set());
+    const current = loader.loadRequired(document as unknown as Document, defaultMap(), new Set());
+
+    document.imageEnding("/textures/pack1.png").dispatch("load");
+    failUnsettled(document);
+    await Promise.all([obsolete, current]);
+
+    assertStrictEquals(assets.atlas.planes[slot], fallback);
+  });
+});
+
+Deno.test("a failed level replacement preserves the resident atlas selection", async () => {
   const rasterError = new Error("pack raster failed");
   await withFakeOffscreenCanvas(
     async () => {
-      const { loader } = createFirstPersonAssets();
+      const { loader, view: assets } = createFirstPersonAssets();
       const document = new FakeDocument();
-      const failing = loader.loadRequired(document as unknown as Document, packedMap(), new Set());
-      const safe = loader.loadRequired(document as unknown as Document, defaultMap(), new Set());
+      const firstSlot = assets.materials.floor("pack1:0,0");
+      const secondSlot = assets.materials.floor("pack2:0,0");
+      const firstFallback = assets.atlas.planes[firstSlot];
+      const secondFallback = assets.atlas.planes[secondSlot];
+      const first = loader.loadRequired(document as unknown as Document, packedMap(), new Set());
 
       document.imageEnding("/textures/pack1.png").dispatch("load");
-      await assertRejects(() => failing, Error, rasterError.message);
-
       failUnsettled(document);
-      await safe;
+      await first;
+      const firstTexture = assets.atlas.planes[firstSlot];
+      assertNotStrictEquals(firstTexture, firstFallback);
+
+      const replacement = loader.loadRequired(document as unknown as Document, secondPackedMap(), new Set());
+      document.imageEnding("/textures/pack2.png").dispatch("load");
+      await assertRejects(() => replacement, Error, rasterError.message);
+
+      assertStrictEquals(assets.atlas.planes[firstSlot], firstTexture);
+      assertStrictEquals(assets.atlas.planes[secondSlot], secondFallback);
     },
     rasterError,
-    "/textures/pack1.png",
+    "/textures/pack2.png",
   );
 });

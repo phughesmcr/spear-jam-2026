@@ -218,9 +218,9 @@ Deno.test("image texture baker reuses a supplied crop, canvas, and context", () 
       TEX_SIZE,
       TEX_SIZE,
     ]);
-    assertEquals(texelBytes(first.texture.mips[0]!.bands[0]!, 0), [50, 80, 40, 255]);
+    assertEquals(texelBytes(first.texture.mips[0]!.texels, 0), [50, 80, 40, 255]);
     assertEquals(
-      texelBytes(first.texture.mips[0]!.bands[0]!, (TEX_SIZE - 1) << TEX_SHIFT),
+      texelBytes(first.texture.mips[0]!.texels, (TEX_SIZE - 1) << TEX_SHIFT),
       [100, 80, 40, 255],
     );
   });

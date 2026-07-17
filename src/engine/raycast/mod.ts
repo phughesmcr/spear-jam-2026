@@ -23,5 +23,5 @@ export type {
   ImageTextureBaker,
   SourceFrame,
 } from "@/src/engine/raycast/image_texture_baker.ts";
-export { bakeSolidTexture, bakeTexture, TEX_SIZE } from "@/src/engine/raycast/textures.ts";
+export { bakeSolidTexture, bakeTexture, shadeTexel, TEX_SIZE } from "@/src/engine/raycast/textures.ts";
 export type { BakedTexture, TexelSource } from "@/src/engine/raycast/textures.ts";

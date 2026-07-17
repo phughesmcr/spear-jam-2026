@@ -9,7 +9,7 @@
  */
 
 import type { BakedTexture } from "@/src/engine/raycast/textures.ts";
-import { SHADE_BANDS, TRANSPARENT_TEXEL } from "@/src/engine/raycast/textures.ts";
+import { SHADE_BANDS, shadeTexel, TRANSPARENT_TEXEL } from "@/src/engine/raycast/textures.ts";
 
 /** Thin wall plane at `cellX + 0.5`, crossed by rays travelling along x. */
 export const THIN_AXIS_X = 0;
@@ -415,12 +415,13 @@ export function mipLevelForTexelsPerPixel(texelsPerPixel: number): number {
   return 0;
 }
 
-export function lightTexel(texel: number, red: number, green: number, blue: number): number {
-  if (texel === TRANSPARENT_TEXEL || (red === 255 && green === 255 && blue === 255)) return texel;
-  return ((texel & 0xff000000) |
-    (((texel & 0xff) * red / 255) | 0) |
-    (((((texel >>> 8) & 0xff) * green / 255) | 0) << 8) |
-    (((((texel >>> 16) & 0xff) * blue / 255) | 0) << 16)) >>> 0;
+export function lightTexel(texel: number, red: number, green: number, blue: number, shade = 0): number {
+  const shaded = shadeTexel(texel, shade);
+  if (shaded === TRANSPARENT_TEXEL || (red === 255 && green === 255 && blue === 255)) return shaded;
+  return ((shaded & 0xff000000) |
+    (((shaded & 0xff) * red / 255) | 0) |
+    (((((shaded >>> 8) & 0xff) * green / 255) | 0) << 8) |
+    (((((shaded >>> 16) & 0xff) * blue / 255) | 0) << 16)) >>> 0;
 }
 
 /** Blend `src` over `dst` using src's alpha. Output alpha is always opaque. */

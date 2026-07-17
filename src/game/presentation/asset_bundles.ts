@@ -77,7 +77,6 @@ function deferredJobs(
 ): readonly AssetBundleJob[] {
   const map = level.map;
   return [
-    (onChange) => dependencies.firstPersonLoader.loadRemaining(dependencies.document, onChange),
     imageJob(
       dependencies,
       deferredImageAssets(

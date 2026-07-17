@@ -4,6 +4,7 @@ import {
   bakeSolidTexture,
   bakeTexture,
   SHADE_BANDS,
+  shadeTexel,
   TEX_MIP_SIZES,
   TEX_SHIFT,
   TEX_SIZE,
@@ -20,8 +21,20 @@ function texelBytes(texels: Uint32Array, index: number): readonly [number, numbe
 }
 
 function band(texture: BakedTexture, shade = 0, mip = 0): Uint32Array {
-  return texture.mips[mip]!.bands[shade]!;
+  const texels = texture.mips[mip]!.texels;
+  return shade === 0 ? texels : texels.map((texel) => shadeTexel(texel, shade));
 }
+
+function retainedTextureBytes(texture: BakedTexture): number {
+  return texture.mips.reduce((total, mip) => total + mip.texels.byteLength, 0);
+}
+
+Deno.test("bakeTexture retains one packed RGBA mip chain", () => {
+  const baked = bakeTexture(sourceFromRgba(1, 1, [200, 100, 50, 255]));
+  const expectedBytes = TEX_MIP_SIZES.reduce((total, size) => total + size * size * Uint32Array.BYTES_PER_ELEMENT, 0);
+
+  assertEquals(retainedTextureBytes(baked), expectedBytes);
+});
 
 Deno.test("bakeTexture packs opaque texels in ImageData byte order", () => {
   const baked = bakeTexture(sourceFromRgba(1, 1, [200, 100, 50, 255]));
@@ -39,7 +52,7 @@ Deno.test("bakeTexture darkens each shade band in gamma-aware steps and keeps al
 
   let previousRed = 256;
   for (let band = 0; band < SHADE_BANDS; band++) {
-    const [red, , , alpha] = texelBytes(baked.mips[0]!.bands[band]!, 0);
+    const [red, , , alpha] = texelBytes(new Uint32Array([shadeTexel(baked.mips[0]!.texels[0]!, band)]), 0);
     assert(red < previousRed, `band ${band} should be darker than band ${band - 1}`);
     assertEquals(alpha, 255);
     previousRed = red;

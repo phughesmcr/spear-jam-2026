@@ -68,9 +68,9 @@ export function renderPlanes(
   const cameraX = camera.x;
   const cameraY = camera.y;
   const skyPlane = atlas.skyPlane;
-  const skyNearTexels = skyPlane === undefined ? undefined : planes[skyPlane]?.mips[0]?.bands[0];
+  const skyNearTexels = skyPlane === undefined ? undefined : planes[skyPlane]?.mips[0]?.texels;
   const skyFarPlane = atlas.skyFarPlane;
-  const skyFarTexels = skyFarPlane === undefined ? undefined : planes[skyFarPlane]?.mips[0]?.bands[0];
+  const skyFarTexels = skyFarPlane === undefined ? undefined : planes[skyFarPlane]?.mips[0]?.texels;
   const skyLateral = cameraX * -camera.dirY + cameraY * camera.dirX;
   const skyHeadingU = Math.atan2(camera.dirY, camera.dirX) / TAU;
   const skyNearCenterU = unitFraction(
@@ -117,11 +117,9 @@ export function renderPlanes(
           cachedCell = cell;
           const floorId = floors[cell]!;
           const ceilingId = ceilings[cell]!;
-          floorTexels = floorId === 0 ? undefined : planes[floorId - 1]?.mips[mipLevel]?.bands[floorBand];
+          floorTexels = floorId === 0 ? undefined : planes[floorId - 1]?.mips[mipLevel]?.texels;
           ceilingIsSky = skyNearTexels !== undefined && skyPlane !== undefined && ceilingId === skyPlane + 1;
-          ceilingTexels = ceilingId === 0 || ceilingIsSky ?
-            undefined :
-            planes[ceilingId - 1]?.mips[mipLevel]?.bands[ceilingBand];
+          ceilingTexels = ceilingId === 0 || ceilingIsSky ? undefined : planes[ceilingId - 1]?.mips[mipLevel]?.texels;
           red = lightRed[cell]!;
           green = lightGreen[cell]!;
           blue = lightBlue[cell]!;
@@ -130,9 +128,11 @@ export function renderPlanes(
           const texX = (((worldX - cellX) * mipSize) | 0) & mipMask;
           const texY = (((worldY - cellY) * mipSize) | 0) & mipMask;
           const texel = (texY << mipShift) | texX;
-          if (floorTexels !== undefined) pixels[floorRow + x] = lightTexel(floorTexels[texel]!, red, green, blue);
+          if (floorTexels !== undefined) {
+            pixels[floorRow + x] = lightTexel(floorTexels[texel]!, red, green, blue, floorBand);
+          }
           if (ceilingTexels !== undefined) {
-            pixels[ceilingRow + x] = lightTexel(ceilingTexels[texel]!, red, green, blue);
+            pixels[ceilingRow + x] = lightTexel(ceilingTexels[texel]!, red, green, blue, ceilingBand);
           }
         }
         if (ceilingIsSky && skyNearTexels !== undefined) {

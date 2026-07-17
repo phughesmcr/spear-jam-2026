@@ -93,14 +93,26 @@ type BakeTarget = TextureBakeTargetRecipe & {
 
 type PipelineState = {
   readonly atlas: RaycastAtlas;
+  readonly fallbackAtlas: RaycastAtlas;
   readonly baker: ImageTextureBaker;
   readonly sourcesByUrl: Map<string, ManagedSource>;
-  readonly targets: BakeTarget[];
   readonly targetsByLayerSlot: Map<string, BakeTarget>;
   readonly fixedSources: ReadonlySet<ManagedSource>;
   readonly fixedTargets: ReadonlySet<BakeTarget>;
   readonly packSources: ReadonlyMap<TexturePack, ManagedSource>;
   readonly spritesById: ReadonlyMap<SpriteIdType, SpriteEntry>;
+  readonly activeTargets: Set<BakeTarget>;
+  readonly residentTargets: Set<BakeTarget>;
+  activeRevision: number;
+  nextRevision: number;
+};
+
+type TargetSelection = {
+  readonly revision: number;
+  readonly targets: ReadonlySet<BakeTarget>;
+  readonly previousActiveRevision: number;
+  readonly previousActiveTargets: ReadonlySet<BakeTarget>;
+  readonly previousResidentTargets: ReadonlySet<BakeTarget>;
 };
 
 const ANIMATION_ROW: Readonly<Record<SpriteAnimation, number>> = {
@@ -144,21 +156,19 @@ export function createFirstPersonAssetPipeline() {
           for (const source of sprite?.sources ?? []) sources.add(source);
           for (const target of sprite?.targets ?? []) targets.add(target);
         }
-        return loadSources(state, document, sources, targets, onChange);
-      },
-      loadRemaining(document: Document, onChange?: () => void): Promise<readonly ImageAssetResult[]> {
-        return loadSources(state, document, state.sourcesByUrl.values(), state.targets, onChange);
+        const selection = beginSelection(state, targets);
+        return loadSelection(state, selection, document, sources, onChange);
       },
     },
   };
 }
 
 function createPipelineState(catalog: FirstPersonAssetCatalog): PipelineState {
+  const fallbackAtlas = createFallbackAtlas(catalog);
   const mutable = {
-    atlas: createFallbackAtlas(catalog),
+    atlas: cloneAtlas(fallbackAtlas),
     baker: createImageTextureBaker(),
     sourcesByUrl: new Map<string, ManagedSource>(),
-    targets: [] as BakeTarget[],
     targetsByLayerSlot: new Map<string, BakeTarget>(),
   };
 
@@ -182,7 +192,89 @@ function createPipelineState(catalog: FirstPersonAssetCatalog): PipelineState {
     spritesById.set(definition.spriteId, registerSprite(mutable, definition));
   }
 
-  return { ...mutable, fixedSources, fixedTargets, packSources, spritesById };
+  return {
+    ...mutable,
+    fallbackAtlas,
+    fixedSources,
+    fixedTargets,
+    packSources,
+    spritesById,
+    activeTargets: new Set(),
+    residentTargets: new Set(),
+    activeRevision: 0,
+    nextRevision: 0,
+  };
+}
+
+function cloneAtlas(atlas: RaycastAtlas): RaycastAtlas {
+  return {
+    ...atlas,
+    walls: [...atlas.walls],
+    planes: [...atlas.planes],
+    sprites: [...atlas.sprites],
+    spriteLightmaps: [...atlas.spriteLightmaps],
+  };
+}
+
+function beginSelection(state: PipelineState, targets: ReadonlySet<BakeTarget>): TargetSelection {
+  const selection = {
+    revision: ++state.nextRevision,
+    targets,
+    previousActiveRevision: state.activeRevision,
+    previousActiveTargets: new Set(state.activeTargets),
+    previousResidentTargets: new Set(state.residentTargets),
+  };
+  state.activeRevision = selection.revision;
+  state.activeTargets.clear();
+  for (const target of targets) state.activeTargets.add(target);
+  return selection;
+}
+
+async function loadSelection(
+  state: PipelineState,
+  selection: TargetSelection,
+  document: Document,
+  sources: Iterable<ManagedSource>,
+  onChange: (() => void) | undefined,
+): Promise<readonly ImageAssetResult[]> {
+  try {
+    const results = await loadSources(state, document, sources, selection.targets, onChange);
+    if (state.activeRevision === selection.revision) pruneResidentTargets(state, selection.targets);
+    return results;
+  } catch (error) {
+    if (state.activeRevision === selection.revision) rollbackSelection(state, selection);
+    throw error;
+  }
+}
+
+function pruneResidentTargets(state: PipelineState, targets: ReadonlySet<BakeTarget>): void {
+  for (const target of state.residentTargets) {
+    if (targets.has(target)) continue;
+    restoreFallback(state, target);
+    target.status = "pending";
+    state.residentTargets.delete(target);
+  }
+}
+
+function rollbackSelection(state: PipelineState, selection: TargetSelection): void {
+  for (const target of state.residentTargets) {
+    if (selection.previousResidentTargets.has(target)) continue;
+    restoreFallback(state, target);
+    target.status = "pending";
+    state.residentTargets.delete(target);
+  }
+  state.activeRevision = selection.previousActiveRevision;
+  state.activeTargets.clear();
+  for (const target of selection.previousActiveTargets) state.activeTargets.add(target);
+}
+
+function restoreFallback(state: PipelineState, target: BakeTarget): void {
+  const fallback = state.fallbackAtlas[target.layer][target.slot];
+  if (fallback === undefined) {
+    Reflect.deleteProperty(state.atlas[target.layer], target.slot);
+    return;
+  }
+  state.atlas[target.layer][target.slot] = fallback;
 }
 
 function managedSource(sourcesByUrl: Map<string, ManagedSource>, src: string): ManagedSource {
@@ -194,7 +286,7 @@ function managedSource(sourcesByUrl: Map<string, ManagedSource>, src: string): M
 }
 
 function registerSprite(
-  state: Pick<PipelineState, "sourcesByUrl" | "targets" | "targetsByLayerSlot">,
+  state: Pick<PipelineState, "sourcesByUrl" | "targetsByLayerSlot">,
   definition: FirstPersonSpriteDefinition,
 ): SpriteEntry {
   const slotCount = definition.source?.sheet === "directional" ? ENEMY_SHEET_COLUMNS * ENEMY_SHEET_ROWS : 1;
@@ -265,7 +357,7 @@ function spriteFrames(
 }
 
 function registerTarget(
-  state: Pick<PipelineState, "targets" | "targetsByLayerSlot">,
+  state: Pick<PipelineState, "targetsByLayerSlot">,
   source: ManagedSource,
   recipe: TextureBakeTargetRecipe,
   crop: TargetCrop,
@@ -281,7 +373,6 @@ function registerTarget(
     crop,
     ...(material === undefined ? {} : { material }),
   };
-  state.targets.push(target);
   state.targetsByLayerSlot.set(key, target);
   return target;
 }
@@ -365,6 +456,7 @@ function compileToFixedPoint(state: PipelineState, targets: readonly BakeTarget[
   do {
     advanced = false;
     for (const target of targets) {
+      if (!state.activeTargets.has(target)) continue;
       if (target.status !== "pending") continue;
       if (target.source.asset.state.type === "unavailable") {
         markUnavailable(target);
@@ -424,6 +516,7 @@ function bakeTarget(state: PipelineState, target: BakeTarget, image: HTMLImageEl
   }
 
   state.atlas[target.layer][target.slot] = result.texture;
+  state.residentTargets.add(target);
   if (target.material !== undefined) target.material.aspect = result.sourceAspect;
 }
 

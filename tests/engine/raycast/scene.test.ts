@@ -17,7 +17,7 @@ import {
   writeCameraForAngle,
 } from "@/src/engine/raycast/scene.ts";
 import type { TexelSource } from "@/src/engine/raycast/textures.ts";
-import { bakeSolidTexture, bakeTexture, TEX_SIZE } from "@/src/engine/raycast/textures.ts";
+import { bakeSolidTexture, bakeTexture, shadeTexel, TEX_SIZE } from "@/src/engine/raycast/textures.ts";
 import { assert, assertAlmostEquals, assertEquals, assertNotEquals, assertThrows } from "@std/assert";
 
 const VIEW = 64;
@@ -103,11 +103,11 @@ Deno.test("writeCameraForAngle reuses camera storage", () => {
 });
 
 function texel(atlas: RaycastAtlas, layer: TextureAtlasLayer, id: number, band: number): number {
-  return atlas[layer][id]!.mips[0]!.bands[band]![0]!;
+  return shadeTexel(atlas[layer][id]!.mips[0]!.texels[0]!, band);
 }
 
 function mipTexel(atlas: RaycastAtlas, layer: TextureAtlasLayer, id: number, band: number, mip: number): number {
-  return atlas[layer][id]!.mips[mip]!.bands[band]![0]!;
+  return shadeTexel(atlas[layer][id]!.mips[mip]!.texels[0]!, band);
 }
 
 function pixel(frame: { readonly width: number; readonly pixels: Uint32Array }, x: number, y: number): number {
@@ -516,7 +516,7 @@ Deno.test("renderFrame draws see-through thin walls without stopping rays", () =
   // The centre column crosses the grate's transparent half: wall shows through.
   assertEquals(pixel(frame, CENTER, CENTER), texel(atlas, "walls", WALL, 2));
   // A column just left of centre crosses the opaque half of the grate texture.
-  const grateTexel = atlas.walls[GRATE]!.mips[0]!.bands[1]![0]!;
+  const grateTexel = shadeTexel(atlas.walls[GRATE]!.mips[0]!.texels[0]!, 1);
   assertEquals(pixel(frame, CENTER - (CENTER >> 2), CENTER), grateTexel);
 });
 
@@ -536,7 +536,7 @@ Deno.test("renderFrame blends mid-alpha thin walls over the wall behind", () => 
   assertAlmostEquals(frame.zbuffer[CENTER]!, 2.5, 1e-9);
   assert(!glass.opaque);
   const behind = texel(atlas, "walls", WALL, 2);
-  const glassTexel = glass.mips[0]!.bands[1]![0]!;
+  const glassTexel = shadeTexel(glass.mips[0]!.texels[0]!, 1);
   assertEquals(pixel(frame, CENTER, CENTER), blendOver(glassTexel, behind));
 });
 
