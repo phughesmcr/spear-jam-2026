@@ -18,7 +18,12 @@ export default function Game(
   function handleEnter(): void {
     if (activeGameRef.current !== undefined) return;
     const canvas = canvasRef.current;
-    const ctx = canvas?.getContext("2d");
+    const ctx = canvas?.getContext("2d", {
+      alpha: false,
+      desynchronized: false,
+      colorSpace: "srgb",
+      willReadFrequently: false,
+    });
     if (canvas === null || !ctx) {
       console.error("Failed to get canvas context; the game cannot start.");
       return;
