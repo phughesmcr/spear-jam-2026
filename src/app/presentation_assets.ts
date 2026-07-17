@@ -18,7 +18,7 @@ export type AssetProgress = {
 
 export type AssetIssue = {
   readonly source: string;
-  readonly stage: "load" | "decode" | "bake";
+  readonly stage: "load" | "bake";
 };
 
 export type AssetPreparation =

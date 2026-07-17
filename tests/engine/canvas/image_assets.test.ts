@@ -13,7 +13,8 @@ type FakeImageListener = () => void;
 class FakeImage {
   decoding: "async" | "auto" | "sync" = "auto";
   src = "";
-  decodeResult: Promise<void> = Promise.resolve();
+  decodeError?: Error;
+  decodeCalls = 0;
   private readonly listeners: Record<FakeImageEvent, FakeImageListener[]> = {
     load: [],
     error: [],
@@ -24,7 +25,8 @@ class FakeImage {
   }
 
   decode(): Promise<void> {
-    return this.decodeResult;
+    this.decodeCalls++;
+    return this.decodeError === undefined ? Promise.resolve() : Promise.reject(this.decodeError);
   }
 
   dispatch(type: FakeImageEvent): void {
@@ -53,7 +55,7 @@ Deno.test("imageForAsset is a pure read of explicit image state", () => {
   assertEquals(asset.state, { type: "idle" });
 });
 
-Deno.test("preloadImageAsset exposes a ready image only after load and decode", async () => {
+Deno.test("preloadImageAsset exposes a ready image only after load", async () => {
   const document = new FakeDocument();
   const asset = createImageAsset("sprite.png");
   const results: ImageAssetResult[] = [];
@@ -107,23 +109,21 @@ Deno.test("preloadImageAsset reports load unavailability for caller fallbacks", 
   assertEquals(document.images.length, 1);
 });
 
-Deno.test("preloadImageAsset distinguishes decode unavailability", async () => {
+Deno.test("preloadImageAsset trusts a successful load when a redundant decode rejects", async () => {
   const document = new FakeDocument();
-  const asset = createImageAsset("invalid.png");
-  const decodeFailure = new DOMException("Invalid image data", "EncodingError");
+  const asset = createImageAsset("loaded.png");
 
   const preload = preloadImageAsset(document as unknown as Document, asset);
-  document.images[0]!.decodeResult = Promise.reject(decodeFailure);
-  document.images[0]!.dispatch("load");
+  const image = document.images[0]!;
+  image.decodeError = new DOMException("Decode rejected", "EncodingError");
+  image.dispatch("load");
+  const result = await preload;
 
-  assertEquals(await preload, {
-    kind: "unavailable",
-    issue: { source: "invalid.png", stage: "decode" },
-  });
-  assertEquals(asset.state, {
-    type: "unavailable",
-    issue: { source: "invalid.png", stage: "decode" },
-  });
+  assertEquals(result.kind, "ready");
+  assertStrictEquals(result.kind === "ready" ? result.image : undefined, image);
+  assertEquals(image.decodeCalls, 0);
+  assertEquals(asset.state.type, "ready");
+  assertStrictEquals(imageForAsset(asset), image as unknown as HTMLImageElement);
 });
 
 Deno.test("concurrent preloadImageAsset subscribers share I/O and each receive the result once", async () => {

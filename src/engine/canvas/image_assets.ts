@@ -1,6 +1,6 @@
 export type ImageAssetIssue = {
   readonly source: string;
-  readonly stage: "load" | "decode";
+  readonly stage: "load";
 };
 
 export type ImageAssetResult =
@@ -90,10 +90,10 @@ function startImageLoad(
     resolve(result);
   }
 
-  function finishUnavailable(stage: ImageAssetIssue["stage"]): void {
+  function finishUnavailable(): void {
     if (settled) return;
     settled = true;
-    const issue = { source: asset.src, stage } as const;
+    const issue = { source: asset.src, stage: "load" } as const;
     const result = { kind: "unavailable", issue } as const;
     asset.state = { type: "unavailable", issue };
     resolve(result);
@@ -102,13 +102,11 @@ function startImageLoad(
   image.addEventListener("load", () => {
     if (settled || loadObserved) return;
     loadObserved = true;
-    Promise.resolve()
-      .then(() => image.decode())
-      .then(finishReady, () => finishUnavailable("decode"));
+    finishReady();
   }, { once: true });
   image.addEventListener("error", () => {
     if (settled || loadObserved) return;
-    finishUnavailable("load");
+    finishUnavailable();
   }, { once: true });
 
   asset.state = { type: "loading", promise };
